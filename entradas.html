@@ -123,6 +123,14 @@
     .empty .big{font-size:50px;margin-bottom:12px}
     .empty h3{font-family:'Montserrat',sans-serif;font-size:17px;color:var(--gray-5);margin-bottom:6px}
 
+    /* Action bar extra */
+    .c-actions{padding:8px 14px;background:var(--gray-1);border-top:1px solid var(--gray-2);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .act-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-decoration:none;letter-spacing:.3px;transition:filter .15s;cursor:pointer;border:none}
+    .act-chip:hover{filter:brightness(.9)}
+    .ac-jot{background:#fff3cd;color:#7c5e00}
+    .ac-ha{background:#e8f0fe;color:#1967d2}
+    .ac-gui{background:#ede7f6;color:#5e35b1}
+    .ac-ci{background:#e6f7ee;color:#1e9e4e}
     #dbWrap{position:fixed;bottom:18px;right:18px;z-index:999}
     #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
@@ -287,6 +295,10 @@ const F = {
   keyholderUserId : 'TaBookings2021_Keyholder',
   keyboxCode      : 'TaVillas_Keybox_code',
   pmsmultiunitId  : 'TaBookings2021_PMSmultiunitID',
+  jotformLink     : 'TaBookings2021_Jotform_limpiezareserva',
+  hostawayLink    : 'TaBookings2021_Reservationlink',
+  guidalLink      : 'TaVillas_Guidal_link_to_fotos__descriptio',
+  checkinOnlineId : 'TaVillas_Identificador_Policheckin',
 };
 
 // ═══════════════════════════════════════════════
@@ -296,7 +308,8 @@ let toggleMode   = 'all';
 let chipsData    = [];
 let contactsMap  = new Map(); // ContactID (string) → Name
 let multiunitsMap = new Map(); // multiunitID (string) → Keybox
-let managersMap  = new Map(); // UserID (string) → Name
+let managersMap  = new Map(); // UserID (string) → Name (solo managers con Keyholder_por_defecto)
+let allUsersMap  = new Map(); // UserID (string) → Name (TODOS los usuarios)
 
 // ═══════════════════════════════════════════════
 //  UTILS
@@ -425,6 +438,11 @@ async function loadManagers() {
     const managers = users.filter(u=>
       isActiveUser(u) && String(u['Keyholder_por_defecto']||'').trim()!==''
     );
+    // Mapa completo de TODOS los usuarios (para lookup villa manager)
+    users.forEach(u=>{
+      allUsersMap.set(String(u[U.id]??''), String(u[U.name]??''));
+    });
+    // Mapa solo de managers con Keyholder_por_defecto (para el dropdown)
     managers.forEach(u=>{
       managersMap.set(String(u[U.id]??''), String(u[U.name]??''));
     });
@@ -645,8 +663,16 @@ function buildCard(r) {
   const el=document.createElement('div'); el.className='card';
 
   const ci=g(r,'checkIn'), co=g(r,'checkOut');
-  const vmId   = r[F.keyholderUserId];
-  const vmName = vmId ? (managersMap.get(String(vmId)) || '') : '';
+  // Villa Manager: TaBookings2021_Keyholder O TaVillas_KeyHolder_person → UserID
+  const jotform    = g(r,'jotformLink');
+  const hostaway   = g(r,'hostawayLink');
+  const guidal     = g(r,'guidalLink');
+  const checkinId  = g(r,'checkinOnlineId');
+  const checkinOnlineUrl = checkinId
+    ? `https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${g(r,'confirmCode')}`
+    : '';
+  const vmId   = r[F.keyholderUserId] || r['TaVillas_KeyHolder_person'] || '';
+  const vmName = vmId ? (allUsersMap.get(String(vmId)) || managersMap.get(String(vmId)) || '') : '';
   // Keybox: primero TaMultiunits por PMSmultiunitID, si vacío → TaVillas_Keybox_code
   const muId   = String(g(r,'pmsmultiunitId') || '').trim();
   const muKb   = muId ? (multiunitsMap.get(muId) || '') : '';
@@ -748,6 +774,21 @@ function buildCard(r) {
 
     </div>`:''}
   `;
+
+  // Barra de acciones extra (jotform, hostaway, guidal, checkin online)
+  const hasActions = jotform || hostaway || guidal || checkinOnlineUrl;
+  if (hasActions) {
+    const actBar = document.createElement('div');
+    actBar.className = 'c-actions';
+    const parts = [];
+    if (jotform)         parts.push(`<a class="act-chip ac-jot" href="${jotform}"         target="_blank">📋 Jotform limpieza</a>`);
+    if (hostaway)        parts.push(`<a class="act-chip ac-ha"  href="${hostaway}"        target="_blank">🏠 Hostaway</a>`);
+    if (guidal)          parts.push(`<a class="act-chip ac-gui" href="${guidal}"          target="_blank">📖 Guidal</a>`);
+    if (checkinOnlineUrl)parts.push(`<a class="act-chip ac-ci"  href="${checkinOnlineUrl}"target="_blank">✅ Checkin online</a>`);
+    actBar.innerHTML = parts.join('');
+    el.appendChild(actBar);
+  }
+
   return el;
 }
 </script>
