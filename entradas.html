@@ -18,9 +18,6 @@
     .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:background .15s}
     .logout-btn:hover{background:rgba(255,255,255,.3)}
     /* Manager name pill in header */
-    .mgr-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px}
-    .mgr-pill input{background:none;border:none;color:#fff;font-size:12px;font-family:'Open Sans',sans-serif;width:120px;outline:none}
-    .mgr-pill input::placeholder{color:rgba(255,255,255,.6)}
 
     #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:14px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
     .filter-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -136,6 +133,7 @@
   <script src="auth.js"></script>
 </head>
 <body>
+<input type="hidden" id="mgrName">
 <script>Auth.require('entradas');</script>
 
 <header>
@@ -144,12 +142,9 @@
     <div class="h-sub" id="hSub"></div>
   </div>
   <div class="h-right">
-    <div class="mgr-pill" title="Tu nombre para mensajes de WhatsApp">
-      👤 <input type="text" id="mgrName" placeholder="Tu nombre (WA)" maxlength="40">
-    </div>
     <span class="h-badge" id="hBadge"></span>
     <button onclick="Auth.logout()" class="logout-btn" title="Cerrar sesión">
-      <span id="hUserName"></span> ↪
+      👤 <span id="hUserName"></span> &nbsp;↪
     </button>
   </div>
 </header>
@@ -242,7 +237,7 @@ const CFG = {
 };
 
 // Campos TaUsers
-const U = { id:'UserID', name:'Name' };
+const U = { id:'UserID', name:'Name', email:'Email' };
 
 // Campos TaContacts (para lookup limpieza)
 const CT = { id:'ContactID', name:'Name' };
@@ -373,11 +368,12 @@ function onManagerChange() {
 // ═══════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════
+// Verificar token accesible
+window.__3vToken = Auth.token();
+
 window.addEventListener('DOMContentLoaded', async () => {
-  // Restaurar nombre manager desde auth o localStorage
-  const saved = localStorage.getItem('3v_mgrName');
-  if (saved) $('mgrName').value = saved;
-  else if (Auth.name()) $('mgrName').value = Auth.name();
+  // Nombre manager: se rellena al cargar managers (desde Keyholder_por_defecto)
+  if (Auth.name()) $('mgrName').value = Auth.name();
   $('mgrName').addEventListener('change', saveManagerName);
 
   $('fDesde').value = todayStr();
@@ -402,30 +398,53 @@ async function loadManagers() {
   const sel=$('fManager');
   sel.disabled=true;
   try {
-    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`, { headers: Auth.headers() });
+    const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`));
     const json=await res.json();
     const users=json.Result||json.result||[];
+
+    // Identificar usuario actual por email (del JWT)
+    const myEmail = Auth.email();
+    const myUser  = users.find(u=>String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
+    const myKeyholder = myUser ? String(myUser['Keyholder_por_defecto']||'').trim() : '';
+
+    // Nombre WA: del usuario actual
+    if (myUser && myUser[U.name]) $('mgrName').value = myUser[U.name];
+    else if (Auth.name()) $('mgrName').value = Auth.name();
+
+    // Dropdown: solo usuarios con Keyholder_por_defecto rellenado
+    const managers = users.filter(u=>String(u['Keyholder_por_defecto']||'').trim()!=='');
+    managers.forEach(u=>{
+      managersMap.set(String(u[U.id]??''), String(u[U.name]??''));
+    });
+
     sel.innerHTML='<option value="">Todos</option>';
-    users.forEach(u=>{
-      const code=u[U.id]??'', name=u[U.name]??String(code);
-      managersMap.set(String(code), String(name));
+    managers.forEach(u=>{
+      const code=String(u[U.id]??''), name=String(u[U.name]??code);
       const opt=document.createElement('option');
-      opt.value=String(code); opt.textContent=String(name);
+      opt.value=code; opt.textContent=name;
       sel.appendChild(opt);
     });
+
+    // Pre-seleccionar si el usuario actual tiene Keyholder_por_defecto
+    if (myKeyholder) {
+      sel.value=myKeyholder;
+      // Nombre WA = el del manager pre-seleccionado
+      const preMgr=users.find(u=>String(u[U.id]||'')===myKeyholder);
+      if (preMgr && preMgr[U.name]) $('mgrName').value=preMgr[U.name];
+    }
+
     sel.disabled=false;
-    $('dbBox').textContent=`TaUsers: ${users.length} registros\nPrimer usuario: ${JSON.stringify(users[0]||{},null,2)}`;
+    $('dbBox').textContent=`TaUsers: ${users.length}\nManagers en dropdown: ${managers.length}\nMi Keyholder_por_defecto: "${myKeyholder||'vacío → Todos'}"`;
   } catch(e) {
-    sel.innerHTML='<option value="">Error</option>'; sel.disabled=false;
+    sel.innerHTML='<option value="">Error</option>';
+    sel.disabled=false;
+    $('dbBox').textContent='Error TaUsers: '+e.message;
   }
 }
 
-// ═══════════════════════════════════════════════
-//  CARGAR CONTACTOS (para nombre del limpiador)
-// ═══════════════════════════════════════════════
 async function loadContacts() {
   try {
-    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`, { headers: Auth.headers() });
+    const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));
     const json=await res.json();
     const contacts=json.Result||json.result||[];
     contacts.forEach(c=>{
@@ -515,7 +534,7 @@ async function doSearch() {
   const url=`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}`
     +(where?`&where=${encodeURIComponent(where)}`:'')+`&orderBy=${encodeURIComponent(F.villaName)}&limit=500`;
   try {
-    const res=await fetch(url);
+    const res=await fetch(Auth.url(url));
     const json=await res.json();
     if (json.error) throw new Error(json.error);
     const records=json.Result||json.result||[];
