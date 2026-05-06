@@ -412,7 +412,15 @@ async function loadManagers() {
     else if (Auth.name()) $('mgrName').value = Auth.name();
 
     // Dropdown: solo usuarios con Keyholder_por_defecto rellenado
-    const managers = users.filter(u=>String(u['Keyholder_por_defecto']||'').trim()!=='');
+    // Helper: usuario activo
+    const isActiveUser = u => {
+      const s = String(u['User_Status']||'').trim().toLowerCase();
+      return ['active','activo','1','yes','sí','si','true','enabled'].includes(s);
+    };
+    // Dropdown: solo usuarios ACTIVOS con Keyholder_por_defecto rellenado
+    const managers = users.filter(u=>
+      isActiveUser(u) && String(u['Keyholder_por_defecto']||'').trim()!==''
+    );
     managers.forEach(u=>{
       managersMap.set(String(u[U.id]??''), String(u[U.name]??''));
     });
