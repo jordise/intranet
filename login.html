@@ -76,6 +76,7 @@
       </label>
 
       <button class="btn" id="btnLogin" onclick="doLogin()">ENTRAR</button>
+      <button class="back-btn" onclick="showForgot()" style="margin-top:12px">¿Olvidaste tu contraseña?</button>
     </div>
 
     <!-- PASO 2: OTP -->
@@ -90,6 +91,24 @@
         <input type="text" id="otp" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric">
       </div>
       <button class="btn" id="btnVerify" onclick="doVerify()">VERIFICAR</button>
+      <button class="back-btn" onclick="goBack()">← Volver al login</button>
+    </div>
+
+    <!-- PASO 3: Recuperar contraseña -->
+    <div class="step" id="step3">
+      <div class="otp-info" style="border-color:#e07b00;background:#fff4e0;color:#e07b00">
+        <strong>🔑 Recuperar contraseña</strong>
+        Introduce tu email y te enviaremos un enlace para crear una nueva contraseña.
+      </div>
+      <div class="err" id="err3"></div>
+      <div class="ok-msg" id="ok3" style="display:none;background:#e6f7ee;color:#1e9e4e;padding:12px 14px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:16px">
+        ✓ Email enviado. Revisa tu bandeja de entrada.
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="forgotEmail" placeholder="tu@email.com">
+      </div>
+      <button class="btn" id="btnForgot" onclick="doForgot()">ENVIAR ENLACE</button>
       <button class="back-btn" onclick="goBack()">← Volver al login</button>
     </div>
 
@@ -175,6 +194,35 @@ async function doVerify() {
     location.replace(redirectUrl);
   } catch(e) { showErr('err2','Error de conexión: '+e.message); }
   finally    { setLoading('btnVerify', false); }
+}
+
+function showForgot() {
+  ['step1','step2','step3'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('step3').classList.add('active');
+  document.getElementById('forgotEmail').value = document.getElementById('email').value;
+  hideErr('err3');
+  document.getElementById('ok3').style.display = 'none';
+}
+
+async function doForgot() {
+  hideErr('err3');
+  document.getElementById('ok3').style.display = 'none';
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) { showErr('err3','Introduce tu email'); return; }
+
+  setLoading('btnForgot', true, 'ENVIANDO...');
+  try {
+    const res  = await fetch(`${WORKER}?action=forgot`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok && !data.success) { showErr('err3', data.error || 'Error'); return; }
+    document.getElementById('ok3').style.display = 'block';
+    document.getElementById('btnForgot').disabled = true;
+    document.getElementById('btnForgot').textContent = '✓ Enviado';
+  } catch(e) { showErr('err3','Error de conexión: '+e.message); }
+  finally    { setLoading('btnForgot', false); }
 }
 
 function goBack() {
