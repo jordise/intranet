@@ -15,7 +15,7 @@
 const Auth = (function () {
 
   const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-  const LOGIN  = '/login.html';  // ajusta la ruta si login.html está en subdirectorio
+  const LOGIN  = '/3villas-manuals/login.html';
 
   // Claves de almacenamiento
   const K = {
