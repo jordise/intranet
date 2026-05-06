@@ -185,14 +185,19 @@ const Auth = (function () {
       return s ? { Authorization: `Bearer ${s.token}` } : {};
     },
 
-    /** Token de sesión */
-    token() { return getSession()?.token || ''; },
+    /** Token de sesión (busca en localStorage y sessionStorage) */
+    token() {
+      return localStorage.getItem('3v_token') || sessionStorage.getItem('3v_token') || '';
+    },
 
     /** Rol del usuario */
     role() { return getSession()?.role || ''; },
 
     /** Nombre del usuario */
     name() { return getSession()?.name || ''; },
+
+    /** Email del usuario (del JWT payload) */
+    email() { return getSession()?.payload?.email || ''; },
 
     /** Logout — limpia todo y redirige al login */
     logout() {
