@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entradas — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red:          #C8102E;
+      --red-dark:     #9e0c24;
+      --red-light:    #fce8eb;
+      --green:        #1e9e4e;
+      --green-light:  #e6f7ee;
+      --orange:       #e07b00;
+      --orange-light: #fff4e0;
+      --gray-1:       #f4f5f7;
+      --gray-2:       #e8eaed;
+      --gray-3:       #c4c9d4;
+      --gray-4:       #7a8194;
+      --gray-5:       #2d3142;
+      --shadow-sm:    0 1px 4px rgba(0,0,0,.08);
+      --shadow-md:    0 4px 14px rgba(0,0,0,.11);
+      --shadow-lg:    0 8px 28px rgba(0,0,0,.13);
+      --r: 10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Open Sans', sans-serif; background: var(--gray-1); color: var(--gray-5); min-height: 100vh; }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--red); color: #fff;
+      padding: 0 22px; height: 54px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 300;
+      box-shadow: 0 2px 10px rgba(0,0,0,.28);
+    }
+    .h-title { font-family: 'Montserrat',sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; }
+    .h-sub   { font-size: 12px; opacity: .75; margin-top: 1px; }
+    .h-badge {
+      display: none; background: rgba(255,255,255,.2); padding: 4px 12px;
+      border-radius: 20px; font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+    }
+
+    /* ── FILTER PANEL ── */
+    #filterPanel {
+      background: #fff; border-bottom: 2px solid var(--gray-2);
+      padding: 14px 22px 0; position: sticky; top: 54px; z-index: 200;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .f-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+    .f-group.narrow { flex: 0 0 148px; min-width: 130px; }
+    .f-group.wide   { flex: 2; min-width: 180px; }
+    .f-label {
+      font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; color: var(--gray-4);
+    }
+    .f-input, .f-select {
+      height: 36px; border: 1.5px solid var(--gray-2); border-radius: 7px;
+      padding: 0 10px; font-family: 'Open Sans',sans-serif; font-size: 13px;
+      color: var(--gray-5); background: #fff; outline: none; width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .f-input:focus, .f-select:focus {
+      border-color: var(--red); box-shadow: 0 0 0 3px rgba(200,16,46,.1);
+    }
+    .f-select {
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+    }
+    .f-select:disabled { background-color: var(--gray-1); color: var(--gray-4); cursor: default; }
+
+    /* Más filtros button */
+    .btn-mas {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 36px; padding: 0 14px;
+      border: 1.5px dashed var(--gray-3); border-radius: 7px;
+      background: transparent; color: var(--gray-4);
+      font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .3px;
+      cursor: pointer; transition: all .15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-mas:hover { border-color: var(--red); color: var(--red); }
+    .btn-mas.on    { border-style: solid; border-color: var(--red); color: var(--red); background: var(--red-light); }
+    .btn-mas .arr  { transition: transform .2s; }
+    .btn-mas.on .arr { transform: rotate(180deg); }
+
+    /* Expandible más filtros */
+    #masFiltros { overflow: hidden; max-height: 0; transition: max-height .28s ease; }
+    #masFiltros.open { max-height: 160px; }
+    .mas-inner { border-top: 1px solid var(--gray-2); padding: 12px 0; }
+
+    /* Toggle row */
+    .toggle-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .toggle-group { display: flex; border: 1.5px solid var(--gray-2); border-radius: 8px; overflow: hidden; }
+    .t-btn {
+      padding: 7px 16px; font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .3px;
+      cursor: pointer; border: none; background: #fff; color: var(--gray-4); transition: all .15s; white-space: nowrap;
+    }
+    .t-btn:not(:last-child) { border-right: 1.5px solid var(--gray-2); }
+    .t-btn.on { background: var(--red); color: #fff; }
+
+    /* Buscar + limpiar */
+    .btn-buscar {
+      background: var(--red); color: #fff; border: none;
+      height: 38px; padding: 0 28px; border-radius: 8px;
+      font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1px;
+      cursor: pointer; transition: background .15s, transform .1s; flex-shrink: 0;
+    }
+    .btn-buscar:hover  { background: var(--red-dark); }
+    .btn-buscar:active { transform: scale(.97); }
+    .btn-clear {
+      background: none; border: none; color: var(--gray-4); font-size: 12px;
+      cursor: pointer; padding: 4px 8px; border-radius: 5px; transition: color .15s;
+    }
+    .btn-clear:hover { color: var(--red); }
+
+    /* Active filter chips */
+    #chips { display: none; flex-wrap: wrap; gap: 6px; padding-bottom: 10px; }
+    .chip-filter {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--red-light); color: var(--red);
+      padding: 3px 10px; border-radius: 20px;
+      font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 700;
+    }
+    .chip-filter button { background: none; border: none; color: var(--red); cursor: pointer; font-size: 12px; padding: 0; }
+
+    /* ── STATS BAR ── */
+    #statsBar {
+      display: none; background: #fff; border-bottom: 1px solid var(--gray-2);
+      padding: 8px 22px; align-items: center; gap: 22px; font-size: 13px; color: var(--gray-4);
+    }
+    .stat { display: flex; align-items: baseline; gap: 5px; }
+    .stat strong { font-family: 'Montserrat',sans-serif; font-size: 18px; font-weight: 800; color: var(--gray-5); line-height: 1; }
+
+    /* ── MAIN ── */
+    main { padding: 18px 22px; max-width: 1300px; margin: 0 auto; }
+    .state-box { text-align: center; padding: 70px 20px; color: var(--gray-4); }
+    .spinner {
+      display: inline-block; width: 38px; height: 38px;
+      border: 3px solid var(--gray-2); border-top-color: var(--red);
+      border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── GRID ── */
+    #grid { display: none; grid-template-columns: repeat(auto-fill,minmax(370px,1fr)); gap: 16px; }
+
+    /* ── CARD ── */
+    .card {
+      background: #fff; border-radius: var(--r); box-shadow: var(--shadow-sm);
+      overflow: hidden; display: flex; flex-direction: column;
+      transition: box-shadow .2s, transform .2s;
+    }
+    .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+    .c-head {
+      background: var(--red); color: #fff; padding: 11px 14px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+    }
+    .villa-name { font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; line-height: 1.2; }
+    .villa-sub  { font-size: 11px; opacity: .8; margin-top: 3px; }
+    .res-id     { font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 700; background: rgba(255,255,255,.2); padding: 3px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+
+    .c-status { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--gray-2); flex-wrap: wrap; }
+    .bdg {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px;
+      font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .b-ok { background: var(--green-light); color: var(--green); }
+    .b-no { background: var(--red-light);   color: var(--red);   }
+    .b-na { background: var(--gray-2);      color: var(--gray-4);}
+
+    .c-cleaner {
+      display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px;
+      background: var(--gray-1); border-bottom: 1px solid var(--gray-2); color: var(--gray-4);
+    }
+    .c-cleaner strong { color: var(--gray-5); }
+
+    .c-links { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--gray-2); flex-wrap: wrap; }
+    .lnk {
+      display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 5px;
+      font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 700;
+      text-decoration: none; transition: filter .15s;
+    }
+    .lnk:hover { filter: brightness(.9); }
+    .lnk-m { background: #e8f0fe; color: #1967d2; }
+    .lnk-k { background: var(--gray-2); color: var(--gray-5); }
+    .lnk-a { background: #ede7f6; color: #5e35b1; }
+
+    .c-body { padding: 12px 14px; flex: 1; }
+
+    .dates-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .date-box { background: var(--gray-1); border-radius: 7px; padding: 8px 10px; }
+    .date-box .lbl { font-family: 'Montserrat',sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-4); display: block; margin-bottom: 2px; }
+    .date-box .val { font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 800; color: var(--gray-5); }
+    .npill { background: var(--red-light); color: var(--red); font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 8px; text-align: center; }
+
+    .irow { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+    .iico { width: 18px; text-align: center; flex-shrink: 0; margin-top: 1px; }
+    .ilbl { font-size: 10px; font-family: 'Montserrat',sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--gray-4); display: block; margin-bottom: 1px; }
+    .ival { color: var(--gray-5); font-weight: 500; }
+
+    .note     { padding: 8px 10px; border-left: 3px solid var(--gray-3); background: var(--gray-1); border-radius: 0 6px 6px 0; margin-bottom: 8px; font-size: 12px; }
+    .note-w   { border-left-color: var(--orange); background: var(--orange-light); }
+    .note .nl { font-family: 'Montserrat',sans-serif; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-4); margin-bottom: 3px; }
+    .note-w .nl { color: var(--orange); }
+
+    hr.dv { border: none; border-top: 1px solid var(--gray-2); margin: 10px 0; }
+    .gname { font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 800; color: var(--gray-5); margin-bottom: 6px; }
+    .gmeta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .ppill { display: inline-flex; align-items: center; gap: 3px; background: var(--gray-2); padding: 2px 8px; border-radius: 10px; font-size: 12px; color: var(--gray-4); }
+    .spill { font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; padding: 2px 9px; border-radius: 10px; }
+    .st-new    { background: #fff3cd; color: #7c5e00; }
+    .st-conf   { background: var(--green-light); color: var(--green); }
+    .st-cancel { background: var(--red-light); color: var(--red); }
+
+    .c-foot { padding: 9px 14px; background: var(--gray-1); border-top: 1px solid var(--gray-2); display: flex; gap: 8px; flex-wrap: wrap; }
+    .abtn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; font-family: 'Montserrat',sans-serif; font-size: 11px; font-weight: 700; text-decoration: none; border: none; cursor: pointer; transition: filter .15s; }
+    .abtn:hover { filter: brightness(.9); }
+    .a-wa    { background: #25d366; color: #fff; }
+    .a-ph    { background: var(--gray-2); color: var(--gray-5); }
+    .a-em    { background: #ea4335; color: #fff; }
+
+    .empty { grid-column: 1/-1; text-align: center; padding: 70px 20px; color: var(--gray-4); }
+    .empty .big { font-size: 50px; margin-bottom: 12px; }
+    .empty h3   { font-family: 'Montserrat',sans-serif; font-size: 17px; color: var(--gray-5); margin-bottom: 6px; }
+
+    /* ── DEBUG ── */
+    #dbWrap { position: fixed; bottom: 18px; right: 18px; z-index: 999; }
+    #dbBtn  { background: var(--gray-5); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 15px; cursor: pointer; box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center; }
+    #dbBox  { display: none; position: absolute; bottom: 44px; right: 0; width: min(460px,90vw); max-height: 430px; background: #1e1e2e; color: #a6e3a1; padding: 12px; border-radius: var(--r); font-family: monospace; font-size: 11px; overflow: auto; white-space: pre; box-shadow: var(--shadow-lg); }
+    #dbBox.open { display: block; }
+
+    @media (max-width: 700px) {
+      #grid { grid-template-columns: 1fr; }
+      .dates-grid { grid-template-columns: 1fr 1fr; }
+      .npill { display: none; }
+      .f-group.narrow { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="h-title">Entradas</div>
+    <div class="h-sub" id="hSub"></div>
+  </div>
+  <span class="h-badge" id="hBadge"></span>
+</header>
+
+<!-- FILTER PANEL -->
+<div id="filterPanel">
+
+  <!-- Fila 1: Villa Manager | Desde | Hasta | Más filtros -->
+  <div class="filter-row">
+
+    <div class="f-group wide">
+      <label class="f-label">Villa Manager</label>
+      <select id="fManager" class="f-select">
+        <option value="">Cargando managers...</option>
+      </select>
+    </div>
+
+    <div class="f-group narrow">
+      <label class="f-label">Entrada desde</label>
+      <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
+    </div>
+
+    <div class="f-group narrow">
+      <label class="f-label">Hasta</label>
+      <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
+    </div>
+
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+      <span>Más filtros</span>
+      <span class="arr">▾</span>
+    </button>
+
+  </div>
+
+  <!-- Más filtros expandible -->
+  <div id="masFiltros">
+    <div class="mas-inner">
+      <div class="filter-row" style="margin-bottom:0">
+        <div class="f-group narrow">
+          <label class="f-label">Código reserva</label>
+          <input type="text" id="fCodigo" class="f-input" placeholder="ej. 58069852">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Villa</label>
+          <input type="text" id="fVilla" class="f-input" placeholder="ej. Binichic">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Inquilino</label>
+          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fila 2: Toggle + acciones -->
+  <div class="toggle-row">
+    <div class="toggle-group">
+      <button class="t-btn on" id="tAll"  onclick="setToggle('all')">Todos</button>
+      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Solo pendientes checkin online</button>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-clear" onclick="clearAll()">✕ Limpiar</button>
+    <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
+  </div>
+
+  <!-- Chips de filtros activos -->
+  <div id="chips"></div>
+
+</div>
+
+<!-- STATS BAR -->
+<div id="statsBar">
+  <div class="stat"><strong id="sCnt">0</strong> entradas</div>
+  <div class="stat"><strong id="sPax">0</strong> pax total</div>
+  <div class="stat"><strong id="sNights">—</strong> noches (media)</div>
+</div>
+
+<!-- CONTENT -->
+<main>
+  <div id="stInit" class="state-box">
+    <div style="font-size:42px;margin-bottom:12px">🔍</div>
+    <p style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px">Configura los filtros y pulsa BUSCAR</p>
+    <p style="margin-top:6px;font-size:13px">Por defecto se muestran las entradas de hoy</p>
+  </div>
+  <div id="stLoad" class="state-box" style="display:none">
+    <div class="spinner"></div>
+    <p>Cargando entradas...</p>
+  </div>
+  <div id="stErr" class="state-box" style="display:none">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
+    <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
+  </div>
+  <div id="grid"></div>
+</main>
+
+<!-- DEBUG -->
+<div id="dbWrap">
+  <button id="dbBtn" title="Debug" onclick="document.getElementById('dbBox').classList.toggle('open')">🐛</button>
+  <div id="dbBox">Sin datos aún.
+
+Tip — Para ver los nombres de campo reales:
+  • TaUsers:  ${CFG.workerUrl}?action=schema&view=TaUsers
+  • Vista:    ${CFG.workerUrl}?action=schema&view=Vi_villas_and_bookings2021</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CONFIGURACIÓN
+// ════════════════════════════════════════════════
+const CFG = {
+  workerUrl : 'https://caspio-proxy.jordi-89b.workers.dev',
+  viewName  : 'Vi_villas_and_bookings2021',
+  usersTable: 'TaUsers',
+};
+
+// Campos de TaUsers — ajustar tras ver ?action=schema&view=TaUsers
+const U = {
+  id        : 'UserID',       // código del usuario (valor para filtrar)
+  name      : 'Name',         // nombre a mostrar en el dropdown
+  roleField : '',             // campo de rol (dejar '' para cargar todos)
+  roleValue : 'VillaManager', // valor del rol si se usa roleField
+};
+
+// Campos de la vista Vi_villas_and_bookings2021
+// Ajustar tras ver ?action=schema&view=Vi_villas_and_bookings2021
+const F = {
+  reservationId  : 'IDreserva',
+  villaName      : 'NombreVilla',
+  numPax         : 'Pax',
+  checkIn        : 'FechaEntrada',
+  checkOut       : 'FechaCheckout',
+  adults         : 'Adultos',
+  children       : 'Ninos',
+  status         : 'Estado',
+  guestName      : 'NombreHuesped',
+  guestPhone     : 'TelefonoHuesped',
+  guestEmail     : 'EmailHuesped',
+  villaManager   : 'VillaManager',      // campo que enlaza con TaUsers
+  limpieza       : 'Limpieza',
+  wellcomePack   : 'Wellcomepack',
+  cierre         : 'Cierre',
+  cleaner        : 'PersonalLimpieza',
+  cleaningNotes  : 'NotasLimpieza',
+  notasIrene     : 'NotasIrene',
+  arrivalHour    : 'HoraEntrada',
+  arrivalMenorca : 'LleganMenorca',
+  googleMaps     : 'GoogleMaps',
+  keybox         : 'Keybox',
+  alavor         : 'Alavor',
+  notes          : 'Notas',
+  checkinPend    : 'CheckinOnlinePendiente', // para filtro de pendientes
+};
+
+// ════════════════════════════════════════════════
+//  ESTADO
+// ════════════════════════════════════════════════
+let toggleMode = 'all';
+let chipsData  = [];
+
+// ════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s.includes('T') ? s : s + 'T00:00:00');
+  return isNaN(d) ? s : d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+function fmtLong(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T00:00:00');
+  return isNaN(d) ? s : d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+}
+
+function nights(a, b) {
+  if (!a || !b) return null;
+  return Math.round((new Date(b) - new Date(a)) / 86400000);
+}
+
+function v(r, key) { return r[F[key]] ?? ''; }
+
+function isOk(val) {
+  if (val === null || val === undefined || val === '') return null;
+  return !['0','x','no','false','pendiente',''].includes(String(val).trim().toLowerCase());
+}
+
+function stClass(s) {
+  const x = (s||'').toLowerCase();
+  if (x.includes('new') || x.includes('nuevo')) return 'st-new';
+  if (x.includes('confirm'))                     return 'st-conf';
+  if (x.includes('cancel'))                      return 'st-cancel';
+  return 'st-new';
+}
+
+// ════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  $('fDesde').value = todayStr();
+  updateSub();
+  await loadManagers();
+  doSearch();
+});
+
+function updateSub() {
+  const d = $('fDesde').value, h = $('fHasta').value;
+  if (d && h && d !== h) $('hSub').textContent = `${fmtDate(d)} → ${fmtDate(h)}`;
+  else if (d)            $('hSub').textContent = fmtLong(d);
+  else                   $('hSub').textContent = '';
+}
+
+// ════════════════════════════════════════════════
+//  CARGAR MANAGERS DESDE TaUsers
+// ════════════════════════════════════════════════
+async function loadManagers() {
+  const sel = $('fManager');
+  sel.disabled = true;
+
+  // Construir WHERE si hay campo de rol definido
+  let where = '';
+  if (U.roleField && U.roleValue) where = `${U.roleField}='${U.roleValue}'`;
+
+  const url = `${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`
+    + (where ? `&where=${encodeURIComponent(where)}` : '');
+
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    const users = json.Result || json.result || json.records || [];
+
+    // Debug: mostrar campos reales del primer usuario
+    $('dbBox').textContent = `TaUsers — ${users.length} registros\n\nCampos del primer usuario:\n`
+      + JSON.stringify(users[0] || {}, null, 2)
+      + `\n\n──────────────────────────────\nSi los campos no coinciden con U.id="${U.id}" y U.name="${U.name}",\ncámbialo en el objeto U al inicio del script.`;
+
+    sel.innerHTML = '<option value="">Todos</option>';
+    users.forEach(u => {
+      const code = u[U.id]   ?? '';
+      const name = u[U.name] ?? code ?? '(sin nombre)';
+      const opt  = document.createElement('option');
+      opt.value       = String(code);
+      opt.textContent = String(name);
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+  } catch(e) {
+    sel.innerHTML = '<option value="">Error cargando managers</option>';
+    sel.disabled  = false;
+    $('dbBox').textContent = `Error cargando TaUsers:\n${e.message}\nURL: ${url}`;
+  }
+}
+
+// ════════════════════════════════════════════════
+//  UI CONTROLS
+// ════════════════════════════════════════════════
+function toggleMas() {
+  $('btnMas').classList.toggle('on');
+  $('masFiltros').classList.toggle('open');
+}
+
+function setToggle(mode) {
+  toggleMode = mode;
+  $('tAll').classList.toggle('on',  mode === 'all');
+  $('tPend').classList.toggle('on', mode === 'pend');
+}
+
+function clearAll() {
+  $('fManager').value  = '';
+  $('fDesde').value    = todayStr();
+  $('fHasta').value    = '';
+  $('fCodigo').value   = '';
+  $('fVilla').value    = '';
+  $('fInquilino').value= '';
+  setToggle('all');
+  updateSub();
+  doSearch();
+}
+
+// ════════════════════════════════════════════════
+//  WHERE CLAUSE
+// ════════════════════════════════════════════════
+function buildWhere() {
+  const parts = [];
+  const manager   = $('fManager').value.trim();
+  const desde     = $('fDesde').value;
+  const hasta     = $('fHasta').value;
+  const codigo    = $('fCodigo').value.trim();
+  const villa     = $('fVilla').value.trim();
+  const inquilino = $('fInquilino').value.trim();
+
+  if (manager)   parts.push(`${F.villaManager}='${manager}'`);
+  if (desde)     parts.push(`${F.checkIn}>='${desde}'`);
+  if (hasta)     parts.push(`${F.checkIn}<='${hasta}'`);
+  if (codigo)    parts.push(`${F.reservationId} LIKE '%${codigo}%'`);
+  if (villa)     parts.push(`${F.villaName} LIKE '%${villa}%'`);
+  if (inquilino) parts.push(`${F.guestName} LIKE '%${inquilino}%'`);
+  if (toggleMode === 'pend' && F.checkinPend) parts.push(`${F.checkinPend}=1`);
+
+  return parts.join(' AND ');
+}
+
+// ════════════════════════════════════════════════
+//  CHIPS DE FILTROS ACTIVOS
+// ════════════════════════════════════════════════
+function renderChips() {
+  chipsData = [];
+  const manager   = $('fManager');
+  const mLabel    = manager.options[manager.selectedIndex]?.text;
+  const desde     = $('fDesde').value;
+  const hasta     = $('fHasta').value;
+  const codigo    = $('fCodigo').value.trim();
+  const villa     = $('fVilla').value.trim();
+  const inquilino = $('fInquilino').value.trim();
+
+  if (manager.value) chipsData.push({ label:`Manager: ${mLabel}`,         clear: ()=>{ $('fManager').value=''; }});
+  if (desde)         chipsData.push({ label:`Desde: ${fmtDate(desde)}`,   clear: ()=>{ $('fDesde').value=''; }});
+  if (hasta)         chipsData.push({ label:`Hasta: ${fmtDate(hasta)}`,   clear: ()=>{ $('fHasta').value=''; }});
+  if (codigo)        chipsData.push({ label:`Reserva: ${codigo}`,         clear: ()=>{ $('fCodigo').value=''; }});
+  if (villa)         chipsData.push({ label:`Villa: ${villa}`,            clear: ()=>{ $('fVilla').value=''; }});
+  if (inquilino)     chipsData.push({ label:`Inquilino: ${inquilino}`,    clear: ()=>{ $('fInquilino').value=''; }});
+  if (toggleMode==='pend') chipsData.push({ label:'Pendiente checkin',   clear: ()=>setToggle('all') });
+
+  const wrap = $('chips');
+  if (chipsData.length) {
+    wrap.style.display = 'flex';
+    wrap.innerHTML = chipsData.map((c,i) =>
+      `<span class="chip-filter">${c.label} <button onclick="window.__chips[${i}].clear();doSearch()">✕</button></span>`
+    ).join('');
+    window.__chips = chipsData;
+  } else {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+  }
+}
+
+// ════════════════════════════════════════════════
+//  BUSCAR
+// ════════════════════════════════════════════════
+async function doSearch() {
+  updateSub();
+  renderChips();
+
+  $('stInit').style.display   = 'none';
+  $('stLoad').style.display   = 'block';
+  $('stErr').style.display    = 'none';
+  $('grid').style.display     = 'none';
+  $('statsBar').style.display = 'none';
+  $('grid').innerHTML         = '';
+  $('hBadge').style.display   = 'none';
+
+  const where = buildWhere();
+
+  const url = `${CFG.workerUrl}?action=view`
+    + `&view=${encodeURIComponent(CFG.viewName)}`
+    + (where ? `&where=${encodeURIComponent(where)}` : '')
+    + `&orderBy=${encodeURIComponent(F.villaName)}`
+    + `&limit=500`;
+
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error + (json.detail ? '\n'+json.detail : ''));
+
+    const records = json.Result || json.result || json.records || [];
+
+    $('dbBox').textContent =
+      `WHERE: ${where||'(sin filtros)'}\n\nURL:\n${url}\n\nRegistros: ${records.length}\n\n`
+      + `Primer registro (nombres reales de campo):\n`
+      + JSON.stringify(records[0]||{}, null, 2);
+
+    renderCards(records);
+  } catch(err) {
+    $('stLoad').style.display = 'none';
+    $('stErr').style.display  = 'block';
+    $('errMsg').textContent   = err.message;
+  }
+}
+
+// ════════════════════════════════════════════════
+//  RENDER CARDS
+// ════════════════════════════════════════════════
+function renderCards(records) {
+  $('stLoad').style.display = 'none';
+  const grid = $('grid');
+  grid.style.display = 'grid';
+
+  if (!records.length) {
+    grid.innerHTML = `
+      <div class="empty">
+        <div class="big">🏖️</div>
+        <h3>Sin resultados</h3>
+        <p>No hay entradas que coincidan con los filtros seleccionados.</p>
+      </div>`;
+    return;
+  }
+
+  // Stats
+  let paxTotal=0, nightsTotal=0, withN=0;
+  records.forEach(r => {
+    paxTotal += (parseInt(v(r,'adults'))||0)+(parseInt(v(r,'children'))||0);
+    const n = nights(v(r,'checkIn'), v(r,'checkOut'));
+    if (n) { nightsTotal+=n; withN++; }
+  });
+  $('sCnt').textContent    = records.length;
+  $('sPax').textContent    = paxTotal || '—';
+  $('sNights').textContent = withN ? (nightsTotal/withN).toFixed(1) : '—';
+  $('statsBar').style.display = 'flex';
+
+  $('hBadge').textContent    = `${records.length} entrada${records.length!==1?'s':''}`;
+  $('hBadge').style.display  = 'inline';
+
+  records.forEach(r => grid.appendChild(buildCard(r)));
+}
+
+// ════════════════════════════════════════════════
+//  BUILD CARD
+// ════════════════════════════════════════════════
+function mkBadge(label, raw) {
+  const ok  = isOk(raw);
+  const cls = ok===null ? 'b-na' : ok ? 'b-ok' : 'b-no';
+  const ico = ok===null ? '·'   : ok ? '✓'    : '✗';
+  return `<span class="bdg ${cls}">${ico} ${label}</span>`;
+}
+
+function buildCard(r) {
+  const el = document.createElement('div');
+  el.className = 'card';
+
+  const ci  = v(r,'checkIn'), co = v(r,'checkOut'), n = nights(ci,co);
+  const ph  = v(r,'guestPhone'), em = v(r,'guestEmail');
+  const mp  = v(r,'googleMaps'), kb = v(r,'keybox'), al = v(r,'alavor');
+  const cl  = v(r,'cleaner'),    nl = v(r,'cleaningNotes'), ni = v(r,'notasIrene');
+  const ah  = v(r,'arrivalHour'),am = v(r,'arrivalMenorca');
+  const gn  = v(r,'guestName'), ad = v(r,'adults'), ch = v(r,'children');
+  const st  = v(r,'status'),    nt = v(r,'notes'),  id = v(r,'reservationId');
+  const px  = v(r,'numPax'),    vl = v(r,'villaName') || 'Villa sin nombre';
+
+  const paxTxt = px ? `${px} Pax`
+    : [ad&&`${ad} adultos`, ch&&`${ch} niños`].filter(Boolean).join(' · ');
+
+  el.innerHTML = `
+    <div class="c-head">
+      <div>
+        <div class="villa-name">${vl}</div>
+        ${paxTxt?`<div class="villa-sub">${paxTxt}</div>`:''}
+      </div>
+      ${id?`<div class="res-id">#${id}</div>`:''}
+    </div>
+
+    <div class="c-status">
+      ${mkBadge('Limpieza',    v(r,'limpieza'))}
+      ${mkBadge('WelcomePack', v(r,'wellcomePack'))}
+      ${mkBadge('Cierre',      v(r,'cierre'))}
+    </div>
+
+    ${cl?`<div class="c-cleaner">🧹 <strong>${cl}</strong> — Limpieza</div>`:''}
+
+    ${(mp||kb||al)?`<div class="c-links">
+      ${mp?`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`:''}
+      ${kb?`<a class="lnk lnk-k" href="${kb}" target="_blank">🔑 Keybox</a>`:''}
+      ${al?`<a class="lnk lnk-a" href="${al}" target="_blank">📋 Alavor</a>`:''}
+    </div>`:''}
+
+    <div class="c-body">
+      <div class="dates-grid">
+        <div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>
+        ${n!==null?`<div class="npill">${n}n</div>`:'<div></div>'}
+        <div class="date-box"><span class="lbl">Salida</span><span class="val">${fmtDate(co)}</span></div>
+      </div>
+
+      ${ah?`<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${ah}</span></div></div>`:''}
+      ${am?`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`:''}
+
+      ${nl?`<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`:''}
+      ${ni?`<div class="note note-w"><div class="nl">📌 Notas Irene</div>${ni}</div>`:''}
+      ${nt?`<div class="note"><div class="nl">💬 Notas</div>${nt}</div>`:''}
+
+      <hr class="dv">
+
+      <div class="gname">${gn||'—'}</div>
+      <div class="gmeta">
+        ${ad?`<span class="ppill">👤 ${ad}</span>`:''}
+        ${ch?`<span class="ppill">👶 ${ch}</span>`:''}
+        ${st?`<span class="spill ${stClass(st)}">${st}</span>`:''}
+      </div>
+    </div>
+
+    ${(ph||em)?`<div class="c-foot">
+      ${ph?`<a class="abtn a-wa" href="https://wa.me/${ph.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
+      ${ph?`<a class="abtn a-ph" href="tel:${ph}">📞 ${ph}</a>`:''}
+      ${em?`<a class="abtn a-em" href="mailto:${em}">✉ Email</a>`:''}
+    </div>`:''}
+  `;
+  return el;
+}
+</script>
+</body>
+</html>
