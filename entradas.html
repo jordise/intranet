@@ -104,17 +104,21 @@
     .st-conf{background:var(--green-light);color:var(--green)}
     .st-cancel{background:var(--red-light);color:var(--red)}
 
-    /* phone label badge */
-    .ph-label{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:4px;background:#e8f0fe;color:#1967d2;margin-bottom:6px}
-    .ph-label.arrival{background:#ede7f6;color:#5e35b1}
+    /* phones row */
+    .phones-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+    .ph-line{font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--gray-4)}
+    .ph-line.active{color:var(--gray-5)}
+    .ph-line .ph-tag{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:1px 5px;border-radius:3px;margin-right:4px;background:var(--gray-2);color:var(--gray-4)}
+    .ph-line.active .ph-tag{background:#e8f0fe;color:#1967d2}
+    .ph-line.active.arr .ph-tag{background:#ede7f6;color:#5e35b1}
 
     /* contact buttons footer */
-    .c-foot{padding:10px 14px;background:#FFFDEB;border-top:2px solid #f0ead0;display:flex;gap:10px;align-items:center}
+    .c-foot{padding:10px 14px;background:#fff;border-top:1px solid var(--gray-2);display:flex;gap:10px;align-items:center}
     /* SVG icon buttons */
     .icon-btn{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;position:relative;flex-shrink:0}
     .icon-btn svg{width:40px;height:40px}
     .icon-btn .btn-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-4)}
-    .wa-badge{position:absolute;top:-4px;right:-4px;background:#FF2B2B;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;justify-content:center;align-items:center;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;border:2px solid #FFFDEB}
+    .wa-badge{position:absolute;top:-4px;right:-4px;background:#FF2B2B;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;justify-content:center;align-items:center;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;border:2px solid #fff}
 
     .empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--gray-4)}
     .empty .big{font-size:50px;margin-bottom:12px}
@@ -331,6 +335,15 @@ function cleanPhone(ph) {
 function isSpanish(ph) {
   const c = cleanPhone(ph);
   return c.startsWith('34') || ph.startsWith('+34') || ph.startsWith('0034');
+}
+
+// Lógica exacta de Caspio:
+// CASE WHEN phoneCual = ' ' OR phoneCual = '1' THEN Host ELSE Arrival
+function useArrival(cual) {
+  if (cual === null || cual === undefined) return false;
+  const s = String(cual).trim();
+  if (s === '' || s === '1') return false; // Host
+  return true;  // '2' o cualquier otro valor → Arrival
 }
 
 // ═══════════════════════════════════════════════
@@ -593,12 +606,11 @@ function buildCard(r) {
   const code=g(r,'confirmCode');
 
   // Lógica teléfono Host vs Arrival
-  const cual=String(g(r,'phoneCual'));
-  const useArr=cual==='2';
+  const cual=g(r,'phoneCual');
+  const useArr=useArrival(cual);
   const phoneHost=g(r,'guestPhone');
   const phoneArr=g(r,'phoneArrival');
   const activePhone=useArr?phoneArr:phoneHost;
-  const phoneLabel=useArr?'Arrival':'Host';
   const phoneClean=cleanPhone(activePhone);
   const mgrName=getManagerName();
 
@@ -650,10 +662,17 @@ function buildCard(r) {
         ${ch?`<span class="ppill">👶 ${ch}</span>`:''}
         ${st?`<span class="spill ${stClass(st)}">${st}</span>`:''}
       </div>
-      ${activePhone?`<div class="ph-label ${useArr?'arrival':''}">${phoneLabel}: ${activePhone}</div>`:''}
+      <div class="phones-row">
+        ${phoneHost?`<div class="ph-line ${!useArr?'active':''}">
+          <span class="ph-tag">Host</span>${!useArr?'✓ ':''}<a href="tel:${phoneHost}" style="color:inherit;text-decoration:none">${phoneHost}</a>
+        </div>`:''}
+        ${phoneArr?`<div class="ph-line ${useArr?'active arr':''}">
+          <span class="ph-tag">Arrival</span>${useArr?'✓ ':''}<a href="tel:${phoneArr}" style="color:inherit;text-decoration:none">${phoneArr}</a>
+        </div>`:''}
+      </div>
     </div>
 
-    ${(activePhone||email)?`
+    ${activePhone?`
     <div class="c-foot">
       ${vCardUrl?`<a class="icon-btn" href="${vCardUrl}" target="_blank" title="Añadir contacto">
         ${SVG_CONTACT}<span class="btn-label">Contacto</span>
@@ -664,11 +683,7 @@ function buildCard(r) {
       ${waUrlSimple?`<a class="icon-btn" href="${waUrlSimple}" target="_blank" title="WhatsApp">
         ${SVG_WA}<span class="btn-label">WA simple</span>
       </a>`:''}
-      <div style="flex:1"></div>
-      ${email?`<a class="icon-btn" href="mailto:${email}" title="${email}">
-        <svg height="40" viewBox="0 0 120 120" width="40"><circle cx="60" cy="60" fill="#EA4335" r="60"/><rect fill="#fff" height="40" rx="4" width="64" x="28" y="40"/><path d="M28 44l32 22 32-22" fill="none" stroke="#EA4335" stroke-width="4"/></svg>
-        <span class="btn-label">Email</span>
-      </a>`:''}
+
     </div>`:''}
   `;
   return el;
