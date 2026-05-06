@@ -15,6 +15,8 @@
     .h-sub{font-size:12px;opacity:.75;margin-top:1px}
     .h-right{display:flex;align-items:center;gap:10px}
     .h-badge{display:none;background:rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:background .15s}
+    .logout-btn:hover{background:rgba(255,255,255,.3)}
     /* Manager name pill in header */
     .mgr-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px}
     .mgr-pill input{background:none;border:none;color:#fff;font-size:12px;font-family:'Open Sans',sans-serif;width:120px;outline:none}
@@ -131,8 +133,10 @@
 
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
   </style>
+  <script src="auth.js"></script>
 </head>
 <body>
+<script>Auth.require('entradas');</script>
 
 <header>
   <div>
@@ -140,11 +144,13 @@
     <div class="h-sub" id="hSub"></div>
   </div>
   <div class="h-right">
-    <!-- Nombre del manager para los mensajes de WhatsApp -->
     <div class="mgr-pill" title="Tu nombre para mensajes de WhatsApp">
       👤 <input type="text" id="mgrName" placeholder="Tu nombre (WA)" maxlength="40">
     </div>
     <span class="h-badge" id="hBadge"></span>
+    <button onclick="Auth.logout()" class="logout-btn" title="Cerrar sesión">
+      <span id="hUserName"></span> ↪
+    </button>
   </div>
 </header>
 
@@ -368,9 +374,10 @@ function onManagerChange() {
 //  INIT
 // ═══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', async () => {
-  // Restaurar nombre manager
+  // Restaurar nombre manager desde auth o localStorage
   const saved = localStorage.getItem('3v_mgrName');
   if (saved) $('mgrName').value = saved;
+  else if (Auth.name()) $('mgrName').value = Auth.name();
   $('mgrName').addEventListener('change', saveManagerName);
 
   $('fDesde').value = todayStr();
@@ -395,7 +402,7 @@ async function loadManagers() {
   const sel=$('fManager');
   sel.disabled=true;
   try {
-    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`);
+    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`, { headers: Auth.headers() });
     const json=await res.json();
     const users=json.Result||json.result||[];
     sel.innerHTML='<option value="">Todos</option>';
@@ -418,7 +425,7 @@ async function loadManagers() {
 // ═══════════════════════════════════════════════
 async function loadContacts() {
   try {
-    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`);
+    const res=await fetch(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`, { headers: Auth.headers() });
     const json=await res.json();
     const contacts=json.Result||json.result||[];
     contacts.forEach(c=>{
