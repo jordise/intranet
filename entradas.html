@@ -19,7 +19,7 @@
     .logout-btn:hover{background:rgba(255,255,255,.3)}
     /* Manager name pill in header */
 
-    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:14px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
     .filter-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
     .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
     .f-group.narrow{flex:0 0 148px;min-width:130px}
@@ -34,10 +34,12 @@
     .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
     .btn-mas .arr{transition:transform .2s}
     .btn-mas.on .arr{transform:rotate(180deg)}
-    #masFiltros{overflow:hidden;max-height:0;transition:max-height .28s ease}
-    #masFiltros.open{max-height:160px}
-    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0}
-    .toggle-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+    #masFiltros{overflow:hidden;max-height:0;transition:max-height .32s ease}
+    #masFiltros.open{max-height:260px}
+    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 4px}
+    .main-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px}
+    #chips{flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+    .toggle-row{display:none} /* now inside main-bar */
     .toggle-group{display:flex;border:1.5px solid var(--gray-2);border-radius:8px;overflow:hidden}
     .t-btn{padding:7px 16px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.3px;cursor:pointer;border:none;background:#fff;color:var(--gray-4);transition:all .15s;white-space:nowrap}
     .t-btn:not(:last-child){border-right:1.5px solid var(--gray-2)}
@@ -47,7 +49,7 @@
     .btn-buscar:active{transform:scale(.97)}
     .btn-clear{background:none;border:none;color:var(--gray-4);font-size:12px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s}
     .btn-clear:hover{color:var(--red)}
-    #chips{display:none;flex-wrap:wrap;gap:6px;padding-bottom:10px}
+    /* chips now inline in main-bar */
     .chip-filter{display:inline-flex;align-items:center;gap:5px;background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
     .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0}
 
@@ -158,26 +160,40 @@
 </header>
 
 <div id="filterPanel">
-  <div class="filter-row">
-    <div class="f-group wide">
-      <label class="f-label">Villa Manager</label>
-      <select id="fManager" class="f-select" onchange="onManagerChange()"><option value="">Cargando...</option></select>
+
+  <!-- Barra principal siempre visible -->
+  <div class="main-bar">
+    <div class="toggle-group">
+      <button class="t-btn on" id="tAll"  onclick="setToggle('all')">Todos</button>
+      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Pendientes checkin</button>
     </div>
-    <div class="f-group narrow">
-      <label class="f-label">Entrada desde</label>
-      <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
-    </div>
-    <div class="f-group narrow">
-      <label class="f-label">Hasta</label>
-      <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
-    </div>
-    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
-      <span>Más filtros</span><span class="arr">▾</span>
+    <div id="chips" style="flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+    <button class="btn-mas on" id="btnMas" onclick="toggleMas()">
+      <span>Filtros</span><span class="arr">▾</span>
     </button>
+    <button class="btn-clear" onclick="clearAll()">✕</button>
+    <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
   </div>
 
-  <div id="masFiltros">
+  <!-- Panel expandible con todos los filtros -->
+  <div id="masFiltros" class="open">
     <div class="mas-inner">
+      <!-- Fila 1: Villa Manager + Fechas -->
+      <div class="filter-row" style="margin-bottom:10px">
+        <div class="f-group wide">
+          <label class="f-label">Villa Manager</label>
+          <select id="fManager" class="f-select" onchange="onManagerChange()"><option value="">Cargando...</option></select>
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Entrada desde</label>
+          <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Hasta</label>
+          <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
+        </div>
+      </div>
+      <!-- Fila 2: Búsqueda texto -->
       <div class="filter-row" style="margin-bottom:0">
         <div class="f-group narrow">
           <label class="f-label">Código reserva</label>
@@ -195,16 +211,6 @@
     </div>
   </div>
 
-  <div class="toggle-row">
-    <div class="toggle-group">
-      <button class="t-btn on" id="tAll"  onclick="setToggle('all')">Todos</button>
-      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Solo pendientes checkin online</button>
-    </div>
-    <div style="flex:1"></div>
-    <button class="btn-clear" onclick="clearAll()">✕ Limpiar</button>
-    <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
-  </div>
-  <div id="chips"></div>
 </div>
 
 <div id="statsBar">
@@ -279,7 +285,7 @@ const F = {
   phoneCual      : 'TaBookings2021_Guest_phonenumber_cual_usar', // 2 = usar Arrival
   guestEmail     : 'TaBookings2021_Guest_email',
   guestInfo      : 'TaBookings2021_Guest_info',
-  villaManager   : 'TaVillas_Person_from_the_team',
+  villaManager   : 'TaVillas_KeyHolder_person',
   limpieza       : 'TaBookings2021_LimpiezaTerminada',
   wellcomePack   : 'TaBookings2021_Welcomepackentregado',
   cierre         : 'TaBookings2021_Checkoutcontrolado',
@@ -292,13 +298,11 @@ const F = {
   notes          : 'TaBookings2021_BookingComments',
   checkinPend    : 'TaBookings2021_checkinonline_todo_terminado',
   portalName     : 'TaBookings2021_Portal_Name',
-  keyholderUserId : 'TaBookings2021_Keyholder',
+  keyholderUserId : 'TaVillas_KeyHolder_person',   // mismo campo que villaManager
   keyboxCode      : 'TaVillas_Keybox_code',
   pmsmultiunitId  : 'TaBookings2021_PMSmultiunitID',
-  jotformLink     : 'TaBookings2021_Jotform_limpiezareserva',
+  villaId         : 'TaVillas_villaid',
   hostawayLink    : 'TaBookings2021_Reservationlink',
-  guidalLink      : 'TaVillas_Guidal_link_to_fotos__descriptio',
-  checkinOnlineId : 'TaVillas_Identificador_Policheckin',
 };
 
 // ═══════════════════════════════════════════════
@@ -559,11 +563,8 @@ function renderChips() {
   if (inq)           chipsData.push({label:`Inquilino: ${inq}`, clear:()=>{$('fInquilino').value=''}});
   if (toggleMode==='pend') chipsData.push({label:'Pendiente checkin', clear:()=>setToggle('all')});
   const wrap=$('chips');
-  if (chipsData.length){
-    wrap.style.display='flex';
-    wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();doSearch()">✕</button></span>`).join('');
-    window.__ch=chipsData;
-  } else { wrap.style.display='none'; wrap.innerHTML=''; }
+  wrap.innerHTML = chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();doSearch()">✕</button></span>`).join('');
+  window.__ch = chipsData;
 }
 
 // ═══════════════════════════════════════════════
@@ -575,6 +576,7 @@ async function doSearch() {
   $('stErr').style.display='none';  $('grid').style.display='none';
   $('statsBar').style.display='none'; $('grid').innerHTML='';
   $('hBadge').style.display='none';
+  $('chips').innerHTML='';
   const where=buildWhere();
   const url=`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}`
     +(where?`&where=${encodeURIComponent(where)}`:'')+`&orderBy=${encodeURIComponent(F.villaName)}&limit=500`;
@@ -664,13 +666,9 @@ function buildCard(r) {
 
   const ci=g(r,'checkIn'), co=g(r,'checkOut');
   // Villa Manager: TaBookings2021_Keyholder O TaVillas_KeyHolder_person → UserID
-  const jotform    = g(r,'jotformLink');
-  const hostaway   = g(r,'hostawayLink');
-  const guidal     = g(r,'guidalLink');
-  const checkinId  = g(r,'checkinOnlineId');
-  const checkinOnlineUrl = checkinId
-    ? `https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${g(r,'confirmCode')}`
-    : '';
+  const villaId    = r['TaVillas_villaid'] || '';
+  const hostaway = g(r,'hostawayLink');
+  const code     = g(r,'confirmCode');
   const vmId   = r[F.keyholderUserId] || r['TaVillas_KeyHolder_person'] || '';
   const vmName = vmId ? (allUsersMap.get(String(vmId)) || managersMap.get(String(vmId)) || '') : '';
   // Keybox: primero TaMultiunits por PMSmultiunitID, si vacío → TaVillas_Keybox_code
@@ -775,16 +773,19 @@ function buildCard(r) {
     </div>`:''}
   `;
 
-  // Barra de acciones extra (jotform, hostaway, guidal, checkin online)
-  const hasActions = jotform || hostaway || guidal || checkinOnlineUrl;
-  if (hasActions) {
+  // Barra de acciones — links reales de Caspio DataPages
+  if (code) {
     const actBar = document.createElement('div');
     actBar.className = 'c-actions';
-    const parts = [];
-    if (jotform)         parts.push(`<a class="act-chip ac-jot" href="${jotform}"         target="_blank">📋 Jotform limpieza</a>`);
-    if (hostaway)        parts.push(`<a class="act-chip ac-ha"  href="${hostaway}"        target="_blank">🏠 Hostaway</a>`);
-    if (guidal)          parts.push(`<a class="act-chip ac-gui" href="${guidal}"          target="_blank">📖 Guidal</a>`);
-    if (checkinOnlineUrl)parts.push(`<a class="act-chip ac-ci"  href="${checkinOnlineUrl}"target="_blank">✅ Checkin online</a>`);
+    const urlNotas  = `https://c1abn932.caspio.com/dp/353f700083e981faed5749b1b3bb?TaBookings2021_FS_confirmation_code=${code}`;
+    const urlAddTask= `https://c1abn932.caspio.com/dp/353f70005570d2553f784395ae74?Idreserva=${code}&villa_id=${villaId}&cbResetParam=1`;
+    const urlVerTask= `https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=${code}&cbResetParam=1`;
+    const parts = [
+      `<a class="act-chip ac-ha" onclick="window.open('${urlNotas}','','resizable=no,status=no,location=no,toolbar=no,menubar=no,fullscreen=no,scrollbars=no,width=900,left=80,height=450,top=80');return false;" href="${urlNotas}">📝 Notas / Cambiar aparto</a>`,
+      `<a class="act-chip ac-jot" href="${urlAddTask}" target="_blank">➕ Nueva tarea</a>`,
+      `<a class="act-chip ac-ci"  href="${urlVerTask}" target="_blank">📋 Ver tareas</a>`,
+    ];
+    if (hostaway) parts.push(`<a class="act-chip" style="background:var(--gray-2);color:var(--gray-5)" href="${hostaway}" target="_blank">🏠 Hostaway</a>`);
     actBar.innerHTML = parts.join('');
     el.appendChild(actBar);
   }
