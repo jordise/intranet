@@ -168,7 +168,7 @@
       <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Pendientes checkin</button>
     </div>
     <div id="chips" style="flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
-    <button class="btn-mas on" id="btnMas" onclick="toggleMas()">
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
     <button class="btn-clear" onclick="clearAll()">✕</button>
@@ -176,7 +176,7 @@
   </div>
 
   <!-- Panel expandible con todos los filtros -->
-  <div id="masFiltros" class="open">
+  <div id="masFiltros">
     <div class="mas-inner">
       <!-- Fila 1: Villa Manager + Fechas -->
       <div class="filter-row" style="margin-bottom:10px">
@@ -401,8 +401,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateSub();
 
   // Cargar en paralelo: managers + contactos
-  await Promise.all([loadManagers(), loadContacts(), loadMultiunits()]);
-  doSearch();
+  // Cargar datos en paralelo, doSearch se ejecuta siempre aunque algo falle
+  await Promise.allSettled([loadManagers(), loadContacts(), loadMultiunits()]);
 });
 
 function updateSub() {
@@ -470,9 +470,10 @@ async function loadManagers() {
     sel.disabled=false;
     $('dbBox').textContent=`TaUsers: ${users.length}\nManagers en dropdown: ${managers.length}\nMi Keyholder_por_defecto: "${myKeyholder||'vacío → Todos'}"`;
   } catch(e) {
-    sel.innerHTML='<option value="">Error</option>';
+    sel.innerHTML='<option value="">Sin conexión</option>';
     sel.disabled=false;
-    $('dbBox').textContent='Error TaUsers: '+e.message;
+    $('dbBox').textContent='Error TaUsers: '+e.message+'\nURL intentada: '+`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`+'\nToken: '+(Auth.token()?'OK ('+Auth.token().length+' chars)':'VACÍO');
+    console.error('loadManagers error:', e);
   }
 }
 
