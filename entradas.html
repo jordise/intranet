@@ -284,6 +284,9 @@ const F = {
   notes          : 'TaBookings2021_BookingComments',
   checkinPend    : 'TaBookings2021_checkinonline_todo_terminado',
   portalName     : 'TaBookings2021_Portal_Name',
+  keyholderUserId : 'TaBookings2021_Keyholder',
+  keyboxCode      : 'TaVillas_Keybox_code',
+  pmsmultiunitId  : 'TaBookings2021_PMSmultiunitID',
 };
 
 // ═══════════════════════════════════════════════
@@ -292,6 +295,7 @@ const F = {
 let toggleMode   = 'all';
 let chipsData    = [];
 let contactsMap  = new Map(); // ContactID (string) → Name
+let multiunitsMap = new Map(); // multiunitID (string) → Keybox
 let managersMap  = new Map(); // UserID (string) → Name
 
 // ═══════════════════════════════════════════════
@@ -380,7 +384,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateSub();
 
   // Cargar en paralelo: managers + contactos
-  await Promise.all([loadManagers(), loadContacts()]);
+  await Promise.all([loadManagers(), loadContacts(), loadMultiunits()]);
   doSearch();
 });
 
@@ -466,6 +470,20 @@ async function loadContacts() {
   } catch(e) { /* silencioso */ }
 }
 
+async function loadMultiunits() {
+  try {
+    const res  = await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaMultiunits&limit=500`));
+    const json = await res.json();
+    const rows = json.Result || json.result || [];
+    rows.forEach(r => {
+      const id  = r['multiunitID'] ?? r['MultiunitID'] ?? r['MultiUnitID'] ?? '';
+      const key = r['Keybox']      ?? r['keybox']      ?? '';
+      if (String(id).trim()) multiunitsMap.set(String(id).trim(), String(key).trim());
+    });
+    $('dbBox').textContent += `\nTaMultiunits: ${rows.length} registros, ${multiunitsMap.size} con ID`;
+  } catch(e) { /* silencioso si la tabla no existe */ }
+}
+
 function getCleanerName(rawVal) {
   if (!rawVal && rawVal!==0) return '';
   const byId = contactsMap.get(String(rawVal));
@@ -489,7 +507,8 @@ function clearAll(){
 //  WHERE CLAUSE
 // ═══════════════════════════════════════════════
 function buildWhere() {
-  const parts=[];
+  // Siempre excluir canceladas
+  const parts=[`${F.status}<>'cancelled'`];
   const manager  =$('fManager').value.trim();
   const desde    =$('fDesde').value;
   const hasta    =$('fHasta').value||desde;
@@ -626,6 +645,12 @@ function buildCard(r) {
   const el=document.createElement('div'); el.className='card';
 
   const ci=g(r,'checkIn'), co=g(r,'checkOut');
+  const vmId   = r[F.keyholderUserId];
+  const vmName = vmId ? (managersMap.get(String(vmId)) || '') : '';
+  // Keybox: primero TaMultiunits por PMSmultiunitID, si vacío → TaVillas_Keybox_code
+  const muId   = String(g(r,'pmsmultiunitId') || '').trim();
+  const muKb   = muId ? (multiunitsMap.get(muId) || '') : '';
+  const kbCode = muKb || g(r,'keyboxCode');
   const n=parseInt(g(r,'nights'))||nightsN(ci,co);
   const mp=g(r,'googleMaps'), kb=g(r,'keybox');
   const cleanerRaw=r[F.cleaner];
@@ -673,10 +698,12 @@ function buildCard(r) {
     </div>
 
     ${cleanerName?`<div class="c-cleaner">🧹 <strong>${cleanerName}</strong> — Limpieza</div>`:''}
+    ${vmName?`<div class="c-cleaner" style="border-top:1px solid var(--gray-2)">🏠 <strong>${vmName}</strong> — Villa Manager</div>`:''}
 
-    ${(mp||kb)?`<div class="c-links">
+    ${(mp||kb||kbCode)?`<div class="c-links">
       ${mp?`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`:''}
-      ${kb?`<a class="lnk lnk-k" href="#" onclick="alert('Keybox: ${String(kb).replace(/'/g,'\\'+'\'')}')" >🔑 ${kb}</a>`:''}
+      ${kbCode?`<span class="lnk lnk-k" style="cursor:default;font-weight:700">🔑 ${kbCode}</span>`:''}
+      ${kb&&!kbCode?`<span class="lnk lnk-k">📋 ${kb}</span>`:''}
     </div>`:''}
 
     <div class="c-body">
