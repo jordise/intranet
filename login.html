@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow:0 8px 32px rgba(0,0,0,.14)}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{background:#fff;border-radius:16px;box-shadow:var(--shadow);width:100%;max-width:400px;overflow:hidden}
+    .card-head{background:var(--red);padding:28px 32px 24px;text-align:center}
+    .card-head img{height:52px;display:block;margin:0 auto 8px}
+    .card-sub{font-size:13px;color:rgba(255,255,255,.8);font-weight:500}
+    .card-body{padding:32px}
+
+    .step{display:none}.step.active{display:block}
+
+    .field{margin-bottom:18px}
+    .field label{display:block;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px}
+    .field input[type=email],.field input[type=password],.field input[type=text]{width:100%;height:44px;border:1.5px solid var(--gray-2);border-radius:8px;padding:0 14px;font-family:'Open Sans',sans-serif;font-size:14px;color:var(--gray-5);outline:none;transition:border-color .15s,box-shadow .15s}
+    .field input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+
+    /* Remember me checkbox */
+    .remember-row{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;user-select:none}
+    .remember-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--red);cursor:pointer;flex-shrink:0}
+    .remember-row span{font-size:13px;color:var(--gray-4)}
+    .remember-row span strong{color:var(--gray-5);font-weight:600}
+
+    .btn{width:100%;height:46px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:background .15s,transform .1s}
+    .btn:hover{background:var(--red-dark)}
+    .btn:active{transform:scale(.98)}
+    .btn:disabled{background:var(--gray-3);cursor:not-allowed;transform:none}
+
+    .err{background:var(--red-light);color:var(--red);padding:10px 14px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:16px;display:none}
+    .err.show{display:block}
+
+    .otp-info{background:#f0f7ff;border-left:3px solid #1967d2;padding:12px 14px;border-radius:0 7px 7px 0;font-size:13px;color:#1967d2;margin-bottom:20px;line-height:1.5}
+    .otp-info strong{display:block;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+    .otp-input{text-align:center;font-size:28px;font-weight:700;font-family:'Montserrat',sans-serif;letter-spacing:8px}
+
+    .back-btn{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;margin-top:14px;width:100%;text-align:center;padding:6px}
+    .back-btn:hover{color:var(--red)}
+
+    .spinner-inline{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-head">
+    <img src="Logo_350x180_blanco_trans.png" alt="3Villas">
+    <div class="card-sub">Login</div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- PASO 1: Email + Password -->
+    <div class="step active" id="step1">
+      <div class="err" id="err1"></div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="tu@email.com" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <!-- Recordarme -->
+      <label class="remember-row">
+        <input type="checkbox" id="remember" checked>
+        <span>Recordar en este dispositivo <strong>30 días</strong></span>
+      </label>
+
+      <button class="btn" id="btnLogin" onclick="doLogin()">ENTRAR</button>
+    </div>
+
+    <!-- PASO 2: OTP -->
+    <div class="step" id="step2">
+      <div class="otp-info">
+        <strong>📧 Código enviado</strong>
+        Hemos enviado un código de 6 dígitos a <span id="emailMask"></span>. Revisa tu bandeja de entrada.
+      </div>
+      <div class="err" id="err2"></div>
+      <div class="field">
+        <label>Código de verificación</label>
+        <input type="text" id="otp" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn" id="btnVerify" onclick="doVerify()">VERIFICAR</button>
+      <button class="back-btn" onclick="goBack()">← Volver al login</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+let pendingToken = '';
+const redirectUrl = new URLSearchParams(location.search).get('redirect') || 'entradas.html';
+
+// Si ya hay sesión válida → redirigir directamente
+(function checkExistingSession() {
+  if (Auth.getSession()) location.replace(redirectUrl);
+})();
+
+// Enter key
+document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('otp').addEventListener('keydown',      e => { if(e.key==='Enter') doVerify(); });
+document.getElementById('otp').addEventListener('input',        e => { e.target.value = e.target.value.replace(/\D/g,''); });
+
+function showErr(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.classList.add('show'); }
+function hideErr(id)       { document.getElementById(id).classList.remove('show'); }
+
+function setLoading(btnId, on, label) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = on;
+  btn.innerHTML = on ? `<span class="spinner-inline"></span>${label}` : btn.dataset.orig;
+  if (!on) btn.dataset.orig = btn.innerHTML;
+}
+
+// Guardar el label original al cargar
+document.getElementById('btnLogin').dataset.orig   = document.getElementById('btnLogin').innerHTML;
+document.getElementById('btnVerify').dataset.orig  = document.getElementById('btnVerify').innerHTML;
+
+async function doLogin() {
+  hideErr('err1');
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const remember = document.getElementById('remember').checked;
+  if (!email || !password) { showErr('err1','Completa todos los campos'); return; }
+
+  setLoading('btnLogin', true, 'VERIFICANDO...');
+  try {
+    const res  = await fetch(`${WORKER}?action=login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password, remember }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr('err1', data.error || 'Error de acceso'); return; }
+
+    if (data.step === 'otp') {
+      pendingToken = data.pendingToken;
+      document.getElementById('emailMask').textContent = email;
+      document.getElementById('step1').classList.remove('active');
+      document.getElementById('step2').classList.add('active');
+      document.getElementById('otp').value = '';
+      document.getElementById('otp').focus();
+    } else if (data.step === 'done') {
+      Auth.saveSession(data, remember);
+      location.replace(redirectUrl);
+    }
+  } catch(e) { showErr('err1','Error de conexión: '+e.message); }
+  finally   { setLoading('btnLogin', false); }
+}
+
+async function doVerify() {
+  hideErr('err2');
+  const otp      = document.getElementById('otp').value.trim();
+  const remember = document.getElementById('remember').checked;
+  if (otp.length !== 6) { showErr('err2','Introduce los 6 dígitos'); return; }
+
+  setLoading('btnVerify', true, 'VERIFICANDO...');
+  try {
+    const res  = await fetch(`${WORKER}?action=verify`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pendingToken, otp, remember }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr('err2', data.error || 'Código incorrecto'); return; }
+    Auth.saveSession(data, remember);
+    location.replace(redirectUrl);
+  } catch(e) { showErr('err2','Error de conexión: '+e.message); }
+  finally    { setLoading('btnVerify', false); }
+}
+
+function goBack() {
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step1').classList.add('active');
+  hideErr('err1'); hideErr('err2');
+  pendingToken = '';
+}
+</script>
+</body>
+</html>
