@@ -289,18 +289,31 @@ async function loadTask() {
   if (task['Taskdescription'])
     document.getElementById('txtComentarios').value = task['Taskdescription'];
 
-  // ── Foto: Picture_In_keyholder1 puede ser URL string o Caspio file object ──
+  // ── Foto: Caspio devuelve File fields de varias formas posibles ──
   const fotoVal = task['Picture_in_cleaning1'];
+  console.log('Photo field raw value:', fotoVal);
   if (fotoVal) {
     let fotoUrl = null;
-    if (typeof fotoVal === 'string' && fotoVal.startsWith('http')) {
-      fotoUrl = fotoVal;
-    } else if (typeof fotoVal === 'object' && fotoVal.Url) {
-      fotoUrl = fotoVal.Url;
-    } else if (typeof fotoVal === 'object' && fotoVal.url) {
-      fotoUrl = fotoVal.url;
+    if (typeof fotoVal === 'string') {
+      // String directa — puede ser URL completa, path relativo o nombre de archivo
+      if (fotoVal.startsWith('http')) {
+        fotoUrl = fotoVal;
+      } else if (fotoVal.length > 0) {
+        // Construir URL de Caspio para archivos
+        fotoUrl = `https://c1abn932.caspio.com/dp/files/${fotoVal}`;
+      }
+    } else if (typeof fotoVal === 'object' && fotoVal !== null) {
+      // Objeto — buscar propiedad URL en varios formatos
+      fotoUrl = fotoVal.Url || fotoVal.url || fotoVal.URL ||
+                fotoVal.FileUrl || fotoVal.fileUrl ||
+                fotoVal.DownloadUrl || fotoVal.downloadUrl || null;
     }
-    if (fotoUrl) showPhotoPreview(fotoUrl);
+    if (fotoUrl) {
+      console.log('Showing photo:', fotoUrl);
+      showPhotoPreview(fotoUrl);
+    } else {
+      console.log('Photo value exists but no URL found:', JSON.stringify(fotoVal));
+    }
   }
 
   // Mostrar debug en consola con todos los campos
