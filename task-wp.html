@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>WelcomePack — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:env(safe-area-inset-bottom,20px)}
+
+    /* Header */
+    header{background:var(--red);color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+    .h-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.7;margin-bottom:2px}
+    .h-villa{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+    .h-res{font-size:12px;opacity:.8;margin-top:3px}
+
+    /* Task type badge */
+    .task-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+
+    /* Main container */
+    main{padding:16px;max-width:500px;margin:0 auto}
+
+    /* Card section */
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+    .card-title{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);padding:12px 16px 8px;border-bottom:1px solid var(--gray-2)}
+
+    /* Toggle switch rows */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;transition:background .1s}
+    .toggle-row:not(:last-child){border-bottom:1px solid var(--gray-2)}
+    .toggle-row:active{background:var(--gray-1)}
+    .toggle-label{font-size:14px;font-weight:500;color:var(--gray-5);flex:1;padding-right:12px;line-height:1.3}
+    .toggle-sub{font-size:11px;color:var(--gray-4);margin-top:2px}
+
+    /* Switch */
+    .switch{position:relative;width:50px;height:28px;flex-shrink:0}
+    .switch input{opacity:0;width:0;height:0;position:absolute}
+    .slider{position:absolute;inset:0;background:var(--gray-3);border-radius:28px;transition:background .2s;cursor:pointer}
+    .slider::before{content:'';position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+    input:checked + .slider{background:var(--green)}
+    input:checked + .slider::before{transform:translateX(22px)}
+
+    /* Photo section */
+    .photo-wrap{padding:14px 16px}
+    .photo-preview-area{background:var(--gray-1);border-radius:10px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:12px;position:relative;border:2px dashed var(--gray-3);cursor:pointer;transition:border-color .2s}
+    .photo-preview-area:active{border-color:var(--red)}
+    .photo-preview-area img{width:100%;height:100%;object-fit:cover;display:none;border-radius:8px}
+    .photo-placeholder{text-align:center;padding:20px;pointer-events:none}
+    .photo-placeholder .ico{font-size:40px;margin-bottom:8px;display:block}
+    .photo-placeholder p{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.5px}
+    .photo-placeholder span{font-size:11px;color:var(--gray-3);display:block;margin-top:4px}
+    .photo-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .photo-btn{height:44px;border-radius:10px;border:1.5px solid var(--gray-2);background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--gray-5);transition:all .15s}
+    .photo-btn:active{background:var(--gray-1)}
+    .photo-btn.primary{background:var(--red);color:#fff;border-color:var(--red)}
+    .photo-btn.primary:active{background:var(--red-dark)}
+    #fileInput{display:none}
+    #cameraInput{display:none}
+
+    /* Photo uploaded state */
+    .photo-remove{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:16px;backdrop-filter:blur(4px)}
+
+    /* Textarea */
+    .comments-wrap{padding:14px 16px}
+    .comments-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:8px;display:block}
+    textarea{width:100%;height:90px;border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 12px;font-family:'Open Sans',sans-serif;font-size:14px;color:var(--gray-5);resize:none;outline:none;transition:border-color .15s}
+    textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+    textarea::placeholder{color:var(--gray-3)}
+
+    /* Save button */
+    .save-wrap{padding:6px 0 20px}
+    .btn-save{width:100%;height:54px;background:var(--green);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;box-shadow:0 4px 14px rgba(30,158,78,.35)}
+    .btn-save:active{background:#17834a;transform:scale(.98)}
+    .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
+    .btn-save .spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Toast messages */
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d3142;color:#fff;padding:12px 22px;border-radius:30px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;max-width:90vw;text-align:center}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.success{background:var(--green)}
+    .toast.error{background:var(--red)}
+
+    /* Loading overlay */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .load-spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    .load-text{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+
+    /* Error state */
+    .error-state{text-align:center;padding:50px 20px}
+    .error-state .emoji{font-size:50px;margin-bottom:12px}
+    .error-state h3{font-family:'Montserrat',sans-serif;font-size:18px;margin-bottom:8px}
+    .error-state p{font-size:13px;color:var(--gray-4)}
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<div id="loadOverlay">
+  <div class="load-spinner"></div>
+  <div class="load-text">Cargando...</div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<header>
+  <div class="h-label">3Villas · Tarea</div>
+  <div class="h-villa" id="hVilla">Cargando...</div>
+  <div class="h-res" id="hRes"></div>
+  <div class="task-badge" id="hTaskBadge">📦 WelcomePack</div>
+</header>
+
+<main id="mainContent" style="display:none">
+
+  <!-- Checkboxes principales -->
+  <div class="card">
+    <div class="card-title">Estado</div>
+
+    <label class="toggle-row" for="swDone">
+      <div>
+        <div class="toggle-label">✅ Wellcomepack entregado</div>
+        <div class="toggle-sub">Marcar cuando esté completado</div>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="swDone">
+        <div class="slider"></div>
+      </div>
+    </label>
+
+    <label class="toggle-row" for="swAgua">
+      <div>
+        <div class="toggle-label">🚿 Hay agua caliente</div>
+        <div class="toggle-sub">Verificar antes de salir</div>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="swAgua">
+        <div class="slider"></div>
+      </div>
+    </label>
+
+    <label class="toggle-row" for="swWifi">
+      <div>
+        <div class="toggle-label">📶 Wifi funciona</div>
+        <div class="toggle-sub">Conectar y verificar</div>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="swWifi">
+        <div class="slider"></div>
+      </div>
+    </label>
+
+    <label class="toggle-row" for="swIncid">
+      <div>
+        <div class="toggle-label">⚠️ Hay incidencias</div>
+        <div class="toggle-sub">Problemas o anomalías encontradas</div>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="swIncid">
+        <div class="slider"></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- Foto -->
+  <div class="card">
+    <div class="card-title">📷 Foto Wellcomepack</div>
+    <div class="photo-wrap">
+      <div class="photo-preview-area" id="photoArea" onclick="handlePhotoAreaClick()">
+        <img id="photoPreview" alt="Foto WelcomePack">
+        <button class="photo-remove" id="photoRemove" onclick="removePhoto(event)">✕</button>
+        <div class="photo-placeholder" id="photoPlaceholder">
+          <span class="ico">📦</span>
+          <p>Añadir foto</p>
+          <span>Toca para seleccionar</span>
+        </div>
+      </div>
+      <div class="photo-btns">
+        <button class="photo-btn primary" onclick="openCamera()">📷 Cámara</button>
+        <button class="photo-btn" onclick="openGallery()">🖼️ Galería</button>
+      </div>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+      <input type="file" id="fileInput"   accept="image/*" onchange="handlePhoto(this)">
+    </div>
+  </div>
+
+  <!-- Comentarios -->
+  <div class="card">
+    <div class="comments-wrap">
+      <label class="comments-label" for="txtComentarios">💬 Comentarios</label>
+      <textarea id="txtComentarios" placeholder="Añade notas o incidencias..."></textarea>
+    </div>
+  </div>
+
+  <!-- Guardar -->
+  <div class="save-wrap">
+    <button class="btn-save" id="btnSave" onclick="guardar()">
+      <div class="spinner" id="saveSpinner"></div>
+      <span id="saveLabel">✓ GUARDAR</span>
+    </button>
+  </div>
+
+</main>
+
+<script>
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+// ── Leer URL params ──────────────────────────────────────────
+const params    = new URLSearchParams(location.search);
+const idReserva = params.get('Idreserva') || params.get('idreserva') || '';
+const taskType  = params.get('Tasktype_booking') || '20';
+const code      = params.get('code') || ''; // confirmation code opcional
+
+// Task type config
+const TASK_CONFIG = {
+  '10': { label:'🧹 Limpieza',    badge:'🧹 Limpieza',    color:'#1565c0' },
+  '20': { label:'📦 WelcomePack', badge:'📦 WelcomePack', color:'#e07b00' },
+  '30': { label:'🔒 Cierre',      badge:'🔒 Cierre',      color:'#5e35b1' },
+};
+const cfg = TASK_CONFIG[taskType] || TASK_CONFIG['20'];
+
+// ── Photo state ──────────────────────────────────────────────
+let selectedPhoto = null; // File object
+let photoBase64   = null; // base64 string for preview
+
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('hTaskBadge').textContent = cfg.badge;
+  document.getElementById('hTaskBadge').style.background = 'rgba(255,255,255,.2)';
+
+  if (!idReserva) {
+    showError('Faltan parámetros en la URL.<br>Usa el botón desde Entradas y Salidas.');
+    return;
+  }
+
+  try {
+    // Cargar datos de la reserva y la tarea
+    await Promise.allSettled([loadBooking(), loadTask()]);
+    hide('loadOverlay');
+    show('mainContent');
+  } catch(e) {
+    showError('Error al cargar: ' + e.message);
+  }
+});
+
+async function loadBooking() {
+  // Buscar por BookingID o FS_confirmation_code
+  const where = code
+    ? `TaBookings2021_FS_confirmation_code='${code}'`
+    : `TaBookings2021_BookingID='${idReserva}'`;
+
+  const url = Auth.url(`${WORKER}?action=view&view=Vi_villas_and_bookings2021&where=${encodeURIComponent(where)}&limit=1`);
+  const res  = await fetch(url);
+  const json = await res.json();
+  const r    = (json.Result||json.result||[])[0];
+  if (!r) return;
+
+  document.getElementById('hVilla').textContent = r['TaBookings2021_Property_Title'] || `Reserva ${idReserva}`;
+  document.getElementById('hRes').textContent   = `Reserva: ${r['TaBookings2021_FS_confirmation_code'] || idReserva}`;
+}
+
+async function loadTask() {
+  // Cargar tarea existente de TaTasks
+  const where = `Idreserva='${idReserva}' AND Tasktype_booking='${taskType}'`;
+  const url   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=1`);
+  const res   = await fetch(url);
+  const json  = await res.json();
+  const task  = (json.Result||json.result||[])[0];
+  if (!task) return;
+
+  // Rellenar campos con valores actuales
+  if (task['Tarea_terminada'] !== undefined) $sw('swDone', task['Tarea_terminada']);
+  if (task['Incidencias']     !== undefined) $sw('swIncid', task['Incidencias']);
+  // Parsear checkboxes de Taskdescription (JSON)
+  try {
+    const desc = task['Taskdescription'] ? JSON.parse(task['Taskdescription']) : null;
+    if (desc) {
+      if (desc.aguacaliente !== undefined) $sw('swAgua', desc.aguacaliente);
+      if (desc.wifi         !== undefined) $sw('swWifi', desc.wifi);
+      if (desc.comentarios)  document.getElementById('txtComentarios').value = desc.comentarios;
+    } else if (task['Taskdescription']) {
+      document.getElementById('txtComentarios').value = task['Taskdescription'];
+    }
+  } catch(e) {
+    if (task['Taskdescription']) document.getElementById('txtComentarios').value = task['Taskdescription'];
+  }
+
+  // Mostrar foto existente si hay URL
+  const fotoUrl = task['Picture_In_keyholder1'];
+  if (fotoUrl && typeof fotoUrl === 'string' && fotoUrl.startsWith('http')) {
+    showPhotoPreview(fotoUrl);
+  }
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function $sw(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (typeof val === 'boolean') el.checked = val;
+  else el.checked = val === true || val === 1 || val === -1 || String(val) === '1';
+}
+function sw(id)     { return document.getElementById(id)?.checked || false; }
+function hide(id)   { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
+function show(id)   { const el = document.getElementById(id); if(el) el.style.display = ''; }
+function block(id)  { const el = document.getElementById(id); if(el) el.style.display = 'flex'; }
+
+// ── Photo handling ─────────────────────────────────────────────
+function openCamera()  { document.getElementById('cameraInput').click(); }
+function openGallery() { document.getElementById('fileInput').click(); }
+function handlePhotoAreaClick() {
+  if (!selectedPhoto) openGallery();
+}
+
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  selectedPhoto = file;
+  const reader  = new FileReader();
+  reader.onload = e => {
+    photoBase64 = e.target.result;
+    showPhotoPreview(photoBase64);
+  };
+  reader.readAsDataURL(file);
+  input.value = ''; // reset so same file can be re-selected
+}
+
+function showPhotoPreview(src) {
+  const img  = document.getElementById('photoPreview');
+  const ph   = document.getElementById('photoPlaceholder');
+  const btn  = document.getElementById('photoRemove');
+  img.src    = src;
+  img.style.display = 'block';
+  ph.style.display  = 'none';
+  btn.style.display = 'flex';
+  document.getElementById('photoArea').style.borderStyle = 'solid';
+  document.getElementById('photoArea').style.borderColor = 'var(--green)';
+}
+
+function removePhoto(e) {
+  e.stopPropagation();
+  selectedPhoto = null;
+  photoBase64   = null;
+  const img = document.getElementById('photoPreview');
+  img.src = '';
+  img.style.display = 'none';
+  document.getElementById('photoPlaceholder').style.display = '';
+  document.getElementById('photoRemove').style.display = 'none';
+  document.getElementById('photoArea').style.borderStyle = 'dashed';
+  document.getElementById('photoArea').style.borderColor = 'var(--gray-3)';
+}
+
+// ── Build description JSON ────────────────────────────────────
+function buildDescription() {
+  const aguacaliente = sw('swAgua');
+  const wifi         = sw('swWifi');
+  const comentarios  = document.getElementById('txtComentarios').value.trim();
+  return JSON.stringify({ aguacaliente, wifi, comentarios });
+}
+
+// ── Guardar ───────────────────────────────────────────────────
+async function guardar() {
+  const btn = document.getElementById('btnSave');
+  const lbl = document.getElementById('saveLabel');
+  const sp  = document.getElementById('saveSpinner');
+
+  btn.disabled    = true;
+  lbl.textContent = 'Guardando...';
+  sp.style.display = 'block';
+
+  try {
+    const data = {
+      Idreserva        : idReserva,
+      Tasktype_booking : taskType,
+      Tarea_terminada  : sw('swDone'),
+      Incidencias      : sw('swIncid'),
+      Taskdescription  : buildDescription(),
+      Tasktype_booking : parseInt(taskType),
+      Taskname         : 'WelcomePack',
+    };
+
+    // Si hay foto nueva: incluir base64 (Caspio puede aceptarla como campo de texto/URL)
+    // Si no → omitir del body para no sobreescribir
+    if (selectedPhoto && photoBase64) {
+      // Intentar subir imagen al worker
+      try {
+        const uploadRes = await uploadPhoto(selectedPhoto, idReserva, taskType);
+        if (uploadRes && uploadRes.url) data['Picture_In_keyholder1'] = uploadRes.url;
+      } catch(eUp) {
+        console.warn('Photo upload skipped:', eUp.message);
+        // Continuar sin foto — no bloquear el guardado
+      }
+    }
+
+    // PUT/POST a TaTasks
+    // Check if task exists → PUT (update) or POST (insert)
+    const whereCheck = `Idreserva='${idReserva}' AND Tasktype_booking='${taskType}'`;
+    const checkUrl   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(whereCheck)}&limit=1`);
+    const checkRes   = await fetch(checkUrl);
+    const checkJson  = await checkRes.json();
+    const exists     = (checkJson.Result||checkJson.result||[]).length > 0;
+
+    const saveMethod = exists ? 'PUT' : 'POST';
+    const saveQs     = exists
+      ? `action=save&table=TaTasks&where=${encodeURIComponent(whereCheck)}&method=PUT`
+      : `action=save&table=TaTasks&method=POST`;
+    const saveUrl = Auth.url(`${WORKER}?${saveQs}`);
+
+    const saveRes = await fetch(saveUrl, {
+      method : 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body   : JSON.stringify(data),
+    });
+
+    if (!saveRes.ok) {
+      const err = await saveRes.text();
+      throw new Error(err);
+    }
+
+    toast('✓ Guardado correctamente', 'success');
+    btn.disabled    = false;
+    lbl.textContent = '✓ GUARDADO';
+    btn.style.background = 'var(--green)';
+
+    // Volver atrás después de 1.5s
+    setTimeout(() => {
+      if (document.referrer) history.back();
+      else window.close();
+    }, 1500);
+
+  } catch(e) {
+    console.error('Save error:', e);
+    toast('Error al guardar: ' + e.message, 'error');
+    btn.disabled    = false;
+    lbl.textContent = '✓ GUARDAR';
+    sp.style.display = 'none';
+  }
+}
+
+async function uploadPhoto(file, idRes, taskType) {
+  // Convertir a FormData para subir al worker
+  const fd = new FormData();
+  fd.append('file',         file, file.name);
+  fd.append('table',        'TaTasks');
+  fd.append('idreserva',    idRes);
+  fd.append('tasktype',     taskType);
+  fd.append('field',        'Foto');
+
+  const res = await fetch(Auth.url(`${WORKER}?action=upload`), {
+    method: 'POST',
+    body  : fd,
+  });
+  if (!res.ok) throw new Error('Upload failed: ' + res.status);
+  return await res.json();
+}
+
+// ── Feedback ──────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type||''}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = 'toast', 3000);
+}
+
+function showError(msg) {
+  hide('loadOverlay');
+  document.getElementById('mainContent').innerHTML = `
+    <div class="error-state">
+      <div class="emoji">⚠️</div>
+      <h3>Error</h3>
+      <p>${msg}</p>
+    </div>`;
+  show('mainContent');
+}
+</script>
+</body>
+</html>
