@@ -445,9 +445,14 @@ function setHeaderName(fullName) {
 }
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Set today as default date for both desde and hasta
-    if ($('fDesde')) $('fDesde').value = todayStr();
-    if ($('fHasta')) $('fHasta').value = todayStr();
+    // 1. Restaurar desde URL PRIMERO (antes de defaults)
+    const hadURLParams = restoreFromURL();
+
+    // 2. Solo poner fecha de hoy si no hay params de URL
+    if (!hadURLParams) {
+      if ($('fDesde')) $('fDesde').value = todayStr();
+      if ($('fHasta')) $('fHasta').value = todayStr();
+    }
     updateSub();
 
     // Load data in parallel - use allSettled so one failure doesn't block others
@@ -910,16 +915,22 @@ function saveToURL() {
 
 function restoreFromURL() {
   const p = new URLSearchParams(location.search);
+  // Only restore if there are recognizable filter params
+  const filterKeys = ['desde','hasta','mgr','ci','wp','tipo','cod','villa','inq'];
+  const hasParams = filterKeys.some(k => p.has(k));
+  if (!hasParams) return false;
+
   if (p.has('desde') && $('fDesde'))    $('fDesde').value    = p.get('desde');
   if (p.has('hasta') && $('fHasta'))    $('fHasta').value    = p.get('hasta');
   if (p.has('cod')   && $('fCodigo'))   $('fCodigo').value   = p.get('cod');
   if (p.has('villa') && $('fVilla'))    $('fVilla').value    = p.get('villa');
   if (p.has('inq')   && $('fInquilino'))$('fInquilino').value= p.get('inq');
   if (p.has('mgr'))   window.__urlManagers = p.get('mgr').split(',').filter(Boolean);
-  if (p.has('ci'))    { toggleMode    = p.get('ci');   }
-  if (p.has('wp'))    { fWelcomePack  = p.get('wp');   }
-  if (p.has('tipo'))  { tipoFilter    = p.get('tipo'); }
-  return p.toString().length > 0; // returns true if URL had params
+  if (p.has('ci'))    toggleMode    = p.get('ci');
+  if (p.has('wp'))    fWelcomePack  = p.get('wp');
+  if (p.has('tipo'))  tipoFilter    = p.get('tipo');
+  console.log('Restored from URL:', Object.fromEntries(p));
+  return true;
 }
 
 // ════════════════ CARD TOGGLE ════════════════
@@ -1200,14 +1211,8 @@ function buildCard(r, type) {
     html += '</div>';
   }
 
-  // Action chips
+  // Action chips — URLs definidas en el bloque superior
   if (code) {
-    const urlNotas    = `https://c1abn932.caspio.com/dp/353f700083e981faed5749b1b3bb?TaBookings2021_FS_confirmation_code=${code}`;
-    const urlAddTask  = `https://c1abn932.caspio.com/dp/353f70005570d2553f784395ae74?Idreserva=${code}&villa_id=${villaId}&cbResetParam=1`;
-    const urlVerTask  = `https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=${code}&cbResetParam=1`;
-    const urlResNotas = `https://c1abn932.caspio.com/dp/353f7000a3d74a1b78c24199af5e?TaBookings2021_FS_confirmation_code=${code}`;
-    const urlExtras   = `https://c1abn932.caspio.com/dp/353f70003378521e747a43748f75?TaBookings2021_FS_confirmation_code=${code}`;
-    const urlHostaway = g(r,'hostawayLink') || `https://dashboard.hostaway.com/reservations/${code}`;
     html += '<div class="c-actions">';
     html += `<a class="act-chip ac-nota"  href="${urlNotas}"    onclick="return popup('${urlNotas}',900,450)">📝 Notas / Aparto</a>`;
     html += `<a class="act-chip ac-task"  href="${urlAddTask}"  onclick="return popup('${urlAddTask}')">➕ Nueva tarea</a>`;
