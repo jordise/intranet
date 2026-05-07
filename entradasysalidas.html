@@ -347,7 +347,9 @@ const F = {
   cleaner        : 'TaVillas_Cleanning_team',
   cleaningNotes  : 'TaBookings2021_CleaningNotes',
   notasIrene     : 'TaBookings2021_keyholderNotes',
-  arrivalMenorca : 'TaBookings2021_Arrival_Time_to_Menorca',
+  arrivalMenorca  : 'TaBookings2021_Arrival_Time_to_Menorca',
+  checkoutTime    : 'TaBookings2021_Checkout_time',
+  departureMenorca: 'TaBookings2021_Departure_time_from_Menorca',
   googleMaps     : 'TaVillas_Googlemaps_link',
   keyboxCode     : 'TaVillas_Keybox_code',
   pmsmultiunitId : 'TaBookings2021_PMSmultiunitID',
@@ -825,7 +827,9 @@ async function doSearch() {
     if (json.error) throw new Error(json.error);
     const records = json.Result || json.result || [];
 
-    $('dbBox').textContent = `WHERE:\n${where}\n\nRegistros: ${records.length}\n\nPrimer registro:\n${JSON.stringify(records[0]||{},null,2)}`;
+    const ciFieldVal = records[0] ? records[0]['TaBookings2021_checkinonline_todo_terminado'] : 'N/A';
+    const wpFieldVal = records[0] ? records[0]['TaBookings2021_Welcomepackentregado'] : 'N/A';
+    $('dbBox').textContent = `WHERE:\n${where}\n\nRegistros: ${records.length}\nCI field value (1er reg): ${JSON.stringify(ciFieldVal)}\nWP field value (1er reg): ${JSON.stringify(wpFieldVal)}\n\nPrimer registro:\n${JSON.stringify(records[0]||{},null,2)}`;
     renderCards(records);
   } catch(err) {
     if ($('stLoad')) $('stLoad').style.display = 'none';
@@ -862,9 +866,12 @@ function renderCards(records) {
     const isSalida  = coTs >= desdeTs && coTs <= hastaTs;
     // WelcomePack filter: si está en modo 'pending', skip entradas con WP completado
     const wpOk   = isOk(g(r,'wellcomePack'));
-    const ciPendOk = isOk(g(r,'checkinPend')); // boolean campo TaBookings2021_checkinonline_todo_terminado
+    const ciPendOk = isOk(g(r,'checkinPend')); // TaBookings2021_checkinonline_todo_terminado
     const skipWP = fWelcomePack==='pending' && wpOk===true;    // skip entradas con WP hecho
-    const skipCI = toggleMode==='pend' && ciPendOk===true;     // skip reservas con CI terminado
+    // CI pending: mostrar solo los que NO están terminados (false, null, 0)
+    // ciPendOk===true = terminado → skipCI=true → ocultar
+    // ciPendOk===false/null = pendiente → skipCI=false → mostrar
+    const skipCI = toggleMode==='pend' && ciPendOk===true;
     const showEnt = tipoFilter==='both' || tipoFilter==='entrada';
     const showSal = tipoFilter==='both' || tipoFilter==='salida';
     if (isEntrada && !skipWP && !skipCI && showEnt) rows.push({ r, type:'entrada', sortDate: ciTs });
@@ -873,8 +880,18 @@ function renderCards(records) {
     if (!isEntrada && !isSalida) rows.push({ r, type:'entrada', sortDate: ciTs });
   });
 
-  // Ordenar: primero por fecha, luego salidas después de entradas del mismo día
-  rows.sort((a,b) => a.sortDate - b.sortDate || (a.type==='entrada'?-1:1));
+  // Ordenar: fecha ASC → hora ASC → entradas antes que salidas en mismo momento
+  rows.sort((a,b) => {
+    if (a.sortDate !== b.sortDate) return a.sortDate - b.sortDate;
+    // Misma fecha → ordenar por hora de la operación
+    const aTimeStr = a.type==='entrada' ? g(a.r,'checkinTime') : (g(a.r,'checkoutTime')||g(a.r,'checkinTime'));
+    const bTimeStr = b.type==='entrada' ? g(b.r,'checkinTime') : (g(b.r,'checkoutTime')||g(b.r,'checkinTime'));
+    const aMin = parseTimeMin(aTimeStr);
+    const bMin = parseTimeMin(bTimeStr);
+    if (aMin !== bMin) return aMin - bMin;
+    // Misma hora: entradas antes que salidas
+    return a.type==='entrada' ? -1 : 1;
+  });
 
   let entradas=0, salidas=0, paxT=0;
   rows.forEach(row => {
@@ -947,6 +964,15 @@ function restoreFromURL() {
   if (p.has('tipo'))  tipoFilter    = p.get('tipo');
   console.log('Restored from URL:', Object.fromEntries(p));
   return true;
+}
+
+// ════════════════ TIME SORT HELPER ════════════════
+function parseTimeMin(timeStr) {
+  if (!timeStr) return 9999; // sin hora va al final
+  const clean = String(timeStr).trim();
+  const m = clean.match(/^(\d{1,2})[:h](\d{2})/);
+  if (m) return parseInt(m[1])*60 + parseInt(m[2]);
+  return 9999;
 }
 
 // ════════════════ CARD TOGGLE ════════════════
@@ -1166,8 +1192,12 @@ function buildCard(r, type) {
   }
   // Salida: hora de salida de la villa + hora que salen de Menorca (si existe)
   if (isSalida) {
-    if (cht) html += `<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora de salida</span><span class="ival">${cht}</span></div></div>`;
-    if (am)  html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Vuelo salida</span><span class="ival">${am}</span></div></div>`;
+    const cot = g(r,'checkoutTime');
+    const dm  = g(r,'departureMenorca');
+    if (cot) html += `<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida villa</span><span class="ival">${cot}</span></div></div>`;
+    else if (cht) html += `<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida</span><span class="ival">${cht}</span></div></div>`;
+    if (dm)  html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${dm}</span></div></div>`;
+    else if (am) html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;
   }
   html += '</div>'; // end c-body always-visible
 
