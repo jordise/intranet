@@ -30,7 +30,7 @@ var NAV_MENU = [
     ]
   },
  { label: 'Login',   url: 'login.html',  icon: '' },
- { label: 'Logout',   url: 'logout.html',  icon: '' },
+ 
   // Ejemplo de item con acceso restringido:
   // { label: 'Contabilidad', url: 'contabilidad.html', icon: '💰', roles: ['admin'] },
 
