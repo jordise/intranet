@@ -193,19 +193,42 @@
 </header>
 
 <div id="filterPanel">
-  <!-- Barra principal -->
-  <div class="main-bar">
+  <!-- Barra principal: pill toggles siempre visibles + botón Filtros -->
+  <div class="main-bar" style="flex-wrap:wrap;gap:8px;align-items:flex-end;padding-bottom:10px">
+    <!-- Pill toggles siempre visibles -->
+    <div class="pill-group">
+      <span class="pill-label">Check-in online</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tAll"  onclick="setToggle('all')">Todos</button>
+        <button class="pill-opt"    id="tPend" onclick="setToggle('pend')">Pendiente</button>
+      </div>
+    </div>
+    <div class="pill-group">
+      <span class="pill-label">WelcomePack <span style="font-weight:400;opacity:.6">(entradas)</span></span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
+        <button class="pill-opt"    id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+      </div>
+    </div>
+    <div class="pill-group">
+      <span class="pill-label">Mostrar</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tTipo_both"    onclick="setTipoFilter('both')">Todo</button>
+        <button class="pill-opt"    id="tTipo_entrada"  onclick="setTipoFilter('entrada')">Entradas</button>
+        <button class="pill-opt"    id="tTipo_salida"   onclick="setTipoFilter('salida')">Salidas</button>
+      </div>
+    </div>
+    <div style="flex:1"></div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
-    <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
   </div>
   <!-- Chips -->
   <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0"></div>
-  <!-- Expandible: TODO -->
-  <div id="masFiltros" class="open">
+  <!-- Expandible: CERRADO por defecto -->
+  <div id="masFiltros">
     <div class="mas-inner">
-      <!-- Fila 1: VM + Fechas -->
       <div class="filter-row">
         <div class="f-group wide" style="position:relative">
           <label class="f-label">Villa Manager</label>
@@ -233,32 +256,6 @@
           <input type="date" id="fHasta" class="f-input" onchange="scheduleSearch()">
         </div>
       </div>
-      <!-- Fila 2: Pill toggles -->
-      <div class="filter-row" style="gap:12px;flex-wrap:wrap;margin-bottom:10px">
-        <div class="pill-group">
-          <span class="pill-label">Check-in online</span>
-          <div class="pill-opts">
-            <button class="pill-opt on" id="tAll"  onclick="setToggle('all')">Todos</button>
-            <button class="pill-opt"    id="tPend" onclick="setToggle('pend')">Pendiente</button>
-          </div>
-        </div>
-        <div class="pill-group">
-          <span class="pill-label">WelcomePack <span style="font-weight:400;opacity:.6">(entradas)</span></span>
-          <div class="pill-opts">
-            <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
-            <button class="pill-opt"    id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
-          </div>
-        </div>
-        <div class="pill-group">
-          <span class="pill-label">Mostrar</span>
-          <div class="pill-opts">
-            <button class="pill-opt on" id="tTipo_both"   onclick="setTipoFilter('both')">Todo</button>
-            <button class="pill-opt"    id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
-            <button class="pill-opt"    id="tTipo_salida"  onclick="setTipoFilter('salida')">Salidas</button>
-          </div>
-        </div>
-      </div>
-      <!-- Fila 3: Texto -->
       <div class="filter-row" style="margin-bottom:0">
         <div class="f-group narrow">
           <label class="f-label">Código reserva</label>
@@ -460,12 +457,15 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadMultiunits()
     ]);
 
-    // WP default: pendientes si es villa manager, todos si no
-    const defaultWP = window.__restoredWP || (window.__isVillaManager ? 'pending' : 'all');
+    // Aplicar estados visuales de los toggles restaurados
+    setToggle(toggleMode);
+    setTipoFilter(tipoFilter);
+    // WP default: pendientes si es villa manager (solo si no hay URL/localStorage params)
+    const hasRestoredWP = window.__restoredWP || (location.search.includes('wp='));
+    const defaultWP = window.__restoredWP || fWelcomePack || (window.__isVillaManager ? 'pending' : 'all');
     setWPFilter(defaultWP);
     window.__restoredWP = null;
-    // tipoFilter restore
-    if (window.__restoredTipo) { setTipoFilter(window.__restoredTipo); window.__restoredTipo=null; }
+    if (window.__restoredTipo) { setTipoFilter(window.__restoredTipo); window.__restoredTipo = null; }
     // Auto-search on load
     doSearch();
   } catch(err) {
@@ -507,7 +507,7 @@ async function loadManagers() {
 
     // Pre-select: primero restaurar filtros guardados, si no → Keyholder_por_defecto
     selectedManagers.clear();
-    const restored = window.__restoredManagers || [];
+    const restored = window.__urlManagers || window.__restoredManagers || [];
     if (restored.length > 0) {
       // Restaurar selección guardada
       restored.forEach(id => selectedManagers.add(id));
@@ -556,6 +556,7 @@ function toggleManager(id) {
   else selectedManagers.add(id);
   renderManagerList(($('managerSearch')||{}).value||'');
   updateManagerBtn();
+  scheduleSearch(300); // auto-search al cambiar manager
 }
 
 function selectAllManagers() {
@@ -692,7 +693,7 @@ function clearAll() {
   clearManagers(); // Reset multi-select manager
   try { localStorage.removeItem('3v_eys_filters'); } catch(e) {}
   if ($('fDesde'))    $('fDesde').value    = todayStr();
-  if ($('fHasta'))    $('fHasta').value    = '';
+  if ($('fHasta'))    $('fHasta').value    = todayStr();
   if ($('fCodigo'))   $('fCodigo').value   = '';
   if ($('fVilla'))    $('fVilla').value    = '';
   if ($('fInquilino'))$('fInquilino').value= '';
@@ -786,6 +787,7 @@ async function doSearch() {
       tipoFilter: tipoFilter,
     };
     localStorage.setItem('3v_eys_filters', JSON.stringify(state));
+    saveToURL();
   } catch(e) {}
 
   if ($('stInit')) $('stInit').style.display = 'none';
@@ -882,6 +884,42 @@ let _searchTimer = null;
 function scheduleSearch(delay) {
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(doSearch, delay || 0);
+}
+
+
+// ════════════════ URL PARAMS (persistir filtros al refrescar) ════════════════
+function saveToURL() {
+  const params = new URLSearchParams();
+  const desde  = ($('fDesde')||{}).value||'';
+  const hasta  = ($('fHasta')||{}).value||'';
+  const cod    = ($('fCodigo')||{}).value||'';
+  const villa  = ($('fVilla')||{}).value||'';
+  const inq    = ($('fInquilino')||{}).value||'';
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  if (selectedManagers.size) params.set('mgr', [...selectedManagers].join(','));
+  if (toggleMode  !== 'all')   params.set('ci',   toggleMode);
+  if (fWelcomePack!== 'all')   params.set('wp',   fWelcomePack);
+  if (tipoFilter  !== 'both')  params.set('tipo',  tipoFilter);
+  if (cod)   params.set('cod',   cod);
+  if (villa) params.set('villa', villa);
+  if (inq)   params.set('inq',   inq);
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+}
+
+function restoreFromURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.has('desde') && $('fDesde'))    $('fDesde').value    = p.get('desde');
+  if (p.has('hasta') && $('fHasta'))    $('fHasta').value    = p.get('hasta');
+  if (p.has('cod')   && $('fCodigo'))   $('fCodigo').value   = p.get('cod');
+  if (p.has('villa') && $('fVilla'))    $('fVilla').value    = p.get('villa');
+  if (p.has('inq')   && $('fInquilino'))$('fInquilino').value= p.get('inq');
+  if (p.has('mgr'))   window.__urlManagers = p.get('mgr').split(',').filter(Boolean);
+  if (p.has('ci'))    { toggleMode    = p.get('ci');   }
+  if (p.has('wp'))    { fWelcomePack  = p.get('wp');   }
+  if (p.has('tipo'))  { tipoFilter    = p.get('tipo'); }
+  return p.toString().length > 0; // returns true if URL had params
 }
 
 // ════════════════ CARD TOGGLE ════════════════
@@ -1071,8 +1109,7 @@ function buildCard(r, type) {
     html += `<span class="bdg ${ecCls}" style="gap:3px">${ecIco} Ecotasa${ecExtra}</span>`;
     html += mkBadge('Policía', g(r,'policeDone'));
     html += mkBadge('Depósito', g(r,'depositDone'));
-    html += `<a class="ci-link" href="${urlCiOnline}" onclick="return popup('${urlCiOnline}',900,900)" style="margin-left:auto">🔗 Checkin online</a>`;
-    html += '</div>';
+    html += '</div>'; // end CI badges row
     if (ecCom)    html += `<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if (depNotes) html += `<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
   }
@@ -1178,6 +1215,7 @@ function buildCard(r, type) {
     html += `<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}" onclick="return popup('${urlResNotas}')">✏️ Notas reservas</a>`;
     html += `<a class="act-chip" style="background:#ede7f6;color:#5e35b1" href="${urlExtras}"   onclick="return popup('${urlExtras}')">💎 Extras</a>`;
     html += `<a class="act-chip ac-host"  href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 Hostaway PMS</a>`;
+    html += `<a class="act-chip" style="background:#e8f0fe;color:#1967d2" href="${urlCiOnline}" onclick="return popup('${urlCiOnline}',900,900)">🔗 Checkin online</a>`;
     html += '</div>';
     // Extras upselling
     const extras = [
