@@ -473,6 +473,23 @@ async function guardar() {
       throw new Error(err);
     }
 
+    // ── También actualizar TaBookings2021.Welcomepackentregado ──
+    // El badge en Entradas y Salidas lee este campo de la reserva
+    try {
+      const wpDone     = sw('swDone');
+      const bkWhere    = `FS_confirmation_code='${idReserva}'`;
+      const bkSaveUrl  = Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);
+      await fetch(bkSaveUrl, {
+        method : 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body   : JSON.stringify({ Welcomepackentregado: wpDone }),
+      });
+      console.log('Booking updated: Welcomepackentregado =', wpDone);
+    } catch(eBk) {
+      console.warn('No se pudo actualizar TaBookings2021:', eBk.message);
+      // No bloqueamos — la tarea sí se guardó
+    }
+
     toast('✓ Guardado correctamente', 'success');
     btn.disabled    = false;
     lbl.textContent = '✓ GUARDADO';
