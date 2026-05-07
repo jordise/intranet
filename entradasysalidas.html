@@ -49,7 +49,7 @@
     .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
     .f-select:disabled{background-color:var(--gray-1);color:var(--gray-4)}
     /* Multi-select manager */
-    .manager-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:500;display:flex;flex-direction:column;max-height:260px}
+    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
     .manager-list{overflow-y:auto;flex:1;padding:4px 0}
     .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
     .manager-item:hover{background:var(--gray-1)}
@@ -478,18 +478,45 @@ function updateManagerBtn() {
 function toggleManagerPanel(e) {
   e && e.stopPropagation();
   const panel = $('managerPanel');
-  if (!panel) return;
+  const btn   = $('fManagerBtn');
+  if (!panel || !btn) return;
   const isOpen = panel.style.display !== 'none';
-  panel.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) { renderManagerList(); setTimeout(()=>{ if($('managerSearch'))$('managerSearch').value=''; },10); }
+  if (isOpen) {
+    panel.style.display = 'none';
+    return;
+  }
+  // Posicionar sobre el botón (fixed, evita el overflow:hidden del padre)
+  const rect = btn.getBoundingClientRect();
+  panel.style.top    = (rect.bottom + 4) + 'px';
+  panel.style.left   = rect.left + 'px';
+  panel.style.width  = rect.width + 'px';
+  panel.style.display = 'flex';
+  renderManagerList();
+  if ($('managerSearch')) { $('managerSearch').value=''; $('managerSearch').focus(); }
 }
 
-// Cerrar panel al hacer click fuera
+// Cerrar panel al hacer click fuera o scroll
+function closeManagerPanel() {
+  const panel = $('managerPanel');
+  if (panel) panel.style.display = 'none';
+}
 document.addEventListener('click', e => {
   const panel = $('managerPanel');
   const btn   = $('fManagerBtn');
-  if (panel && btn && !btn.contains(e.target) && !panel.contains(e.target)) {
+  if (panel && panel.style.display!=='none' && btn && !btn.contains(e.target) && !panel.contains(e.target)) {
     panel.style.display = 'none';
+  }
+});
+window.addEventListener('scroll', closeManagerPanel, true);
+window.addEventListener('resize', () => {
+  // Reposicionar si está abierto
+  const panel = $('managerPanel');
+  const btn   = $('fManagerBtn');
+  if (panel && panel.style.display!=='none' && btn) {
+    const rect = btn.getBoundingClientRect();
+    panel.style.top  = (rect.bottom + 4) + 'px';
+    panel.style.left = rect.left + 'px';
+    panel.style.width= rect.width + 'px';
   }
 });
 
