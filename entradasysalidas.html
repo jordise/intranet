@@ -12,7 +12,7 @@
     header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px;flex-wrap:nowrap}
     .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
     .h-sub{font-size:clamp(10px,2.5vw,12px);opacity:.75;margin-top:1px;white-space:nowrap}
-    .h-badge{display:none;background:rgba(255,255,255,.2);padding:4px 8px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+    /* hBadge now inline below user name */
     .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:background .15s;white-space:nowrap;flex-shrink:0}
     .logout-btn:hover{background:rgba(255,255,255,.3)}
     /* Filter panel */
@@ -419,9 +419,18 @@ async function loadManagers() {
     managers.forEach(u => managersMap.set(String(u[U.id]||''), String(u[U.name]||'')));
     allManagersList = managers.map(u => ({ id: String(u[U.id]||''), name: String(u[U.name]||'') }));
 
-    // Pre-select Keyholder_por_defecto del usuario actual
+    // Pre-select: primero restaurar filtros guardados, si no → Keyholder_por_defecto
     selectedManagers.clear();
-    if (myKeyholder) {
+    const restored = window.__restoredManagers || [];
+    if (restored.length > 0) {
+      // Restaurar selección guardada
+      restored.forEach(id => selectedManagers.add(id));
+      // Nombre WA: del primer manager restaurado
+      const firstId  = restored[0];
+      const firstMgr = users.find(u => String(u[U.id]||'')===firstId);
+      if (firstMgr && $('mgrName')) $('mgrName').value = firstMgr[U.name] || Auth.name() || '';
+    } else if (myKeyholder) {
+      // Sin estado guardado → usar Keyholder_por_defecto
       selectedManagers.add(myKeyholder);
       const preMgr = users.find(u => String(u[U.id]||'')===myKeyholder);
       if (preMgr && $('mgrName')) $('mgrName').value = preMgr[U.name] || Auth.name() || '';
@@ -578,6 +587,7 @@ function setToggle(mode) {
 // onManagerChange replaced by toggleManager multi-select
 function clearAll() {
   clearManagers(); // Reset multi-select manager
+  try { localStorage.removeItem('3v_eys_filters'); } catch(e) {}
   if ($('fDesde'))    $('fDesde').value    = todayStr();
   if ($('fHasta'))    $('fHasta').value    = '';
   if ($('fCodigo'))   $('fCodigo').value   = '';
@@ -657,13 +667,26 @@ function renderChips() {
 async function doSearch() {
   updateSub();
   renderChips();
+  // Guardar filtros en localStorage para persistir al refrescar
+  try {
+    const state = {
+      managers : [...selectedManagers],
+      desde    : ($('fDesde')||{}).value||'',
+      hasta    : ($('fHasta')||{}).value||'',
+      codigo   : ($('fCodigo')||{}).value||'',
+      villa    : ($('fVilla')||{}).value||'',
+      inquilino: ($('fInquilino')||{}).value||'',
+      toggle   : toggleMode,
+    };
+    localStorage.setItem('3v_eys_filters', JSON.stringify(state));
+  } catch(e) {}
 
   if ($('stInit')) $('stInit').style.display = 'none';
   if ($('stLoad')) $('stLoad').style.display = 'block';
   if ($('stErr'))  $('stErr').style.display  = 'none';
   if ($('grid'))   { $('grid').style.display = 'none'; $('grid').innerHTML = ''; }
   if ($('statsBar')) $('statsBar').style.display = 'none';
-  if ($('hBadge'))   $('hBadge').style.display   = 'none';
+  if ($('hBadge'))   $('hBadge').textContent = '';
 
   const where = buildWhere();
   const url   = `${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&orderBy=${encodeURIComponent(F.villaName)}&limit=500`;
@@ -729,7 +752,7 @@ function renderCards(records) {
   if ($('sPax'))    $('sPax').textContent    = paxT||'—';
   if ($('sNights')) $('sNights').textContent = records.length;
   if ($('statsBar')) $('statsBar').style.display = 'flex';
-  if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; $('hBadge').style.display='inline'; }
+  if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
 
   rows.forEach(row => grid.appendChild(buildCard(row.r, row.type)));
 }
