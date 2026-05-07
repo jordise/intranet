@@ -289,30 +289,19 @@ async function loadTask() {
   if (task['Taskdescription'])
     document.getElementById('txtComentarios').value = task['Taskdescription'];
 
-  // ── Foto: Caspio devuelve File fields de varias formas posibles ──
-  const fotoVal = task['Picture_in_cleaning1'];
-  console.log('Photo field raw value:', fotoVal);
-  if (fotoVal) {
-    let fotoUrl = null;
-    if (typeof fotoVal === 'string') {
-      // String directa — puede ser URL completa, path relativo o nombre de archivo
-      if (fotoVal.startsWith('http')) {
-        fotoUrl = fotoVal;
-      } else if (fotoVal.length > 0) {
-        // Construir URL de Caspio para archivos
-        fotoUrl = `https://c1abn932.caspio.com/dp/files/${fotoVal}`;
-      }
-    } else if (typeof fotoVal === 'object' && fotoVal !== null) {
-      // Objeto — buscar propiedad URL en varios formatos
-      fotoUrl = fotoVal.Url || fotoVal.url || fotoVal.URL ||
-                fotoVal.FileUrl || fotoVal.fileUrl ||
-                fotoVal.DownloadUrl || fotoVal.downloadUrl || null;
-    }
-    if (fotoUrl) {
-      console.log('Showing photo:', fotoUrl);
-      showPhotoPreview(fotoUrl);
-    } else {
-      console.log('Photo value exists but no URL found:', JSON.stringify(fotoVal));
+  // ── Foto: buscar URL en Solutiondescription (R2) o Picture_in_cleaning1 (Caspio File) ──
+  const r2Url = task['Picture_cloudfare1'];
+  if (r2Url && r2Url.startsWith('http')) {
+    console.log('Showing R2 photo:', r2Url);
+    showPhotoPreview(r2Url);
+  } else {
+    // Fallback: campo File de Caspio
+    const fotoVal = task['Picture_in_cleaning1'];
+    if (fotoVal) {
+      let fotoUrl = typeof fotoVal === 'string' && fotoVal.startsWith('http')
+        ? fotoVal
+        : (typeof fotoVal === 'object' ? (fotoVal.Url||fotoVal.url||null) : null);
+      if (fotoUrl) showPhotoPreview(fotoUrl);
     }
   }
 
@@ -448,12 +437,10 @@ async function guardar() {
       try {
         const uploadRes = await uploadPhoto(selectedPhoto, idReserva, taskType);
         if (uploadRes && uploadRes.url) {
-          // Guardamos la URL en un campo de texto — R2 almacena el archivo
-          data['Taskdescription'] = data['Taskdescription']
-            ? data['Taskdescription'] + '\n[foto:' + uploadRes.url + ']'
-            : '[foto:' + uploadRes.url + ']';
-          window.__uploadedPhotoUrl = uploadRes.url;
-          console.log('Uploaded to R2:', uploadRes.filename);
+          // URL de la foto en campo separado (Solutiondescription)
+          data['Picture_cloudfare1'] = uploadRes.url;
+          window.__uploadedPhotoUrl  = uploadRes.url;
+          console.log('Uploaded to R2:', uploadRes.filename, uploadRes.url);
         }
       } catch(eUp) {
         console.warn('Photo upload skipped:', eUp.message);
