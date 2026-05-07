@@ -866,12 +866,11 @@ function renderCards(records) {
     const isSalida  = coTs >= desdeTs && coTs <= hastaTs;
     // WelcomePack filter: si está en modo 'pending', skip entradas con WP completado
     const wpOk   = isOk(g(r,'wellcomePack'));
-    const ciPendOk = isOk(g(r,'checkinPend')); // TaBookings2021_checkinonline_todo_terminado
-    const skipWP = fWelcomePack==='pending' && wpOk===true;    // skip entradas con WP hecho
-    // CI pending: mostrar solo los que NO están terminados (false, null, 0)
-    // ciPendOk===true = terminado → skipCI=true → ocultar
-    // ciPendOk===false/null = pendiente → skipCI=false → mostrar
-    const skipCI = toggleMode==='pend' && ciPendOk===true;
+    // CI: el campo devuelve 3 cuando está todo terminado, 0/1/2/null = pendiente
+    const ciRaw  = g(r,'checkinPend');
+    const ciDone = (Number(ciRaw) === 3);
+    const skipWP = fWelcomePack==='pending' && wpOk===true;
+    const skipCI = toggleMode==='pend' && ciDone; // skip si valor=3 (terminado)
     const showEnt = tipoFilter==='both' || tipoFilter==='entrada';
     const showSal = tipoFilter==='both' || tipoFilter==='salida';
     if (isEntrada && !skipWP && !skipCI && showEnt) rows.push({ r, type:'entrada', sortDate: ciTs });
@@ -980,12 +979,13 @@ function toggleCardBody(id) {
   const wrap = document.getElementById(id);
   if (!wrap) return;
   const btn  = document.querySelector('.c-toggle[data-toggle="'+id+'"]');
-  const open = wrap.style.display !== 'none';
-  wrap.style.display = open ? 'none' : 'block';
+  // style.display empieza como '' (vacío) aunque CSS lo oculte → comparar contra 'block'
+  const isOpen = wrap.style.display === 'block';
+  wrap.style.display = isOpen ? 'none' : 'block';
   if (btn) {
-    btn.classList.toggle('open', !open);
+    btn.classList.toggle('open', !isOpen);
     const lbl = btn.querySelector('.c-toggle-label');
-    if (lbl) lbl.textContent = open ? 'Ver detalles' : 'Ocultar';
+    if (lbl) lbl.textContent = isOpen ? 'Ver detalles' : 'Ocultar';
   }
 }
 
