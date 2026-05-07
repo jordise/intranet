@@ -109,7 +109,10 @@
   <div class="h-label">3Villas · Tarea</div>
   <div class="h-villa" id="hVilla">Cargando...</div>
   <div class="h-res" id="hRes"></div>
-  <div class="task-badge" id="hTaskBadge">📦 WelcomePack</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <div class="task-badge" id="hTaskBadge">📦 WelcomePack</div>
+    <button onclick="showDebug()" style="background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.7);font-size:11px;padding:3px 8px;border-radius:10px;cursor:pointer">🐛</button>
+  </div>
 </header>
 
 <main id="mainContent" style="display:none">
@@ -117,17 +120,6 @@
   <!-- Checkboxes principales -->
   <div class="card">
     <div class="card-title">Estado</div>
-
-    <label class="toggle-row" for="swDone">
-      <div>
-        <div class="toggle-label">✅ Wellcomepack entregado</div>
-        <div class="toggle-sub">Marcar cuando esté completado</div>
-      </div>
-      <div class="switch">
-        <input type="checkbox" id="swDone">
-        <div class="slider"></div>
-      </div>
-    </label>
 
     <label class="toggle-row" for="swAgua">
       <div>
@@ -183,6 +175,20 @@
       <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
       <input type="file" id="fileInput"   accept="image/*" onchange="handlePhoto(this)">
     </div>
+  </div>
+
+  <!-- WelcomePack entregado — después de la foto -->
+  <div class="card" id="cardWPDone" style="border:2px solid var(--gray-2);transition:border-color .3s">
+    <label class="toggle-row" for="swDone" style="padding:16px">
+      <div>
+        <div class="toggle-label" style="font-size:15px;font-weight:600">✅ Wellcomepack entregado</div>
+        <div class="toggle-sub" id="wpDoneHint">Sube la foto para marcar automáticamente</div>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="swDone" onchange="onSwDoneChange()">
+        <div class="slider"></div>
+      </div>
+    </label>
   </div>
 
   <!-- Comentarios -->
@@ -261,36 +267,74 @@ async function loadBooking() {
 }
 
 async function loadTask() {
-  // Cargar tarea existente de TaTasks
   const where = `Idreserva='${idReserva}' AND Tasktype_booking='${taskType}'`;
   const url   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=1`);
   const res   = await fetch(url);
   const json  = await res.json();
   const task  = (json.Result||json.result||[])[0];
-  if (!task) return;
 
-  // Rellenar campos con valores actuales
+  // Debug: mostrar todos los campos del registro
+  window.__taskDebug = task;
+  console.log('TaTasks record:', task);
+
+  if (!task) {
+    console.log('No task found for Idreserva='+idReserva+' Tasktype='+taskType);
+    return;
+  }
+
+  // ── WP entregado + Incidencias ──
   if (task['Tarea_terminada'] !== undefined) $sw('swDone', task['Tarea_terminada']);
   if (task['Incidencias']     !== undefined) $sw('swIncid', task['Incidencias']);
-  // Parsear checkboxes de Taskdescription (JSON)
-  try {
-    const desc = task['Taskdescription'] ? JSON.parse(task['Taskdescription']) : null;
-    if (desc) {
-      if (desc.aguacaliente !== undefined) $sw('swAgua', desc.aguacaliente);
-      if (desc.wifi         !== undefined) $sw('swWifi', desc.wifi);
-      if (desc.comentarios)  document.getElementById('txtComentarios').value = desc.comentarios;
-    } else if (task['Taskdescription']) {
-      document.getElementById('txtComentarios').value = task['Taskdescription'];
-    }
-  } catch(e) {
-    if (task['Taskdescription']) document.getElementById('txtComentarios').value = task['Taskdescription'];
+
+  // ── Agua caliente / Wifi ──
+  // Intentar múltiples nombres de campo posibles
+  const aguaKeys = ['Aguacaliente','aguacaliente','Agua_caliente','AguaCaliente'];
+  const wifiKeys = ['Wifi','wifi','WifiFunciona','Wifi_funciona'];
+
+  for (const k of aguaKeys) {
+    if (task[k] !== undefined && task[k] !== null) { $sw('swAgua', task[k]); break; }
+  }
+  for (const k of wifiKeys) {
+    if (task[k] !== undefined && task[k] !== null) { $sw('swWifi', task[k]); break; }
   }
 
-  // Mostrar foto existente si hay URL
-  const fotoUrl = task['Picture_In_keyholder1'];
-  if (fotoUrl && typeof fotoUrl === 'string' && fotoUrl.startsWith('http')) {
-    showPhotoPreview(fotoUrl);
+  // ── Comentarios: desde Taskdescription (JSON o texto plano) ──
+  if (task['Taskdescription']) {
+    try {
+      const desc = JSON.parse(task['Taskdescription']);
+      if (desc && typeof desc === 'object') {
+        if (desc.aguacaliente !== undefined) $sw('swAgua', desc.aguacaliente);
+        if (desc.wifi         !== undefined) $sw('swWifi', desc.wifi);
+        if (desc.comentarios)  document.getElementById('txtComentarios').value = desc.comentarios;
+      } else {
+        document.getElementById('txtComentarios').value = task['Taskdescription'];
+      }
+    } catch(e) {
+      document.getElementById('txtComentarios').value = task['Taskdescription'];
+    }
   }
+  if (task['Internal_notes']) {
+    document.getElementById('txtComentarios').value = task['Internal_notes'];
+  }
+
+  // ── Foto: Picture_In_keyholder1 puede ser URL string o Caspio file object ──
+  const fotoVal = task['Picture_In_keyholder1'];
+  if (fotoVal) {
+    let fotoUrl = null;
+    if (typeof fotoVal === 'string' && fotoVal.startsWith('http')) {
+      fotoUrl = fotoVal;
+    } else if (typeof fotoVal === 'object' && fotoVal.Url) {
+      fotoUrl = fotoVal.Url;
+    } else if (typeof fotoVal === 'object' && fotoVal.url) {
+      fotoUrl = fotoVal.url;
+    }
+    if (fotoUrl) showPhotoPreview(fotoUrl);
+  }
+
+  // Mostrar debug en consola con todos los campos
+  console.log('Task fields:', Object.keys(task));
+  console.log('Agua field check:', aguaKeys.map(k=>k+':'+task[k]));
+  console.log('Wifi field check:', wifiKeys.map(k=>k+':'+task[k]));
 }
 
 // ── UI helpers ────────────────────────────────────────────────
@@ -320,9 +364,35 @@ function handlePhoto(input) {
   reader.onload = e => {
     photoBase64 = e.target.result;
     showPhotoPreview(photoBase64);
+    markWPDone(); // auto-check WP entregado
   };
   reader.readAsDataURL(file);
-  input.value = ''; // reset so same file can be re-selected
+  input.value = ''; // reset
+}
+
+function onSwDoneChange() {
+  const el   = document.getElementById('swDone');
+  const card = document.getElementById('cardWPDone');
+  const hint = document.getElementById('wpDoneHint');
+  if (el.checked) {
+    if (card) card.style.borderColor = 'var(--green)';
+    if (hint) { hint.textContent = 'Wellcomepack marcado como entregado'; hint.style.color = 'var(--green)'; }
+  } else {
+    if (card) card.style.borderColor = 'var(--red-light)';
+    if (hint) { hint.textContent = '⚠️ Marcado como pendiente — aparecerá en el listado'; hint.style.color = 'var(--red)'; }
+  }
+}
+function markWPDone() {
+  const swDone = document.getElementById('swDone');
+  const card   = document.getElementById('cardWPDone');
+  const hint   = document.getElementById('wpDoneHint');
+  if (!swDone.checked) {
+    swDone.checked = true;
+    // Visual feedback on card
+    if (card) card.style.borderColor = 'var(--green)';
+    if (hint) hint.textContent = '✓ Marcado automáticamente al subir la foto';
+    if (hint) hint.style.color = 'var(--green)';
+  }
 }
 
 function showPhotoPreview(src) {
@@ -360,6 +430,20 @@ function buildDescription() {
 
 // ── Guardar ───────────────────────────────────────────────────
 async function guardar() {
+  // Validar foto obligatoria
+  const existingPhoto = document.getElementById('photoPreview').style.display === 'block';
+  if (!selectedPhoto && !existingPhoto) {
+    toast('⚠️ La foto es obligatoria', 'error');
+    // Hacer scroll a la foto
+    document.querySelector('.photo-wrap').scrollIntoView({ behavior:'smooth', block:'center' });
+    // Resaltar zona de foto
+    const area = document.getElementById('photoArea');
+    area.style.borderColor = 'var(--red)';
+    area.style.borderStyle = 'solid';
+    setTimeout(()=>{ area.style.borderColor='var(--gray-3)'; area.style.borderStyle='dashed'; }, 2000);
+    return;
+  }
+
   const btn = document.getElementById('btnSave');
   const lbl = document.getElementById('saveLabel');
   const sp  = document.getElementById('saveSpinner');
@@ -464,6 +548,11 @@ function toast(msg, type) {
   toastTimer = setTimeout(() => el.className = 'toast', 3000);
 }
 
+function showDebug() {
+  const t = JSON.stringify(window.__taskDebug || {}, null, 2);
+  const w = window.open('', '_blank', 'width=600,height=500');
+  w.document.write('<pre style="font-family:monospace;font-size:12px;padding:16px">'+t+'</pre>');
+}
 function showError(msg) {
   hide('loadOverlay');
   document.getElementById('mainContent').innerHTML = `
