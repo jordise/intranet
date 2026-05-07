@@ -991,18 +991,16 @@ function buildCard(r, type) {
   const urlLimpieza = `http://c1abn932.caspio.com/dp/353f70000ad4eac80ca64b2d82fa?Idreserva=${code}&Tasktype_booking=10`;
   const urlWP       = `https://c1abn932.caspio.com/dp/353f700055235cd3e5994393b6a9?Idreserva=${code}&Tasktype_booking=20`;
   const urlCierre   = `https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
-
   html += '<div class="c-status">';
   if (!isSalida) {
-    html += mkBadge('Limpieza',    g(r,'limpieza'),   urlLimpieza);
+    html += mkBadge('Limpieza',    g(r,'limpieza'),    urlLimpieza);
     html += mkBadge('WelcomePack', g(r,'wellcomePack'), urlWP);
-  }
-  if (isSalida) {
+  } else {
     html += mkBadge('Cierre', g(r,'cierre'), urlCierre);
   }
   html += '</div>';
 
-  // ── Check-in online badges (mismo formato, debajo de los anteriores) ──
+  // ── CI badges (debajo de status) ──
   if (code) {
     const urlCiOnline = `https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
     const urlEcFix    = `https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
@@ -1013,20 +1011,50 @@ function buildCard(r, type) {
     const ecOk        = isOk(ecRaw);
     const ecCls       = ecOk===null?'b-na':ecOk?'b-ok':'b-no';
     const ecIco       = ecOk===null?'·':ecOk?'✓':'✗';
-    const ecExtra     = `${ecEUR?' — <strong>'+ecEUR+' €</strong>':''} <a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:rgba(0,0,0,.12);border-radius:3px;padding:1px 5px;font-size:9px;color:inherit;text-decoration:none;margin-left:3px">✎ corr.</a>`;
-
+    const ecExtra     = `${ecEUR?' — <strong>'+ecEUR+' €</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:rgba(0,0,0,.12);border-radius:3px;padding:1px 5px;font-size:9px;color:inherit;text-decoration:none;margin-left:4px">✎</a>`;
     html += '<div class="c-status" style="border-top:1px solid var(--gray-2);flex-wrap:wrap">';
     html += mkBadge('Arrival form', g(r,'arrivalFormDone'));
     html += `<span class="bdg ${ecCls}" style="gap:3px">${ecIco} Ecotasa${ecExtra}</span>`;
-    html += mkBadge('Policía',      g(r,'policeDone'));
-    html += mkBadge('Depósito',     g(r,'depositDone'));
+    html += mkBadge('Policía', g(r,'policeDone'));
+    html += mkBadge('Depósito', g(r,'depositDone'));
     html += `<a class="ci-link" href="${urlCiOnline}" onclick="return popup('${urlCiOnline}',900,900)" style="margin-left:auto">🔗 Checkin online</a>`;
     html += '</div>';
     if (ecCom)    html += `<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if (depNotes) html += `<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
   }
 
-  // ── Staff ──
+  // ════════════════════════════════════════
+  //  SIEMPRE VISIBLE: fechas + horas clave
+  // ════════════════════════════════════════
+  html += '<div class="c-body" style="padding-bottom:8px">';
+  html += '<div class="dates-grid">';
+  html += `<div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>`;
+  html += n ? `<div class="npill">${n}n</div>` : '<div></div>';
+  html += `<div class="date-box"><span class="lbl">Salida</span><span class="val">${fmtDate(co)}</span></div>`;
+  html += '</div>';
+  // Entrada: hora entrada + llegan a Menorca
+  if (!isSalida) {
+    if (cht) html += `<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${cht}</span></div></div>`;
+    if (am)  html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`;
+  }
+  // Salida: hora de salida de la villa + hora que salen de Menorca (si existe)
+  if (isSalida) {
+    if (cht) html += `<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora de salida</span><span class="ival">${cht}</span></div></div>`;
+    if (am)  html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Vuelo salida</span><span class="ival">${am}</span></div></div>`;
+  }
+  html += '</div>'; // end c-body always-visible
+
+  // ── Toggle ──
+  html += `<div class="c-toggle" onclick="toggleCardBody('${cardId}')">
+    <span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span>
+  </div>`;
+
+  // ════════════════════════════════════════
+  //  DESPLEGABLE: staff, maps, notas, huésped, botones, chips
+  // ════════════════════════════════════════
+  html += `<div class="c-body-wrap" id="${cardId}">`;
+
+  // Staff
   if (cleanerName || vmName) {
     html += '<div class="c-staff">';
     if (cleanerName) html += `<div class="staff-row">🧹 <strong>${cleanerName}</strong> — Limpieza</div>`;
@@ -1034,7 +1062,7 @@ function buildCard(r, type) {
     html += '</div>';
   }
 
-  // ── Links: Maps + Keybox ──
+  // Maps + Keybox
   if (mp || kbCode) {
     html += '<div class="c-links">';
     if (mp)     html += `<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;
@@ -1042,25 +1070,10 @@ function buildCard(r, type) {
     html += '</div>';
   }
 
-  // ── Collapsible body toggle ──
-  html += `<div class="c-toggle" onclick="toggleCardBody('${cardId}')">
-    <span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span>
-  </div>`;
-  html += `<div class="c-body-wrap" id="${cardId}">`;
+  // Notas + info huésped
   html += '<div class="c-body">';
-
-  // Dates
-  html += '<div class="dates-grid">';
-  html += `<div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>`;
-  html += n ? `<div class="npill">${n}n</div>` : '<div></div>';
-  html += `<div class="date-box"><span class="lbl">Salida</span><span class="val">${fmtDate(co)}</span></div>`;
-  html += '</div>';
-
-  if (cht) html += `<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${cht}</span></div></div>`;
-  if (am)  html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`;
-  if (nl)  html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
-  if (ni)  html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
-
+  if (nl) html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
+  if (ni) html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
   html += '<hr class="dv">';
   html += `<div class="gname">${gn||'—'}</div>`;
   html += '<div class="gmeta">';
@@ -1068,81 +1081,73 @@ function buildCard(r, type) {
   if (ch) html += `<span class="ppill">👶 ${ch}</span>`;
   if (st) html += `<span class="spill ${stClass(st)}">${st}</span>`;
   html += '</div>';
-
   if (ph || ph2) {
     html += '<div class="phones-row">';
     if (ph)  html += `<div class="ph-line ${!useArr?'active':''}"><span class="ph-tag">Host</span>${!useArr?'✓ ':''}<a href="tel:${ph}" style="color:inherit;text-decoration:none">${ph}</a></div>`;
     if (ph2) html += `<div class="ph-line ${useArr?'active arr':''}"><span class="ph-tag">Arrival</span>${useArr?'✓ ':''}<a href="tel:${ph2}" style="color:inherit;text-decoration:none">${ph2}</a></div>`;
     html += '</div>';
   }
+  html += '</div>'; // end inner c-body
 
-  html += '</div>'; // end c-body
-  html += '</div>'; // end c-body-wrap
-
-  // ── Footer buttons ──
+  // Botones footer según tipo
   if (!isSalida && (activePhone || em)) {
-    // ENTRADA: contacto + WA normal
     html += '<div class="c-foot">';
-    if (vCardUrl)    html += `<a class="icon-btn" href="${vCardUrl}" target="_blank" title="Añadir contacto">${SVG_CONTACT}<span class="btn-label">Contacto</span></a>`;
+    if (vCardUrl)    html += `<a class="icon-btn" href="${vCardUrl}" target="_blank">${SVG_CONTACT}<span class="btn-label">Contacto</span></a>`;
     if (waUrlMsg)    html += `<a class="icon-btn" href="${waUrlMsg}" target="_blank">${SVG_WA}<span class="wa-badge">1</span><span class="btn-label">${useArr?'Arrival':'Host'}</span></a>`;
     if (waUrlSimple) html += `<a class="icon-btn" href="${waUrlSimple}" target="_blank">${SVG_WA}<span class="btn-label">WA simple</span></a>`;
     html += '</div>';
   }
-
   if (isSalida && phoneClean) {
-    // SALIDA: dos WA de checkout (cliente contento / cliente enfadado)
     const msgHappy = encodeURIComponent(buildWACheckoutMsg(r, mgrName, true));
     const msgNoFb  = encodeURIComponent(buildWACheckoutMsg(r, mgrName, false));
-    const waHappy  = `https://wa.me/${phoneClean}?text=${msgHappy}`;
-    const waNoFb   = `https://wa.me/${phoneClean}?text=${msgNoFb}`;
-    // SVG cara contenta (verde)
-    const SVG_HAPPY = `<svg height="36" viewBox="0 0 44 44" width="36" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" fill="#25D366" r="21" stroke="#1aa352" stroke-width="1"/><circle cx="15" cy="18" fill="#fff" r="2.5"/><circle cx="29" cy="18" fill="#fff" r="2.5"/><path d="M13 26 Q22 34 31 26" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2.5"/></svg>`;
-    // SVG cara enfadada (rojo)
-    const SVG_SAD   = `<svg height="36" viewBox="0 0 44 44" width="36" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" fill="#E24B4A" r="21" stroke="#a32d2d" stroke-width="1"/><circle cx="15" cy="18" fill="#fff" r="2.5"/><circle cx="29" cy="18" fill="#fff" r="2.5"/><path d="M11 14 Q15 11 18 14" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2"/><path d="M26 14 Q29 11 33 14" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2"/><path d="M13 31 Q22 24 31 31" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2.5"/></svg>`;
+    const SVG_HAPPY = `<svg height="36" viewBox="0 0 44 44" width="36"><circle cx="22" cy="22" fill="#25D366" r="21" stroke="#1aa352" stroke-width="1"/><circle cx="15" cy="18" fill="#fff" r="2.5"/><circle cx="29" cy="18" fill="#fff" r="2.5"/><path d="M13 26 Q22 34 31 26" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2.5"/></svg>`;
+    const SVG_SAD   = `<svg height="36" viewBox="0 0 44 44" width="36"><circle cx="22" cy="22" fill="#E24B4A" r="21" stroke="#a32d2d" stroke-width="1"/><circle cx="15" cy="18" fill="#fff" r="2.5"/><circle cx="29" cy="18" fill="#fff" r="2.5"/><path d="M11 14 Q15 11 18 14" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2"/><path d="M26 14 Q29 11 33 14" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2"/><path d="M13 31 Q22 24 31 31" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2.5"/></svg>`;
+    const SVG_WA_SM = SVG_WA.replace('height="40"','height="30"').replace('width="40"','width="30"');
     html += '<div class="c-foot">';
-    html += `<a class="icon-btn" href="${waHappy}" target="_blank" title="WA cliente contento (con reseña)">${SVG_HAPPY}${SVG_WA.replace('height="40"','height="30"').replace('width="40"','width="30"')}<span class="btn-label">Con reseña</span></a>`;
-    html += `<a class="icon-btn" href="${waNoFb}"  target="_blank" title="WA sin feedback">${SVG_SAD}${SVG_WA.replace('height="40"','height="30"').replace('width="40"','width="30"')}<span class="btn-label">Sin reseña</span></a>`;
+    html += `<a class="icon-btn" href="https://wa.me/${phoneClean}?text=${msgHappy}" target="_blank" title="Con reseña">${SVG_HAPPY}${SVG_WA_SM}<span class="btn-label">Con reseña</span></a>`;
+    html += `<a class="icon-btn" href="https://wa.me/${phoneClean}?text=${msgNoFb}"  target="_blank" title="Sin reseña">${SVG_SAD}${SVG_WA_SM}<span class="btn-label">Sin reseña</span></a>`;
     html += '</div>';
   }
 
-  // ── Action chips ──
+  // Action chips
   if (code) {
     const urlNotas    = `https://c1abn932.caspio.com/dp/353f700083e981faed5749b1b3bb?TaBookings2021_FS_confirmation_code=${code}`;
     const urlAddTask  = `https://c1abn932.caspio.com/dp/353f70005570d2553f784395ae74?Idreserva=${code}&villa_id=${villaId}&cbResetParam=1`;
     const urlVerTask  = `https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=${code}&cbResetParam=1`;
     const urlResNotas = `https://c1abn932.caspio.com/dp/353f7000a3d74a1b78c24199af5e?TaBookings2021_FS_confirmation_code=${code}`;
     const urlExtras   = `https://c1abn932.caspio.com/dp/353f70003378521e747a43748f75?TaBookings2021_FS_confirmation_code=${code}`;
-    const hostaway    = g(r,'hostawayLink');
-    const urlHostaway = hostaway || `https://dashboard.hostaway.com/reservations/${code}`;
+    const urlHostaway = g(r,'hostawayLink') || `https://dashboard.hostaway.com/reservations/${code}`;
     html += '<div class="c-actions">';
-    html += `<a class="act-chip ac-nota" href="${urlNotas}" onclick="return popup('${urlNotas}',900,450)">📝 Notas / Aparto</a>`;
-    html += `<a class="act-chip ac-task" href="${urlAddTask}" onclick="return popup('${urlAddTask}')">➕ Nueva tarea</a>`;
-    html += `<a class="act-chip ac-vtask" href="${urlVerTask}" onclick="return popup('${urlVerTask}')">📋 Ver tareas</a>`;
+    html += `<a class="act-chip ac-nota"  href="${urlNotas}"    onclick="return popup('${urlNotas}',900,450)">📝 Notas / Aparto</a>`;
+    html += `<a class="act-chip ac-task"  href="${urlAddTask}"  onclick="return popup('${urlAddTask}')">➕ Nueva tarea</a>`;
+    html += `<a class="act-chip ac-vtask" href="${urlVerTask}"  onclick="return popup('${urlVerTask}')">📋 Ver tareas</a>`;
     html += `<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}" onclick="return popup('${urlResNotas}')">✏️ Notas reservas</a>`;
-    html += `<a class="act-chip" style="background:#ede7f6;color:#5e35b1" href="${urlExtras}" onclick="return popup('${urlExtras}')">💎 Extras</a>`;
-    html += `<a class="act-chip ac-host" href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 Hostaway PMS</a>`;
+    html += `<a class="act-chip" style="background:#ede7f6;color:#5e35b1" href="${urlExtras}"   onclick="return popup('${urlExtras}')">💎 Extras</a>`;
+    html += `<a class="act-chip ac-host"  href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 Hostaway PMS</a>`;
     html += '</div>';
-
-    // ── Extras upselling ──
+    // Extras upselling
     const extras = [
-      { text:g(r,'extra1Text'), eur:g(r,'extra1EUR'), paid:g(r,'extra1Cobrado') },
-      { text:g(r,'extra2Text'), eur:g(r,'extra2EUR'), paid:g(r,'extra2Cobrado') },
-      { text:g(r,'extra3Text'), eur:g(r,'extra3EUR'), paid:g(r,'extra3Cobrado') },
-    ].filter(e => e.text);
+      {text:g(r,'extra1Text'),eur:g(r,'extra1EUR'),paid:g(r,'extra1Cobrado')},
+      {text:g(r,'extra2Text'),eur:g(r,'extra2EUR'),paid:g(r,'extra2Cobrado')},
+      {text:g(r,'extra3Text'),eur:g(r,'extra3EUR'),paid:g(r,'extra3Cobrado')},
+    ].filter(e=>e.text);
     if (extras.length) {
       html += '<div class="extras-panel">';
       html += '<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px">EXTRAS</div>';
-      extras.forEach(e => {
-        const paid = Number(e.paid)>0||e.paid===true||String(e.paid)==='1';
-        html += `<div class="extra-item"><div class="extra-dot ${paid?'paid':'unpaid'}">${paid?'✓':'·'}</div><span style="flex:1">${e.text}</span>${e.eur?`<span class="extra-eur">${e.eur} €</span>`:''}</div>`;
+      extras.forEach(e=>{
+        const paid=Number(e.paid)>0||e.paid===true||String(e.paid)==='1';
+        html+=`<div class="extra-item"><div class="extra-dot ${paid?'paid':'unpaid'}">${paid?'✓':'·'}</div><span style="flex:1">${e.text}</span>${e.eur?`<span class="extra-eur">${e.eur} €</span>`:''}</div>`;
       });
       html += '</div>';
     }
   }
 
+  html += '</div>'; // end c-body-wrap
+
   el.innerHTML = html;
   return el;
 }
+
 
 
 </script>
