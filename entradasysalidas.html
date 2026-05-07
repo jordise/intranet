@@ -379,6 +379,7 @@ const F = {
 
 // ════════════════ ESTADO GLOBAL ════════════════
 let toggleMode    = 'all';
+let _searchId     = 0;  // Contador para cancelar búsquedas anteriores
 let fWelcomePack  = 'all'; // se ajusta según si el usuario es villa manager
 let tipoFilter    = 'both'; // 'both', 'entrada', 'salida'
 let managersMap   = new Map();
@@ -792,6 +793,8 @@ function renderChips() {
 
 // ════════════════ SEARCH ════════════════
 async function doSearch() {
+  const mySearchId = ++_searchId; // Cada llamada tiene su propio ID
+
   updateSub();
   renderChips();
   // Guardar filtros en localStorage para persistir al refrescar
@@ -811,10 +814,11 @@ async function doSearch() {
     saveToURL();
   } catch(e) {}
 
+  // Limpiar grid inmediatamente (antes del fetch)
+  if ($('grid'))   { $('grid').style.display = 'none'; $('grid').innerHTML = ''; }
   if ($('stInit')) $('stInit').style.display = 'none';
   if ($('stLoad')) $('stLoad').style.display = 'block';
   if ($('stErr'))  $('stErr').style.display  = 'none';
-  if ($('grid'))   { $('grid').style.display = 'none'; $('grid').innerHTML = ''; }
   if ($('statsBar')) $('statsBar').style.display = 'none';
   if ($('hBadge'))   $('hBadge').textContent = '';
 
@@ -823,15 +827,31 @@ async function doSearch() {
 
   try {
     const res  = await fetch(Auth.url(url));
+    // Cancelar si una búsqueda más reciente ya se lanzó
+    if (mySearchId !== _searchId) return;
     const json = await res.json();
     if (json.error) throw new Error(json.error);
-    const records = json.Result || json.result || [];
+    const rawRecords = json.Result || json.result || [];
+    // Doble check tras parsear JSON
+    if (mySearchId !== _searchId) return;
+
+    // Deduplicar: el view devuelve filas duplicadas por JOINs en Caspio
+    const _seen = new Set();
+    const records = rawRecords.filter(r => {
+      const key = r[F.confirmCode] || r[F.reservationId] || '';
+      if (!key || _seen.has(key)) return !key ? true : false;
+      _seen.add(key);
+      return true;
+    });
+    const dupCount = rawRecords.length - records.length;
+    if (dupCount > 0) console.warn(`Eliminados ${dupCount} registros duplicados de ${rawRecords.length} totales`);
 
     const ciFieldVal = records[0] ? records[0]['TaBookings2021_checkinonline_todo_terminado'] : 'N/A';
     const wpFieldVal = records[0] ? records[0]['TaBookings2021_Welcomepackentregado'] : 'N/A';
     $('dbBox').textContent = `WHERE:\n${where}\n\nRegistros: ${records.length}\nCI field value (1er reg): ${JSON.stringify(ciFieldVal)}\nWP field value (1er reg): ${JSON.stringify(wpFieldVal)}\n\nPrimer registro:\n${JSON.stringify(records[0]||{},null,2)}`;
     renderCards(records);
   } catch(err) {
+    if (mySearchId !== _searchId) return; // búsqueda cancelada
     if ($('stLoad')) $('stLoad').style.display = 'none';
     if ($('stErr'))  $('stErr').style.display  = 'block';
     if ($('errMsg')) $('errMsg').textContent    = err.message;
@@ -910,6 +930,16 @@ function renderCards(records) {
 }
 
 // ════════════════ POPUP HELPER ════════════════
+function openTaskPopup(url) {
+  // Popup centrado, tamaño móvil — window.close() funciona desde popups
+  const w = 480, h = 750;
+  const left = Math.round((screen.width  - w) / 2);
+  const top  = Math.round((screen.height - h) / 2);
+  window.open(url, 'taskpopup',
+    `width=${w},height=${h},left=${left},top=${top},` +
+    'resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no'
+  );
+}
 function popup(url, w, h) {
   if (!url) return false;
   w = w||1000; h = h||800;
@@ -1074,12 +1104,13 @@ ${mgrName}`;
 }
 
 // ════════════════ BUILD CARD ════════════════
-function mkBadge(label, raw, url, extra) {
+function mkBadge(label, raw, url, extra, newTab) {
   const ok  = isOk(raw);
   const cls = ok===null?'b-na':ok?'b-ok':'b-no';
   const ico = ok===null?'·':ok?'✓':'✗';
   const inner = `${ico} ${label}${extra||''}`;
-  if (url) return `<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;
+  if (url && newTab)  return `<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;
+  if (url)            return `<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;
   return `<span class="bdg ${cls}">${inner}</span>`;
 }
 
@@ -1106,7 +1137,10 @@ function buildCard(r, type) {
 
   // ── Todas las URLs Caspio — nivel de función, accesibles desde toda la card ──
   const urlLimpieza = `http://c1abn932.caspio.com/dp/353f70000ad4eac80ca64b2d82fa?Idreserva=${code}&Tasktype_booking=10`;
-  const urlWP       = `https://c1abn932.caspio.com/dp/353f700055235cd3e5994393b6a9?Idreserva=${code}&Tasktype_booking=20`;
+  // WelcomePack → página propia task-wp.html (mejor UX que DataPage Caspio)
+  // id = TaBookings2021_BookingID, code = FS_confirmation_code para cargar villa
+  // Idreserva = confirmation code (igual que el DataPage de Caspio original)
+  const urlWP = `task-wp.html?Idreserva=${code}&Tasktype_booking=20&code=${code}`;
   const urlCierre   = `https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
   const urlCiOnline = `https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
   const urlEcFix    = `https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
@@ -1150,7 +1184,7 @@ function buildCard(r, type) {
   html += '<div class="c-status">';
   if (!isSalida) {
     html += mkBadge('Limpieza',    g(r,'limpieza'),    urlLimpieza);
-    html += mkBadge('WelcomePack', g(r,'wellcomePack'), urlWP);
+    html += mkBadge('WelcomePack', g(r,'wellcomePack'), urlWP, '', true); // true=new tab
   } else {
     html += mkBadge('Cierre', g(r,'cierre'), urlCierre);
   }
