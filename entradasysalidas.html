@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas — 3Villas</title>
+  <title>Entradas y Salidas — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -48,6 +48,13 @@
     .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
     .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
     .f-select:disabled{background-color:var(--gray-1);color:var(--gray-4)}
+    /* Multi-select manager */
+    .manager-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:500;display:flex;flex-direction:column;max-height:260px}
+    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
+    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
+    .manager-item:hover{background:var(--gray-1)}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .manager-item label{cursor:pointer;flex:1}
     /* Stats */
     #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
     .stat{display:flex;align-items:baseline;gap:5px}
@@ -137,7 +144,7 @@
 
 <header>
   <div>
-    <div class="h-title">Entradas</div>
+    <div class="h-title">Entradas y Salidas</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -163,9 +170,22 @@
   <div id="masFiltros">
     <div class="mas-inner">
       <div class="filter-row">
-        <div class="f-group wide">
+        <div class="f-group wide" style="position:relative">
           <label class="f-label">Villa Manager</label>
-          <select id="fManager" class="f-select" onchange="onManagerChange()"><option value="">Cargando...</option></select>
+          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span id="fManagerLabel">Cargando...</span>
+            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+          </button>
+          <div id="managerPanel" class="manager-panel" style="display:none">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+              <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+            </div>
+            <div id="managerList" class="manager-list"></div>
+            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+              <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Seleccionar todos</button>
+              <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            </div>
+          </div>
         </div>
         <div class="f-group narrow">
           <label class="f-label">Entrada desde</label>
@@ -281,6 +301,8 @@ const F = {
 let toggleMode    = 'all';
 let managersMap   = new Map();
 let allUsersMap   = new Map();
+let selectedManagers = new Set(); // UserIDs seleccionados para filtrar
+let allManagersList  = []; // [{id, name}] para el panel
 let contactsMap   = new Map();
 let multiunitsMap = new Map();
 
@@ -369,56 +391,107 @@ function updateSub() {
 
 // ════════════════ LOAD DATA ════════════════
 async function loadManagers() {
-  const sel = $('fManager');
-  if (!sel) return;
-  sel.disabled = true;
+  const btn = $('fManagerBtn');
+  if (btn) { btn.disabled=true; $('fManagerLabel').textContent='Cargando...'; }
   try {
     const res  = await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`));
     const json = await res.json();
     const users = json.Result || json.result || [];
 
-    // Build maps
-    users.forEach(u => {
-      const id = String(u[U.id]||'');
-      const nm = String(u[U.name]||id);
-      allUsersMap.set(id, nm);
-    });
+    users.forEach(u => allUsersMap.set(String(u[U.id]||''), String(u[U.name]||'')));
 
     // My Keyholder_por_defecto
     const myEmail    = Auth.email ? Auth.email() : '';
     const myUser     = users.find(u => String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
     const myKeyholder= myUser ? String(myUser['Keyholder_por_defecto']||'').trim() : '';
+    if (myUser && $('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
 
-    // Set manager name for WA messages
-    const mgrEl = $('mgrName');
-    if (mgrEl && myUser) mgrEl.value = myUser[U.name] || Auth.name() || '';
-
-    // Only active users with Keyholder_por_defecto in dropdown
+    // Solo activos con Keyholder_por_defecto rellenado
     const managers = users.filter(u => isActiveUser(u) && String(u['Keyholder_por_defecto']||'').trim()!=='');
     managers.forEach(u => managersMap.set(String(u[U.id]||''), String(u[U.name]||'')));
+    allManagersList = managers.map(u => ({ id: String(u[U.id]||''), name: String(u[U.name]||'') }));
 
-    sel.innerHTML = '<option value="">Todos</option>';
-    managers.forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = String(u[U.id]||'');
-      opt.textContent = String(u[U.name]||opt.value);
-      sel.appendChild(opt);
-    });
-
-    // Pre-select if user has Keyholder_por_defecto
+    // Pre-select Keyholder_por_defecto del usuario actual
+    selectedManagers.clear();
     if (myKeyholder) {
-      sel.value = myKeyholder;
+      selectedManagers.add(myKeyholder);
       const preMgr = users.find(u => String(u[U.id]||'')===myKeyholder);
       if (preMgr && $('mgrName')) $('mgrName').value = preMgr[U.name] || Auth.name() || '';
     }
 
-    sel.disabled = false;
-    $('dbBox').textContent = `TaUsers: ${users.length}\nManagers en dropdown: ${managers.length}\nMi Keyholder: "${myKeyholder||'vacío'}"\nToken: ${Auth.token().length} chars`;
+    renderManagerList();
+    updateManagerBtn();
+    if (btn) btn.disabled = false;
+    $('dbBox').textContent = `TaUsers: ${users.length}\nManagers: ${managers.length}\nPreseleccionado: "${myKeyholder||'ninguno'}"`;
   } catch(e) {
-    if (sel) { sel.innerHTML='<option value="">Error cargando</option>'; sel.disabled=false; }
+    if (btn) { $('fManagerLabel').textContent='Error'; btn.disabled=false; }
     $('dbBox').textContent = 'Error TaUsers: '+e.message;
   }
 }
+
+function renderManagerList(filter='') {
+  const list = $('managerList');
+  if (!list) return;
+  const q = filter.toLowerCase();
+  const filtered = q ? allManagersList.filter(m => m.name.toLowerCase().includes(q)) : allManagersList;
+  list.innerHTML = filtered.map(m => `
+    <div class="manager-item" onclick="toggleManager('${m.id}')">
+      <input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''} onclick="event.stopPropagation();toggleManager('${m.id}')">
+      <label for="mc_${m.id}">${m.name}</label>
+    </div>
+  `).join('');
+}
+
+function filterManagerList() {
+  const q = ($('managerSearch')||{}).value || '';
+  renderManagerList(q);
+}
+
+function toggleManager(id) {
+  if (selectedManagers.has(id)) selectedManagers.delete(id);
+  else selectedManagers.add(id);
+  renderManagerList(($('managerSearch')||{}).value||'');
+  updateManagerBtn();
+}
+
+function selectAllManagers() {
+  allManagersList.forEach(m => selectedManagers.add(m.id));
+  renderManagerList(); updateManagerBtn();
+}
+function clearManagers() {
+  selectedManagers.clear();
+  renderManagerList(); updateManagerBtn();
+}
+
+function updateManagerBtn() {
+  const lbl = $('fManagerLabel');
+  if (!lbl) return;
+  if (selectedManagers.size === 0) lbl.textContent = 'Todos';
+  else if (selectedManagers.size === 1) {
+    const id = [...selectedManagers][0];
+    lbl.textContent = allUsersMap.get(id) || id;
+  } else {
+    lbl.textContent = `${selectedManagers.size} managers seleccionados`;
+  }
+}
+
+function toggleManagerPanel(e) {
+  e && e.stopPropagation();
+  const panel = $('managerPanel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) { renderManagerList(); setTimeout(()=>{ if($('managerSearch'))$('managerSearch').value=''; },10); }
+}
+
+// Cerrar panel al hacer click fuera
+document.addEventListener('click', e => {
+  const panel = $('managerPanel');
+  const btn   = $('fManagerBtn');
+  if (panel && btn && !btn.contains(e.target) && !panel.contains(e.target)) {
+    panel.style.display = 'none';
+  }
+});
 
 async function loadContacts() {
   try {
@@ -461,13 +534,9 @@ function setToggle(mode) {
   $('tAll').classList.toggle('on',  mode==='all');
   $('tPend').classList.toggle('on', mode==='pend');
 }
-function onManagerChange() {
-  const sel = $('fManager');
-  const nm  = sel.options[sel.selectedIndex]?.text;
-  if (nm && nm!=='Todos' && $('mgrName')) $('mgrName').value = nm;
-}
+// onManagerChange replaced by toggleManager multi-select
 function clearAll() {
-  if ($('fManager'))  $('fManager').value  = '';
+  clearManagers(); // Reset multi-select manager
   if ($('fDesde'))    $('fDesde').value    = todayStr();
   if ($('fHasta'))    $('fHasta').value    = '';
   if ($('fCodigo'))   $('fCodigo').value   = '';
@@ -490,12 +559,20 @@ function buildWhere() {
   const villa     = (($('fVilla')||{}).value||'').trim();
   const inquilino = (($('fInquilino')||{}).value||'').trim();
 
-  if (manager)   parts.push(`${F.villaManager}='${manager}'`);
+  // Multi-select: IN clause para múltiples managers
+  if (selectedManagers.size > 0) {
+    const ids = [...selectedManagers].map(id => `'${id}'`).join(',');
+    parts.push(selectedManagers.size===1
+      ? `${F.villaManager}='${[...selectedManagers][0]}'`
+      : `${F.villaManager} IN (${ids})`
+    );
+  }
   // Mostrar entradas Y salidas: OR entre checkin y checkout
   if (desde && hasta) {
-    parts.push(`(${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59')`);
+    // Doble paréntesis exterior para que AND de otros filtros aplique a ambos lados del OR
+    parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59'))`);
   } else if (desde) {
-    parts.push(`(${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${desde}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${desde}T23:59:59')`);
+    parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${desde}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${desde}T23:59:59'))`);
   }
   if (codigo)    parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);
   if (villa)     parts.push(`${F.villaName} LIKE '%${villa}%'`);
@@ -516,7 +593,11 @@ function renderChips() {
   const villa  = (($('fVilla')||{}).value||'').trim();
   const inq    = (($('fInquilino')||{}).value||'').trim();
 
-  if (mgr.value)    chipsData.push({label:`Manager: ${mLabel}`,    clear:()=>{if($('fManager'))$('fManager').value=''}});
+  if (selectedManagers.size > 0) {
+    const names = [...selectedManagers].map(id => allUsersMap.get(id)||id).join(', ');
+    const lbl = selectedManagers.size===1 ? `Manager: ${names}` : `Managers: ${names}`;
+    chipsData.push({label:lbl, clear:()=>{ clearManagers(); }});
+  }
   if (desde)        chipsData.push({label:`Desde: ${fmtDate(desde)}`, clear:()=>{if($('fDesde'))$('fDesde').value=''}});
   if (hasta)        chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,  clear:()=>{if($('fHasta'))$('fHasta').value=''}});
   if (codigo)       chipsData.push({label:`Reserva: ${codigo}`,    clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});
