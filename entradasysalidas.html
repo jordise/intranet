@@ -249,7 +249,7 @@
         </div>
         <div class="f-group narrow">
           <label class="f-label">Desde</label>
-          <input type="date" id="fDesde" class="f-input" onchange="scheduleSearch()">
+          <input type="date" id="fDesde" class="f-input" onchange="onDesdeChange()">
         </div>
         <div class="f-group narrow">
           <label class="f-label">Hasta</label>
@@ -453,6 +453,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       if ($('fDesde')) $('fDesde').value = todayStr();
       if ($('fHasta')) $('fHasta').value = todayStr();
     }
+    // Set fHasta min = fDesde to prevent invalid range
+    const desdeVal = ($('fDesde')||{}).value||'';
+    if ($('fHasta') && desdeVal) $('fHasta').min = desdeVal;
     updateSub();
 
     // Load data in parallel - use allSettled so one failure doesn't block others
@@ -675,6 +678,18 @@ function toggleMas() {
   const nowOpen = $('masFiltros').classList.contains('open');
   if (!nowOpen) scheduleSearch(300);
 }
+function onDesdeChange() {
+  const desde = ($('fDesde')||{}).value || '';
+  const hastaEl = $('fHasta');
+  if (hastaEl) {
+    hastaEl.min = desde;
+    if (hastaEl.value && hastaEl.value < desde) {
+      hastaEl.value = desde; // auto-corregir si es anterior
+    }
+  }
+  updateSub();
+  scheduleSearch();
+}
 function setToggle(mode) {
   toggleMode = mode;
   ['tAll','tPend'].forEach(id=>{ const el=$( id); if(el){el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');} });
@@ -737,8 +752,7 @@ function buildWhere() {
   if (codigo)    parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);
   if (villa)     parts.push(`${F.villaName} LIKE '%${villa}%'`);
   if (inquilino) parts.push(`${F.guestName} LIKE '%${inquilino}%'`);
-  // Pendiente checkin: campo 0=no iniciado, 1-2=parcial, 3=todo terminado
-  if (toggleMode==='pend' && F.checkinPend) parts.push(`(${F.checkinPend} IS NULL OR ${F.checkinPend}<3)`);
+  // Pendiente checkin: filtro aplicado client-side (campo boolean como WelcomePack)
 
   return parts.join(' AND ');
 }
@@ -847,12 +861,14 @@ function renderCards(records) {
     const isEntrada = ciTs >= desdeTs && ciTs <= hastaTs;
     const isSalida  = coTs >= desdeTs && coTs <= hastaTs;
     // WelcomePack filter: si está en modo 'pending', skip entradas con WP completado
-    const wpOk  = isOk(g(r,'wellcomePack'));
-    const skipWP = fWelcomePack==='pending' && wpOk===true;
+    const wpOk   = isOk(g(r,'wellcomePack'));
+    const ciPendOk = isOk(g(r,'checkinPend')); // boolean campo TaBookings2021_checkinonline_todo_terminado
+    const skipWP = fWelcomePack==='pending' && wpOk===true;    // skip entradas con WP hecho
+    const skipCI = toggleMode==='pend' && ciPendOk===true;     // skip reservas con CI terminado
     const showEnt = tipoFilter==='both' || tipoFilter==='entrada';
     const showSal = tipoFilter==='both' || tipoFilter==='salida';
-    if (isEntrada && !skipWP && showEnt) rows.push({ r, type:'entrada', sortDate: ciTs });
-    if (isSalida  && showSal)  rows.push({ r, type:'salida',  sortDate: coTs });
+    if (isEntrada && !skipWP && !skipCI && showEnt) rows.push({ r, type:'entrada', sortDate: ciTs });
+    if (isSalida  && !skipCI && showSal)  rows.push({ r, type:'salida',  sortDate: coTs });
     // Si no hay rango, mostrar como entrada
     if (!isEntrada && !isSalida) rows.push({ r, type:'entrada', sortDate: ciTs });
   });
@@ -1223,7 +1239,8 @@ function buildCard(r, type) {
   // Action chips — URLs definidas en el bloque superior
   if (code) {
     html += '<div class="c-actions">';
-    html += `<a class="act-chip ac-nota"  href="${urlNotas}"    onclick="return popup('${urlNotas}',900,450)">📝 Notas / Aparto</a>`;
+    const notasLabel = vmName ? `📝 Notas ${vmName.split(' ')[0]}` : '📝 Notas / Aparto';
+    html += `<a class="act-chip ac-nota"  href="${urlNotas}"    onclick="return popup('${urlNotas}',900,450)">${notasLabel}</a>`;
     html += `<a class="act-chip ac-task"  href="${urlAddTask}"  onclick="return popup('${urlAddTask}')">➕ Nueva tarea</a>`;
     html += `<a class="act-chip ac-vtask" href="${urlVerTask}"  onclick="return popup('${urlVerTask}')">📋 Ver tareas</a>`;
     html += `<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}" onclick="return popup('${urlResNotas}')">✏️ Notas reservas</a>`;
