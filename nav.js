@@ -16,19 +16,21 @@ var NAV_MENU = [
 
   { label: 'Entradas',   url: 'entradas.html',  icon: '🚪' },
 
-  { label: 'Generar manual', url: 'generar.html', icon: '📄' },
+ 
 
   {
     label: 'Manuales',
     icon : '📖',
     children: [
+      { label: 'Generar manual',           url: 'generar.html',                  icon: '📄' },
       { label: 'Manual lavadora',          url: 'manual-lavadora.html',          icon: '🫧' },
       { label: 'Manual técnico',           url: 'manual-tecnico.html',           icon: '🔧' },
       { label: 'Manual usuario',           url: 'manual-usuario.html',           icon: '👤' },
       { label: 'Lavadora Villa María',     url: 'manual_lavadora_villa_maria.html', icon: '🏠' },
     ]
   },
-
+ { label: 'Login',   url: 'login.html',  icon: '' },
+ { label: 'Logout',   url: 'logout.html',  icon: '' },
   // Ejemplo de item con acceso restringido:
   // { label: 'Contabilidad', url: 'contabilidad.html', icon: '💰', roles: ['admin'] },
 
