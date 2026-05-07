@@ -17,7 +17,7 @@
     .logout-btn:hover{background:rgba(255,255,255,.3)}
     /* Filter panel */
     #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
-    .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:12px}
+    .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px}
     .toggle-group{display:flex;border:1.5px solid var(--gray-2);border-radius:8px;overflow:hidden;flex-shrink:0}
     .t-btn{padding:7px 14px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;border:none;background:#fff;color:var(--gray-4);transition:all .15s;white-space:nowrap}
     .t-btn:not(:last-child){border-right:1.5px solid var(--gray-2)}
@@ -36,7 +36,7 @@
     .btn-buscar:hover{background:var(--red-dark)}
     /* Expandible */
     #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
-    #masFiltros.open{max-height:240px}
+    #masFiltros.open{max-height:400px}
     .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 6px}
     .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .filter-row:last-child{margin-bottom:0}
@@ -48,6 +48,13 @@
     .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
     .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
     .f-select:disabled{background-color:var(--gray-1);color:var(--gray-4)}
+    /* Pill toggles */
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    /* Remove old toggle-group from main-bar (kept for manager list) */
     /* Multi-select manager */
     .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
     .manager-list{overflow-y:auto;flex:1;padding:4px 0}
@@ -186,78 +193,84 @@
 </header>
 
 <div id="filterPanel">
-  <!-- Fila 1: toggles + buscar -->
+  <!-- Barra principal -->
   <div class="main-bar">
-    <div class="toggle-group">
-      <button class="t-btn on" id="tAll"  onclick="setToggle('all')">Todos</button>
-      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Pendientes CI</button>
-    </div>
-    <div class="toggle-group" style="flex-shrink:0">
-      <button class="t-btn on" id="tTipo_both"   onclick="setTipoFilter('both')">Todo</button>
-      <button class="t-btn"    id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
-      <button class="t-btn"    id="tTipo_salida"  onclick="setTipoFilter('salida')">Salidas</button>
-    </div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
-      <span>Más filtros</span><span class="arr">▾</span>
+      <span>Filtros</span><span class="arr">▾</span>
     </button>
     <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
-    <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
   </div>
-
-  <!-- Fila 2: VM + fechas + WP (siempre visible) -->
-  <div class="filter-row" style="padding-bottom:10px;flex-wrap:wrap;gap:8px;align-items:flex-end">
-    <div class="f-group wide" style="position:relative;min-width:180px">
-      <label class="f-label">Villa Manager</label>
-      <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-        <span id="fManagerLabel">Cargando...</span>
-        <span style="font-size:10px;color:var(--gray-4)">▾</span>
-      </button>
-      <div id="managerPanel" class="manager-panel" style="display:none">
-        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-          <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
-        </div>
-        <div id="managerList" class="manager-list"></div>
-        <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
-          <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
-          <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
-        </div>
-      </div>
-    </div>
-    <div class="f-group narrow" style="min-width:130px">
-      <label class="f-label">Desde</label>
-      <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
-    </div>
-    <div class="f-group narrow" style="min-width:130px">
-      <label class="f-label">Hasta</label>
-      <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
-    </div>
-    <div class="f-group" style="min-width:190px;flex:0 0 auto">
-      <label class="f-label">WelcomePack <span style="opacity:.6">(solo entradas)</span></label>
-      <div class="toggle-group" style="height:36px">
-        <button class="t-btn on" id="tWPall"  onclick="setWPFilter('all')" style="font-size:11px">Todos</button>
-        <button class="t-btn"    id="tWPpend" onclick="setWPFilter('pending')" style="font-size:11px">Pendientes</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Chips -->
   <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0"></div>
-
-  <!-- Expandible: búsqueda por texto -->
-  <div id="masFiltros">
+  <!-- Expandible: TODO -->
+  <div id="masFiltros" class="open">
     <div class="mas-inner">
+      <!-- Fila 1: VM + Fechas -->
+      <div class="filter-row">
+        <div class="f-group wide" style="position:relative">
+          <label class="f-label">Villa Manager</label>
+          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span id="fManagerLabel">Cargando...</span>
+            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+          </button>
+          <div id="managerPanel" class="manager-panel" style="display:none">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+              <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+            </div>
+            <div id="managerList" class="manager-list"></div>
+            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+              <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+              <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            </div>
+          </div>
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Desde</label>
+          <input type="date" id="fDesde" class="f-input" onchange="scheduleSearch()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Hasta</label>
+          <input type="date" id="fHasta" class="f-input" onchange="scheduleSearch()">
+        </div>
+      </div>
+      <!-- Fila 2: Pill toggles -->
+      <div class="filter-row" style="gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="pill-group">
+          <span class="pill-label">Check-in online</span>
+          <div class="pill-opts">
+            <button class="pill-opt on" id="tAll"  onclick="setToggle('all')">Todos</button>
+            <button class="pill-opt"    id="tPend" onclick="setToggle('pend')">Pendiente</button>
+          </div>
+        </div>
+        <div class="pill-group">
+          <span class="pill-label">WelcomePack <span style="font-weight:400;opacity:.6">(entradas)</span></span>
+          <div class="pill-opts">
+            <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
+            <button class="pill-opt"    id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+          </div>
+        </div>
+        <div class="pill-group">
+          <span class="pill-label">Mostrar</span>
+          <div class="pill-opts">
+            <button class="pill-opt on" id="tTipo_both"   onclick="setTipoFilter('both')">Todo</button>
+            <button class="pill-opt"    id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
+            <button class="pill-opt"    id="tTipo_salida"  onclick="setTipoFilter('salida')">Salidas</button>
+          </div>
+        </div>
+      </div>
+      <!-- Fila 3: Texto -->
       <div class="filter-row" style="margin-bottom:0">
         <div class="f-group narrow">
           <label class="f-label">Código reserva</label>
-          <input type="text" id="fCodigo" class="f-input" placeholder="ej. j5oQcmp4FQ">
+          <input type="text" id="fCodigo" class="f-input" placeholder="ej. j5oQcmp4FQ" oninput="scheduleSearch(400)">
         </div>
         <div class="f-group">
           <label class="f-label">Villa</label>
-          <input type="text" id="fVilla" class="f-input" placeholder="ej. Binichic">
+          <input type="text" id="fVilla" class="f-input" placeholder="ej. Binichic" oninput="scheduleSearch(400)">
         </div>
         <div class="f-group">
           <label class="f-label">Inquilino</label>
-          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped">
+          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped" oninput="scheduleSearch(400)">
         </div>
       </div>
     </div>
@@ -399,10 +412,10 @@ function g(r,key) { return r[F[key]] ?? ''; }
 function isOk(val) {
   if (val===null||val===undefined) return null;
   if (typeof val==='boolean') return val;
-  if (typeof val==='number') return val>0 && val!==0; // -1 y 0 = no hecho
+  if (typeof val==='number') { if(val===0) return false; if(val===-1) return true; return val>0; } // 0=no, -1=sí(Caspio raw), >0=sí
   const s=String(val).trim().toLowerCase();
   if (!s) return null;
-  return !['0','x','no','false','pendiente','n/a','na','-1','null','none','–','-'].includes(s);
+  return !['0','x','no','false','pendiente','n/a','na','null','none','–','-'].includes(s);
 }
 function stClass(s) {
   const x=(s||'').toLowerCase();
@@ -652,11 +665,14 @@ function getCleanerName(rawVal) {
 function toggleMas() {
   $('btnMas').classList.toggle('on');
   $('masFiltros').classList.toggle('open');
+  // Buscar al cerrar filtros
+  const nowOpen = $('masFiltros').classList.contains('open');
+  if (!nowOpen) scheduleSearch(300);
 }
 function setToggle(mode) {
   toggleMode = mode;
-  $('tAll').classList.toggle('on',  mode==='all');
-  $('tPend').classList.toggle('on', mode==='pend');
+  ['tAll','tPend'].forEach(id=>{ const el=$( id); if(el){el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');} });
+  scheduleSearch();
 }
 function setTipoFilter(mode) {
   tipoFilter = mode;
@@ -664,11 +680,12 @@ function setTipoFilter(mode) {
     const el = $('tTipo_'+m);
     if (el) el.classList.toggle('on', m===mode);
   });
+  scheduleSearch();
 }
 function setWPFilter(mode) {
   fWelcomePack = mode;
-  if ($('tWPall'))  $('tWPall').classList.toggle('on',  mode==='all');
-  if ($('tWPpend')) $('tWPpend').classList.toggle('on', mode==='pending');
+  ['tWPall','tWPpend'].forEach(id=>{ const el=$(id); if(el) el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending'); });
+  scheduleSearch();
 }
 // onManagerChange replaced by toggleManager multi-select
 function clearAll() {
@@ -860,15 +877,25 @@ function popup(url, w, h) {
   return false;
 }
 
+// ════════════════ AUTO-SEARCH DEBOUNCE ════════════════
+let _searchTimer = null;
+function scheduleSearch(delay) {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(doSearch, delay || 0);
+}
+
 // ════════════════ CARD TOGGLE ════════════════
 function toggleCardBody(id) {
   const wrap = document.getElementById(id);
-  const btn  = wrap ? wrap.previousElementSibling : null;
-  if (!wrap || !btn) return;
+  if (!wrap) return;
+  const btn  = document.querySelector('.c-toggle[data-toggle="'+id+'"]');
   const open = wrap.style.display !== 'none';
   wrap.style.display = open ? 'none' : 'block';
-  btn.classList.toggle('open', !open);
-  btn.querySelector('.c-toggle-label').textContent = open ? 'Ver detalles' : 'Ocultar';
+  if (btn) {
+    btn.classList.toggle('open', !open);
+    const lbl = btn.querySelector('.c-toggle-label');
+    if (lbl) lbl.textContent = open ? 'Ver detalles' : 'Ocultar';
+  }
 }
 
 // ════════════════ SVG ICONS ════════════════
@@ -1037,7 +1064,8 @@ function buildCard(r, type) {
     const ecOk        = isOk(ecRaw);
     const ecCls       = ecOk===null?'b-na':ecOk?'b-ok':'b-no';
     const ecIco       = ecOk===null?'·':ecOk?'✓':'✗';
-    const ecExtra     = `${ecEUR?' — <strong>'+ecEUR+' €</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:rgba(0,0,0,.12);border-radius:3px;padding:1px 5px;font-size:9px;color:inherit;text-decoration:none;margin-left:4px">✎</a>`;
+    const ecEURfmt    = ecEUR ? parseFloat(ecEUR).toFixed(2)+' €' : '';
+    const ecExtra     = `${ecEURfmt?' — <strong>'+ecEURfmt+'</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:#1967d2;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;text-decoration:none;margin-left:4px">✎</a>`;
     html += '<div class="c-status" style="border-top:1px solid var(--gray-2);flex-wrap:wrap">';
     html += mkBadge('Arrival form', g(r,'arrivalFormDone'));
     html += `<span class="bdg ${ecCls}" style="gap:3px">${ecIco} Ecotasa${ecExtra}</span>`;
@@ -1071,7 +1099,7 @@ function buildCard(r, type) {
   html += '</div>'; // end c-body always-visible
 
   // ── Toggle ──
-  html += `<div class="c-toggle" onclick="toggleCardBody('${cardId}')">
+  html += `<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')">
     <span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span>
   </div>`;
 
