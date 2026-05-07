@@ -143,16 +143,6 @@
       </div>
     </label>
 
-    <label class="toggle-row" for="swIncid">
-      <div>
-        <div class="toggle-label">⚠️ Hay incidencias</div>
-        <div class="toggle-sub">Problemas o anomalías encontradas</div>
-      </div>
-      <div class="switch">
-        <input type="checkbox" id="swIncid">
-        <div class="slider"></div>
-      </div>
-    </label>
   </div>
 
   <!-- Foto -->
@@ -284,41 +274,23 @@ async function loadTask() {
 
   // ── WP entregado + Incidencias ──
   if (task['Tarea_terminada'] !== undefined) $sw('swDone', task['Tarea_terminada']);
-  if (task['Incidencias']     !== undefined) $sw('swIncid', task['Incidencias']);
 
   // ── Agua caliente / Wifi ──
   // Intentar múltiples nombres de campo posibles
-  const aguaKeys = ['Aguacaliente','aguacaliente','Agua_caliente','AguaCaliente'];
-  const wifiKeys = ['Wifi','wifi','WifiFunciona','Wifi_funciona'];
+  // Agua caliente → Limpieza_filtrolavaplatos (Yes/No)
+  if (task['Limpieza_filtrolavaplatos'] !== undefined)
+    $sw('swAgua', task['Limpieza_filtrolavaplatos']);
 
-  for (const k of aguaKeys) {
-    if (task[k] !== undefined && task[k] !== null) { $sw('swAgua', task[k]); break; }
-  }
-  for (const k of wifiKeys) {
-    if (task[k] !== undefined && task[k] !== null) { $sw('swWifi', task[k]); break; }
-  }
+  // Wifi → Limpieza_salyabrillan_lavaplatos (Text: 'Y' = sí)
+  if (task['Limpieza_salyabrillan_lavaplatos'] !== undefined)
+    $sw('swWifi', task['Limpieza_salyabrillan_lavaplatos'] === 'Y');
 
-  // ── Comentarios: desde Taskdescription (JSON o texto plano) ──
-  if (task['Taskdescription']) {
-    try {
-      const desc = JSON.parse(task['Taskdescription']);
-      if (desc && typeof desc === 'object') {
-        if (desc.aguacaliente !== undefined) $sw('swAgua', desc.aguacaliente);
-        if (desc.wifi         !== undefined) $sw('swWifi', desc.wifi);
-        if (desc.comentarios)  document.getElementById('txtComentarios').value = desc.comentarios;
-      } else {
-        document.getElementById('txtComentarios').value = task['Taskdescription'];
-      }
-    } catch(e) {
-      document.getElementById('txtComentarios').value = task['Taskdescription'];
-    }
-  }
-  if (task['Internal_notes']) {
-    document.getElementById('txtComentarios').value = task['Internal_notes'];
-  }
+  // Comentarios → Taskdescription
+  if (task['Taskdescription'])
+    document.getElementById('txtComentarios').value = task['Taskdescription'];
 
   // ── Foto: Picture_In_keyholder1 puede ser URL string o Caspio file object ──
-  const fotoVal = task['Picture_In_keyholder1'];
+  const fotoVal = task['Picture_in_cleaning1'];
   if (fotoVal) {
     let fotoUrl = null;
     if (typeof fotoVal === 'string' && fotoVal.startsWith('http')) {
@@ -333,8 +305,7 @@ async function loadTask() {
 
   // Mostrar debug en consola con todos los campos
   console.log('Task fields:', Object.keys(task));
-  console.log('Agua field check:', aguaKeys.map(k=>k+':'+task[k]));
-  console.log('Wifi field check:', wifiKeys.map(k=>k+':'+task[k]));
+  console.log('Agua:', task['Limpieza_filtrolavaplatos'], '| Wifi:', task['Limpieza_salyabrillan_lavaplatos'], '| Foto:', task['Picture_in_cleaning1']);
 }
 
 // ── UI helpers ────────────────────────────────────────────────
@@ -421,13 +392,6 @@ function removePhoto(e) {
 }
 
 // ── Build description JSON ────────────────────────────────────
-function buildDescription() {
-  const aguacaliente = sw('swAgua');
-  const wifi         = sw('swWifi');
-  const comentarios  = document.getElementById('txtComentarios').value.trim();
-  return JSON.stringify({ aguacaliente, wifi, comentarios });
-}
-
 // ── Guardar ───────────────────────────────────────────────────
 async function guardar() {
   // Validar foto obligatoria
@@ -457,8 +421,9 @@ async function guardar() {
       Idreserva        : idReserva,
       Tasktype_booking : taskType,
       Tarea_terminada  : sw('swDone'),
-      Incidencias      : sw('swIncid'),
-      Taskdescription  : buildDescription(),
+      Limpieza_filtrolavaplatos      : sw('swAgua'),
+      Limpieza_salyabrillan_lavaplatos: sw('swWifi') ? 'Y' : '',
+      Taskdescription                : document.getElementById('txtComentarios').value.trim(),
       Tasktype_booking : parseInt(taskType),
       Taskname         : 'WelcomePack',
     };
@@ -469,7 +434,7 @@ async function guardar() {
       // Intentar subir imagen al worker
       try {
         const uploadRes = await uploadPhoto(selectedPhoto, idReserva, taskType);
-        if (uploadRes && uploadRes.url) data['Picture_In_keyholder1'] = uploadRes.url;
+        if (uploadRes && uploadRes.url) data['Picture_in_cleaning1'] = uploadRes.url;
       } catch(eUp) {
         console.warn('Photo upload skipped:', eUp.message);
         // Continuar sin foto — no bloquear el guardado
