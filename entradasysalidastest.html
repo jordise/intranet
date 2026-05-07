@@ -379,6 +379,7 @@ const F = {
 
 // ════════════════ ESTADO GLOBAL ════════════════
 let toggleMode    = 'all';
+let _searchId     = 0;  // Contador para cancelar búsquedas anteriores
 let fWelcomePack  = 'all'; // se ajusta según si el usuario es villa manager
 let tipoFilter    = 'both'; // 'both', 'entrada', 'salida'
 let managersMap   = new Map();
@@ -792,6 +793,8 @@ function renderChips() {
 
 // ════════════════ SEARCH ════════════════
 async function doSearch() {
+  const mySearchId = ++_searchId; // Cada llamada tiene su propio ID
+
   updateSub();
   renderChips();
   // Guardar filtros en localStorage para persistir al refrescar
@@ -811,10 +814,11 @@ async function doSearch() {
     saveToURL();
   } catch(e) {}
 
+  // Limpiar grid inmediatamente (antes del fetch)
+  if ($('grid'))   { $('grid').style.display = 'none'; $('grid').innerHTML = ''; }
   if ($('stInit')) $('stInit').style.display = 'none';
   if ($('stLoad')) $('stLoad').style.display = 'block';
   if ($('stErr'))  $('stErr').style.display  = 'none';
-  if ($('grid'))   { $('grid').style.display = 'none'; $('grid').innerHTML = ''; }
   if ($('statsBar')) $('statsBar').style.display = 'none';
   if ($('hBadge'))   $('hBadge').textContent = '';
 
@@ -823,15 +827,31 @@ async function doSearch() {
 
   try {
     const res  = await fetch(Auth.url(url));
+    // Cancelar si una búsqueda más reciente ya se lanzó
+    if (mySearchId !== _searchId) return;
     const json = await res.json();
     if (json.error) throw new Error(json.error);
-    const records = json.Result || json.result || [];
+    const rawRecords = json.Result || json.result || [];
+    // Doble check tras parsear JSON
+    if (mySearchId !== _searchId) return;
+
+    // Deduplicar: el view devuelve filas duplicadas por JOINs en Caspio
+    const _seen = new Set();
+    const records = rawRecords.filter(r => {
+      const key = r[F.confirmCode] || r[F.reservationId] || '';
+      if (!key || _seen.has(key)) return !key ? true : false;
+      _seen.add(key);
+      return true;
+    });
+    const dupCount = rawRecords.length - records.length;
+    if (dupCount > 0) console.warn(`Eliminados ${dupCount} registros duplicados de ${rawRecords.length} totales`);
 
     const ciFieldVal = records[0] ? records[0]['TaBookings2021_checkinonline_todo_terminado'] : 'N/A';
     const wpFieldVal = records[0] ? records[0]['TaBookings2021_Welcomepackentregado'] : 'N/A';
     $('dbBox').textContent = `WHERE:\n${where}\n\nRegistros: ${records.length}\nCI field value (1er reg): ${JSON.stringify(ciFieldVal)}\nWP field value (1er reg): ${JSON.stringify(wpFieldVal)}\n\nPrimer registro:\n${JSON.stringify(records[0]||{},null,2)}`;
     renderCards(records);
   } catch(err) {
+    if (mySearchId !== _searchId) return; // búsqueda cancelada
     if ($('stLoad')) $('stLoad').style.display = 'none';
     if ($('stErr'))  $('stErr').style.display  = 'block';
     if ($('errMsg')) $('errMsg').textContent    = err.message;
