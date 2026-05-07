@@ -56,7 +56,7 @@
       letter-spacing: 1px;
       color: #fff;
     }
-    .nav-close {
+    .nav-head-logo { height:36px; } .nav-close {
       background: rgba(255,255,255,.15);
       border: none;
       color: #fff;
@@ -327,7 +327,7 @@
     sidebar.id = 'nav-sidebar';
     sidebar.innerHTML = `
       <div class="nav-head">
-        <div class="nav-logo">&lt;3villas</div>
+        <img src="logo-blanco.png" alt="3Villas" style="height:36px;display:block;filter:brightness(0) invert(1)">
         <button class="nav-close" onclick="NavComponent.close()">✕</button>
       </div>
       ${name ? `
