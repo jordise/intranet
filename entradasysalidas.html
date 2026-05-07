@@ -186,58 +186,67 @@
 </header>
 
 <div id="filterPanel">
+  <!-- Fila 1: toggles + buscar -->
   <div class="main-bar">
     <div class="toggle-group">
       <button class="t-btn on" id="tAll"  onclick="setToggle('all')">Todos</button>
-      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Pendientes checkin</button>
+      <button class="t-btn"    id="tPend" onclick="setToggle('pend')">Pendientes CI</button>
+    </div>
+    <div class="toggle-group" style="flex-shrink:0">
+      <button class="t-btn on" id="tTipo_both"   onclick="setTipoFilter('both')">Todo</button>
+      <button class="t-btn"    id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
+      <button class="t-btn"    id="tTipo_salida"  onclick="setTipoFilter('salida')">Salidas</button>
     </div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
-      <span>Filtros</span><span class="arr">▾</span>
+      <span>Más filtros</span><span class="arr">▾</span>
     </button>
-    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
     <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
   </div>
-  <!-- Chips always below buttons -->
+
+  <!-- Fila 2: VM + fechas + WP (siempre visible) -->
+  <div class="filter-row" style="padding-bottom:10px;flex-wrap:wrap;gap:8px;align-items:flex-end">
+    <div class="f-group wide" style="position:relative;min-width:180px">
+      <label class="f-label">Villa Manager</label>
+      <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+        <span id="fManagerLabel">Cargando...</span>
+        <span style="font-size:10px;color:var(--gray-4)">▾</span>
+      </button>
+      <div id="managerPanel" class="manager-panel" style="display:none">
+        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+          <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+        </div>
+        <div id="managerList" class="manager-list"></div>
+        <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+          <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+          <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+        </div>
+      </div>
+    </div>
+    <div class="f-group narrow" style="min-width:130px">
+      <label class="f-label">Desde</label>
+      <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
+    </div>
+    <div class="f-group narrow" style="min-width:130px">
+      <label class="f-label">Hasta</label>
+      <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
+    </div>
+    <div class="f-group" style="min-width:190px;flex:0 0 auto">
+      <label class="f-label">WelcomePack <span style="opacity:.6">(solo entradas)</span></label>
+      <div class="toggle-group" style="height:36px">
+        <button class="t-btn on" id="tWPall"  onclick="setWPFilter('all')" style="font-size:11px">Todos</button>
+        <button class="t-btn"    id="tWPpend" onclick="setWPFilter('pending')" style="font-size:11px">Pendientes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chips -->
   <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0"></div>
 
+  <!-- Expandible: búsqueda por texto -->
   <div id="masFiltros">
     <div class="mas-inner">
-      <div class="filter-row">
-        <div class="f-group wide" style="position:relative">
-          <label class="f-label">Villa Manager</label>
-          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-            <span id="fManagerLabel">Cargando...</span>
-            <span style="font-size:10px;color:var(--gray-4)">▾</span>
-          </button>
-          <div id="managerPanel" class="manager-panel" style="display:none">
-            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-              <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
-            </div>
-            <div id="managerList" class="manager-list"></div>
-            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
-              <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Seleccionar todos</button>
-              <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
-            </div>
-          </div>
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Entrada desde</label>
-          <input type="date" id="fDesde" class="f-input" onchange="updateSub()">
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Hasta</label>
-          <input type="date" id="fHasta" class="f-input" onchange="updateSub()">
-        </div>
-      </div>
-      <!-- WP filter -->
-      <div class="filter-row" style="margin-bottom:6px">
-        <div class="toggle-group">
-          <button class="t-btn on" id="tWPall"  onclick="setWPFilter('all')">Todos WelcomePack</button>
-          <button class="t-btn"    id="tWPpend" onclick="setWPFilter('pending')">Solo WP pendiente</button>
-        </div>
-        <span style="font-size:11px;color:var(--gray-4);align-self:center">(solo entradas)</span>
-      </div>
-      <div class="filter-row">
+      <div class="filter-row" style="margin-bottom:0">
         <div class="f-group narrow">
           <label class="f-label">Código reserva</label>
           <input type="text" id="fCodigo" class="f-input" placeholder="ej. j5oQcmp4FQ">
@@ -358,7 +367,8 @@ const F = {
 
 // ════════════════ ESTADO GLOBAL ════════════════
 let toggleMode    = 'all';
-let fWelcomePack  = 'pending'; // 'pending'=solo WP pendiente en entradas, 'all'=todos
+let fWelcomePack  = 'all'; // se ajusta según si el usuario es villa manager
+let tipoFilter    = 'both'; // 'both', 'entrada', 'salida'
 let managersMap   = new Map();
 let allUsersMap   = new Map();
 let selectedManagers = new Set(); // UserIDs seleccionados para filtrar
@@ -389,10 +399,10 @@ function g(r,key) { return r[F[key]] ?? ''; }
 function isOk(val) {
   if (val===null||val===undefined) return null;
   if (typeof val==='boolean') return val;
-  if (typeof val==='number') return val>0;
+  if (typeof val==='number') return val>0 && val!==0; // -1 y 0 = no hecho
   const s=String(val).trim().toLowerCase();
   if (!s) return null;
-  return !['0','x','no','false','pendiente'].includes(s);
+  return !['0','x','no','false','pendiente','n/a','na','-1','null','none','–','-'].includes(s);
 }
 function stClass(s) {
   const x=(s||'').toLowerCase();
@@ -437,9 +447,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadMultiunits()
     ]);
 
-    // Initialize WP filter buttons
-    setWPFilter(window.__restoredWP || 'pending');
+    // WP default: pendientes si es villa manager, todos si no
+    const defaultWP = window.__restoredWP || (window.__isVillaManager ? 'pending' : 'all');
+    setWPFilter(defaultWP);
     window.__restoredWP = null;
+    // tipoFilter restore
+    if (window.__restoredTipo) { setTipoFilter(window.__restoredTipo); window.__restoredTipo=null; }
     // Auto-search on load
     doSearch();
   } catch(err) {
@@ -496,6 +509,7 @@ async function loadManagers() {
       if (preMgr && $('mgrName')) $('mgrName').value = preMgr[U.name] || Auth.name() || '';
     }
 
+    window.__isVillaManager = myKeyholder !== '';
     renderManagerList();
     updateManagerBtn();
     if (btn) btn.disabled = false;
@@ -644,6 +658,13 @@ function setToggle(mode) {
   $('tAll').classList.toggle('on',  mode==='all');
   $('tPend').classList.toggle('on', mode==='pend');
 }
+function setTipoFilter(mode) {
+  tipoFilter = mode;
+  ['both','entrada','salida'].forEach(m => {
+    const el = $('tTipo_'+m);
+    if (el) el.classList.toggle('on', m===mode);
+  });
+}
 function setWPFilter(mode) {
   fWelcomePack = mode;
   if ($('tWPall'))  $('tWPall').classList.toggle('on',  mode==='all');
@@ -693,7 +714,8 @@ function buildWhere() {
   if (codigo)    parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);
   if (villa)     parts.push(`${F.villaName} LIKE '%${villa}%'`);
   if (inquilino) parts.push(`${F.guestName} LIKE '%${inquilino}%'`);
-  if (toggleMode==='pend' && F.checkinPend) parts.push(`${F.checkinPend}<3`);
+  // Pendiente checkin: campo 0=no iniciado, 1-2=parcial, 3=todo terminado
+  if (toggleMode==='pend' && F.checkinPend) parts.push(`(${F.checkinPend} IS NULL OR ${F.checkinPend}<3)`);
 
   return parts.join(' AND ');
 }
@@ -719,7 +741,8 @@ function renderChips() {
   if (codigo)       chipsData.push({label:`Reserva: ${codigo}`,    clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});
   if (villa)        chipsData.push({label:`Villa: ${villa}`,        clear:()=>{if($('fVilla'))$('fVilla').value=''}});
   if (inq)          chipsData.push({label:`Inquilino: ${inq}`,      clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});
-  if (toggleMode==='pend') chipsData.push({label:'Pendiente checkin', clear:()=>setToggle('all')});
+  if (toggleMode==='pend') chipsData.push({label:'Pendiente CI', clear:()=>setToggle('all')});
+  if (tipoFilter!=='both') chipsData.push({label:tipoFilter==='entrada'?'Solo entradas':'Solo salidas', clear:()=>setTipoFilter('both')});
 
   window.__ch = chipsData;
   const wrap = $('chips');
@@ -741,8 +764,9 @@ async function doSearch() {
       codigo   : ($('fCodigo')||{}).value||'',
       villa    : ($('fVilla')||{}).value||'',
       inquilino: ($('fInquilino')||{}).value||'',
-      toggle   : toggleMode,
-      wpFilter : fWelcomePack,
+      toggle    : toggleMode,
+      wpFilter  : fWelcomePack,
+      tipoFilter: tipoFilter,
     };
     localStorage.setItem('3v_eys_filters', JSON.stringify(state));
   } catch(e) {}
@@ -799,10 +823,12 @@ function renderCards(records) {
     const isEntrada = ciTs >= desdeTs && ciTs <= hastaTs;
     const isSalida  = coTs >= desdeTs && coTs <= hastaTs;
     // WelcomePack filter: si está en modo 'pending', skip entradas con WP completado
-    const wpOk = isOk(g(r,'wellcomePack'));
+    const wpOk  = isOk(g(r,'wellcomePack'));
     const skipWP = fWelcomePack==='pending' && wpOk===true;
-    if (isEntrada && !skipWP) rows.push({ r, type:'entrada', sortDate: ciTs });
-    if (isSalida)  rows.push({ r, type:'salida',  sortDate: coTs });
+    const showEnt = tipoFilter==='both' || tipoFilter==='entrada';
+    const showSal = tipoFilter==='both' || tipoFilter==='salida';
+    if (isEntrada && !skipWP && showEnt) rows.push({ r, type:'entrada', sortDate: ciTs });
+    if (isSalida  && showSal)  rows.push({ r, type:'salida',  sortDate: coTs });
     // Si no hay rango, mostrar como entrada
     if (!isEntrada && !isSalida) rows.push({ r, type:'entrada', sortDate: ciTs });
   });
