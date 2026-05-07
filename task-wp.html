@@ -447,7 +447,14 @@ async function guardar() {
       // Intentar subir imagen al worker
       try {
         const uploadRes = await uploadPhoto(selectedPhoto, idReserva, taskType);
-        if (uploadRes && uploadRes.url) data['Picture_in_cleaning1'] = uploadRes.url;
+        if (uploadRes && uploadRes.url) {
+          // Guardamos la URL en un campo de texto — R2 almacena el archivo
+          data['Taskdescription'] = data['Taskdescription']
+            ? data['Taskdescription'] + '\n[foto:' + uploadRes.url + ']'
+            : '[foto:' + uploadRes.url + ']';
+          window.__uploadedPhotoUrl = uploadRes.url;
+          console.log('Uploaded to R2:', uploadRes.filename);
+        }
       } catch(eUp) {
         console.warn('Photo upload skipped:', eUp.message);
         // Continuar sin foto — no bloquear el guardado
@@ -500,20 +507,20 @@ async function guardar() {
 }
 
 async function uploadPhoto(file, idRes, taskType) {
-  // Convertir a FormData para subir al worker
   const fd = new FormData();
-  fd.append('file',         file, file.name);
-  fd.append('table',        'TaTasks');
-  fd.append('idreserva',    idRes);
-  fd.append('tasktype',     taskType);
-  fd.append('field',        'Foto');
+  fd.append('file',       file, file.name || 'foto.jpg');
+  fd.append('idreserva',  idRes);
+  fd.append('tasktype',   taskType);
+  fd.append('year',       new Date().getFullYear());
 
   const res = await fetch(Auth.url(`${WORKER}?action=upload`), {
     method: 'POST',
     body  : fd,
   });
-  if (!res.ok) throw new Error('Upload failed: ' + res.status);
-  return await res.json();
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+  console.log('Photo uploaded:', data.url, '— filename:', data.filename);
+  return data;
 }
 
 // ── Feedback ──────────────────────────────────────────────────
