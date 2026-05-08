@@ -15,7 +15,6 @@
 var NAV_MENU = [
 
   { label: 'Entradas',   url: 'entradas.html',  icon: '🚪' },
-  { label: 'Entradas y salidas',   url: 'entradas.html',  icon: '🚪' },
   { label: 'Tareas',   url: 'tareas.html',  icon: '🚪' },
  
 
@@ -35,7 +34,8 @@ var NAV_MENU = [
     label: 'Configuracion',
     icon : '📖',
     children: [
-      { label: 'Roles',           url: 'permisos.html',                  icon: '📄' },
+        { label: 'Roles',           url: 'permisos.html',                  icon: '📄' },
+        { label: 'Test',   url: 'entradasysalidas.html',  icon: '🚪' },
     ]
   },
  { label: 'Login',   url: 'login.html',  icon: '' },
