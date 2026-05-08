@@ -15,7 +15,7 @@
 var NAV_MENU = [
 
   { label: 'Entradas',   url: 'entradas.html',  icon: '🚪' },
-  { label: 'Entradas y salidas',   url: 'entradasysalidas.html',  icon: '🚪' },
+  { label: 'Entradas y salidas',   url: 'entradas.html',  icon: '🚪' },
 
  
 
