@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permisos — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
+    .h-sub{font-size:12px;opacity:.75;margin-top:1px}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+    main{padding:24px 22px;max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+    /* ── Card base ── */
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .card-head{background:var(--gray-5);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+    .card-body{padding:18px}
+
+    /* ── Permissions grid ── */
+    .perm-table{width:100%;border-collapse:collapse}
+    .perm-table th{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:center;color:var(--gray-4);border-bottom:2px solid var(--gray-2)}
+    .perm-table th.page-col{text-align:left;width:180px}
+    .perm-table td{padding:8px 14px;border-bottom:1px solid var(--gray-2);text-align:center;vertical-align:middle}
+    .perm-table td.page-name{text-align:left}
+    .perm-table tr:last-child td{border-bottom:none}
+    .perm-table tr:hover td{background:var(--gray-1)}
+
+    .page-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-5)}
+    .page-desc{font-size:11px;color:var(--gray-4);margin-top:2px}
+
+    /* Checkbox custom */
+    .perm-check{width:22px;height:22px;accent-color:var(--red);cursor:pointer}
+
+    /* Role header badge */
+    .role-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin-bottom:4px}
+    .rb-admin{background:#fce8eb;color:var(--red)}
+    .rb-manager{background:var(--blue-light);color:var(--blue)}
+    .rb-staff{background:var(--green-light);color:var(--green)}
+    .rb-owner{background:var(--orange-light);color:var(--orange)}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 18px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;letter-spacing:.3px;cursor:pointer;border:none;transition:filter .15s}
+    .btn:hover{filter:brightness(.9)}
+    .btn-red{background:var(--red);color:#fff}
+    .btn-gray{background:var(--gray-2);color:var(--gray-5)}
+    .btn-green{background:var(--green);color:#fff}
+    .btn-blue{background:var(--blue);color:#fff}
+
+    /* ── Add row form ── */
+    .add-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:14px 18px;background:var(--gray-1);border-top:1px solid var(--gray-2)}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+
+    /* ── Code output ── */
+    #codeWrap{display:none}
+    .code-box{background:#1e1e2e;color:#a6e3a1;padding:16px;border-radius:0 0 var(--r) var(--r);font-family:monospace;font-size:12px;white-space:pre;overflow-x:auto;line-height:1.6}
+    .copy-bar{background:var(--gray-5);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .copy-bar span{font-family:'Montserrat',sans-serif;font-size:11px;color:var(--gray-3)}
+    .copied-msg{color:var(--green);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;display:none}
+
+    /* ── Info banner ── */
+    .info-banner{background:var(--blue-light);border-left:4px solid var(--blue);border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:var(--blue);display:flex;gap:10px;align-items:flex-start}
+    .info-banner strong{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;display:block;margin-bottom:3px}
+
+    /* ── Delete page btn ── */
+    .del-page{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px;transition:color .15s}
+    .del-page:hover{color:var(--red)}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--gray-5);color:#fff;padding:10px 22px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;box-shadow:var(--shadow-lg);transition:transform .3s;z-index:9999;white-space:nowrap}
+    #toast.show{transform:translateX(-50%) translateY(0)}
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('permisos');</script>
+
+<header>
+  <div>
+    <div class="h-title">PERMISOS</div>
+    <div class="h-sub">Gestión de accesos por rol</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
+  </div>
+</header>
+
+<div id="toast"></div>
+
+<main>
+
+  <!-- Info -->
+  <div class="info-banner">
+    <span style="font-size:20px;flex-shrink:0">ℹ️</span>
+    <div>
+      <strong>Cómo funciona</strong>
+      Edita los permisos en la tabla, luego pulsa <b>Generar código</b>. Copia el bloque generado y pégalo en el archivo <b>auth.js</b> sustituyendo el objeto <code>PERMISSIONS</code>. Los cambios se aplican en el próximo despliegue.
+    </div>
+  </div>
+
+  <!-- Tabla de permisos -->
+  <div class="card">
+    <div class="card-head">
+      <h2>📋 Matriz de permisos</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gray" onclick="resetToOriginal()">↺ Resetear</button>
+        <button class="btn btn-red" onclick="generateCode()">⚙ Generar código</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="perm-table" id="permTable">
+        <thead>
+          <tr id="headerRow">
+            <th class="page-col">Página / Sección</th>
+            <!-- roles se insertan dinámicamente -->
+          </tr>
+        </thead>
+        <tbody id="permBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Añadir página -->
+    <div class="add-row">
+      <div class="f-group">
+        <label class="f-label">Nueva página</label>
+        <input type="text" id="newPage" class="f-input" placeholder="ej. informes" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
+      </div>
+      <div class="f-group" style="max-width:200px">
+        <label class="f-label">Descripción</label>
+        <input type="text" id="newPageDesc" class="f-input" placeholder="ej. Informes mensuales">
+      </div>
+      <button class="btn btn-gray" onclick="addPage()" style="align-self:flex-end">+ Añadir página</button>
+    </div>
+  </div>
+
+  <!-- Gestión de roles -->
+  <div class="card">
+    <div class="card-head">
+      <h2>👥 Roles disponibles</h2>
+    </div>
+    <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div id="roleList" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-left:auto">
+        <div class="f-group" style="min-width:130px">
+          <label class="f-label">Nuevo rol</label>
+          <input type="text" id="newRole" class="f-input" placeholder="ej. owner" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
+        </div>
+        <button class="btn btn-gray" onclick="addRole()">+ Añadir rol</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Código generado -->
+  <div class="card" id="codeWrap">
+    <div class="card-head">
+      <h2>📄 Código generado — pegar en auth.js</h2>
+    </div>
+    <div class="copy-bar">
+      <span>Sustituye el bloque <code style="color:#a6e3a1">const PERMISSIONS = { … };</code> en auth.js por este código</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="copied-msg" id="copiedMsg">✓ Copiado!</span>
+        <button class="btn btn-green" onclick="copyCode()">📋 Copiar</button>
+      </div>
+    </div>
+    <pre class="code-box" id="codeBox"></pre>
+  </div>
+
+</main>
+
+<script>
+// ════════════════════════════════════════════════
+//  ESTADO: permisos actuales (copia de auth.js)
+// ════════════════════════════════════════════════
+
+// Roles y páginas iniciales — espejo exacto del PERMISSIONS en auth.js
+const INITIAL_PERMISSIONS = {
+  'entradas'     : ['admin', 'manager', 'staff'],
+  'salidas'      : ['admin', 'manager', 'staff'],
+  'tareas'       : ['admin', 'manager', 'staff'],
+  'permisos'     : ['admin'],
+  'manuales'     : ['admin', 'manager', 'owner', 'staff'],
+  'dashboard'    : ['admin', 'manager'],
+  'contabilidad' : ['admin'],
+  'usuarios'     : ['admin'],
+};
+
+// Descripciones para mostrar en la tabla
+const PAGE_DESCS = {
+  'entradas'    : 'Entradas y salidas',
+  'salidas'     : 'Control de salidas',
+  'tareas'      : 'Lista de tareas',
+  'permisos'    : 'Gestión de permisos',
+  'manuales'    : 'Manuales de villas',
+  'dashboard'   : 'Panel principal',
+  'contabilidad': 'Contabilidad',
+  'usuarios'    : 'Gestión de usuarios',
+};
+
+const ROLE_COLORS = {
+  admin  : 'rb-admin',
+  manager: 'rb-manager',
+  staff  : 'rb-staff',
+  owner  : 'rb-owner',
+};
+
+// Estado mutable
+let permissions = {};   // { pageName: Set<role> }
+let roles = [];         // ['admin','manager',...]
+let pages = [];         // [{key, desc}]
+
+// ── INIT ──
+function initState() {
+  // Roles: unión de todos los que aparecen en INITIAL_PERMISSIONS
+  const roleSet = new Set();
+  Object.values(INITIAL_PERMISSIONS).forEach(arr => arr.forEach(r => roleSet.add(r)));
+  roles = [...roleSet];
+
+  pages = Object.keys(INITIAL_PERMISSIONS).map(k => ({ key: k, desc: PAGE_DESCS[k] || k }));
+
+  permissions = {};
+  Object.entries(INITIAL_PERMISSIONS).forEach(([page, arr]) => {
+    permissions[page] = new Set(arr);
+  });
+}
+
+function resetToOriginal() {
+  if (!confirm('¿Resetear todos los permisos al estado original del auth.js?')) return;
+  initState();
+  render();
+  document.getElementById('codeWrap').style.display = 'none';
+  showToast('Permisos reseteados al original');
+}
+
+// ── RENDER ──
+function render() {
+  renderRoleList();
+  renderHeader();
+  renderBody();
+}
+
+function roleBadgeClass(role) {
+  return ROLE_COLORS[role] || 'rb-owner';
+}
+
+function renderRoleList() {
+  const el = document.getElementById('roleList');
+  el.innerHTML = roles.map(r => `
+    <div style="display:flex;align-items:center;gap:4px">
+      <span class="role-badge ${roleBadgeClass(r)}">${r}</span>
+      ${r !== 'admin' ? `<button class="del-page" title="Eliminar rol" onclick="removeRole('${r}')">✕</button>` : ''}
+    </div>`).join('');
+}
+
+function renderHeader() {
+  const row = document.getElementById('headerRow');
+  row.innerHTML = `<th class="page-col">Página / Sección</th>` +
+    roles.map(r => `
+      <th>
+        <div><span class="role-badge ${roleBadgeClass(r)}">${r}</span></div>
+      </th>`).join('') +
+    `<th></th>`;
+}
+
+function renderBody() {
+  const tbody = document.getElementById('permBody');
+  tbody.innerHTML = pages.map(p => {
+    const perm = permissions[p.key] || new Set();
+    const cols = roles.map(r => `
+      <td>
+        <input type="checkbox" class="perm-check"
+          ${perm.has(r) ? 'checked' : ''}
+          ${r === 'admin' && p.key === 'permisos' ? 'disabled' : ''}
+          onchange="toggle('${p.key}','${r}',this.checked)">
+      </td>`).join('');
+    return `<tr>
+      <td class="page-name">
+        <div class="page-label">${p.key}</div>
+        <div class="page-desc">${p.desc || ''}</div>
+      </td>
+      ${cols}
+      <td><button class="del-page" title="Eliminar página" onclick="removePage('${p.key}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── ACCIONES ──
+function toggle(page, role, checked) {
+  if (!permissions[page]) permissions[page] = new Set();
+  if (checked) permissions[page].add(role);
+  else         permissions[page].delete(role);
+}
+
+function addPage() {
+  const key  = (document.getElementById('newPage').value || '').trim();
+  const desc = (document.getElementById('newPageDesc').value || '').trim();
+  if (!key) { showToast('Escribe un nombre de página', true); return; }
+  if (pages.find(p => p.key === key)) { showToast(`La página "${key}" ya existe`, true); return; }
+  pages.push({ key, desc });
+  permissions[key] = new Set(['admin']); // admin por defecto
+  document.getElementById('newPage').value = '';
+  document.getElementById('newPageDesc').value = '';
+  render();
+  showToast(`Página "${key}" añadida`);
+}
+
+function removePage(key) {
+  if (key === 'permisos') { showToast('No puedes eliminar la página de permisos', true); return; }
+  if (!confirm(`¿Eliminar la página "${key}" de la matriz de permisos?`)) return;
+  pages = pages.filter(p => p.key !== key);
+  delete permissions[key];
+  render();
+  showToast(`Página "${key}" eliminada`);
+}
+
+function addRole() {
+  const role = (document.getElementById('newRole').value || '').trim();
+  if (!role) { showToast('Escribe un nombre de rol', true); return; }
+  if (roles.includes(role)) { showToast(`El rol "${role}" ya existe`, true); return; }
+  roles.push(role);
+  document.getElementById('newRole').value = '';
+  render();
+  showToast(`Rol "${role}" añadido`);
+}
+
+function removeRole(role) {
+  if (role === 'admin') { showToast('No puedes eliminar el rol admin', true); return; }
+  if (!confirm(`¿Eliminar el rol "${role}"? Se quitará de todos los permisos.`)) return;
+  roles = roles.filter(r => r !== role);
+  Object.values(permissions).forEach(s => s.delete(role));
+  render();
+  showToast(`Rol "${role}" eliminado`);
+}
+
+// ── GENERAR CÓDIGO ──
+function generateCode() {
+  const lines = pages.map(p => {
+    const arr = [...(permissions[p.key] || [])];
+    // Mantener orden estable: admin primero, luego el resto
+    const ordered = ['admin','manager','staff','owner',...roles.filter(r=>!['admin','manager','staff','owner'].includes(r))]
+      .filter(r => arr.includes(r));
+    const vals = ordered.map(r => `'${r}'`).join(', ');
+    return `    '${p.key.padEnd(14)}'  : [${vals}],`;
+  });
+
+  const code =
+`  // ── Mapa de permisos ──────────────────────────────────────
+  // Generado desde permisos.html — ${new Date().toLocaleString('es-ES')}
+  const PERMISSIONS = {
+${lines.join('\n')}
+  };`;
+
+  document.getElementById('codeBox').textContent = code;
+  document.getElementById('codeWrap').style.display = 'block';
+  document.getElementById('codeWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('Código generado — cópialo y pégalo en auth.js');
+}
+
+function copyCode() {
+  const text = document.getElementById('codeBox').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.style.display = 'inline';
+    setTimeout(() => msg.style.display = 'none', 2500);
+  }).catch(() => {
+    // Fallback para navegadores sin clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Copiado al portapapeles');
+  });
+}
+
+// ── TOAST ──
+let _toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = (isError ? '⚠️ ' : '✓ ') + msg;
+  t.style.background = isError ? 'var(--red)' : 'var(--gray-5)';
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── START ──
+initState();
+render();
+</script>
+</body>
+</html>
