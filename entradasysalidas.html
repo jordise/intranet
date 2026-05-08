@@ -579,7 +579,11 @@ async function loadManagers() {
     const myUser     = users.find(u => String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
     const myKeyholder= myUser ? String(myUser['Keyholder_por_defecto']||'').trim() : '';
     if (myUser) {
-      currentUserId = String(myUser[U.id]||'');
+      // Probar Keyholder_por_defecto (mismo formato que TaVillas_KeyHolder_person y UserID_asigned_alfanum)
+      const _kpd = String(myUser['Keyholder_por_defecto']||'').trim();
+      const _uid = String(myUser[U.id]||'').trim();
+      window.__myUserAllIds = [...new Set([_kpd, _uid].filter(Boolean))];
+      currentUserId = _kpd || _uid; // preferir formato keyholder
       if ($('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
       console.log('CurrentUserId set:', currentUserId);
     }
@@ -1278,42 +1282,60 @@ function togglePendTasks() {
 }
 
 async function loadPendingTasksPanel() {
-  // Construir lista de UserIDs: usuario activo + managers seleccionados
-  const ids = [...new Set([
-    ...(currentUserId ? [currentUserId] : []),
-    ...selectedManagers,
-  ])];
+  // IDs a buscar: todos los formatos del usuario activo + managers seleccionados
+  const myIds = window.__myUserAllIds || (currentUserId ? [currentUserId] : []);
+  const ids = [...new Set([...myIds, ...selectedManagers])];
 
   const bar = $('pendTasksBar');
-  if (!ids.length) {
-    if (bar) bar.style.display = 'none';
-    return;
-  }
+  if (bar) bar.style.display = 'block'; // mostrar siempre para ver el debug
 
-  // Mostrar barra con estado "cargando"
-  if (bar) bar.style.display = 'block';
   if ($('ptCount'))   $('ptCount').textContent = '…';
   if ($('ptLoading')) $('ptLoading').style.display = 'block';
   if ($('ptTable'))   $('ptTable').style.display   = 'none';
   if ($('ptEmpty'))   $('ptEmpty').style.display   = 'none';
 
+  console.log('[Tasks] IDs para query:', ids);
+
   try {
-    // WHERE: no terminadas Y asignadas a los IDs
-    const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
-    const where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+    // Si no hay IDs, buscar todas las pendientes (para debug)
+    let where;
+    if (ids.length) {
+      const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
+      where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+    } else {
+      // Sin IDs → buscar todas (modo debug, mostrará cuántas hay)
+      where = `Tarea_terminada=false OR Tarea_terminada IS NULL`;
+    }
     const url = Auth.url(
       `${CFG.workerUrl}?action=data&table=TaTasks` +
       `&where=${encodeURIComponent(where)}&limit=200`
     );
+    console.log('[Tasks] WHERE:', where);
     const res  = await fetch(url);
     const json = await res.json();
-    const tasks = (json.Result || json.result || []).filter(t => !t.Tarea_terminada);
+    const rawTasks = json.Result || json.result || [];
+    console.log('[Tasks] Raw results:', rawTasks.length, 
+      '| Primer UserID_asigned:', rawTasks[0]?.UserID_asigned_alfanum,
+      '| Primer Tarea_terminada:', rawTasks[0]?.Tarea_terminada);
+    // Filtrar: no terminadas
+    const tasks = rawTasks.filter(t => t.Tarea_terminada !== true && t.Tarea_terminada !== 1);
 
     if ($('ptCount')) $('ptCount').textContent = tasks.length;
     if ($('ptLoading')) $('ptLoading').style.display = 'none';
 
+    // Actualizar debug box con info de tareas
+    const dbEl = $('dbBox');
+    if (dbEl) {
+      dbEl.textContent += `\n\n[TAREAS] WHERE: ${where}\nIDs buscados: ${JSON.stringify(ids)}\nResultados API: ${rawTasks.length}\nFiltradas (pendientes): ${tasks.length}\nPrimer UserID_asigned: ${rawTasks[0]?.UserID_asigned_alfanum||'N/A'}`;
+    }
+
     if (!tasks.length) {
-      if ($('ptEmpty')) $('ptEmpty').style.display = 'block';
+      if ($('ptEmpty')) {
+        $('ptEmpty').textContent = ids.length
+          ? `No hay tareas pendientes para: ${ids.join(', ')} — Comprueba 🐛 para ver el WHERE`
+          : 'Sin IDs de usuario — consulta la consola (F12)';
+        $('ptEmpty').style.display = 'block';
+      }
       return;
     }
 
