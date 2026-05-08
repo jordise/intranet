@@ -31,6 +31,7 @@ const Auth = (function () {
     'entradas'     : ['admin', 'manager', 'staff'],
     'salidas'      : ['admin', 'manager', 'staff'],
     'manuales'     : ['admin', 'manager', 'owner', 'staff'],
+    'tareas'       : ['admin', 'manager', 'staff'],
     'dashboard'    : ['admin', 'manager'],
     'contabilidad' : ['admin'],
     'usuarios'     : ['admin'],
