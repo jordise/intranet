@@ -36,6 +36,7 @@ var NAV_MENU = [
     children: [
         { label: 'Roles',           url: 'permisos.html',                  icon: '📄' },
         { label: 'Test',   url: 'entradasysalidas.html',  icon: '🚪' },
+        { label: 'Test_añadir',   url: 'nueva-tarea.html',  icon: '🚪' },
     ]
   },
  { label: 'Login',   url: 'login.html',  icon: '' },
