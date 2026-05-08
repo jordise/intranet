@@ -140,16 +140,16 @@
     <div class="pill-group">
       <span class="pill-label">Estado</span>
       <div class="pill-opts">
-        <button class="pill-opt"    id="eAll"  onclick="setEstado('all')">Todas</button>
-        <button class="pill-opt on" id="ePend" onclick="setEstado('pend')">Pendientes</button>
-        <button class="pill-opt"    id="eDone" onclick="setEstado('done')">Terminadas</button>
+        <button class="pill-opt"    id="eAll">Todas</button>
+        <button class="pill-opt on" id="ePend">Pendientes</button>
+        <button class="pill-opt"    id="eDone">Terminadas</button>
       </div>
     </div>
     <div style="flex:1"></div>
-    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+    <button class="btn-mas" id="btnMas">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
-    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
+    <button class="btn-clear" id="btnClear" title="Limpiar filtros">✕</button>
   </div>
 
   <!-- Chips -->
@@ -169,12 +169,12 @@
           </button>
           <div id="userPanel" class="manager-panel" style="display:none">
             <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-              <input type="text" id="userSearch" class="f-input" placeholder="Buscar usuario..." oninput="filterUserList()" style="height:30px;font-size:12px">
+              <input type="text" id="userSearch" class="f-input" placeholder="Buscar usuario..." style="height:30px;font-size:12px">
             </div>
             <div id="userList" class="manager-list"></div>
             <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
-              <button onclick="selectAllUsers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
-              <button onclick="clearUsers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+              <button id="btnSelectAll" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+              <button id="btnClearAll"  class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
             </div>
           </div>
         </div>
@@ -296,6 +296,22 @@ function fmtDate(s){
 // ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   try {
+    // ── Vincular botones via addEventListener (más robusto que onclick) ──
+    document.getElementById('eAll') ?.addEventListener('click', () => setEstado('all'));
+    document.getElementById('ePend')?.addEventListener('click', () => setEstado('pend'));
+    document.getElementById('eDone')?.addEventListener('click', () => setEstado('done'));
+    document.getElementById('btnMas')  ?.addEventListener('click', toggleMas);
+    document.getElementById('btnClear')?.addEventListener('click', clearAll);
+    document.getElementById('fDesde')  ?.addEventListener('change', onDesdeChange);
+    document.getElementById('fHasta')  ?.addEventListener('change', () => scheduleSearch());
+    document.getElementById('fReserva')?.addEventListener('input',  () => scheduleSearch(500));
+    document.getElementById('fVilla')  ?.addEventListener('input',  () => scheduleSearch(500));
+    document.getElementById('fTasktype')   ?.addEventListener('change', () => scheduleSearch());
+    document.getElementById('fBookingType')?.addEventListener('change', () => scheduleSearch());
+    document.getElementById('fUserBtn')    ?.addEventListener('click',  (e) => toggleUserPanel(e));
+    document.getElementById('userSearch')  ?.addEventListener('input',  () => filterUserList());
+    document.getElementById('btnSelectAll')?.addEventListener('click',  () => selectAllUsers());
+    document.getElementById('btnClearAll') ?.addEventListener('click',  () => clearUsers());
     // Defaults de fecha
     if ($('fDesde')) $('fDesde').value = '2020-01-01';
     if ($('fHasta')) $('fHasta').value = todayStr();
