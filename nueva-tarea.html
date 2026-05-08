@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Tarea — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:12px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+    main{padding:24px 16px;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+    /* ── Tarjeta formulario ── */
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .card-head{padding:14px 18px;border-bottom:2px solid var(--gray-2);display:flex;align-items:center;gap:10px}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5)}
+    .card-head .ico{font-size:18px}
+    .card-body{padding:18px;display:flex;flex-direction:column;gap:14px}
+
+    /* ── Campos ── */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label.lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    label.lbl .req{color:var(--red)}
+    input,select,textarea{border:1.5px solid var(--gray-2);border-radius:8px;padding:10px 12px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    textarea{resize:vertical;min-height:80px;line-height:1.5}
+    input[type=datetime-local]{cursor:pointer}
+    .field-hint{font-size:11px;color:var(--gray-4)}
+
+    /* ── Fotos ── */
+    .photos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media(max-width:480px){.photos-grid{grid-template-columns:repeat(2,1fr)}}
+    .photo-slot{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:2px dashed var(--gray-3);background:var(--gray-1);cursor:pointer;transition:border-color .2s,background .2s;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+    .photo-slot:hover,.photo-slot.drag-over{border-color:var(--red);background:var(--red-light)}
+    .photo-slot .slot-ico{font-size:28px;opacity:.4;transition:opacity .2s}
+    .photo-slot:hover .slot-ico{opacity:.7}
+    .photo-slot .slot-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.5px}
+    .photo-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .photo-slot .del-btn{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.55);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:13px;display:none;align-items:center;justify-content:center;line-height:1;z-index:2}
+    .photo-slot.has-img .del-btn{display:flex}
+    .photo-slot.has-img .slot-ico,.photo-slot.has-img .slot-lbl{display:none}
+    .photo-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .photo-slot.uploading::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center}
+    .upload-progress{position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;display:none}
+    .upload-progress.show{display:flex}
+    .up-spinner{width:28px;height:28px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .6s linear infinite}
+    .up-txt{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-5)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Botón enviar ── */
+    .btn-submit{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px 24px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;width:100%;transition:background .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:10px}
+    .btn-submit:hover{background:var(--red-dark)}
+    .btn-submit:active{transform:scale(.98)}
+    .btn-submit:disabled{background:var(--gray-3);cursor:not-allowed}
+    .btn-submit .spinner-sm{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    .btn-submit.loading .spinner-sm{display:block}
+    .btn-submit.loading .btn-txt{opacity:.7}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--gray-5);color:#fff;padding:12px 24px;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-lg);transition:transform .3s;z-index:9999;white-space:nowrap;max-width:90vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0)}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+
+    /* ── Success ── */
+    #successBox{display:none;text-align:center;padding:40px 20px}
+    #successBox .big{font-size:56px;margin-bottom:12px}
+    #successBox h3{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);margin-bottom:8px}
+    #successBox p{font-size:14px;color:var(--gray-4);margin-bottom:20px}
+    .btn-new{background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;cursor:pointer}
+
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}}
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+</head>
+<body>
+<script>Auth.require('tareas');</script>
+
+<header>
+  <div>
+    <div class="h-title">Nueva Tarea</div>
+  </div>
+  <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
+</header>
+
+<div id="toast"></div>
+
+<main>
+
+  <!-- ── Datos principales ── -->
+  <div class="card">
+    <div class="card-head"><span class="ico">📋</span><h2>Información de la tarea</h2></div>
+    <div class="card-body">
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl">Asignado a <span class="req">*</span></label>
+          <select id="fAsignado"><option value="">Cargando...</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Tipo de tarea <span class="req">*</span></label>
+          <select id="fTipoTarea">
+            <option value="">— Seleccionar —</option>
+            <option value="Villamanager">Villamanager</option>
+            <option value="Limpieza">Limpieza</option>
+            <option value="Keyholder">Keyholder</option>
+            <option value="Dpto Comercial">Dpto Comercial</option>
+            <option value="Tarea interna">Tarea interna</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl">Villa <span class="req">*</span></label>
+          <select id="fVilla"><option value="">Cargando...</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Tipo reserva</label>
+          <select id="fTipoReserva">
+            <option value="">— Ninguno —</option>
+            <option value="10">🧹 Limpieza</option>
+            <option value="20">🎁 WelcomePack</option>
+            <option value="30">🔒 Cierre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl">Fecha a realizar <span class="req">*</span></label>
+          <input type="datetime-local" id="fFecha">
+        </div>
+        <div class="field">
+          <label class="lbl">Id Reserva</label>
+          <input type="text" id="fReserva" placeholder="ej. j5oQcmp4FQ">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl">Nombre de la tarea <span class="req">*</span></label>
+        <input type="text" id="fNombre" placeholder="Describe brevemente la tarea...">
+      </div>
+
+      <div class="field">
+        <label class="lbl">Descripción</label>
+        <textarea id="fDesc" rows="3" placeholder="Más detalles sobre la tarea..."></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Fotos ── -->
+  <div class="card">
+    <div class="card-head"><span class="ico">📸</span><h2>Fotos</h2></div>
+    <div class="card-body">
+      <p class="field-hint">Añade hasta 5 fotos. Toca un espacio para seleccionar o arrastra la imagen encima.</p>
+      <div class="photos-grid" id="photosGrid">
+        <!-- Se generan con JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Botón ── -->
+  <div class="card">
+    <div class="card-body">
+      <button class="btn-submit" id="btnSubmit">
+        <div class="spinner-sm"></div>
+        <span class="btn-txt">✓ Crear tarea</span>
+      </button>
+    </div>
+    <!-- Success state -->
+    <div id="successBox">
+      <div class="big">✅</div>
+      <h3>¡Tarea creada!</h3>
+      <p>La tarea se ha guardado correctamente.</p>
+      <button class="btn-new" id="btnNew">+ Nueva tarea</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  var MAX_PHOTOS = 5;
+
+  // Estado de fotos: array de {file, url, uploading}
+  var photos = Array(MAX_PHOTOS).fill(null).map(function () { return { file: null, url: null }; });
+
+  function g(id) { return document.getElementById(id); }
+  function todayDatetimeLocal() {
+    var d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  }
+
+  // ── TOAST ──
+  var toastTimer;
+  function toast(msg, type) {
+    var el = g('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.className = ''; }, 3000);
+  }
+
+  // ── INIT ──
+  document.addEventListener('DOMContentLoaded', function () {
+    g('fFecha').value = todayDatetimeLocal();
+    buildPhotoGrid();
+    g('btnSubmit').addEventListener('click', submitForm);
+    g('btnNew').addEventListener('click', resetForm);
+
+    var userEl = g('hUserName');
+    if (userEl && Auth.name) userEl.textContent = Auth.name().split(' ')[0];
+
+    Promise.allSettled([loadUsers(), loadVillas()]);
+  });
+
+  // ── CARGAR USUARIOS ──
+  function loadUsers() {
+    return fetch(Auth.url(WORKER + '?action=data&table=TaUsers&limit=200'))
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        var users = json.Result || json.result || [];
+        var myEmail = Auth.email ? Auth.email() : '';
+
+        var active = users.filter(function (u) {
+          var s = u['User_Status'];
+          return s === true || s === 1 || s === -1 ||
+                 String(s).toLowerCase() === 'yes' ||
+                 String(s).toLowerCase() === 'sí' ||
+                 String(s).toLowerCase() === 'true';
+        });
+
+        var sel = g('fAsignado');
+        sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+          active.map(function (u) {
+            var isMe = String(u.Email || '').toLowerCase() === myEmail.toLowerCase();
+            return '<option value="' + u.UserID + '"' + (isMe ? ' selected' : '') + '>' + u.Name + '</option>';
+          }).join('');
+      })
+      .catch(function () { g('fAsignado').innerHTML = '<option value="">Error al cargar</option>'; });
+  }
+
+  // ── CARGAR VILLAS ──
+  function loadVillas() {
+    return fetch(Auth.url(WORKER + '?action=data&table=TaVillas&limit=500'))
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        var rows = json.Result || json.result || [];
+        var sel = g('fVilla');
+        sel.innerHTML = '<option value="">— Seleccionar villa —</option>' +
+          rows.sort(function (a, b) {
+            return (a.Name_villa_para_inquilinos || a.Name || '').localeCompare(b.Name_villa_para_inquilinos || b.Name || '');
+          }).map(function (v) {
+            var name = v.Name_villa_para_inquilinos || v.Name || 'Villa ' + v.villaid;
+            return '<option value="' + v.villaid + '">' + name + '</option>';
+          }).join('');
+      })
+      .catch(function () { g('fVilla').innerHTML = '<option value="">Error al cargar</option>'; });
+  }
+
+  // ── GRID DE FOTOS ──
+  function buildPhotoGrid() {
+    var grid = g('photosGrid');
+    grid.innerHTML = '';
+    for (var i = 0; i < MAX_PHOTOS; i++) {
+      grid.appendChild(buildSlot(i));
+    }
+  }
+
+  function buildSlot(idx) {
+    var slot = document.createElement('div');
+    slot.className = 'photo-slot';
+    slot.id = 'slot_' + idx;
+    slot.innerHTML =
+      '<span class="slot-ico">📷</span>' +
+      '<span class="slot-lbl">Foto ' + (idx + 1) + '</span>' +
+      '<input type="file" accept="image/*" capture="environment">' +
+      '<div class="upload-progress"><div class="up-spinner"></div><div class="up-txt">Subiendo...</div></div>' +
+      '<button class="del-btn" type="button">✕</button>';
+
+    var fileInput = slot.querySelector('input[type=file]');
+    var delBtn    = slot.querySelector('.del-btn');
+
+    // Click en el slot abre el selector de archivo
+    fileInput.addEventListener('change', function () {
+      if (fileInput.files && fileInput.files[0]) {
+        setPhoto(idx, fileInput.files[0]);
+      }
+    });
+
+    // Botón eliminar
+    delBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      clearPhoto(idx);
+    });
+
+    // Drag & drop
+    slot.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave', function () {
+      slot.classList.remove('drag-over');
+    });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      var file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) setPhoto(idx, file);
+    });
+
+    return slot;
+  }
+
+  function setPhoto(idx, file) {
+    var slot = g('slot_' + idx);
+    photos[idx].file = file;
+    photos[idx].url  = null;
+
+    // Preview inmediata
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var existing = slot.querySelector('img');
+      if (existing) existing.remove();
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      slot.insertBefore(img, slot.querySelector('.del-btn'));
+      slot.classList.add('has-img');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearPhoto(idx) {
+    var slot = g('slot_' + idx);
+    photos[idx] = { file: null, url: null };
+    var img = slot.querySelector('img');
+    if (img) img.remove();
+    slot.classList.remove('has-img');
+    var input = slot.querySelector('input[type=file]');
+    if (input) input.value = '';
+  }
+
+  function showSlotSpinner(idx, show) {
+    var prog = g('slot_' + idx).querySelector('.upload-progress');
+    if (prog) prog.className = 'upload-progress' + (show ? ' show' : '');
+  }
+
+  // ── SUBIR FOTO A CLOUDFLARE R2 vía Worker ──
+  function uploadPhoto(idx) {
+    var file = photos[idx].file;
+    if (!file) return Promise.resolve(null);
+
+    showSlotSpinner(idx, true);
+
+    // Generar nombre único
+    var ext  = file.name.split('.').pop() || 'jpg';
+    var name = 'tareas/' + Date.now() + '_' + idx + '.' + ext;
+
+    var fd = new FormData();
+    fd.append('file', file, name);
+    fd.append('filename', name);
+
+    return fetch(Auth.url(WORKER + '?action=upload'), { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        showSlotSpinner(idx, false);
+        if (json.url || json.publicUrl) {
+          var url = json.url || json.publicUrl;
+          photos[idx].url = url;
+          return url;
+        }
+        throw new Error(json.error || 'Upload sin URL');
+      })
+      .catch(function (e) {
+        showSlotSpinner(idx, false);
+        console.warn('Upload foto ' + idx + ':', e.message);
+        return null; // No bloquear el envío por una foto fallida
+      });
+  }
+
+  // ── VALIDAR ──
+  function validate() {
+    if (!g('fAsignado').value)  { toast('Selecciona a quién asignar la tarea', 'err'); g('fAsignado').focus(); return false; }
+    if (!g('fTipoTarea').value) { toast('Selecciona el tipo de tarea', 'err'); g('fTipoTarea').focus(); return false; }
+    if (!g('fVilla').value)     { toast('Selecciona una villa', 'err'); g('fVilla').focus(); return false; }
+    if (!g('fFecha').value)     { toast('Indica la fecha de la tarea', 'err'); g('fFecha').focus(); return false; }
+    if (!g('fNombre').value.trim()) { toast('Escribe el nombre de la tarea', 'err'); g('fNombre').focus(); return false; }
+    return true;
+  }
+
+  // ── ENVIAR ──
+  function submitForm() {
+    if (!validate()) return;
+
+    var btn = g('btnSubmit');
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    // 1. Subir todas las fotos que tengan archivo
+    var uploadPromises = photos.map(function (p, i) {
+      return p.file ? uploadPhoto(i) : Promise.resolve(null);
+    });
+
+    Promise.allSettled(uploadPromises).then(function (results) {
+      var urls = results.map(function (r) { return r.status === 'fulfilled' ? r.value : null; });
+
+      // 2. Preparar datos del registro
+      var fecha = g('fFecha').value; // "2026-05-08T10:30"
+      var fechaCaspio = fecha ? fecha.replace('T', ' ') + ':00' : '';
+
+      var record = {
+        'UserID_asigned_alfanum' : g('fAsignado').value,
+        'Tasktype'               : g('fTipoTarea').value,
+        'villaid'                : parseInt(g('fVilla').value) || null,
+        'Taskname'               : g('fNombre').value.trim(),
+        'Taskdescription'        : g('fDesc').value.trim(),
+        'Data_to_be_done_fixed'  : fechaCaspio,
+        'Idreserva'              : g('fReserva').value.trim() || null,
+        'UserID_created'         : Auth.name ? Auth.name() : '',
+        'Tarea_terminada'        : false,
+      };
+
+      // Tipo reserva (opcional)
+      var bt = g('fTipoReserva').value;
+      if (bt) record['Tasktype_booking'] = parseInt(bt);
+
+      // Fotos cloudflare
+      var cfFields = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+      urls.forEach(function (url, i) {
+        if (url) record[cfFields[i]] = url;
+      });
+
+      // 3. Crear registro en Caspio
+      return fetch(Auth.url(WORKER + '?action=create&table=TaTasks'), {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(record)
+      });
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (json) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      if (json.error) throw new Error(json.error);
+      // Éxito
+      g('successBox').style.display = 'block';
+      btn.closest('.card-body').style.display = 'none';
+      toast('¡Tarea creada correctamente!', 'ok');
+    })
+    .catch(function (err) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      toast('Error: ' + err.message, 'err');
+      console.error('submitForm:', err);
+    });
+  }
+
+  // ── RESETEAR ──
+  function resetForm() {
+    g('fAsignado').selectedIndex  = 0;
+    g('fTipoTarea').selectedIndex = 0;
+    g('fVilla').selectedIndex     = 0;
+    g('fTipoReserva').selectedIndex = 0;
+    g('fFecha').value   = todayDatetimeLocal();
+    g('fReserva').value = '';
+    g('fNombre').value  = '';
+    g('fDesc').value    = '';
+    photos = Array(MAX_PHOTOS).fill(null).map(function () { return { file: null, url: null }; });
+    buildPhotoGrid();
+    g('successBox').style.display = 'none';
+    var cb = g('btnSubmit').closest('.card-body');
+    if (cb) cb.style.display = 'flex';
+  }
+
+})();
+</script>
+</body>
+</html>
