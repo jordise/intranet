@@ -1300,11 +1300,14 @@ async function loadPendingTasksPanel() {
     // Si no hay IDs, buscar todas las pendientes (para debug)
     let where;
     if (ids.length) {
+      // Caspio REST no soporta OR+AND con paréntesis — filtrar Tarea_terminada client-side
+      // Solo filtrar por UserID en el WHERE
       const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
-      where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+      where = ids.length === 1
+        ? `UserID_asigned_alfanum='${ids[0]}'`
+        : `(${orParts})`;
     } else {
-      // Sin IDs → buscar todas (modo debug, mostrará cuántas hay)
-      where = `Tarea_terminada=false OR Tarea_terminada IS NULL`;
+      where = `Tarea_terminada<>true`; // fallback sin IDs
     }
     const url = Auth.url(
       `${CFG.workerUrl}?action=data&table=TaTasks` +
