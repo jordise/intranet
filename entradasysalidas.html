@@ -172,6 +172,14 @@
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
+.villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
+    .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
+    .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px}
+    .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
+    .vt-name{color:var(--gray-5)}
+    .c-notes-preview{padding:8px 14px;display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--gray-2);background:#fffdf4}
+    .cnote{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.4}
+    .cnote .cnico{flex-shrink:0}.cnote-l{color:#6b4f00}.cnote-w{color:#1a3a6b}
 </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -183,7 +191,7 @@
 
 <header>
   <div>
-    <div class="h-title">Entradas y Salidas</div>
+    <div class="h-title">ENTRADAS</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -278,6 +286,7 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
+  <div class="stat" id="sPendTask" style="display:none;color:var(--red)"><strong id="sPendCount">0</strong> tareas ⚑</div>
 </div>
 
 <main>
@@ -924,6 +933,15 @@ function renderCards(records) {
   if ($('sPax'))    $('sPax').textContent    = paxT||'—';
   if ($('sNights')) $('sNights').textContent = records.length;
   if ($('statsBar')) $('statsBar').style.display = 'flex';
+  // Cargar tareas pendientes: de managers Y de villas en los resultados
+  const selMgrs  = Array.from(document.querySelectorAll('.mgr-cb:checked')).map(cb=>cb.value);
+  const villaIds = [...new Set(records.map(r=>r[F.villaId]).filter(Boolean))];
+  loadPendingTasks(selMgrs).catch(e=>console.warn('Pending tasks:',e.message));
+  if (villaIds.length) {
+    loadVillaPendingTasks(villaIds)
+      .then(() => { if (records.length) renderCards(records); })
+      .catch(e => console.warn('Villa tasks:', e.message));
+  }
   if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
 
   rows.forEach(row => grid.appendChild(buildCard(row.r, row.type)));
@@ -994,6 +1012,68 @@ function restoreFromURL() {
   if (p.has('tipo'))  tipoFilter    = p.get('tipo');
   console.log('Restored from URL:', Object.fromEntries(p));
   return true;
+}
+
+// ════════════════ VILLA PENDING TASKS ════════════════
+const villaPendingMap = {}; // villaid → [{tasktype, taskname}]
+async function loadVillaPendingTasks(villaIds) {
+  if (!villaIds || !villaIds.length) return;
+  const unique = [...new Set(villaIds.filter(Boolean))];
+  if (!unique.length) return;
+  const orParts = unique.map(id => `villaid=${parseInt(id)}`).join(' OR ');
+  const where   = `Tarea_terminada<>true AND (${orParts})`;
+  try {
+    const url  = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    for (const t of tasks) {
+      const vid = String(t.villaid||'');
+      if (!villaPendingMap[vid]) villaPendingMap[vid] = [];
+      if (!t.Tarea_terminada) villaPendingMap[vid].push({
+        type: t.Tasktype_booking,
+        name: t.Taskname||'',
+      });
+    }
+    console.log('Villa pending tasks loaded:', Object.keys(villaPendingMap).length, 'villas');
+  } catch(e) { console.warn('Villa tasks error:', e.message); }
+}
+
+const TASK_TYPE_LABELS = { 10:'Limpieza', 20:'WelcomePack', 30:'Cierre' };
+
+// ════════════════ PENDING TASKS ════════════════
+async function loadPendingTasks(managerIds) {
+  // Construir WHERE: tareas no terminadas de los managers seleccionados
+  // managerIds = [] → usar usuario actual
+  let userIds = managerIds && managerIds.length > 0
+    ? managerIds
+    : [Auth.email()]; // fallback: email del usuario actual
+
+  // Resolver IDs desde allUsersMap (es un Map, no un objeto plano)
+  const resolvedIds = [];
+  if (allUsersMap && allUsersMap.size > 0) {
+    for (const [uid, u] of allUsersMap) {
+      if (userIds.includes(uid) || (u && u.email && userIds.includes(u.email))) {
+        resolvedIds.push(uid);
+      }
+    }
+  }
+  const ids = resolvedIds.length > 0 ? resolvedIds : userIds;
+
+  if (!ids.length) return;
+
+  // Construir OR para el WHERE
+  const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
+  const where = `Tarea_terminada<>true AND (${orParts})`;
+  try {
+    const url = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    const count = tasks.filter(t => !t.Tarea_terminada).length;
+    if ($('sPendCount')) $('sPendCount').textContent = count;
+    if ($('sPendTask'))  $('sPendTask').style.display = count > 0 ? '' : 'none';
+  } catch(e) { console.warn('Pending tasks error:', e.message); }
 }
 
 // ════════════════ TIME SORT HELPER ════════════════
@@ -1235,6 +1315,14 @@ function buildCard(r, type) {
     else if (am) html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;
   }
   html += '</div>'; // end c-body always-visible
+
+  // ── Notas visibles SIN abrir "Ver detalles" ──
+  if (nl || ni) {
+    html += '<div class="c-notes-preview">';
+    if (nl) html += `<div class="cnote cnote-l"><span class="cnico">📝</span><span>${nl}</span></div>`;
+    if (ni) html += `<div class="cnote cnote-w"><span class="cnico">📌</span><span>${ni}</span></div>`;
+    html += '</div>';
+  }
 
   // ── Toggle ──
   html += `<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')">
