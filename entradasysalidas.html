@@ -1166,11 +1166,10 @@ async function loadPendingTasksPanel() {
     // 2) Data_to_be_done_fixed <= fHasta  → solo tareas "debidas" hasta la fecha del filtro
     // 3) Filtro por UserID (o fallback sin IDs)
     // ─────────────────────────────────────────────────────────────────────
+    // WHERE en Caspio: solo filtro por tipo y por usuario
+    // El filtro de fecha y Tarea_terminada se hace client-side para evitar
+    // que Caspio excluya filas con Data_to_be_done_fixed NULL
     const baseParts = ['Tasktype_booking<>20'];
-
-    if (hasta) {
-      baseParts.push(`Data_to_be_done_fixed<='${hasta}T23:59:59'`);
-    }
 
     if (ids.length) {
       const orParts  = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
@@ -1178,9 +1177,9 @@ async function loadPendingTasksPanel() {
         ? `UserID_asigned_alfanum='${ids[0]}'`
         : `(${orParts})`;
       baseParts.push(idFilter);
-    } else {
-      baseParts.push(`Tarea_terminada<>true`);
     }
+    // Sin IDs: traer todas (para debug) con mínimo filtro
+    // No añadimos Tarea_terminada al WHERE (campo boolean poco fiable en Caspio REST)
 
     const where = baseParts.join(' AND ');
     console.log('[Tasks] WHERE:', where);
@@ -1204,14 +1203,22 @@ async function loadPendingTasksPanel() {
       );
     });
 
-    // ── Filtro client-side: pendientes + doble seguro Tasktype<>20 ───────
+    // ── Filtro client-side ────────────────────────────────────────────────
+    // 1) Pendientes (Tarea_terminada falsy)
+    // 2) Tasktype <> 20 (doble seguro)
+    // 3) Fecha: Data_to_be_done_fixed <= hasta  OR  sin fecha (NULL → mostrar siempre)
+    const hastaTs = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
     const tasks = rawTasks.filter(t => {
       const done = t.Tarea_terminada;
       const isDone = done === true || done === 1 || done === -1
                   || String(done).toLowerCase() === 'yes'
                   || String(done).toLowerCase() === 'sí';
-      const isWP = Number(t.Tasktype_booking) === 20; // doble seguro
-      return !isDone && !isWP;
+      const isWP = Number(t.Tasktype_booking) === 20;
+      // Fecha: si no hay fecha en la tarea → incluir siempre
+      const rawFecha = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
+      const tareaTs  = rawFecha ? new Date(rawFecha).getTime() : null;
+      const fechaOk  = !hastaTs || !tareaTs || tareaTs <= hastaTs;
+      return !isDone && !isWP && fechaOk;
     });
 
     if ($('ptCount'))   $('ptCount').textContent     = tasks.length;
