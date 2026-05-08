@@ -324,8 +324,7 @@
     <table class="pt-table" id="ptTable" style="display:none">
       <thead>
         <tr>
-          <th>Tipo</th>
-          <th>Villa ID</th>
+          <th>Villa</th>
           <th>Tarea / Descripción</th>
           <th>Estado</th>
         </tr>
@@ -1317,11 +1316,29 @@ async function loadPendingTasksPanel() {
     const res  = await fetch(url);
     const json = await res.json();
     const rawTasks = json.Result || json.result || [];
-    console.log('[Tasks] Raw results:', rawTasks.length, 
-      '| Primer UserID_asigned:', rawTasks[0]?.UserID_asigned_alfanum,
-      '| Primer Tarea_terminada:', rawTasks[0]?.Tarea_terminada);
+    console.log('[Tasks] Raw results:', rawTasks.length);
+    // Cargar nombres comerciales de villas
+    const villaIds = [...new Set(rawTasks.map(t => t.villaid).filter(Boolean))];
+    const villaNameMap = {};
+    if (villaIds.length) {
+      try {
+        const vWhere = villaIds.length === 1
+          ? `villaid=${villaIds[0]}`
+          : villaIds.map(id => `villaid=${id}`).join(' OR ');
+        const vRes  = await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));
+        const vJson = await vRes.json();
+        (vJson.Result||vJson.result||[]).forEach(v => {
+          villaNameMap[v.villaid] = v.Name_villa_para_inquilinos || v.Name || String(v.villaid);
+        });
+        console.log('[Tasks] Villas cargadas:', Object.keys(villaNameMap).length);
+      } catch(e) { console.warn('[Tasks] Villas:', e.message); }
+    }
     // Filtrar: no terminadas
-    const tasks = rawTasks.filter(t => t.Tarea_terminada !== true && t.Tarea_terminada !== 1);
+    const tasks = rawTasks.filter(t =>
+      t.Tarea_terminada !== true &&
+      t.Tarea_terminada !== 1 &&
+      Number(t.Tasktype_booking) !== 20  // excluir WelcomePack
+    );
 
     if ($('ptCount')) $('ptCount').textContent = tasks.length;
     if ($('ptLoading')) $('ptLoading').style.display = 'none';
@@ -1347,15 +1364,12 @@ async function loadPendingTasksPanel() {
     if (!tbody) return;
     const typeCls = {10:'t10', 20:'t20', 30:'t30'};
     tbody.innerHTML = tasks.map(t => {
-      const type  = t.Tasktype_booking || t.Tasktype || '';
-      const lbl   = TASK_LABELS[type] || ('Tipo ' + (type||'?'));
-      const cls   = typeCls[type] || 'tx';
-      const vid   = t.villaid || t.VillaId || '—';
-      const desc  = (t.Taskname || t.Taskdescription || '').slice(0,80) || '(sin descripción)';
+      const vid       = t.villaid || '';
+      const villaName = villaNameMap[vid] || (vid ? `Villa ${vid}` : '—');
+      const desc      = (t.Taskname || t.Taskdescription || '').slice(0,90) || '(sin descripción)';
       return `<tr>
-        <td><span class="pt-type ${cls}">${lbl}</span></td>
-        <td style="font-family:Montserrat,sans-serif;font-weight:700">${vid}</td>
-        <td>${desc}</td>
+        <td style="font-family:Montserrat,sans-serif;font-weight:700;color:var(--gray-5)">${villaName}</td>
+        <td style="color:var(--gray-4)">${desc}</td>
         <td><span class="pt-pend">● Pendiente</span></td>
       </tr>`;
     }).join('');
