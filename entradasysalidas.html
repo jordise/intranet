@@ -178,9 +178,8 @@
     .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
     .vt-name{color:var(--gray-5);font-weight:500}
     .vt-pend{color:var(--red);font-size:10px;font-weight:600}
-    .c-notes-preview{padding:8px 14px;display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--gray-2);background:#fffdf4}
-    .cnote{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.4}
-    .cnote .cnico{flex-shrink:0}.cnote-l{color:#6b4f00}.cnote-w{color:#1a3a6b}
+    .c-notes-outer{padding:8px 14px 2px;border-top:1px solid var(--gray-2)}
+    .c-notes-outer .note{margin-bottom:6px}
 </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -287,7 +286,7 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
-  <div class="stat" id="sPendTask" style="display:none;color:var(--red)"><strong id="sPendCount">0</strong> tareas ⚑</div>
+  <div class="stat" id="sPendTask" style="display:none"><strong id="sPendCount" style="color:var(--red)">0</strong> <span style="color:var(--red)">tareas ⚑</span></div>
 </div>
 
 <main>
@@ -481,18 +480,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadMultiunits()
     ]);
 
-    // Identificar UserID del usuario activo buscando su email en allUsersMap
-    const myEmail = Auth.email ? Auth.email() : '';
-    if (myEmail && allUsersMap.size > 0) {
-      for (const [uid, u] of allUsersMap) {
-        if ((u.email||'').toLowerCase() === myEmail.toLowerCase()) {
-          currentUserId = uid;
-          console.log('Current user ID:', currentUserId, '— email:', myEmail);
-          break;
-        }
-      }
-    }
-
+    // currentUserId se establece en loadManagers()
     // Aplicar estados visuales de los toggles restaurados
     setToggle(toggleMode);
     setTipoFilter(tipoFilter);
@@ -534,7 +522,11 @@ async function loadManagers() {
     const myEmail    = Auth.email ? Auth.email() : '';
     const myUser     = users.find(u => String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
     const myKeyholder= myUser ? String(myUser['Keyholder_por_defecto']||'').trim() : '';
-    if (myUser && $('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
+    if (myUser) {
+      currentUserId = String(myUser[U.id]||'');
+      if ($('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
+      console.log('CurrentUserId set:', currentUserId);
+    }
 
     // Solo activos con Keyholder_por_defecto rellenado
     const managers = users.filter(u => isActiveUser(u) && String(u['Keyholder_por_defecto']||'').trim()!=='');
@@ -1327,11 +1319,11 @@ function buildCard(r, type) {
   }
   html += '</div>'; // end c-body always-visible
 
-  // ── Notas visibles SIN abrir "Ver detalles" ──
+  // ── Notas visibles SIN abrir "Ver detalles" — mismo diseño que dentro ──
   if (nl || ni) {
-    html += '<div class="c-notes-preview">';
-    if (nl) html += `<div class="cnote cnote-l"><span class="cnico">📝</span><span>${nl}</span></div>`;
-    if (ni) html += `<div class="cnote cnote-w"><span class="cnico">📌</span><span>${ni}</span></div>`;
+    html += '<div class="c-notes-outer">';
+    if (nl) html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
+    if (ni) html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
     html += '</div>';
   }
 
@@ -1363,8 +1355,6 @@ function buildCard(r, type) {
 
   // Notas + info huésped
   html += '<div class="c-body">';
-  if (nl) html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
-  if (ni) html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
   html += '<hr class="dv">';
   html += `<div class="gname">${gn||'—'}</div>`;
   html += '<div class="gmeta">';
