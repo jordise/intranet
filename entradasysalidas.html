@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas — 3Villas</title>
+  <title>Entradas y Salidas — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -174,9 +174,10 @@
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
 .villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
     .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
-    .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px}
+    .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;flex-wrap:wrap}
     .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
-    .vt-name{color:var(--gray-5)}
+    .vt-name{color:var(--gray-5);font-weight:500}
+    .vt-pend{color:var(--red);font-size:10px;font-weight:600}
     .c-notes-preview{padding:8px 14px;display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--gray-2);background:#fffdf4}
     .cnote{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.4}
     .cnote .cnico{flex-shrink:0}.cnote-l{color:#6b4f00}.cnote-w{color:#1a3a6b}
@@ -191,7 +192,7 @@
 
 <header>
   <div>
-    <div class="h-title">ENTRADAS</div>
+    <div class="h-title">ENTRADAS Y SALIDAS</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -395,6 +396,7 @@ let fWelcomePack  = 'all'; // se ajusta según si el usuario es villa manager
 let tipoFilter    = 'both'; // 'both', 'entrada', 'salida'
 let managersMap   = new Map();
 let allUsersMap   = new Map();
+let currentUserId    = '';        // UserID del usuario activo
 let selectedManagers = new Set(); // UserIDs seleccionados para filtrar
 let allManagersList  = []; // [{id, name}] para el panel
 let contactsMap   = new Map();
@@ -478,6 +480,18 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadContacts(),
       loadMultiunits()
     ]);
+
+    // Identificar UserID del usuario activo buscando su email en allUsersMap
+    const myEmail = Auth.email ? Auth.email() : '';
+    if (myEmail && allUsersMap.size > 0) {
+      for (const [uid, u] of allUsersMap) {
+        if ((u.email||'').toLowerCase() === myEmail.toLowerCase()) {
+          currentUserId = uid;
+          console.log('Current user ID:', currentUserId, '— email:', myEmail);
+          break;
+        }
+      }
+    }
 
     // Aplicar estados visuales de los toggles restaurados
     setToggle(toggleMode);
@@ -936,7 +950,7 @@ function renderCards(records) {
   if ($('sNights')) $('sNights').textContent = records.length;
   if ($('statsBar')) $('statsBar').style.display = 'flex';
   // Cargar tareas pendientes: de managers Y de villas en los resultados
-  const selMgrs  = Array.from(document.querySelectorAll('.mgr-cb:checked')).map(cb=>cb.value);
+  const selMgrs = [...selectedManagers]; // Set of selected manager UserIDs
   const villaIds = [...new Set(records.map(r=>r[F.villaId]).filter(Boolean))];
   loadPendingTasks(selMgrs).catch(e=>console.warn('Pending tasks:',e.message));
   if (villaIds.length) {
@@ -1045,24 +1059,19 @@ const TASK_TYPE_LABELS = { 10:'Limpieza', 20:'WelcomePack', 30:'Cierre' };
 
 // ════════════════ PENDING TASKS ════════════════
 async function loadPendingTasks(managerIds) {
-  // Construir WHERE: tareas no terminadas de los managers seleccionados
-  // managerIds = [] → usar usuario actual
-  let userIds = managerIds && managerIds.length > 0
-    ? managerIds
-    : [Auth.email()]; // fallback: email del usuario actual
+  // Lógica:
+  // - Sin managers seleccionados → solo tareas del usuario activo
+  // - Con managers seleccionados → tareas de esos managers + usuario activo
+  const selMgrIds = managerIds && managerIds.length > 0 ? managerIds : [];
+  const ids = [...new Set([
+    ...(currentUserId ? [currentUserId] : []),
+    ...selMgrIds
+  ])];
 
-  // Resolver IDs desde allUsersMap (es un Map, no un objeto plano)
-  const resolvedIds = [];
-  if (allUsersMap && allUsersMap.size > 0) {
-    for (const [uid, u] of allUsersMap) {
-      if (userIds.includes(uid) || (u && u.email && userIds.includes(u.email))) {
-        resolvedIds.push(uid);
-      }
-    }
+  if (!ids.length) {
+    if ($('sPendTask')) $('sPendTask').style.display = 'none';
+    return;
   }
-  const ids = resolvedIds.length > 0 ? resolvedIds : userIds;
-
-  if (!ids.length) return;
 
   // Construir OR para el WHERE
   const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
@@ -1418,6 +1427,19 @@ function buildCard(r, type) {
       });
       html += '</div>';
     }
+  }
+
+  // ── Tareas pendientes de esta villa ──
+  const _vKey   = String(villaId||'');
+  const _vTasks = villaPendingMap[_vKey] || [];
+  if (_vTasks.length) {
+    html += '<div class=\'villa-tasks\'>';
+    html += '<div class=\'vt-title\'>⚑ Tareas pendientes villa</div>';
+    for (const _t of _vTasks) {
+      const _tlbl = ({10:'Limpieza',20:'WelcomePack',30:'Cierre'}[_t.type]||`Tipo ${_t.type}`);
+      html += `<div class="vt-row"><span class="vt-badge">${_tlbl}</span><span class="vt-name">${_t.name||'(sin nombre)'}</span><span class="vt-pend"> · pendiente</span></div>`;
+    }
+    html += '</div>';
   }
 
   html += '</div>'; // end c-body-wrap
