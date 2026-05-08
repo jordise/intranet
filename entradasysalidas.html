@@ -172,7 +172,39 @@
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
-</style>
+.villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
+    .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
+    .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;flex-wrap:wrap}
+    .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
+    .vt-name{color:var(--gray-5);font-weight:500}
+    .vt-pend{color:var(--red);font-size:10px;font-weight:600}
+    .c-notes-outer{padding:8px 14px 2px;border-top:1px solid var(--gray-2)}
+    .c-notes-outer .note{margin-bottom:6px}
+
+    /* ── Tareas pendientes panel ── */
+    #pendTasksBar{background:#fff8f0;border-bottom:2px solid #ffe5c0;padding:0}
+    .pt-header{display:flex;align-items:center;gap:10px;padding:8px 22px;cursor:pointer;user-select:none}
+    .pt-header:hover{background:#fff4e6}
+    .pt-btn-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#e07b00}
+    .pt-count{background:#e07b00;color:#fff;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;min-width:20px;text-align:center}
+    .pt-arr{font-size:11px;color:#e07b00;transition:transform .2s;margin-left:auto}
+    .pt-arr.open{transform:rotate(180deg)}
+    .pt-body{display:none;border-top:1px solid #ffe5c0;max-height:320px;overflow-y:auto}
+    .pt-body.open{display:block}
+    .pt-table{width:100%;border-collapse:collapse;font-size:12px}
+    .pt-table th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);padding:6px 22px;text-align:left;border-bottom:1px solid #ffe5c0;background:#fff8f0;position:sticky;top:0}
+    .pt-table td{padding:8px 22px;border-bottom:1px solid var(--gray-2);vertical-align:top;color:var(--gray-5)}
+    .pt-table tr:hover td{background:var(--gray-1)}
+    .pt-type{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px}
+    .pt-type.t10{background:#e8f0fe;color:#1967d2}
+    .pt-type.t20{background:var(--orange-light);color:#e07b00}
+    .pt-type.t30{background:var(--green-light);color:var(--green)}
+    .pt-type.tx{background:var(--gray-2);color:var(--gray-4)}
+    .pt-pend{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--red)}
+    .pt-loading{padding:16px 22px;color:var(--gray-4);font-size:13px}
+    .pt-empty{padding:16px 22px;color:var(--gray-4);font-size:13px;text-align:center}
+
+  </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
@@ -183,7 +215,7 @@
 
 <header>
   <div>
-    <div class="h-title">Entradas y Salidas</div>
+    <div class="h-title">ENTRADAS Y SALIDAS</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -278,6 +310,30 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
+  <div class="stat" id="sPendTask" style="display:none"><strong id="sPendCount" style="color:var(--red)">0</strong> <span style="color:var(--red)">tareas ⚑</span></div>
+</div>
+
+<div id="pendTasksBar" style="display:none">
+  <div class="pt-header" onclick="togglePendTasks()">
+    <span class="pt-btn-label">⚑ Tareas pendientes</span>
+    <span class="pt-count" id="ptCount">…</span>
+    <span class="pt-arr" id="ptArr">▾</span>
+  </div>
+  <div class="pt-body" id="ptBody">
+    <div class="pt-loading" id="ptLoading">Cargando tareas…</div>
+    <table class="pt-table" id="ptTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Villa ID</th>
+          <th>Tarea / Descripción</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="ptTbody"></tbody>
+    </table>
+    <div class="pt-empty" id="ptEmpty" style="display:none">No hay tareas pendientes ✓</div>
+  </div>
 </div>
 
 <main>
@@ -377,6 +433,8 @@ const F = {
   checkinPend    : 'TaBookings2021_checkinonline_todo_terminado',
 };
 
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
 // ════════════════ ESTADO GLOBAL ════════════════
 let toggleMode    = 'all';
 let _searchId     = 0;  // Contador para cancelar búsquedas anteriores
@@ -384,6 +442,7 @@ let fWelcomePack  = 'all'; // se ajusta según si el usuario es villa manager
 let tipoFilter    = 'both'; // 'both', 'entrada', 'salida'
 let managersMap   = new Map();
 let allUsersMap   = new Map();
+let currentUserId    = '';        // UserID del usuario activo
 let selectedManagers = new Set(); // UserIDs seleccionados para filtrar
 let allManagersList  = []; // [{id, name}] para el panel
 let contactsMap   = new Map();
@@ -446,6 +505,14 @@ function setHeaderName(fullName) {
   const el = document.getElementById('hUserName');
   if (el && fullName) el.textContent = fullName.split(' ')[0];
 }
+// Back/forward cache: re-search when page is restored from bfcache
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    console.log('Page restored from bfcache — re-running search');
+    doSearch();
+  }
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     // 1. Restaurar desde URL PRIMERO (antes de defaults)
@@ -468,6 +535,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadMultiunits()
     ]);
 
+    // currentUserId se establece en loadManagers()
     // Aplicar estados visuales de los toggles restaurados
     setToggle(toggleMode);
     setTipoFilter(tipoFilter);
@@ -477,7 +545,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     setWPFilter(defaultWP);
     window.__restoredWP = null;
     if (window.__restoredTipo) { setTipoFilter(window.__restoredTipo); window.__restoredTipo = null; }
-    // Auto-search on load
+    // Auto-search on load (after all data is ready)
+    clearTimeout(_searchTimer); // cancel any pending debounce timer
     doSearch();
   } catch(err) {
     $('dbBox').textContent = 'INIT ERROR: ' + err.message + '\n' + err.stack;
@@ -509,7 +578,11 @@ async function loadManagers() {
     const myEmail    = Auth.email ? Auth.email() : '';
     const myUser     = users.find(u => String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
     const myKeyholder= myUser ? String(myUser['Keyholder_por_defecto']||'').trim() : '';
-    if (myUser && $('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
+    if (myUser) {
+      currentUserId = String(myUser[U.id]||'');
+      if ($('mgrName')) $('mgrName').value = myUser[U.name] || Auth.name() || '';
+      console.log('CurrentUserId set:', currentUserId);
+    }
 
     // Solo activos con Keyholder_por_defecto rellenado
     const managers = users.filter(u => isActiveUser(u) && String(u['Keyholder_por_defecto']||'').trim()!=='');
@@ -568,6 +641,7 @@ function toggleManager(id) {
   renderManagerList(($('managerSearch')||{}).value||'');
   updateManagerBtn();
   scheduleSearch(300); // auto-search al cambiar manager
+  loadPendingTasksPanel().catch(()=>{});
 }
 
 function selectAllManagers() {
@@ -850,6 +924,7 @@ async function doSearch() {
     const wpFieldVal = records[0] ? records[0]['TaBookings2021_Welcomepackentregado'] : 'N/A';
     $('dbBox').textContent = `WHERE:\n${where}\n\nRegistros: ${records.length}\nCI field value (1er reg): ${JSON.stringify(ciFieldVal)}\nWP field value (1er reg): ${JSON.stringify(wpFieldVal)}\n\nPrimer registro:\n${JSON.stringify(records[0]||{},null,2)}`;
     renderCards(records);
+    loadPendingTasksPanel().catch(e => console.warn('[Tasks]', e.message));
   } catch(err) {
     if (mySearchId !== _searchId) return; // búsqueda cancelada
     if ($('stLoad')) $('stLoad').style.display = 'none';
@@ -924,6 +999,15 @@ function renderCards(records) {
   if ($('sPax'))    $('sPax').textContent    = paxT||'—';
   if ($('sNights')) $('sNights').textContent = records.length;
   if ($('statsBar')) $('statsBar').style.display = 'flex';
+  // Cargar tareas pendientes: de managers Y de villas en los resultados
+  const selMgrs = [...selectedManagers]; // Set of selected manager UserIDs
+  const villaIds = [...new Set(records.map(r=>r[F.villaId]).filter(Boolean))];
+  loadPendingTasks(selMgrs).catch(e=>console.warn('Pending tasks:',e.message));
+  if (villaIds.length) {
+    loadVillaPendingTasks(villaIds)
+      .then(() => updateVillaTasksInDOM())
+      .catch(e => console.warn('Villa tasks:', e.message));
+  }
   if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
 
   rows.forEach(row => grid.appendChild(buildCard(row.r, row.type)));
@@ -993,7 +1077,84 @@ function restoreFromURL() {
   if (p.has('wp'))    fWelcomePack  = p.get('wp');
   if (p.has('tipo'))  tipoFilter    = p.get('tipo');
   console.log('Restored from URL:', Object.fromEntries(p));
+  // NO llamar scheduleSearch aquí — el init lo hace después de loadManagers
   return true;
+}
+
+// ════════════════ VILLA PENDING TASKS ════════════════
+// Update only the villa task sections without re-rendering the entire card list
+function updateVillaTasksInDOM() {
+  document.querySelectorAll('[data-villaid]').forEach(cardEl => {
+    const vKey = cardEl.getAttribute('data-villaid');
+    const tasks = villaPendingMap[vKey] || [];
+    const existing = cardEl.querySelector('.villa-tasks');
+    if (existing) existing.remove();
+    if (!tasks.length) return;
+    const div = document.createElement('div');
+    div.className = 'villa-tasks';
+    const labels = {10:'Limpieza', 20:'WelcomePack', 30:'Cierre'};
+    div.innerHTML = '<div class="vt-title">⚑ Tareas pendientes villa</div>' +
+      tasks.map(t => `<div class="vt-row"><span class="vt-badge">${labels[t.type]||'Tipo '+t.type}</span><span class="vt-name">${t.name||'(sin nombre)'}</span><span class="vt-pend"> · pendiente</span></div>`).join('');
+    cardEl.appendChild(div);
+  });
+}
+
+
+const villaPendingMap = {}; // villaid → [{tasktype, taskname}]
+async function loadVillaPendingTasks(villaIds) {
+  if (!villaIds || !villaIds.length) return;
+  const unique = [...new Set(villaIds.filter(Boolean))];
+  if (!unique.length) return;
+  const orParts = unique.map(id => `villaid=${parseInt(id)}`).join(' OR ');
+  const where   = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+  try {
+    const url  = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    for (const t of tasks) {
+      const vid = String(t.villaid||'');
+      if (!villaPendingMap[vid]) villaPendingMap[vid] = [];
+      if (!t.Tarea_terminada) villaPendingMap[vid].push({
+        type: t.Tasktype_booking,
+        name: t.Taskname||'',
+      });
+    }
+    console.log('Villa pending tasks loaded:', Object.keys(villaPendingMap).length, 'villas');
+  } catch(e) { console.warn('Villa tasks error:', e.message); }
+}
+
+const TASK_TYPE_LABELS = { 10:'Limpieza', 20:'WelcomePack', 30:'Cierre' };
+
+// ════════════════ PENDING TASKS ════════════════
+async function loadPendingTasks(managerIds) {
+  // Lógica:
+  // - Sin managers seleccionados → solo tareas del usuario activo
+  // - Con managers seleccionados → tareas de esos managers + usuario activo
+  const selMgrIds = managerIds && managerIds.length > 0 ? managerIds : [];
+  const ids = [...new Set([
+    ...(currentUserId ? [currentUserId] : []),
+    ...selMgrIds
+  ])];
+
+  if (!ids.length) {
+    if ($('sPendTask')) $('sPendTask').style.display = 'none';
+    return;
+  }
+
+  // Construir OR para el WHERE
+  const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
+  // Caspio REST: usar =false OR IS NULL para 'no terminado'
+  const where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+  try {
+    const url = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    const count = tasks.filter(t => !t.Tarea_terminada).length;
+    if ($('sPendCount')) $('sPendCount').textContent = count;
+    if ($('sPendTask'))  $('sPendTask').style.display = count > 0 ? '' : 'none';
+  } catch(e) { console.warn('Pending tasks error:', e.message); }
 }
 
 // ════════════════ TIME SORT HELPER ════════════════
@@ -1100,6 +1261,85 @@ Have a good journey back home!
 Best regards,
 ${mgrName}`;
     return base + (withFeedback ? feedback : '') + end;
+  }
+}
+
+
+// ════════════════ TAREAS PENDIENTES PANEL ════════════════
+const TASK_LABELS = { 10:'Limpieza', 20:'WelcomePack', 30:'Cierre' };
+
+function togglePendTasks() {
+  const body = $('ptBody');
+  const arr  = $('ptArr');
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (arr) arr.classList.toggle('open', !isOpen);
+}
+
+async function loadPendingTasksPanel() {
+  // Construir lista de UserIDs: usuario activo + managers seleccionados
+  const ids = [...new Set([
+    ...(currentUserId ? [currentUserId] : []),
+    ...selectedManagers,
+  ])];
+
+  const bar = $('pendTasksBar');
+  if (!ids.length) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+
+  // Mostrar barra con estado "cargando"
+  if (bar) bar.style.display = 'block';
+  if ($('ptCount'))   $('ptCount').textContent = '…';
+  if ($('ptLoading')) $('ptLoading').style.display = 'block';
+  if ($('ptTable'))   $('ptTable').style.display   = 'none';
+  if ($('ptEmpty'))   $('ptEmpty').style.display   = 'none';
+
+  try {
+    // WHERE: no terminadas Y asignadas a los IDs
+    const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
+    const where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+    const url = Auth.url(
+      `${CFG.workerUrl}?action=data&table=TaTasks` +
+      `&where=${encodeURIComponent(where)}&limit=200`
+    );
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = (json.Result || json.result || []).filter(t => !t.Tarea_terminada);
+
+    if ($('ptCount')) $('ptCount').textContent = tasks.length;
+    if ($('ptLoading')) $('ptLoading').style.display = 'none';
+
+    if (!tasks.length) {
+      if ($('ptEmpty')) $('ptEmpty').style.display = 'block';
+      return;
+    }
+
+    // Renderizar tabla
+    const tbody = $('ptTbody');
+    if (!tbody) return;
+    const typeCls = {10:'t10', 20:'t20', 30:'t30'};
+    tbody.innerHTML = tasks.map(t => {
+      const type  = t.Tasktype_booking || t.Tasktype || '';
+      const lbl   = TASK_LABELS[type] || ('Tipo ' + (type||'?'));
+      const cls   = typeCls[type] || 'tx';
+      const vid   = t.villaid || t.VillaId || '—';
+      const desc  = (t.Taskname || t.Taskdescription || '').slice(0,80) || '(sin descripción)';
+      return `<tr>
+        <td><span class="pt-type ${cls}">${lbl}</span></td>
+        <td style="font-family:Montserrat,sans-serif;font-weight:700">${vid}</td>
+        <td>${desc}</td>
+        <td><span class="pt-pend">● Pendiente</span></td>
+      </tr>`;
+    }).join('');
+    if ($('ptTable')) $('ptTable').style.display = 'table';
+
+    console.log('[Tasks] Pendientes:', tasks.length, 'para IDs:', ids);
+  } catch(e) {
+    console.warn('[Tasks] Error:', e.message);
+    if ($('ptLoading')) $('ptLoading').textContent = 'Error al cargar tareas';
   }
 }
 
@@ -1236,6 +1476,14 @@ function buildCard(r, type) {
   }
   html += '</div>'; // end c-body always-visible
 
+  // ── Notas visibles SIN abrir "Ver detalles" — mismo diseño que dentro ──
+  if (nl || ni) {
+    html += '<div class="c-notes-outer">';
+    if (nl) html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
+    if (ni) html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
+    html += '</div>';
+  }
+
   // ── Toggle ──
   html += `<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')">
     <span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span>
@@ -1264,8 +1512,6 @@ function buildCard(r, type) {
 
   // Notas + info huésped
   html += '<div class="c-body">';
-  if (nl) html += `<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;
-  if (ni) html += `<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;
   html += '<hr class="dv">';
   html += `<div class="gname">${gn||'—'}</div>`;
   html += '<div class="gmeta">';
@@ -1330,8 +1576,22 @@ function buildCard(r, type) {
     }
   }
 
+  // ── Tareas pendientes de esta villa ──
+  const _vKey   = String(villaId||'');
+  const _vTasks = villaPendingMap[_vKey] || [];
+  if (_vTasks.length) {
+    html += '<div class=\'villa-tasks\'>';
+    html += '<div class=\'vt-title\'>⚑ Tareas pendientes villa</div>';
+    for (const _t of _vTasks) {
+      const _tlbl = ({10:'Limpieza',20:'WelcomePack',30:'Cierre'}[_t.type]||`Tipo ${_t.type}`);
+      html += `<div class="vt-row"><span class="vt-badge">${_tlbl}</span><span class="vt-name">${_t.name||'(sin nombre)'}</span><span class="vt-pend"> · pendiente</span></div>`;
+    }
+    html += '</div>';
+  }
+
   html += '</div>'; // end c-body-wrap
 
+  el.setAttribute('data-villaid', String(villaId||''));
   el.innerHTML = html;
   return el;
 }
