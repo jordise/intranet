@@ -324,6 +324,7 @@
     <table class="pt-table" id="ptTable" style="display:none">
       <thead>
         <tr>
+          <th>Fecha</th>
           <th>Villa</th>
           <th>Tarea / Descripción</th>
           <th>Estado</th>
@@ -1334,11 +1335,19 @@ async function loadPendingTasksPanel() {
       } catch(e) { console.warn('[Tasks] Villas:', e.message); }
     }
     // Filtrar: no terminadas
-    const tasks = rawTasks.filter(t =>
-      t.Tarea_terminada !== true &&
-      t.Tarea_terminada !== 1 &&
-      Number(t.Tasktype_booking) !== 20  // excluir WelcomePack
-    );
+    // Debug: ver exactamente qué viene en cada tarea
+    rawTasks.forEach((t,i) => {
+      console.log(`[Task ${i}] taskid=${t.taskId||t.taskid} Tarea_terminada=${JSON.stringify(t.Tarea_terminada)} Tasktype_booking=${t.Tasktype_booking} Tasktype=${t.Tasktype}`);
+    });
+
+    // Filtrar pendientes (Tarea_terminada = false, null, undefined, 0, "" — cualquier cosa excepto true/1/-1)
+    // Excluir Tasktype_booking=20 (WelcomePack gestionado por badge)
+    const tasks = rawTasks.filter(t => {
+      const done = t.Tarea_terminada;
+      const isDone = done === true || done === 1 || done === -1 || String(done).toLowerCase() === 'yes' || String(done).toLowerCase() === 'sí';
+      const isWP   = Number(t.Tasktype_booking) === 20;
+      return !isDone && !isWP;
+    });
 
     if ($('ptCount')) $('ptCount').textContent = tasks.length;
     if ($('ptLoading')) $('ptLoading').style.display = 'none';
@@ -1367,12 +1376,21 @@ async function loadPendingTasksPanel() {
       const vid       = t.villaid || '';
       const villaName = villaNameMap[vid] || (vid ? `Villa ${vid}` : '—');
       const desc      = (t.Taskname || t.Taskdescription || '').slice(0,90) || '(sin descripción)';
+      const rawDate   = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
+      const dateStr   = rawDate ? rawDate.split('T')[0].split('-').reverse().join('/') : '—';
       return `<tr>
+        <td style="font-family:Montserrat,sans-serif;font-size:11px;white-space:nowrap;color:var(--gray-4)">${dateStr}</td>
         <td style="font-family:Montserrat,sans-serif;font-weight:700;color:var(--gray-5)">${villaName}</td>
         <td style="color:var(--gray-4)">${desc}</td>
         <td><span class="pt-pend">● Pendiente</span></td>
       </tr>`;
     }).join('');
+    // Ordenar por Data_to_be_done_fixed ASC (más antiguas primero)
+    tasks.sort((a,b) => {
+      const da = a.Data_to_be_done_fixed || a.Data_to_be_done || '9999';
+      const db = b.Data_to_be_done_fixed || b.Data_to_be_done || '9999';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
     if ($('ptTable')) $('ptTable').style.display = 'table';
 
     console.log('[Tasks] Pendientes:', tasks.length, 'para IDs:', ids);
