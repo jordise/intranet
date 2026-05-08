@@ -254,14 +254,26 @@
       .then(function (r) { return r.json(); })
       .then(function (json) {
         var rows = json.Result || json.result || [];
-        var sel = g('fVilla');
+        var sel  = g('fVilla');
+        var defaultId = null;
+
         sel.innerHTML = '<option value="">— Seleccionar villa —</option>' +
-          rows.sort(function (a, b) {
-            return (a.Name_villa_para_inquilinos || a.Name || '').localeCompare(b.Name_villa_para_inquilinos || b.Name || '');
-          }).map(function (v) {
-            var name = v.Name_villa_para_inquilinos || v.Name || 'Villa ' + v.villaid;
-            return '<option value="' + v.villaid + '">' + name + '</option>';
-          }).join('');
+          rows
+            .sort(function (a, b) {
+              return (a.Name_villa_para_inquilinos || a.Name || '').localeCompare(b.Name_villa_para_inquilinos || b.Name || '');
+            })
+            .map(function (v) {
+              var name = v.Name_villa_para_inquilinos || v.Name || 'Villa ' + v.villaid;
+              // Buscar la villa interna de 3Villas por nombre
+              var nl = name.toLowerCase();
+              if (!defaultId && (nl.includes('3villas') || nl.includes('tarea interna'))) {
+                defaultId = String(v.villaid);
+              }
+              return '<option value="' + v.villaid + '">' + name + '</option>';
+            }).join('');
+
+        // Seleccionar villa por defecto
+        if (defaultId) sel.value = defaultId;
       })
       .catch(function () { g('fVilla').innerHTML = '<option value="">Error al cargar</option>'; });
   }
@@ -393,9 +405,6 @@
   }
 
   // ── ENVIAR ──
-  // Flujo: 1) Crear tarea → obtener taskId
-  //        2) Subir fotos con nombre {año}_tarea_{taskId}_{user}_{n}.ext
-  //        3) Actualizar tarea con las URLs de las fotos
   function submitForm() {
     if (!validate()) return;
 
@@ -404,80 +413,82 @@
     btn.disabled = true;
     btn.classList.add('loading');
 
-    var fecha = g('fFecha').value;
+    var fecha       = g('fFecha').value;
     var fechaCaspio = fecha ? fecha.replace('T', ' ') + ':00' : '';
 
-    // ── PASO 1: Crear tarea sin fotos ──
     var record = {
-      'UserID_asigned_alfanum' : g('fAsignado').value,
-      'Tasktype'               : g('fTipoTarea').value,
-      'villaid'                : parseInt(g('fVilla').value) || null,
-      'Taskname'               : g('fNombre').value.trim(),
-      'Taskdescription'        : g('fDesc').value.trim(),
-      'Data_to_be_done_fixed'  : fechaCaspio,
-      'Idreserva'              : g('fReserva').value.trim() || null,
-      'UserID_created'         : userName,
-      'Tarea_terminada'        : false,
+      'UserID_asigned_alfanum': g('fAsignado').value,
+      'Tasktype'              : g('fTipoTarea').value,
+      'villaid'               : parseInt(g('fVilla').value) || null,
+      'Taskname'              : g('fNombre').value.trim(),
+      'Taskdescription'       : g('fDesc').value.trim(),
+      'Data_to_be_done_fixed' : fechaCaspio,
+      'Idreserva'             : g('fReserva').value.trim() || null,
+      'UserID_created'        : userName,
+      'Tarea_terminada'       : false,
     };
 
+    // ── PASO 1: Crear tarea → obtener taskId ──
     fetch(Auth.url(WORKER + '?action=create&table=TaTasks'), {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify(record)
+      body   : JSON.stringify(record),
     })
     .then(function (r) { return r.json(); })
     .then(function (json) {
       if (json.error) throw new Error(json.error);
-
-      // Extraer taskId de la respuesta de Caspio
       var created = (json.Result || json.result || [])[0] || json;
       var taskId  = created.taskid || created.taskId || created.TaskId || Date.now();
 
-      // ── PASO 2: Subir fotos con nombre correcto ──
-      var hasPhotos = photos.some(function (p) { return p.file; });
-      if (!hasPhotos) return { taskId: taskId, urls: [] };
+      // ── PASO 2: Subir fotos (si hay) ──
+      var toUpload = photos.filter(function (p) { return p.file; });
+      if (!toUpload.length) {
+        showSuccess(btn);
+        return;
+      }
 
-      return Promise.allSettled(
+      Promise.allSettled(
         photos.map(function (p, i) {
           return p.file ? uploadPhoto(i, taskId, userName) : Promise.resolve(null);
         })
       ).then(function (results) {
-        return {
-          taskId: taskId,
-          urls: results.map(function (r) { return r.status === 'fulfilled' ? r.value : null; })
-        };
+        var urls    = results.map(function (r) { return r.status === 'fulfilled' ? r.value : null; });
+        var hasUrls = urls.some(function (u) { return u; });
+        if (!hasUrls) { showSuccess(btn); return; }
+
+        // ── PASO 3: Actualizar tarea con URLs de fotos ──
+        var cfFields = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+        var upd = {};
+        urls.forEach(function (url, i) { if (url) upd[cfFields[i]] = url; });
+
+        fetch(Auth.url(WORKER + '?action=update&table=TaTasks&id=' + taskId), {
+          method : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify(upd),
+        })
+        .then(function () { showSuccess(btn); })
+        .catch(function (e) {
+          // Las fotos fallaron pero la tarea ya fue creada — mostrar éxito igualmente
+          console.warn('Update fotos error:', e.message);
+          showSuccess(btn);
+        });
       });
-    })
-    .then(function (res) {
-      var taskId = res.taskId;
-      var urls   = res.urls || [];
-      var hasUrls = urls.some(function (u) { return u; });
-      if (!hasUrls) return { ok: true };
-
-      // ── PASO 3: Actualizar tarea con las URLs ──
-      var cfFields = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
-      var update = {};
-      urls.forEach(function (url, i) { if (url) update[cfFields[i]] = url; });
-
-      return fetch(Auth.url(WORKER + '?action=update&table=TaTasks&id=' + taskId), {
-        method : 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify(update)
-      }).then(function (r) { return r.json(); });
-    })
-    .then(function () {
-      btn.disabled = false;
-      btn.classList.remove('loading');
-      g('successBox').style.display = 'block';
-      btn.closest('.card-body').style.display = 'none';
-      toast('¡Tarea creada correctamente!', 'ok');
     })
     .catch(function (err) {
       btn.disabled = false;
       btn.classList.remove('loading');
-      toast('Error: ' + err.message, 'err');
+      toast('Error al crear la tarea: ' + err.message, 'err');
       console.error('submitForm:', err);
     });
+  }
+
+  function showSuccess(btn) {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    var cardBody = btn.closest('.card-body');
+    if (cardBody) cardBody.style.display = 'none';
+    g('successBox').style.display = 'block';
+    toast('¡Tarea creada correctamente!', 'ok');
   }
 
   // ── RESETEAR ──
