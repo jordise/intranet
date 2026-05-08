@@ -458,6 +458,14 @@ function setHeaderName(fullName) {
   const el = document.getElementById('hUserName');
   if (el && fullName) el.textContent = fullName.split(' ')[0];
 }
+// Back/forward cache: re-search when page is restored from bfcache
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    console.log('Page restored from bfcache — re-running search');
+    doSearch();
+  }
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     // 1. Restaurar desde URL PRIMERO (antes de defaults)
@@ -490,7 +498,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     setWPFilter(defaultWP);
     window.__restoredWP = null;
     if (window.__restoredTipo) { setTipoFilter(window.__restoredTipo); window.__restoredTipo = null; }
-    // Auto-search on load
+    // Auto-search on load (after all data is ready)
+    clearTimeout(_searchTimer); // cancel any pending debounce timer
     doSearch();
   } catch(err) {
     $('dbBox').textContent = 'INIT ERROR: ' + err.message + '\n' + err.stack;
@@ -947,7 +956,7 @@ function renderCards(records) {
   loadPendingTasks(selMgrs).catch(e=>console.warn('Pending tasks:',e.message));
   if (villaIds.length) {
     loadVillaPendingTasks(villaIds)
-      .then(() => { if (records.length) renderCards(records); })
+      .then(() => updateVillaTasksInDOM())
       .catch(e => console.warn('Villa tasks:', e.message));
   }
   if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
@@ -1019,17 +1028,36 @@ function restoreFromURL() {
   if (p.has('wp'))    fWelcomePack  = p.get('wp');
   if (p.has('tipo'))  tipoFilter    = p.get('tipo');
   console.log('Restored from URL:', Object.fromEntries(p));
+  // NO llamar scheduleSearch aquí — el init lo hace después de loadManagers
   return true;
 }
 
 // ════════════════ VILLA PENDING TASKS ════════════════
+// Update only the villa task sections without re-rendering the entire card list
+function updateVillaTasksInDOM() {
+  document.querySelectorAll('[data-villaid]').forEach(cardEl => {
+    const vKey = cardEl.getAttribute('data-villaid');
+    const tasks = villaPendingMap[vKey] || [];
+    const existing = cardEl.querySelector('.villa-tasks');
+    if (existing) existing.remove();
+    if (!tasks.length) return;
+    const div = document.createElement('div');
+    div.className = 'villa-tasks';
+    const labels = {10:'Limpieza', 20:'WelcomePack', 30:'Cierre'};
+    div.innerHTML = '<div class="vt-title">⚑ Tareas pendientes villa</div>' +
+      tasks.map(t => `<div class="vt-row"><span class="vt-badge">${labels[t.type]||'Tipo '+t.type}</span><span class="vt-name">${t.name||'(sin nombre)'}</span><span class="vt-pend"> · pendiente</span></div>`).join('');
+    cardEl.appendChild(div);
+  });
+}
+
+
 const villaPendingMap = {}; // villaid → [{tasktype, taskname}]
 async function loadVillaPendingTasks(villaIds) {
   if (!villaIds || !villaIds.length) return;
   const unique = [...new Set(villaIds.filter(Boolean))];
   if (!unique.length) return;
   const orParts = unique.map(id => `villaid=${parseInt(id)}`).join(' OR ');
-  const where   = `Tarea_terminada<>true AND (${orParts})`;
+  const where   = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
   try {
     const url  = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res  = await fetch(url);
@@ -1067,7 +1095,8 @@ async function loadPendingTasks(managerIds) {
 
   // Construir OR para el WHERE
   const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
-  const where = `Tarea_terminada<>true AND (${orParts})`;
+  // Caspio REST: usar =false OR IS NULL para 'no terminado'
+  const where = `(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
   try {
     const url = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res  = await fetch(url);
@@ -1434,6 +1463,7 @@ function buildCard(r, type) {
 
   html += '</div>'; // end c-body-wrap
 
+  el.setAttribute('data-villaid', String(villaId||''));
   el.innerHTML = html;
   return el;
 }
