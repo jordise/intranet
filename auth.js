@@ -27,17 +27,16 @@ const Auth = (function () {
 
    // ── Mapa de permisos ──────────────────────────────────────
   // Generado desde permisos.html — 8/5/2026, 18:27:33
-  const PERMISSIONS = {
-    'entradas      '  : ['admin', 'manager', 'staff'],
-    'salidas       '  : ['admin', 'manager', 'staff'],
-    'tareas        '  : ['admin', 'manager', 'staff'],
-    'permisos      '  : ['admin'],
-    'manuales      '  : ['admin', 'manager'],
-    'dashboard     '  : ['admin', 'manager'],
-    'contabilidad  '  : ['admin'],
-    'usuarios      '  : ['admin'],
+const PERMISSIONS = {
+    'entradas'     : ['admin', 'manager', 'staff', 'cleaner'],
+    'salidas'      : ['admin', 'manager', 'staff', 'cleaner'],
+    'tareas'       : ['admin', 'manager', 'staff', 'cleaner'],
+    'permisos'     : ['admin'],
+    'manuales'     : ['admin', 'manager'],
+    'dashboard'    : ['admin', 'manager'],
+    'contabilidad' : ['admin'],
+    'usuarios'     : ['admin'],
   };
-
 
   // ── JWT decode (sin verificar firma — solo para leer payload) ──
   function decodeJWT(token) {
