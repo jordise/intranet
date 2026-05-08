@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas y Salidas — 3Villas</title>
+  <title>Entradas — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -172,6 +172,11 @@
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
+.villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
+    .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
+    .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px}
+    .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
+    .vt-name{color:var(--gray-5)}
 </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -183,7 +188,7 @@
 
 <header>
   <div>
-    <div class="h-title">Entradas y Salidas</div>
+    <div class="h-title">ENTRADAS</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -278,6 +283,7 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
+  <div class="stat" id="sPendTask" style="display:none;color:var(--red)"><strong id="sPendCount">0</strong> tareas ⚑</div>
 </div>
 
 <main>
@@ -924,12 +930,32 @@ function renderCards(records) {
   if ($('sPax'))    $('sPax').textContent    = paxT||'—';
   if ($('sNights')) $('sNights').textContent = records.length;
   if ($('statsBar')) $('statsBar').style.display = 'flex';
+  // Cargar tareas pendientes: de managers Y de villas en los resultados
+  const selMgrs  = Array.from(document.querySelectorAll('.mgr-cb:checked')).map(cb=>cb.value);
+  const villaIds = [...new Set(records.map(r=>r[F.villaId]).filter(Boolean))];
+  loadPendingTasks(selMgrs);
+  if (villaIds.length) {
+    loadVillaPendingTasks(villaIds).then(() => {
+      // Re-renderizar cards con las tareas de villa cargadas
+      if (records.length) renderCards(records);
+    });
+  }
   if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
 
   rows.forEach(row => grid.appendChild(buildCard(row.r, row.type)));
 }
 
 // ════════════════ POPUP HELPER ════════════════
+function openTaskPopup(url) {
+  // Popup centrado, tamaño móvil — window.close() funciona desde popups
+  const w = 480, h = 750;
+  const left = Math.round((screen.width  - w) / 2);
+  const top  = Math.round((screen.height - h) / 2);
+  window.open(url, 'taskpopup',
+    `width=${w},height=${h},left=${left},top=${top},` +
+    'resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no'
+  );
+}
 function popup(url, w, h) {
   if (!url) return false;
   w = w||1000; h = h||800;
@@ -984,6 +1010,67 @@ function restoreFromURL() {
   if (p.has('tipo'))  tipoFilter    = p.get('tipo');
   console.log('Restored from URL:', Object.fromEntries(p));
   return true;
+}
+
+// ════════════════ VILLA PENDING TASKS ════════════════
+const villaPendingMap = {}; // villaid → [{tasktype, taskname}]
+async function loadVillaPendingTasks(villaIds) {
+  if (!villaIds || !villaIds.length) return;
+  const unique = [...new Set(villaIds.filter(Boolean))];
+  if (!unique.length) return;
+  const orParts = unique.map(id => `villaid=${parseInt(id)}`).join(' OR ');
+  const where   = `Tarea_terminada<>true AND (${orParts})`;
+  try {
+    const url  = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    for (const t of tasks) {
+      const vid = String(t.villaid||'');
+      if (!villaPendingMap[vid]) villaPendingMap[vid] = [];
+      if (!t.Tarea_terminada) villaPendingMap[vid].push({
+        type: t.Tasktype_booking,
+        name: t.Taskname||'',
+      });
+    }
+    console.log('Villa pending tasks loaded:', Object.keys(villaPendingMap).length, 'villas');
+  } catch(e) { console.warn('Villa tasks error:', e.message); }
+}
+
+const TASK_TYPE_LABELS = { 10:'Limpieza', 20:'WelcomePack', 30:'Cierre' };
+
+// ════════════════ PENDING TASKS ════════════════
+async function loadPendingTasks(managerIds) {
+  // Construir WHERE: tareas no terminadas de los managers seleccionados
+  // managerIds = [] → usar usuario actual
+  let userIds = managerIds && managerIds.length > 0
+    ? managerIds
+    : [Auth.email()]; // fallback: email del usuario actual
+
+  // Buscar también por UserID en allUsersMap (email → UserID)
+  const resolvedIds = [];
+  for (const [uid, u] of Object.entries(allUsersMap||{})) {
+    if (userIds.includes(uid) || (u.email && userIds.includes(u.email))) {
+      resolvedIds.push(uid);
+    }
+  }
+  // Si no resolvemos ninguno, usar los originales
+  const ids = resolvedIds.length > 0 ? resolvedIds : userIds;
+
+  if (!ids.length) return;
+
+  // Construir OR para el WHERE
+  const orParts = ids.map(id => `UserID_asigned_alfanum='${id}'`).join(' OR ');
+  const where = `Tarea_terminada<>true AND (${orParts})`;
+  try {
+    const url = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const tasks = json.Result || json.result || [];
+    const count = tasks.filter(t => !t.Tarea_terminada).length;
+    if ($('sPendCount')) $('sPendCount').textContent = count;
+    if ($('sPendTask'))  $('sPendTask').style.display = count > 0 ? '' : 'none';
+  } catch(e) { console.warn('Pending tasks error:', e.message); }
 }
 
 // ════════════════ TIME SORT HELPER ════════════════
@@ -1099,7 +1186,7 @@ function mkBadge(label, raw, url, extra, newTab) {
   const cls = ok===null?'b-na':ok?'b-ok':'b-no';
   const ico = ok===null?'·':ok?'✓':'✗';
   const inner = `${ico} ${label}${extra||''}`;
-  if (url && newTab)  return `<a class="bdg ${cls}" href="${url}" target="_blank" style="text-decoration:none;cursor:pointer">${inner}</a>`;
+  if (url && newTab)  return `<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;
   if (url)            return `<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;
   return `<span class="bdg ${cls}">${inner}</span>`;
 }
@@ -1225,6 +1312,14 @@ function buildCard(r, type) {
     else if (am) html += `<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;
   }
   html += '</div>'; // end c-body always-visible
+
+  // ── Notas visibles SIN abrir "Ver detalles" ──
+  if (nl || ni) {
+    html += '<div class="c-notes-preview">';
+    if (nl) html += `<div class="cnote cnote-l"><span class="cnico">📝</span><span>${nl}</span></div>`;
+    if (ni) html += `<div class="cnote cnote-w"><span class="cnico">📌</span><span>${ni}</span></div>`;
+    html += '</div>';
+  }
 
   // ── Toggle ──
   html += `<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')">
