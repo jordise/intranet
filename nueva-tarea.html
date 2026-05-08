@@ -106,7 +106,7 @@
     <div class="card-head"><span class="ico">📋</span><h2>Información de la tarea</h2></div>
     <div class="card-body">
 
-      <div class="field-row">
+              <div class="field-row">
         <div class="field">
           <label class="lbl">Asignado a <span class="req">*</span></label>
           <select id="fAsignado"><option value="">Cargando...</option></select>
@@ -119,39 +119,25 @@
             <option value="Limpieza">Limpieza</option>
             <option value="Keyholder">Keyholder</option>
             <option value="Dpto Comercial">Dpto Comercial</option>
-            <option value="Tarea interna">Tarea interna</option>
+            <option value="Tarea interna" selected>Tarea interna</option>
             <option value="Mantenimiento">Mantenimiento</option>
             <option value="Otro">Otro</option>
           </select>
         </div>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label class="lbl">Villa <span class="req">*</span></label>
-          <select id="fVilla"><option value="">Cargando...</option></select>
-        </div>
-        <div class="field">
-          <label class="lbl">Tipo reserva</label>
-          <select id="fTipoReserva">
-            <option value="">— Ninguno —</option>
-            <option value="10">🧹 Limpieza</option>
-            <option value="20">🎁 WelcomePack</option>
-            <option value="30">🔒 Cierre</option>
-          </select>
-        </div>
+      <div class="field">
+        <label class="lbl">Villa <span class="req">*</span></label>
+        <select id="fVilla"><option value="">Cargando...</option></select>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label class="lbl">Fecha a realizar <span class="req">*</span></label>
-          <input type="datetime-local" id="fFecha">
-        </div>
-        <div class="field">
-          <label class="lbl">Id Reserva</label>
-          <input type="text" id="fReserva" placeholder="ej. j5oQcmp4FQ">
-        </div>
+      <div class="field">
+        <label class="lbl">Fecha a realizar <span class="req">*</span></label>
+        <input type="datetime-local" id="fFecha">
       </div>
+
+      <!-- Id Reserva: oculto, se puede rellenar por URL param si viene de entradas -->
+      <input type="hidden" id="fReserva">
 
       <div class="field">
         <label class="lbl">Nombre de la tarea <span class="req">*</span></label>
@@ -367,104 +353,121 @@
     if (prog) prog.className = 'upload-progress' + (show ? ' show' : '');
   }
 
+  // ── NOMBRE DE ARCHIVO ──
+  // Formato: fotos-tareas/{año}_tarea_{taskId}_{userName}_{n}.{ext}
+  function buildFilename(taskId, userName, idx, file) {
+    var fecha = g('fFecha').value || '';
+    var year  = fecha ? fecha.slice(0, 4) : new Date().getFullYear();
+    var ext   = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var safe  = userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // quitar acentos
+                        .replace(/[^a-zA-Z0-9]/g, '_')                    // solo alfanum
+                        .toLowerCase();
+    return 'fotos-tareas/' + year + '_tarea_' + taskId + '_' + safe + '_' + (idx + 1) + '.' + ext;
+  }
+
   // ── SUBIR FOTO A CLOUDFLARE R2 vía Worker ──
-  function uploadPhoto(idx) {
+  function uploadPhoto(idx, taskId, userName) {
     var file = photos[idx].file;
     if (!file) return Promise.resolve(null);
 
     showSlotSpinner(idx, true);
 
-    // Generar nombre único
-    var ext  = file.name.split('.').pop() || 'jpg';
-    var name = 'tareas/' + Date.now() + '_' + idx + '.' + ext;
-
+    var filename = buildFilename(taskId, userName, idx, file);
     var fd = new FormData();
-    fd.append('file', file, name);
-    fd.append('filename', name);
+    fd.append('file', file, filename);
+    fd.append('filename', filename);
 
     return fetch(Auth.url(WORKER + '?action=upload'), { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (json) {
         showSlotSpinner(idx, false);
-        if (json.url || json.publicUrl) {
-          var url = json.url || json.publicUrl;
-          photos[idx].url = url;
-          return url;
-        }
+        var url = json.url || json.publicUrl;
+        if (url) { photos[idx].url = url; return url; }
         throw new Error(json.error || 'Upload sin URL');
       })
       .catch(function (e) {
         showSlotSpinner(idx, false);
         console.warn('Upload foto ' + idx + ':', e.message);
-        return null; // No bloquear el envío por una foto fallida
+        return null;
       });
-  }
-
-  // ── VALIDAR ──
-  function validate() {
-    if (!g('fAsignado').value)  { toast('Selecciona a quién asignar la tarea', 'err'); g('fAsignado').focus(); return false; }
-    if (!g('fTipoTarea').value) { toast('Selecciona el tipo de tarea', 'err'); g('fTipoTarea').focus(); return false; }
-    if (!g('fVilla').value)     { toast('Selecciona una villa', 'err'); g('fVilla').focus(); return false; }
-    if (!g('fFecha').value)     { toast('Indica la fecha de la tarea', 'err'); g('fFecha').focus(); return false; }
-    if (!g('fNombre').value.trim()) { toast('Escribe el nombre de la tarea', 'err'); g('fNombre').focus(); return false; }
-    return true;
   }
 
   // ── ENVIAR ──
+  // Flujo: 1) Crear tarea → obtener taskId
+  //        2) Subir fotos con nombre {año}_tarea_{taskId}_{user}_{n}.ext
+  //        3) Actualizar tarea con las URLs de las fotos
   function submitForm() {
     if (!validate()) return;
 
-    var btn = g('btnSubmit');
+    var btn      = g('btnSubmit');
+    var userName = (Auth.name ? Auth.name() : '') || 'usuario';
     btn.disabled = true;
     btn.classList.add('loading');
 
-    // 1. Subir todas las fotos que tengan archivo
-    var uploadPromises = photos.map(function (p, i) {
-      return p.file ? uploadPhoto(i) : Promise.resolve(null);
-    });
+    var fecha = g('fFecha').value;
+    var fechaCaspio = fecha ? fecha.replace('T', ' ') + ':00' : '';
 
-    Promise.allSettled(uploadPromises).then(function (results) {
-      var urls = results.map(function (r) { return r.status === 'fulfilled' ? r.value : null; });
+    // ── PASO 1: Crear tarea sin fotos ──
+    var record = {
+      'UserID_asigned_alfanum' : g('fAsignado').value,
+      'Tasktype'               : g('fTipoTarea').value,
+      'villaid'                : parseInt(g('fVilla').value) || null,
+      'Taskname'               : g('fNombre').value.trim(),
+      'Taskdescription'        : g('fDesc').value.trim(),
+      'Data_to_be_done_fixed'  : fechaCaspio,
+      'Idreserva'              : g('fReserva').value.trim() || null,
+      'UserID_created'         : userName,
+      'Tarea_terminada'        : false,
+    };
 
-      // 2. Preparar datos del registro
-      var fecha = g('fFecha').value; // "2026-05-08T10:30"
-      var fechaCaspio = fecha ? fecha.replace('T', ' ') + ':00' : '';
-
-      var record = {
-        'UserID_asigned_alfanum' : g('fAsignado').value,
-        'Tasktype'               : g('fTipoTarea').value,
-        'villaid'                : parseInt(g('fVilla').value) || null,
-        'Taskname'               : g('fNombre').value.trim(),
-        'Taskdescription'        : g('fDesc').value.trim(),
-        'Data_to_be_done_fixed'  : fechaCaspio,
-        'Idreserva'              : g('fReserva').value.trim() || null,
-        'UserID_created'         : Auth.name ? Auth.name() : '',
-        'Tarea_terminada'        : false,
-      };
-
-      // Tipo reserva (opcional)
-      var bt = g('fTipoReserva').value;
-      if (bt) record['Tasktype_booking'] = parseInt(bt);
-
-      // Fotos cloudflare
-      var cfFields = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
-      urls.forEach(function (url, i) {
-        if (url) record[cfFields[i]] = url;
-      });
-
-      // 3. Crear registro en Caspio
-      return fetch(Auth.url(WORKER + '?action=create&table=TaTasks'), {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify(record)
-      });
+    fetch(Auth.url(WORKER + '?action=create&table=TaTasks'), {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify(record)
     })
     .then(function (r) { return r.json(); })
     .then(function (json) {
+      if (json.error) throw new Error(json.error);
+
+      // Extraer taskId de la respuesta de Caspio
+      var created = (json.Result || json.result || [])[0] || json;
+      var taskId  = created.taskid || created.taskId || created.TaskId || Date.now();
+
+      // ── PASO 2: Subir fotos con nombre correcto ──
+      var hasPhotos = photos.some(function (p) { return p.file; });
+      if (!hasPhotos) return { taskId: taskId, urls: [] };
+
+      return Promise.allSettled(
+        photos.map(function (p, i) {
+          return p.file ? uploadPhoto(i, taskId, userName) : Promise.resolve(null);
+        })
+      ).then(function (results) {
+        return {
+          taskId: taskId,
+          urls: results.map(function (r) { return r.status === 'fulfilled' ? r.value : null; })
+        };
+      });
+    })
+    .then(function (res) {
+      var taskId = res.taskId;
+      var urls   = res.urls || [];
+      var hasUrls = urls.some(function (u) { return u; });
+      if (!hasUrls) return { ok: true };
+
+      // ── PASO 3: Actualizar tarea con las URLs ──
+      var cfFields = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+      var update = {};
+      urls.forEach(function (url, i) { if (url) update[cfFields[i]] = url; });
+
+      return fetch(Auth.url(WORKER + '?action=update&table=TaTasks&id=' + taskId), {
+        method : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(update)
+      }).then(function (r) { return r.json(); });
+    })
+    .then(function () {
       btn.disabled = false;
       btn.classList.remove('loading');
-      if (json.error) throw new Error(json.error);
-      // Éxito
       g('successBox').style.display = 'block';
       btn.closest('.card-body').style.display = 'none';
       toast('¡Tarea creada correctamente!', 'ok');
