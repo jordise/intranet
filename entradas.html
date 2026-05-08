@@ -177,6 +177,9 @@
     .vt-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px}
     .vt-badge{background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:10px;flex-shrink:0}
     .vt-name{color:var(--gray-5)}
+    .c-notes-preview{padding:8px 14px;display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--gray-2);background:#fffdf4}
+    .cnote{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.4}
+    .cnote .cnico{flex-shrink:0}.cnote-l{color:#6b4f00}.cnote-w{color:#1a3a6b}
 </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -933,12 +936,11 @@ function renderCards(records) {
   // Cargar tareas pendientes: de managers Y de villas en los resultados
   const selMgrs  = Array.from(document.querySelectorAll('.mgr-cb:checked')).map(cb=>cb.value);
   const villaIds = [...new Set(records.map(r=>r[F.villaId]).filter(Boolean))];
-  loadPendingTasks(selMgrs);
+  loadPendingTasks(selMgrs).catch(e=>console.warn('Pending tasks:',e.message));
   if (villaIds.length) {
-    loadVillaPendingTasks(villaIds).then(() => {
-      // Re-renderizar cards con las tareas de villa cargadas
-      if (records.length) renderCards(records);
-    });
+    loadVillaPendingTasks(villaIds)
+      .then(() => { if (records.length) renderCards(records); })
+      .catch(e => console.warn('Villa tasks:', e.message));
   }
   if ($('hBadge'))  { $('hBadge').textContent = `${rows.length} registros`; }
 
@@ -1047,14 +1049,15 @@ async function loadPendingTasks(managerIds) {
     ? managerIds
     : [Auth.email()]; // fallback: email del usuario actual
 
-  // Buscar también por UserID en allUsersMap (email → UserID)
+  // Resolver IDs desde allUsersMap (es un Map, no un objeto plano)
   const resolvedIds = [];
-  for (const [uid, u] of Object.entries(allUsersMap||{})) {
-    if (userIds.includes(uid) || (u.email && userIds.includes(u.email))) {
-      resolvedIds.push(uid);
+  if (allUsersMap && allUsersMap.size > 0) {
+    for (const [uid, u] of allUsersMap) {
+      if (userIds.includes(uid) || (u && u.email && userIds.includes(u.email))) {
+        resolvedIds.push(uid);
+      }
     }
   }
-  // Si no resolvemos ninguno, usar los originales
   const ids = resolvedIds.length > 0 ? resolvedIds : userIds;
 
   if (!ids.length) return;
