@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tareas — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+    /* ── HEADER ── */
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
+    .h-sub{font-size:clamp(10px,2.5vw,12px);opacity:.75;margin-top:1px}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+    /* ── FILTER PANEL ── */
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
+    .main-bar{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;padding-bottom:10px}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px}
+    .f-group.narrow{flex:0 0 140px}
+    .f-group.wide{flex:2;min-width:180px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    /* Manager multi-select */
+    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
+    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
+    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
+    .manager-item:hover{background:var(--gray-1)}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .manager-item label{cursor:pointer;flex:1}
+    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s}
+    .btn-clear:hover{color:var(--red)}
+    .btn-buscar{background:var(--red);color:#fff;border:none;height:36px;padding:0 22px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:background .15s;align-self:flex-end;flex-shrink:0}
+    .btn-buscar:hover{background:var(--red-dark)}
+    /* Chips */
+    #chips{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0}
+    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
+    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+    /* Stats */
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    .stat{display:flex;align-items:baseline;gap:5px}
+    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
+    /* Main */
+    main{padding:18px 22px;max-width:1400px;margin:0 auto}
+    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
+    .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Table */
+    #tableWrap{display:none;overflow-x:auto;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead tr{background:var(--red)}
+    th{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fff;padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
+    th:hover{background:var(--red-dark)}
+    th .sort-ico{opacity:.5;margin-left:4px;font-size:9px}
+    th.sort-asc .sort-ico::after{content:'▲'}
+    th.sort-desc .sort-ico::after{content:'▼'}
+    th:not(.sort-asc):not(.sort-desc) .sort-ico::after{content:'⇅'}
+    tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
+    tbody tr:hover{background:var(--gray-1)}
+    tbody tr:last-child{border-bottom:none}
+    td{padding:9px 14px;vertical-align:top}
+    /* Type badges */
+    .type-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px;white-space:nowrap}
+    .tb-10{background:var(--blue-light);color:var(--blue)}
+    .tb-20{background:var(--orange-light);color:var(--orange)}
+    .tb-30{background:var(--green-light);color:var(--green)}
+    .tb-com{background:#fce4ec;color:#c2185b}
+    .tb-int{background:var(--purple-light);color:var(--purple)}
+    .tb-x{background:var(--gray-2);color:var(--gray-4)}
+    /* Estado badge */
+    .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red)}
+    .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green)}
+    /* Villa cell */
+    .villa-cell{font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;color:var(--gray-5)}
+    .villa-sub{font-family:'Open Sans',sans-serif;font-size:11px;font-weight:400;color:var(--gray-4);margin-top:2px}
+    /* Desc */
+    .desc-cell{color:var(--gray-5);font-size:12px;max-width:280px}
+    .desc-more{color:var(--gray-4);font-size:11px}
+    /* Date */
+    .date-cell{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--gray-4)}
+    .date-cell.overdue{color:var(--red)}
+    .date-cell.today{color:var(--orange)}
+    /* Reserva link */
+    .res-link{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--blue);text-decoration:none;background:var(--blue-light);padding:2px 7px;border-radius:4px;white-space:nowrap}
+    .res-link:hover{filter:brightness(.9)}
+    /* Action btn */
+    .act-btn{display:inline-flex;align-items:center;gap:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;text-decoration:none;cursor:pointer;border:none;transition:filter .15s}
+    .act-btn:hover{filter:brightness(.9)}
+    .ab-edit{background:var(--gray-2);color:var(--gray-5)}
+    .ab-done{background:var(--green-light);color:var(--green)}
+    /* Debug */
+    #dbWrap{position:fixed;bottom:18px;right:18px;z-index:999}
+    #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
+    #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
+    #dbBox.open{display:block}
+    .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
+    @media(max-width:700px){th:nth-child(5),td:nth-child(5),th:nth-child(7),td:nth-child(7){display:none}}
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+</head>
+<body>
+<input type="hidden" id="mgrName">
+<script>Auth.require('tareas');</script>
+
+<header>
+  <div>
+    <div class="h-title">TAREAS</div>
+    <div class="h-sub" id="hSub"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="hBadge" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;white-space:nowrap"></span>
+    <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
+  </div>
+</header>
+
+<div id="filterPanel">
+  <div class="main-bar">
+
+    <!-- Asignado a -->
+    <div class="f-group wide" style="position:relative">
+      <label class="f-label">Asignado a</label>
+      <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+        <span id="fManagerLabel">Cargando...</span>
+        <span style="font-size:10px;color:var(--gray-4)">▾</span>
+      </button>
+      <div id="managerPanel" class="manager-panel" style="display:none">
+        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+          <input type="text" id="managerSearch" class="f-input" placeholder="Buscar..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+        </div>
+        <div id="managerList" class="manager-list"></div>
+        <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+          <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+          <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado -->
+    <div class="pill-group">
+      <span class="pill-label">Estado</span>
+      <div class="pill-opts">
+        <button class="pill-opt" id="eAll"   onclick="setEstado('all')">Todas</button>
+        <button class="pill-opt on" id="ePend"  onclick="setEstado('pend')">Pendientes</button>
+        <button class="pill-opt" id="eDone"  onclick="setEstado('done')">Terminadas</button>
+      </div>
+    </div>
+
+    <!-- Tipo -->
+    <div class="f-group narrow">
+      <label class="f-label">Tipo</label>
+      <select id="fTipo" class="f-select" onchange="scheduleSearch()">
+        <option value="">— Todos —</option>
+        <option value="10">Limpieza</option>
+        <option value="20">WelcomePack</option>
+        <option value="30">Cierre</option>
+        <option value="com">Dpto Comercial</option>
+        <option value="int">Tarea interna</option>
+      </select>
+    </div>
+
+    <!-- Desde / Hasta -->
+    <div class="f-group narrow">
+      <label class="f-label">Desde</label>
+      <input type="date" id="fDesde" class="f-input" onchange="onDesdeChange()">
+    </div>
+    <div class="f-group narrow">
+      <label class="f-label">Hasta</label>
+      <input type="date" id="fHasta" class="f-input" onchange="scheduleSearch()">
+    </div>
+
+    <!-- IdReserva -->
+    <div class="f-group narrow">
+      <label class="f-label">Id Reserva</label>
+      <input type="text" id="fReserva" class="f-input" placeholder="ej. j5oQcmp4FQ" oninput="scheduleSearch(500)">
+    </div>
+
+    <!-- Villa -->
+    <div class="f-group narrow">
+      <label class="f-label">Villa</label>
+      <input type="text" id="fVilla" class="f-input" placeholder="Buscar villa..." oninput="scheduleSearch(500)">
+    </div>
+
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros" style="align-self:flex-end;margin-bottom:2px">✕</button>
+    <button class="btn-buscar" onclick="doSearch()">BUSCAR</button>
+  </div>
+  <div id="chips"></div>
+</div>
+
+<div id="statsBar">
+  <div class="stat"><strong id="sCnt">0</strong> tareas</div>
+  <div class="stat" id="sPendStat" style="display:none"><strong id="sPendCnt" style="color:var(--red)">0</strong> pendientes</div>
+  <div class="stat" id="sDoneStat" style="display:none"><strong id="sDoneCnt" style="color:var(--green)">0</strong> terminadas</div>
+</div>
+
+<main>
+  <div id="stInit" class="state-box">
+    <div style="font-size:42px;margin-bottom:12px">📋</div>
+    <p style="font-family:Montserrat,sans-serif;font-weight:700;font-size:15px">Configura los filtros y pulsa BUSCAR</p>
+    <p style="margin-top:6px;font-size:13px">Por defecto se muestran las tareas pendientes</p>
+  </div>
+  <div id="stLoad" class="state-box" style="display:none">
+    <div class="spinner"></div><p>Cargando tareas...</p>
+  </div>
+  <div id="stErr" class="state-box" style="display:none">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
+    <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
+  </div>
+
+  <div id="tableWrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('Tasktype')" data-col="Tasktype">Tipo<span class="sort-ico"></span></th>
+          <th onclick="sortBy('villa')" data-col="villa">Villa<span class="sort-ico"></span></th>
+          <th onclick="sortBy('Tarea_terminada')" data-col="Tarea_terminada">Estado<span class="sort-ico"></span></th>
+          <th onclick="sortBy('UserID_asigned_alfanum')" data-col="UserID_asigned_alfanum">Asignado a<span class="sort-ico"></span></th>
+          <th onclick="sortBy('Taskname')" data-col="Taskname">Descripción<span class="sort-ico"></span></th>
+          <th onclick="sortBy('Data_to_be_done_fixed')" data-col="Data_to_be_done_fixed">Fecha prevista<span class="sort-ico"></span></th>
+          <th onclick="sortBy('idreserva')" data-col="idreserva">Id Reserva<span class="sort-ico"></span></th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<div id="dbWrap">
+  <button id="dbBtn" onclick="document.getElementById('dbBox').classList.toggle('open')">🐛</button>
+  <div id="dbBox">Sin datos aún.</div>
+</div>
+
+<script>
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+const U = { id:'UserID', name:'Name', email:'Email' };
+
+// ── Estado global ──
+let estadoFilter  = 'pend';
+let allUsersMap   = new Map();
+let selectedManagers = new Set();
+let allManagersList  = [];
+let currentUserId    = '';
+let villaNameMap  = {};
+let allRows       = [];   // datos crudos
+let sortCol       = 'Data_to_be_done_fixed';
+let sortDir       = 1;    // 1=asc, -1=desc
+let _searchTimer  = null;
+let _searchId     = 0;
+
+const $ = id => document.getElementById(id);
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+function fmtDate(s){
+  if (!s) return '—';
+  const d=new Date(s.includes('T')?s:s+'T00:00:00');
+  return isNaN(d)?s:d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function isActiveUser(u){
+  const s=String(u['User_Status']||'').trim().toLowerCase();
+  return ['active','activo','1','yes','sí','si','true','enabled'].includes(s);
+}
+function getManagerName(){ return ($('mgrName')||{value:''}).value||Auth.name()||'Villa Manager'; }
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const hadURL = restoreFromURL();
+    if (!hadURL) {
+      if ($('fDesde')) $('fDesde').value = todayStr();
+      if ($('fHasta')) $('fHasta').value = todayStr();
+    }
+    updateSub();
+    await Promise.allSettled([loadManagers()]);
+    setEstado(estadoFilter, false);
+    clearTimeout(_searchTimer);
+    doSearch();
+  } catch(e){ console.error('Init error:', e); }
+});
+
+window.addEventListener('pageshow', e => { if (e.persisted) doSearch(); });
+
+function updateSub(){
+  const d=($('fDesde')||{}).value||'', h=($('fHasta')||{}).value||'';
+  const el=$('hSub'); if(!el) return;
+  if(d&&h&&d!==h) el.textContent=fmtDate(d)+' → '+fmtDate(h);
+  else if(d) el.textContent=fmtDate(d);
+  else el.textContent='';
+}
+
+// ── MANAGERS ──
+async function loadManagers(){
+  const btn=$('fManagerBtn');
+  if(btn){btn.disabled=true;$('fManagerLabel').textContent='Cargando...';}
+  try{
+    const res=await fetch(Auth.url(`${WORKER}?action=data&table=TaUsers&limit=200`));
+    const json=await res.json();
+    const users=json.Result||json.result||[];
+    users.forEach(u=>allUsersMap.set(String(u[U.id]||''),String(u[U.name]||'')));
+    const myEmail=Auth.email?Auth.email():'';
+    const myUser=users.find(u=>String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
+    const myKeyholder=myUser?String(myUser['Keyholder_por_defecto']||'').trim():'';
+    if(myUser){
+      const _kpd=String(myUser['Keyholder_por_defecto']||'').trim();
+      const _uid=String(myUser[U.id]||'').trim();
+      window.__myUserAllIds=[...(new Set([_kpd,_uid].filter(Boolean)))];
+      currentUserId=_kpd||_uid;
+      if($('mgrName')) $('mgrName').value=myUser[U.name]||Auth.name()||'';
+      const el=$('hUserName'); if(el) el.textContent=(myUser[U.name]||'').split(' ')[0];
+    }
+    const managers=users.filter(u=>isActiveUser(u)&&String(u['Keyholder_por_defecto']||'').trim()!=='');
+    allManagersList=managers.map(u=>({id:String(u[U.id]||''),name:String(u[U.name]||'')}));
+    selectedManagers.clear();
+    const restored=window.__urlManagers||[];
+    if(restored.length>0){ restored.forEach(id=>selectedManagers.add(id)); }
+    else if(myKeyholder){ selectedManagers.add(myKeyholder); }
+    renderManagerList(); updateManagerBtn();
+    if(btn) btn.disabled=false;
+  }catch(e){
+    if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}
+    console.error('loadManagers:',e);
+  }
+}
+function renderManagerList(filter=''){
+  const list=$('managerList'); if(!list) return;
+  const q=filter.toLowerCase();
+  const filtered=q?allManagersList.filter(m=>m.name.toLowerCase().includes(q)):allManagersList;
+  list.innerHTML=filtered.map(m=>`
+    <div class="manager-item" onclick="toggleManager('${m.id}')">
+      <input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''} onclick="event.stopPropagation();toggleManager('${m.id}')">
+      <label for="mc_${m.id}">${m.name}</label>
+    </div>`).join('');
+}
+function filterManagerList(){ renderManagerList(($('managerSearch')||{}).value||''); }
+function toggleManager(id){
+  if(selectedManagers.has(id)) selectedManagers.delete(id); else selectedManagers.add(id);
+  renderManagerList(($('managerSearch')||{}).value||'');
+  updateManagerBtn(); scheduleSearch(300);
+}
+function selectAllManagers(){ allManagersList.forEach(m=>selectedManagers.add(m.id)); renderManagerList(); updateManagerBtn(); }
+function clearManagers(){ selectedManagers.clear(); renderManagerList(); updateManagerBtn(); }
+function updateManagerBtn(){
+  const lbl=$('fManagerLabel'); if(!lbl) return;
+  if(selectedManagers.size===0) lbl.textContent='Todos';
+  else if(selectedManagers.size===1) lbl.textContent=allUsersMap.get([...selectedManagers][0])||[...selectedManagers][0];
+  else lbl.textContent=`${selectedManagers.size} seleccionados`;
+}
+function toggleManagerPanel(e){
+  e&&e.stopPropagation();
+  const panel=$('managerPanel'),btn=$('fManagerBtn'); if(!panel||!btn) return;
+  if(panel.style.display!=='none'){panel.style.display='none';return;}
+  const rect=btn.getBoundingClientRect();
+  panel.style.top=`${rect.bottom+4}px`;panel.style.left=`${rect.left}px`;panel.style.width=`${rect.width}px`;
+  panel.style.display='flex'; renderManagerList();
+  if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}
+}
+document.addEventListener('click',e=>{
+  const panel=$('managerPanel'),btn=$('fManagerBtn');
+  if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target)) panel.style.display='none';
+});
+window.addEventListener('scroll',e=>{
+  const panel=$('managerPanel');
+  if(!panel||panel.style.display==='none'||panel.contains(e.target)) return;
+  panel.style.display='none';
+},true);
+window.addEventListener('resize',()=>{
+  const panel=$('managerPanel'),btn=$('fManagerBtn');
+  if(panel&&panel.style.display!=='none'&&btn){
+    const rect=btn.getBoundingClientRect();
+    panel.style.top=`${rect.bottom+4}px`;panel.style.left=`${rect.left}px`;panel.style.width=`${rect.width}px`;
+  }
+});
+
+// ── FILTROS ──
+function setEstado(mode, doSch=true){
+  estadoFilter=mode;
+  ['eAll','ePend','eDone'].forEach(id=>{
+    const el=$(id); if(!el) return;
+    el.classList.toggle('on',
+      (id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done'));
+  });
+  if(doSch) scheduleSearch();
+}
+function onDesdeChange(){
+  const d=($('fDesde')||{}).value||'';
+  const h=$('fHasta'); if(h){h.min=d;if(h.value&&h.value<d)h.value=d;}
+  updateSub(); scheduleSearch();
+}
+function clearAll(){
+  clearManagers();
+  if($('fDesde')) $('fDesde').value=todayStr();
+  if($('fHasta')) $('fHasta').value=todayStr();
+  if($('fReserva')) $('fReserva').value='';
+  if($('fVilla'))   $('fVilla').value='';
+  if($('fTipo'))    $('fTipo').value='';
+  setEstado('pend',false);
+  updateSub(); renderChips(); doSearch();
+}
+function scheduleSearch(d){ clearTimeout(_searchTimer); _searchTimer=setTimeout(doSearch,d||0); }
+
+// ── WHERE ──
+function buildWhere(){
+  const parts=[];
+  const desde=($('fDesde')||{}).value||'';
+  const hasta=($('fHasta')||{}).value||desde;
+  const reserva=(($('fReserva')||{}).value||'').trim();
+  const tipo=($('fTipo')||{}).value||'';
+
+  // Asignado a
+  if(selectedManagers.size>0){
+    const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');
+    parts.push(selectedManagers.size===1
+      ?`UserID_asigned_alfanum='${[...selectedManagers][0]}'`
+      :`UserID_asigned_alfanum IN (${ids})`);
+  }
+
+  // Estado
+  if(estadoFilter==='pend') parts.push(`(Tarea_terminada=false OR Tarea_terminada IS NULL)`);
+  else if(estadoFilter==='done') parts.push(`Tarea_terminada=true`);
+
+  // Fechas (sobre Data_to_be_done_fixed)
+  if(desde) parts.push(`Data_to_be_done_fixed>='${desde}T00:00:00'`);
+  if(hasta) parts.push(`Data_to_be_done_fixed<='${hasta}T23:59:59'`);
+
+  // Tipo
+  if(tipo==='10') parts.push(`Tasktype_booking=10`);
+  else if(tipo==='20') parts.push(`Tasktype_booking=20`);
+  else if(tipo==='30') parts.push(`Tasktype_booking=30`);
+  else if(tipo==='com') parts.push(`Tasktype='Dpto Comercial'`);
+  else if(tipo==='int') parts.push(`Tasktype='Tarea interna'`);
+
+  // Reserva
+  if(reserva) parts.push(`idreserva LIKE '%${reserva}%'`);
+
+  return parts.length?parts.join(' AND '):'';
+}
+
+// ── CHIPS ──
+function renderChips(){
+  const chips=[];
+  if(selectedManagers.size>0){
+    const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');
+    chips.push({label:selectedManagers.size===1?`Asignado: ${names}`:`Asignados: ${names}`,clear:()=>{clearManagers();}});
+  }
+  const d=($('fDesde')||{}).value||'',h=($('fHasta')||{}).value||'';
+  if(d) chips.push({label:`Desde: ${fmtDate(d)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});
+  if(h) chips.push({label:`Hasta: ${fmtDate(h)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});
+  const res=(($('fReserva')||{}).value||'').trim();
+  if(res) chips.push({label:`Reserva: ${res}`,clear:()=>{if($('fReserva'))$('fReserva').value=''}});
+  const villa=(($('fVilla')||{}).value||'').trim();
+  if(villa) chips.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});
+  const tipo=($('fTipo')||{}).value||'';
+  const tipoLabels={'10':'Limpieza','20':'WelcomePack','30':'Cierre','com':'Dpto Comercial','int':'Tarea interna'};
+  if(tipo) chips.push({label:`Tipo: ${tipoLabels[tipo]||tipo}`,clear:()=>{if($('fTipo'))$('fTipo').value=''}});
+  if(estadoFilter!=='all') chips.push({label:estadoFilter==='pend'?'Pendientes':'Terminadas',clear:()=>setEstado('all')});
+  window.__chips=chips;
+  const wrap=$('chips');
+  if(wrap) wrap.innerHTML=chips.map((c,i)=>
+    `<span class="chip-filter">${c.label} <button onclick="window.__chips[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');
+}
+
+// ── SEARCH ──
+async function doSearch(){
+  const myId=++_searchId;
+  updateSub(); renderChips(); saveToURL();
+
+  if($('tableWrap')) $('tableWrap').style.display='none';
+  if($('stInit'))    $('stInit').style.display='none';
+  if($('stLoad'))    $('stLoad').style.display='block';
+  if($('stErr'))     $('stErr').style.display='none';
+  if($('statsBar'))  $('statsBar').style.display='none';
+  if($('hBadge'))    $('hBadge').textContent='';
+
+  const where=buildWhere();
+  const qs=where?`&where=${encodeURIComponent(where)}`:'';
+  const url=`${WORKER}?action=data&table=TaTasks${qs}&limit=500`;
+
+  try{
+    const res=await fetch(Auth.url(url));
+    if(myId!==_searchId) return;
+    const json=await res.json();
+    if(json.error) throw new Error(json.error);
+    let tasks=json.Result||json.result||[];
+    if(myId!==_searchId) return;
+
+    $('dbBox').textContent=`WHERE:\n${where||'(sin filtros)'}\n\nResultados: ${tasks.length}\n\nPrimera tarea:\n${JSON.stringify(tasks[0]||{},null,2)}`;
+
+    // Filtro villa client-side
+    const villaQ=(($('fVilla')||{}).value||'').trim().toLowerCase();
+    if(villaQ){
+      tasks=tasks.filter(t=>(String(t.villaid||'').toLowerCase().includes(villaQ)));
+    }
+
+    // Cargar nombres de villas
+    const vIds=[...new Set(tasks.map(t=>t.villaid).filter(Boolean))];
+    if(vIds.length){
+      try{
+        const vWhere=vIds.length===1?`villaid=${vIds[0]}`:vIds.map(id=>`villaid=${id}`).join(' OR ');
+        const vRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));
+        const vJson=await vRes.json();
+        (vJson.Result||vJson.result||[]).forEach(v=>{
+          villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);
+        });
+      }catch(e){console.warn('Villas:',e.message);}
+    }
+
+    allRows=tasks;
+    renderTable();
+  }catch(err){
+    if(myId!==_searchId) return;
+    if($('stLoad')) $('stLoad').style.display='none';
+    if($('stErr'))  $('stErr').style.display='block';
+    if($('errMsg')) $('errMsg').textContent=err.message;
+    $('dbBox').textContent='Error:\n'+err.message;
+  }
+}
+
+// ── SORT ──
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  document.querySelectorAll('th[data-col]').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.col===col) th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+  });
+  renderTable();
+}
+
+// ── RENDER ──
+function getTypeBadge(t){
+  const tb=Number(t.Tasktype_booking);
+  if(tb===10) return `<span class="type-badge tb-10">🧹 Limpieza</span>`;
+  if(tb===20) return `<span class="type-badge tb-20">🎁 WelcomePack</span>`;
+  if(tb===30) return `<span class="type-badge tb-30">🔒 Cierre</span>`;
+  const tt=String(t.Tasktype||'').trim();
+  if(tt.toLowerCase().includes('comercial')) return `<span class="type-badge tb-com">💼 Dpto Comercial</span>`;
+  if(tt.toLowerCase().includes('interna'))   return `<span class="type-badge tb-int">⚙️ Interna</span>`;
+  if(tt) return `<span class="type-badge tb-x">${tt}</span>`;
+  return `<span class="type-badge tb-x">—</span>`;
+}
+
+function getDateCell(t){
+  const raw=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+  if(!raw) return '<span class="date-cell">—</span>';
+  const d=new Date(raw+'T00:00:00');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  let cls='date-cell';
+  if(diff<0) cls+=' overdue';
+  else if(diff===0) cls+=' today';
+  const label=diff===0?'Hoy':diff===-1?'Ayer':diff===1?'Mañana':fmtDate(raw);
+  return `<span class="${cls}">${label}</span>`;
+}
+
+function renderTable(){
+  if($('stLoad')) $('stLoad').style.display='none';
+
+  const sorted=[...allRows].sort((a,b)=>{
+    let av=a[sortCol]||'', bv=b[sortCol]||'';
+    if(sortCol==='Tarea_terminada'){ av=a.Tarea_terminada?1:0; bv=b.Tarea_terminada?1:0; }
+    if(sortCol==='Data_to_be_done_fixed'){ av=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999'; bv=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999'; }
+    if(sortCol==='villa'){ av=villaNameMap[a.villaid]||String(a.villaid||''); bv=villaNameMap[b.villaid]||String(b.villaid||''); }
+    return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
+  });
+
+  const pend=sorted.filter(t=>!t.Tarea_terminada).length;
+  const done=sorted.filter(t=>t.Tarea_terminada).length;
+  if($('sCnt'))    $('sCnt').textContent=sorted.length;
+  if($('sPendCnt'))$('sPendCnt').textContent=pend;
+  if($('sDoneCnt'))$('sDoneCnt').textContent=done;
+  if($('sPendStat'))$('sPendStat').style.display=pend>0?'flex':'none';
+  if($('sDoneStat'))$('sDoneStat').style.display=done>0?'flex':'none';
+  if($('statsBar')) $('statsBar').style.display='flex';
+  if($('hBadge'))   $('hBadge').textContent=`${sorted.length} tareas`;
+
+  if(!sorted.length){
+    if($('tableWrap')) $('tableWrap').style.display='block';
+    if($('tbody')) $('tbody').innerHTML=`<tr class="empty-row"><td colspan="8">🏖️ Sin tareas para los filtros seleccionados</td></tr>`;
+    return;
+  }
+
+  const tbody=$('tbody'); if(!tbody) return;
+
+  const today=new Date(); today.setHours(0,0,0,0);
+
+  tbody.innerHTML=sorted.map(t=>{
+    const vid=t.villaid||'';
+    const villaName=villaNameMap[vid]||(vid?`Villa ${vid}`:'—');
+    const isDone=t.Tarea_terminada===true||t.Tarea_terminada===1||t.Tarea_terminada===-1;
+    const estadoBadge=isDone
+      ?`<span class="est-done">✓ Terminada</span>`
+      :`<span class="est-pend">● Pendiente</span>`;
+    const assignedName=allUsersMap.get(String(t.UserID_asigned_alfanum||''))||t.UserID_asigned_alfanum||'—';
+    const desc=(t.Taskname||t.Taskdescription||'').trim();
+    const descShort=desc.length>80?desc.slice(0,80)+'…':desc;
+    const reserva=t.idreserva||t.Idreserva||t.IdReserva||'';
+    const urlEdit=reserva
+      ?`https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=${reserva}&cbResetParam=1`
+      :'';
+
+    // Fila con color de fondo si está atrasada y pendiente
+    let rowStyle='';
+    const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+    if(!isDone&&rawDate){
+      const d=new Date(rawDate+'T00:00:00');
+      const diff=Math.round((d-today)/86400000);
+      if(diff<0) rowStyle='background:#fff5f5';
+      else if(diff===0) rowStyle='background:#fffbf0';
+    }
+
+    return `<tr style="${rowStyle}">
+      <td>${getTypeBadge(t)}</td>
+      <td>
+        <div class="villa-cell">${villaName}</div>
+        <div class="villa-sub">${vid?`ID: ${vid}`:''}</div>
+      </td>
+      <td>${estadoBadge}</td>
+      <td style="font-size:12px;color:var(--gray-5)">${assignedName}</td>
+      <td class="desc-cell">${descShort||'<span style="color:var(--gray-3)">(sin descripción)</span>'}</td>
+      <td>${getDateCell(t)}</td>
+      <td>${reserva?`<a class="res-link" href="javascript:void(0)" onclick="popup('https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${reserva}')">${reserva}</a>`:'—'}</td>
+      <td style="white-space:nowrap">
+        ${urlEdit?`<a class="act-btn ab-edit" href="javascript:void(0)" onclick="popup('${urlEdit}')">✎ Ver</a>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  if($('tableWrap')) $('tableWrap').style.display='block';
+}
+
+function popup(url,w,h){
+  if(!url) return;
+  w=w||900;h=h||700;
+  window.open(url,'taskpopup',`width=${w},height=${h},left=${Math.round((screen.width-w)/2)},top=${Math.round((screen.height-h)/2)},resizable=yes,scrollbars=yes`);
+}
+
+// ── URL PARAMS ──
+function saveToURL(){
+  const p=new URLSearchParams();
+  const d=($('fDesde')||{}).value||'',h=($('fHasta')||{}).value||'';
+  const res=($('fReserva')||{}).value||'',villa=($('fVilla')||{}).value||'';
+  const tipo=($('fTipo')||{}).value||'';
+  if(d) p.set('desde',d); if(h) p.set('hasta',h);
+  if(selectedManagers.size) p.set('mgr',[...selectedManagers].join(','));
+  if(estadoFilter!=='pend') p.set('estado',estadoFilter);
+  if(tipo) p.set('tipo',tipo);
+  if(res) p.set('res',res);
+  if(villa) p.set('villa',villa);
+  history.replaceState(null,'',p.toString()?'?'+p.toString():location.pathname);
+}
+function restoreFromURL(){
+  const p=new URLSearchParams(location.search);
+  const keys=['desde','hasta','mgr','estado','tipo','res','villa'];
+  if(!keys.some(k=>p.has(k))) return false;
+  if(p.has('desde')&&$('fDesde')) $('fDesde').value=p.get('desde');
+  if(p.has('hasta')&&$('fHasta')) $('fHasta').value=p.get('hasta');
+  if(p.has('res')&&$('fReserva')) $('fReserva').value=p.get('res');
+  if(p.has('villa')&&$('fVilla')) $('fVilla').value=p.get('villa');
+  if(p.has('tipo')&&$('fTipo'))   $('fTipo').value=p.get('tipo');
+  if(p.has('mgr')) window.__urlManagers=p.get('mgr').split(',').filter(Boolean);
+  if(p.has('estado')) estadoFilter=p.get('estado');
+  return true;
+}
+</script>
+</body>
+</html>
