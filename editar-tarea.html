@@ -115,9 +115,9 @@
     .photo-slot.has-img .ps-empty-state{display:none!important}
 
     /* Con foto: grande, ratio 4:3 */
-    .photo-slot.has-img{aspect-ratio:4/3;min-height:90px;border:none;display:block;position:relative}
-    .ps-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.0) 50%,rgba(0,0,0,.5));border-radius:12px;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;opacity:0;transition:opacity .2s}
-    .photo-slot.has-img:hover .ps-overlay{opacity:1}
+    .photo-slot.has-img{aspect-ratio:4/3;min-height:90px;border:none;display:block;position:relative;border-radius:12px;overflow:hidden}
+    .ps-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.0) 50%,rgba(0,0,0,.5));border-radius:12px;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;opacity:0;transition:opacity .2s;pointer-events:none}
+    .photo-slot.has-img:hover .ps-overlay{opacity:1;pointer-events:auto}
     .ps-del{background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
     .ps-new-badge{position:absolute;top:6px;left:6px;background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 6px;border-radius:6px;pointer-events:none}
     .ps-ro-badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.5);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 6px;border-radius:6px;pointer-events:none}
@@ -479,7 +479,7 @@ function populateForm(){
     var res=t.Idreserva||t.idreserva||paramRes;
     if(villa) parts.push(villa);
     if(res)   parts.push('Reserva: '+res);
-    parts.push('#'+taskId);
+    parts.push('Tarea '+taskId);
     g('infoPill').innerHTML=parts.map(function(p){ return '<strong>'+p+'</strong>'; }).join(' · ');
   }
   g('fNombre').value=nombre;
@@ -574,24 +574,24 @@ function renderSlot(type,idx){
   var store=(type==='before'?beforePhotos:afterPhotos)[idx];
   var displayUrl=store.preview||(store.deleted?'':store.url);
 
-  // Limpiar img anterior
-  var oldImg=slot.querySelector('img'); if(oldImg) oldImg.remove();
-
   if(displayUrl){
-    var img=document.createElement('img');
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;pointer-events:none;display:block';
-    img.alt='';
-    // Si la URL falla, volver al estado vacío
-    img.onerror=function(){
-      img.remove();
+    // Usar background-image para evitar problemas de z-index con position:absolute
+    slot.style.backgroundImage='url("'+displayUrl+'")';
+    slot.style.backgroundSize='cover';
+    slot.style.backgroundPosition='center';
+    slot.style.backgroundRepeat='no-repeat';
+    slot.classList.add('has-img'); slot.classList.remove('empty');
+    var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display=store.file?'block':'none';
+    // Detectar error de carga via img auxiliar
+    var testImg=new Image();
+    testImg.onerror=function(){
+      slot.style.backgroundImage='';
       slot.classList.remove('has-img'); slot.classList.add('empty');
       var nb2=slot.querySelector('.ps-new-badge'); if(nb2) nb2.style.display='none';
     };
-    img.src=displayUrl; // asignar src DESPUÉS del onerror
-    slot.insertBefore(img, slot.firstChild);
-    slot.classList.add('has-img'); slot.classList.remove('empty');
-    var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display=store.file?'block':'none';
+    testImg.src=displayUrl;
   } else {
+    slot.style.backgroundImage='';
     slot.classList.remove('has-img'); slot.classList.add('empty');
     var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display='none';
   }
