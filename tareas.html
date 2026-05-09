@@ -480,8 +480,8 @@
       var ids=keys.map(function(id){return"'"+id+"'";}).join(',');
       parts.push(keys.length===1?"UserID_asigned_alfanum='"+keys[0]+"'":'UserID_asigned_alfanum IN ('+ids+')');
     }
+    // Solo filtrar desde en servidor (hasta client-side para no excluir tareas sin fecha)
     if(desde) parts.push("Data_to_be_done_fixed>='"+desde+"T00:00:00'");
-    if(hasta) parts.push("Data_to_be_done_fixed<='"+hasta+"T23:59:59'");
     if(bt)    parts.push('Tasktype_booking='+bt);
     if(tt)    parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
     if(reserva) parts.push("idreserva LIKE '%"+reserva+"%'");
@@ -533,7 +533,7 @@
     g('statsBar').style.display='none';  if(g('hCount'))g('hCount').textContent='';
     var where=buildWhere();
     var qs=where?'&where='+encodeURIComponent(where):'';
-    var url=WORKER+'?action=data&table=TaTasks'+qs+'&limit=500';
+    var url=WORKER+'?action=data&table=TaTasks'+qs+'&limit=1000';
     fetch(Auth.url(url))
       .then(function(r){ return r.json(); })
       .then(function(json){
@@ -632,10 +632,17 @@
     g('stLoad').style.display='none';
     var today=new Date(); today.setHours(0,0,0,0);
 
+    var hastaVal=val('fHasta');
     var filtered=allRows.filter(function(t){
       if(estadoFilter==='pend') return !isDone(t);
       if(estadoFilter==='done') return  isDone(t);
       return true;
+    }).filter(function(t){
+      // Filtro hasta en cliente: tareas sin fecha siempre pasan
+      if(!hastaVal) return true;
+      var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+      if(!rawD) return true; // sin fecha → siempre visible
+      return rawD.split('T')[0]<=hastaVal;
     }).map(function(t){
       return Object.assign({},t,{
         _villaName: villaNameMap[String(t.villaid||'')]||String(t.villaid||''),
