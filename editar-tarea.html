@@ -102,20 +102,25 @@
     .photos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 
     /* Slot vacío vs con foto */
-    .photo-slot{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s}
 
     /* Vacío: compacto, dos botones */
-    /* Slot vacío: compacto */
-    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;align-items:center;justify-content:center;gap:6px;height:64px;padding:0 8px}
-    .photo-slot.empty:hover{border-color:var(--red);background:var(--red-light)}
-    /* Botones de icono en slot vacío */
-    .ps-icon-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;padding:8px 14px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;flex:1}
-    .ps-icon-btn:hover{border-color:var(--red);background:var(--red-light);transform:scale(1.06)}
-    /* Ocultar estado vacío cuando hay imagen */
-    .photo-slot.has-img .ps-empty-state{display:none!important}
+    /* ── Nueva sección fotos: galería + botones separados ── */
+    .photo-gallery{display:flex;flex-wrap:wrap;gap:8px;min-height:0}
+    .photo-thumb{position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;background:var(--gray-2)}
+    .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .photo-thumb .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:0;transition:opacity .15s}
+    .photo-thumb:hover .pt-del{opacity:1}
+    .photo-thumb .pt-new{position:absolute;bottom:4px;left:4px;background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;display:none}
+    .photo-thumb.is-new .pt-new{display:block}
+    /* Botones añadir foto */
+    .photo-add-row{display:flex;gap:8px;margin-top:8px}
+    .add-photo-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;border:1.5px solid var(--gray-2);border-radius:10px;background:#fff;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-5);transition:all .15s}
+    .add-photo-btn:hover{border-color:var(--red);background:var(--red-light);color:var(--red)}
+    .add-photo-btn .ab-ico{font-size:20px;line-height:1}
+    .add-photo-btn .ab-ico-file{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:2px solid currentColor;border-radius:4px;font-size:11px;font-weight:900;flex-shrink:0}
+    .photo-count{font-size:11px;color:var(--gray-4);margin-top:4px;text-align:right;font-family:'Montserrat',sans-serif;font-weight:600}
 
     /* Con foto: grande, ratio 4:3 */
-    .photo-slot.has-img{aspect-ratio:4/3;min-height:90px;border:none;display:block;position:relative;border-radius:12px;overflow:hidden}
     .ps-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.0) 50%,rgba(0,0,0,.5));border-radius:12px;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;opacity:0;transition:opacity .2s;pointer-events:none}
     .photo-slot.has-img:hover .ps-overlay{opacity:1;pointer-events:auto}
     .ps-del{background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
@@ -212,11 +217,6 @@
   <!-- Formulario -->
   <div id="formWrap" style="display:none;flex-direction:column;gap:12px">
 
-    <!-- Contexto -->
-    <div class="card"><div class="card-body" style="padding:10px 14px">
-      <div class="info-pill" id="infoPill">—</div>
-    </div></div>
-
     <!-- ① RESOLUCIÓN (arriba del todo) -->
     <div class="card card-resolucion">
       <div class="card-head">
@@ -309,7 +309,14 @@
             <span style="width:8px;height:8px;border-radius:50%;background:var(--gray-3);display:inline-block;flex-shrink:0"></span>
             Fotos antes
           </div>
-          <div class="photos-grid" id="photosBeforeGrid"></div>
+          <div class="photo-gallery" id="beforeGallery"></div>
+          <div class="photo-add-row" id="beforeAddRow">
+            <button class="add-photo-btn" id="beforeCamBtn" type="button"><span class="ab-ico">📷</span> Cámara</button>
+            <button class="add-photo-btn" id="beforeFileBtn" type="button"><span class="ab-ico-file">📂</span> Archivo</button>
+          </div>
+          <input type="file" id="beforeCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="beforeFileInp" accept="image/*" style="display:none">
+          <p class="photo-count" id="beforeCount"></p>
         </div>
 
         <hr class="photo-divider">
@@ -320,7 +327,14 @@
             <span style="width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;flex-shrink:0"></span>
             Fotos después
           </div>
-          <div class="photos-grid" id="photosAfterGrid"></div>
+          <div class="photo-gallery" id="afterGallery"></div>
+          <div class="photo-add-row" id="afterAddRow">
+            <button class="add-photo-btn" id="afterCamBtn" type="button"><span class="ab-ico">📷</span> Cámara</button>
+            <button class="add-photo-btn" id="afterFileBtn" type="button"><span class="ab-ico-file">📂</span> Archivo</button>
+          </div>
+          <input type="file" id="afterCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="afterFileInp" accept="image/*" style="display:none">
+          <p class="photo-count" id="afterCount"></p>
         </div>
       </div>
     </div>
@@ -366,264 +380,102 @@ var BEFORE_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfar
 var AFTER_FIELDS  = ['Picture_cloudfare_after1','Picture_cloudfare_after2','Picture_cloudfare_after3','Picture_cloudfare_after4','Picture_cloudfare_after5'];
 
 /* Estado fotos: {file, url, deleted, preview} */
-var beforePhotos = [0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
-var afterPhotos  = [0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+// ── Estado fotos: arrays de {file, url, deleted, preview} ──
+var beforePhotos=[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
 
-var myUserName='', taskData=null;
-var urlP   = new URLSearchParams(window.location.search);
-var taskId = (urlP.get('taskid')||'').trim();
-var paramRes=(urlP.get('Idreserva')||'').trim();
-var isSaving=false, isTerminada=false;
-
-function g(id){ return document.getElementById(id); }
-function pad(n){ return String(n).padStart(2,'0'); }
-function today(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
-
-/* ── Toast ── */
-var _toastT;
-function toast(msg, type){
-  var el=g('toast'); el.textContent=msg; el.className='show '+(type||'');
-  clearTimeout(_toastT); _toastT=setTimeout(function(){ el.className=''; },4000);
+// ── Iniciar sección fotos ──
+function initPhotos(){
+  // Botones ANTES
+  g('beforeCamBtn').onclick=function(){ g('beforeCamInp').value=''; g('beforeCamInp').click(); };
+  g('beforeFileBtn').onclick=function(){ g('beforeFileInp').value=''; g('beforeFileInp').click(); };
+  g('beforeCamInp').onchange=function(e){ if(e.target.files&&e.target.files[0]) addPhoto('before',e.target.files[0]); };
+  g('beforeFileInp').onchange=function(e){ if(e.target.files&&e.target.files[0]) addPhoto('before',e.target.files[0]); };
+  // Botones DESPUÉS
+  g('afterCamBtn').onclick=function(){ g('afterCamInp').value=''; g('afterCamInp').click(); };
+  g('afterFileBtn').onclick=function(){ g('afterFileInp').value=''; g('afterFileInp').click(); };
+  g('afterCamInp').onchange=function(e){ if(e.target.files&&e.target.files[0]) addPhoto('after',e.target.files[0]); };
+  g('afterFileInp').onchange=function(e){ if(e.target.files&&e.target.files[0]) addPhoto('after',e.target.files[0]); };
 }
 
-/* ── Lightbox ── */
-window.openLightbox=function(src){ if(!src) return; g('lbImg').src=src; g('lightbox').classList.add('open'); };
-window.closeLightbox=function(){ g('lightbox').classList.remove('open'); };
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') window.closeLightbox(); });
-
-/* ── Terminada toggle ── */
-function setTerminada(val){
-  isTerminada=!!val;
-  var row=g('ttRow'), circle=g('ttCircle'), text=g('ttText');
-  if(isTerminada){
-    row&&row.classList.add('on');
-    if(circle) circle.textContent='✓';
-    if(text) text.textContent='Tarea terminada ✓';
-  } else {
-    row&&row.classList.remove('on');
-    if(circle) circle.textContent='';
-    if(text) text.textContent='Marcar como terminada';
-  }
-  updateHeaderStatus();
-}
-window.toggleTerminada=function(){ setTerminada(!isTerminada); };
-function updateHeaderStatus(){
-  var s=g('hStatus'), h=g('mainHeader');
-  if(!s) return;
-  if(isTerminada){ s.textContent='✅ Terminada'; s.className='h-status done'; if(h) h.style.background='var(--green-dark)'; }
-  else           { s.textContent='⏳ Pendiente'; s.className='h-status pend'; if(h) h.style.background='var(--red)'; }
+function addPhoto(type, file){
+  var store=type==='before'?beforePhotos:afterPhotos;
+  var idx=store.findIndex(function(p){ return !p.file&&!p.url&&!p.deleted; });
+  if(idx===-1){ toast('Máximo 5 fotos por sección','err'); return; }
+  store[idx].file=file; store[idx].deleted=false;
+  var r=new FileReader(); r.onload=function(e){ store[idx].preview=e.target.result; renderGallery(type); }; r.readAsDataURL(file);
 }
 
-/* ── INIT ── */
-document.addEventListener('DOMContentLoaded',function(){
-  myUserName=Auth.name?Auth.name():'';
-  if(!taskId){ showErr('Falta el parámetro <strong>taskid</strong> en la URL.'); return; }
-  buildGrid('photosBeforeGrid', beforePhotos, BEFORE_FIELDS, 'Antes');
-  buildGrid('photosAfterGrid',  afterPhotos,  AFTER_FIELDS,  'Después');
-  initMic();
-  g('btnCerrar').addEventListener('click',    function(){ submitForm(true); });
-  g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
-  g('btnSaveBar').addEventListener('click',   function(){ submitForm(false); });
-  Promise.all([loadUsers(), loadTask()])
-    .then(function(){ populateForm(); g('stLoad').style.display='none'; g('formWrap').style.display='flex'; g('saveBar').style.display='flex'; })
-    .catch(function(e){ showErr(e.message||'Error cargando tarea'); });
-});
-
-function showErr(msg){ g('stLoad').style.display='none'; g('stErr').style.display='block'; if(g('errMsg')) g('errMsg').innerHTML=msg; }
-
-/* ── Carga tarea + villa ── */
-function loadTask(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(PK+'='+taskId)+'&limit=1'))
-    .then(function(r){ return r.json(); })
-    .then(function(json){
-      var rows=json.Result||json.result||[];
-      if(!rows.length) throw new Error('Tarea no encontrada (taskid='+taskId+')');
-      taskData=rows[0];
-      var vid=taskData.villaid;
-      if(vid && parseInt(vid)>0){
-        return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid='+parseInt(vid)+'&limit=1'))
-          .then(function(r){ return r.json(); })
-          .then(function(j){
-            var v=(j.Result||j.result||[])[0];
-            if(v) taskData._villaName=v.Name_villa_para_inquilinos||v.Name||'';
-          }).catch(function(){});
-      }
-    });
+function removePhoto(type, idx){
+  var store=type==='before'?beforePhotos:afterPhotos;
+  store[idx]={file:null,url:'',deleted:true,preview:''};
+  renderGallery(type);
 }
 
-/* ── Carga usuarios ── */
-function loadUsers(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
-    .then(function(r){ return r.json(); })
-    .then(function(json){
-      var users=json.Result||json.result||[];
-      var active=users.filter(function(u){
-        var s=u['User_Status'];
-        return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1;
-      });
-      var sel=g('fAsignado');
-      sel.innerHTML=active.map(function(u){ return '<option value="'+u.UserID+'">'+u.Name+'</option>'; }).join('');
-    });
-}
+function renderGallery(type){
+  var store=type==='before'?beforePhotos:afterPhotos;
+  var galleryEl=g(type==='before'?'beforeGallery':'afterGallery');
+  var addRow=g(type==='before'?'beforeAddRow':'afterAddRow');
+  var countEl=g(type==='before'?'beforeCount':'afterCount');
+  if(!galleryEl) return;
 
-/* ── Popular formulario ── */
-function populateForm(){
-  if(!taskData) return;
-  var t=taskData;
-  var nombre=t[F.nombre]||'';
-  var villa=t._villaName||'';
-  g('hTitle').textContent=nombre||'Editar Tarea';
-  if(villa) g('hVilla').textContent='📍 '+villa;
-  if(g('infoPill')){
-    var parts=[];
-    var res=t.Idreserva||t.idreserva||paramRes;
-    if(villa) parts.push(villa);
-    if(res)   parts.push('Reserva: '+res);
-    parts.push('Tarea '+taskId);
-    g('infoPill').innerHTML=parts.map(function(p){ return '<strong>'+p+'</strong>'; }).join(' · ');
-  }
-  g('fNombre').value=nombre;
-  g('fDesc').value=t[F.descripcion]||'';
-  g('fNotas').value=t[F.notas]||'';
-  g('fSolucion').value=t[F.solucion]||'';
-  var rf=t[F.fecha]||t.Data_to_be_done||'';
-  g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
-  setSelectVal('fAsignado', String(t[F.asignado]||''));
-  setTerminada(isTruthy(t[F.terminada]));
-  /* Fotos antes */
-  BEFORE_FIELDS.forEach(function(field,idx){ var url=t[field]||''; if(url){ beforePhotos[idx].url=url; renderSlot('before',idx); }});
-  /* Fotos después */
-  AFTER_FIELDS.forEach(function(field,idx){ var url=t[field]||''; if(url){ afterPhotos[idx].url=url; renderSlot('after',idx); }});
-}
-
-function setSelectVal(id,val){
-  var sel=g(id); if(!sel) return;
-  for(var i=0;i<sel.options.length;i++){ if(String(sel.options[i].value)===String(val)){ sel.selectedIndex=i; return; } }
-}
-function isTruthy(v){
-  if(v===null||v===undefined||v==='') return false;
-  if(typeof v==='boolean') return v;
-  if(typeof v==='number') return v!==0;
-  return !['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase());
-}
-
-/* ── Grid de fotos ── */
-function buildGrid(gridId, store, fields, label){
-  var grid=g(gridId); if(!grid) return;
-  grid.innerHTML='';
-  for(var i=0;i<5;i++) grid.appendChild(makeSlot(gridId==='photosBeforeGrid'?'before':'after', i, label));
-}
-
-function makeSlot(type, idx, label){
-  var slot=document.createElement('div');
-  slot.id=(type==='before'?'bslot_':'aslot_')+idx;
-  slot.className='photo-slot empty';
-
-  // Inputs ocultos
-  var inpCam=document.createElement('input'); inpCam.type='file'; inpCam.accept='image/*'; inpCam.setAttribute('capture','environment'); inpCam.style.display='none';
-  var inpFile=document.createElement('input'); inpFile.type='file'; inpFile.accept='image/*'; inpFile.style.display='none';
-  inpCam.addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) pickPhoto(type,idx,e.target.files[0]); });
-  inpFile.addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) pickPhoto(type,idx,e.target.files[0]); });
-  slot.appendChild(inpCam);
-  slot.appendChild(inpFile);
-
-  // Estado vacío: dos botones de icono
-  var emptyDiv=document.createElement('div'); emptyDiv.className='ps-empty-state'; emptyDiv.style.cssText='display:flex;gap:6px;width:100%;';
-  var btnCam=document.createElement('button'); btnCam.type='button'; btnCam.className='ps-icon-btn'; btnCam.textContent='📷'; btnCam.title='Hacer foto';
-  var btnFile=document.createElement('button'); btnFile.type='button'; btnFile.className='ps-icon-btn'; btnFile.textContent='📎'; btnFile.title='Subir archivo';
-  btnCam.addEventListener('click',function(e){ e.stopPropagation(); inpCam.value=''; inpCam.click(); });
-  btnFile.addEventListener('click',function(e){ e.stopPropagation(); inpFile.value=''; inpFile.click(); });
-  emptyDiv.appendChild(btnCam); emptyDiv.appendChild(btnFile);
-  slot.appendChild(emptyDiv);
-
-  // Overlay eliminar
-  var overlay=document.createElement('div'); overlay.className='ps-overlay';
-  var delBtn=document.createElement('button'); delBtn.type='button'; delBtn.className='ps-del'; delBtn.textContent='✕ Eliminar';
-  delBtn.addEventListener('click',function(e){ e.stopPropagation(); clearPhoto(type,idx); });
-  overlay.appendChild(delBtn); slot.appendChild(overlay);
-
-  // Spinner + badge nueva
-  var spin=document.createElement('div'); spin.className='ps-spinner'; spin.innerHTML='<div class="sp"></div>'; slot.appendChild(spin);
-  var nb=document.createElement('span'); nb.className='ps-new-badge'; nb.style.display='none'; nb.textContent='NUEVA'; slot.appendChild(nb);
-
-  // Clic en foto → lightbox
-  slot.addEventListener('click',function(e){
-    if(slot.classList.contains('has-img')&&!e.target.classList.contains('ps-del')){
-      var st=(type==='before'?beforePhotos:afterPhotos)[idx];
-      openLightbox(st.preview||st.url);
-    }
+  galleryEl.innerHTML='';
+  var filled=0;
+  store.forEach(function(p,idx){
+    var displayUrl=p.preview||(p.deleted?'':p.url);
+    if(!displayUrl) return;
+    filled++;
+    var thumb=document.createElement('div'); thumb.className='photo-thumb'+(p.file?' is-new':'');
+    // Usar img tag con src directo
+    var img=document.createElement('img'); img.alt='';
+    img.onerror=function(){ thumb.remove(); };
+    img.src=displayUrl;
+    thumb.appendChild(img);
+    // Badge NUEVA
+    var nb=document.createElement('span'); nb.className='pt-new'; nb.textContent='NUEVA'; thumb.appendChild(nb);
+    // Botón eliminar
+    var del=document.createElement('button'); del.type='button'; del.className='pt-del'; del.textContent='✕ Quitar';
+    (function(i){ del.onclick=function(e){ e.stopPropagation(); removePhoto(type,i); }; })(idx);
+    thumb.appendChild(del);
+    // Clic para ampliar
+    (function(url){ thumb.onclick=function(e){ if(!e.target.classList.contains('pt-del')) openLightbox(url); }; })(displayUrl);
+    galleryEl.appendChild(thumb);
   });
-  return slot;
-}
 
-function pickPhoto(type,idx,file){
-  var store=(type==='before'?beforePhotos:afterPhotos)[idx];
-  store.file=file; store.deleted=false;
-  var r=new FileReader(); r.onload=function(e){ store.preview=e.target.result; renderSlot(type,idx); checkBadge(); }; r.readAsDataURL(file);
-}
+  // Mostrar/ocultar botones de añadir
+  if(addRow) addRow.style.display=filled>=5?'none':'flex';
+  if(countEl) countEl.textContent=filled>0?(filled+'/5 fotos'):'';
 
-function clearPhoto(type,idx){
-  var store=(type==='before'?beforePhotos:afterPhotos)[idx];
-  store.file=null; store.url=''; store.deleted=true; store.preview='';
-  renderSlot(type,idx); checkBadge();
-}
-
-function renderSlot(type,idx){
-  var id=(type==='before'?'bslot_':'aslot_')+idx;
-  var slot=g(id); if(!slot) return;
-  var store=(type==='before'?beforePhotos:afterPhotos)[idx];
-  var displayUrl=store.preview||(store.deleted?'':store.url);
-
-  if(displayUrl){
-    // Usar background-image para evitar problemas de z-index con position:absolute
-    slot.style.backgroundImage='url("'+displayUrl+'")';
-    slot.style.backgroundSize='cover';
-    slot.style.backgroundPosition='center';
-    slot.style.backgroundRepeat='no-repeat';
-    slot.classList.add('has-img'); slot.classList.remove('empty');
-    var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display=store.file?'block':'none';
-    // Detectar error de carga via img auxiliar
-    var testImg=new Image();
-    testImg.onerror=function(){
-      slot.style.backgroundImage='';
-      slot.classList.remove('has-img'); slot.classList.add('empty');
-      var nb2=slot.querySelector('.ps-new-badge'); if(nb2) nb2.style.display='none';
-    };
-    testImg.src=displayUrl;
-  } else {
-    slot.style.backgroundImage='';
-    slot.classList.remove('has-img'); slot.classList.add('empty');
-    var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display='none';
-  }
-}
-
-function checkBadge(){
+  // Badge "Nuevas" en el card-head
   var hasNew=beforePhotos.concat(afterPhotos).some(function(p){ return !!p.file; });
-  var b=g('newPhotosBadge'); if(b) b.style.display=hasNew?'':'none';
+  var nb=g('newPhotosBadge'); if(nb) nb.style.display=hasNew?'':'none';
 }
 
-function slotSpin(type,idx,show){
-  var id=(type==='before'?'bslot_':'aslot_')+idx;
-  var sp=g(id)&&g(id).querySelector('.ps-spinner'); if(sp) sp.className='ps-spinner'+(show?' show':'');
+function populatePhotos(t){
+  // Fotos antes: Picture_cloudfare1-5
+  BEFORE_FIELDS.forEach(function(field,idx){ if(t[field]) beforePhotos[idx].url=t[field]; });
+  // Fotos después: Picture_cloudfare_after1-5
+  AFTER_FIELDS.forEach(function(field,idx){ if(t[field]) afterPhotos[idx].url=t[field]; });
+  renderGallery('before');
+  renderGallery('after');
 }
 
-/* ── Subir foto ── */
 function uploadPhoto(type,idx){
-  var store=(type==='before'?beforePhotos:afterPhotos)[idx];
-  if(!store.file) return Promise.resolve(store.deleted?'':store.url);
-  slotSpin(type,idx,true);
-  var fields=(type==='before'?BEFORE_FIELDS:AFTER_FIELDS);
+  var store=type==='before'?beforePhotos:afterPhotos;
+  var p=store[idx];
+  if(!p.file) return Promise.resolve(p.deleted?'':p.url);
   var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear());
-  var ext=(store.file.name.split('.').pop()||'jpg').toLowerCase();
-  var safe=(myUserName||'user').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  var ext=(p.file.name.split('.').pop()||'jpg').toLowerCase();
+  var safe=(myUserName||'user').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase();
   var suffix=type==='before'?'before':'after';
   var fname='fotos-tareas/'+year+'_'+suffix+'_'+taskId+'_'+safe+'_'+(idx+1)+'.'+ext;
-  var fd=new FormData(); fd.append('file',store.file,fname); fd.append('filename',fname);
+  var fd=new FormData(); fd.append('file',p.file,fname); fd.append('filename',fname);
   return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd})
     .then(function(r){ return r.json(); })
-    .then(function(j){ slotSpin(type,idx,false); return j.url||j.publicUrl||store.url; })
-    .catch(function(e){ slotSpin(type,idx,false); console.warn('[Foto '+type+' '+idx+']',e.message); return store.url; });
+    .then(function(j){ return j.url||j.publicUrl||p.url; })
+    .catch(function(e){ console.warn('[Foto '+type+' '+idx+']',e.message); return p.url; });
 }
+
 
 /* ── Mic ── */
 function initMic(){
@@ -662,7 +514,6 @@ function submitForm(markDone){
   setBusy(true);
   if(markDone) setTerminada(true);
 
-  /* Subir todas las fotos que tengan archivo nuevo */
   var uploads=[];
   for(var i=0;i<5;i++){
     (function(idx){ uploads.push(uploadPhoto('before',idx)); })(i);
