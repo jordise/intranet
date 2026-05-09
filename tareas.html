@@ -82,7 +82,7 @@
     #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
-    @media(max-width:700px){th:nth-child(5),td:nth-child(5),th:nth-child(7),td:nth-child(7){display:none}.f-group.narrow{flex:1}}
+    @media(max-width:700px){th:nth-child(6),td:nth-child(6){display:none}.f-group.narrow{flex:1}}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -188,15 +188,13 @@
   <div id="tableWrap">
     <table>
       <thead><tr>
-        <th data-col="Tasktype_booking">Tipo reserva<span class="sort-ico"></span></th>
-        <th data-col="Tasktype">Tipo tarea<span class="sort-ico"></span></th>
+        <th>Acciones</th>
         <th data-col="_villaName">Villa<span class="sort-ico"></span></th>
         <th data-col="_done">Estado<span class="sort-ico"></span></th>
         <th data-col="_userName">Asignado a<span class="sort-ico"></span></th>
-        <th data-col="Taskname">Descripción<span class="sort-ico"></span></th>
+        <th data-col="Taskname">Tarea<span class="sort-ico"></span></th>
+        <th data-col="Taskdescription">Descripción<span class="sort-ico"></span></th>
         <th data-col="Data_to_be_done_fixed">Fecha<span class="sort-ico"></span></th>
-        <th data-col="idreserva">Id Reserva<span class="sort-ico"></span></th>
-        <th>Acciones</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -257,7 +255,7 @@
   window.toggleProxTareas = function() {
     proxOpen = !proxOpen;
     document.querySelectorAll('.prox-task-row').forEach(function(r) {
-      r.style.display = proxOpen ? '' : 'none';
+      r.style.display = proxOpen ? 'table-row' : 'none';
     });
     var arr = g('proxArrow');
     if (arr) arr.style.transform = proxOpen ? 'rotate(90deg)' : '';
@@ -668,11 +666,13 @@
   function buildRow(t, extraClass) {
     var done_t  = isDone(t);
     var reserva = t.idreserva || t.Idreserva || '';
-    var desc    = (t.Taskname || t.Taskdescription || '').trim();
-    var descShort = desc.length>80 ? desc.slice(0,80)+'…' : desc;
+    var taskName = (t.Taskname || '').trim();
+    var taskNameShort = taskName.length>80 ? taskName.slice(0,80)+'…' : taskName;
+    var taskDesc = (t.Taskdescription || '').trim();
+    var taskDescShort = taskDesc.length>100 ? taskDesc.slice(0,100)+'…' : taskDesc;
     var taskId  = getTaskId(t);
 
-    var rowBg = extraClass === 'prox-task-row' ? '' : '';
+    var rowBg = '';
     if (!done_t && extraClass !== 'prox-task-row') {
       var rawD = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
       if (rawD) {
@@ -691,21 +691,18 @@
       : '<button class="act-btn" style="opacity:.4;cursor:not-allowed" disabled>✏️ —</button>';
 
     return '<tr class="' + (extraClass||'') + '" style="' + rowBg + '">' +
-      '<td>' + bookingBadge(t) + '</td>' +
-      '<td>' + tasktypeBadge(t) + '</td>' +
+      '<td><div class="acts-wrap">' + btnVer + btnEdit + '</div></td>' +
       '<td><div class="villa-cell">' + t._villaName + '</div></td>' +
       '<td>' + (done_t
         ? '<span class="est-done">Terminada</span>'
         : '<span class="est-pend">Pendiente</span>') + '</td>' +
       '<td style="font-size:12px">' + (t._userName||'—') + '</td>' +
-      '<td style="font-size:12px;max-width:240px">' + (descShort||'<span style="color:var(--gray-3)">(sin desc.)</span>') + '</td>' +
+      '<td style="font-size:12px;font-weight:600;max-width:200px">' + (taskNameShort||'<span style="color:var(--gray-3)">(sin nombre)</span>') + '</td>' +
+      '<td style="font-size:12px;max-width:260px;color:var(--gray-4)">' + (taskDescShort||'') + '</td>' +
       '<td>' + dateCell(t) + '</td>' +
-      '<td>' + (reserva
-        ? '<button class="res-link" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()">' + reserva + '</button>'
-        : '—') + '</td>' +
-      '<td><div class="acts-wrap">' + btnVer + btnEdit + '</div></td>' +
       '</tr>';
   }
+
 
   // ── RENDER ──
   function renderTable() {
@@ -764,7 +761,7 @@
 
     var tbody = g('tbody');
     if (!filtered.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
       g('tableWrap').style.display = 'block';
       return;
     }
@@ -778,7 +775,7 @@
     // Fila toggle Próximamente (si hay tareas futuras)
     if (pendingFuture.length) {
       html += '<tr class="prox-toggle-row" onclick="toggleProxTareas()">' +
-        '<td colspan="9">' +
+        '<td colspan="7">' +
         '<span style="margin-right:8px;font-size:14px">🗓️</span>' +
         '<strong>Próximamente: ' + pendingFuture.length + ' tarea' + (pendingFuture.length>1?'s':'') + '</strong>' +
         '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>' +
