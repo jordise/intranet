@@ -46,8 +46,9 @@
     .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
     .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
     @keyframes spin{to{transform:rotate(360deg)}}
-    #tableWrap{display:none;overflow-x:auto;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm)}
+    #tableWrap{display:none;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto}
     table{width:100%;border-collapse:collapse;font-size:13px}
+    thead{position:sticky;top:0;z-index:10}
     thead tr{background:var(--red)}
     th{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fff;padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
     th:hover{background:var(--red-dark)}
@@ -59,19 +60,24 @@
     td{padding:9px 14px;vertical-align:top}
     .type-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px;white-space:nowrap}
     .tb-10{background:var(--blue-light);color:var(--blue)}.tb-20{background:var(--orange-light);color:var(--orange)}.tb-30{background:var(--green-light);color:var(--green)}.tb-com{background:#fce4ec;color:#c2185b}.tb-int{background:var(--purple-light);color:var(--purple)}.tb-x{background:var(--gray-2);color:var(--gray-4)}
+    /* Estado sin puntito */
     .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--red)}
     .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
     .villa-cell{font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;color:var(--gray-5)}
     .date-cell{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--gray-4)}
     .date-cell.overdue{color:var(--red)}.date-cell.today{color:var(--orange)}
     .res-link{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 7px;border-radius:4px;white-space:nowrap;cursor:pointer;border:none}
-    /* Botones de acción */
     .act-btn{display:inline-flex;align-items:center;gap:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;cursor:pointer;border:none;white-space:nowrap;transition:filter .15s}
     .act-btn:hover{filter:brightness(.88)}
     .act-btn-ver{background:var(--gray-2);color:var(--gray-5)}
     .act-btn-edit{background:var(--blue-light);color:var(--blue)}
     .acts-wrap{display:flex;gap:5px;flex-wrap:wrap}
     .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
+    /* Fila Próximamente */
+    .prox-toggle-row td{cursor:pointer;padding:10px 14px;background:var(--gray-1);border-top:2px dashed var(--gray-3)}
+    .prox-toggle-row:hover td{background:var(--orange-light)}
+    .prox-task-row{display:none}
+    .prox-task-row td{background:var(--gray-1);font-style:italic;color:var(--gray-4)}
     #dbWrap{position:fixed;bottom:18px;right:18px;z-index:999}
     #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
@@ -88,11 +94,10 @@
 
 <header>
   <div>
-    <div class="h-title">TAREAS</div>
+    <div class="h-title"><span id="hCount" style="letter-spacing:0"></span> TAREAS</div>
     <div class="h-sub" id="hSub"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <span id="hBadge" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;white-space:nowrap"></span>
     <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
   </div>
 </header>
@@ -231,6 +236,7 @@
   var sortDir       = 1;
   var searchTimer   = null;
   var searchId      = 0;
+  var proxOpen      = false;
 
   function selUsersKeys() { return Object.keys(selectedUsers); }
   function schedule(ms)   { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, ms || 0); }
@@ -243,11 +249,19 @@
            String(v).toLowerCase() === 'true';
   }
 
-  // ── Abrir editar-tarea en popup centrado ──────────────────────
-  // Intenta varios nombres posibles del campo PK (por si el schema difiere)
   function getTaskId(t) {
     return t.taskid || t.TaskID || t.idtask || t.Id || t.ID || '';
   }
+
+  // Toggle fila Próximamente
+  window.toggleProxTareas = function() {
+    proxOpen = !proxOpen;
+    document.querySelectorAll('.prox-task-row').forEach(function(r) {
+      r.style.display = proxOpen ? '' : 'none';
+    });
+    var arr = g('proxArrow');
+    if (arr) arr.style.transform = proxOpen ? 'rotate(90deg)' : '';
+  };
 
   window.openEditTask = function (rawId, reserva) {
     if (!rawId) { alert('No se pudo obtener el ID de la tarea.'); return; }
@@ -261,24 +275,18 @@
       'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
       ',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no'
     );
-    // Al cerrar el popup refrescar la lista automáticamente
     if (popup) {
       var timer = setInterval(function () {
-        if (popup.closed) {
-          clearInterval(timer);
-          doSearch(); // refrescar lista tras editar
-        }
+        if (popup.closed) { clearInterval(timer); doSearch(); }
       }, 600);
     }
   };
 
-  // ────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
     g('eAll') .addEventListener('click', function () { setEstado('all');  });
     g('ePend').addEventListener('click', function () { setEstado('pend'); });
     g('eDone').addEventListener('click', function () { setEstado('done'); });
     g('btnClear').addEventListener('click', clearAll);
-
     g('fUserBtn').addEventListener('click', toggleUserPanel);
     g('userSearch').addEventListener('input', function () { renderUserList(this.value); });
     g('btnSelectAll').addEventListener('click', function () {
@@ -288,7 +296,6 @@
     g('btnClearUsers').addEventListener('click', function () {
       selectedUsers = {}; renderUserList(''); updateUserBtn();
     });
-
     g('fDesde').addEventListener('change', function () {
       var h = g('fHasta');
       if (h && h.value && h.value < this.value) h.value = this.value;
@@ -299,13 +306,10 @@
     g('fVilla').addEventListener('input',     function () { schedule(500); });
     g('fTasktype').addEventListener('change', function () { schedule(); });
     g('fBookingType').addEventListener('change', function () { schedule(); });
-
     g('dbBtn').addEventListener('click', function () { g('dbBox').classList.toggle('open'); });
-
     document.querySelectorAll('th[data-col]').forEach(function (th) {
       th.addEventListener('click', function () { sortBy(th.dataset.col); });
     });
-
     document.addEventListener('click', function (e) {
       var panel = g('userPanel'), btn = g('fUserBtn');
       if (panel && panel.style.display !== 'none' && btn &&
@@ -316,7 +320,7 @@
     window.addEventListener('resize', repositionUserPanel);
 
     g('fDesde').value = '2020-01-01';
-    g('fHasta').value = todayStr();
+    g('fHasta').value = '2029-12-31';
 
     Promise.allSettled([loadUsers(), loadVillas()]).then(function () {
       setEstado('pend', false);
@@ -336,6 +340,9 @@
         var users = json.Result || json.result || [];
         users.forEach(function (u) {
           allUsersMap[String(u.UserID || '')] = String(u.Name || '');
+          // También indexar por Keyholder_por_defecto si existe
+          var kpd = String(u['Keyholder_por_defecto'] || '').trim();
+          if (kpd) allUsersMap[kpd] = String(u.Name || '');
         });
         var myEmail = Auth.email ? Auth.email() : '';
         var myUser  = users.filter(function (u) {
@@ -422,6 +429,16 @@
     if (keys.length === 0)      lbl.textContent = 'Todos';
     else if (keys.length === 1) lbl.textContent = allUsersMap[keys[0]] || keys[0];
     else                        lbl.textContent = keys.length + ' usuarios';
+    // Actualizar hSub con el nombre del usuario si hay uno
+    var hSub = g('hSub');
+    if (hSub) {
+      if (keys.length === 1) {
+        var name = allUsersMap[keys[0]] || '';
+        hSub.textContent = name ? 'de ' + name.split(' ')[0] : '';
+      } else {
+        hSub.textContent = '';
+      }
+    }
   }
 
   function toggleUserPanel(e) {
@@ -463,7 +480,7 @@
     if (currentUserId) selectedUsers[currentUserId] = true;
     renderUserList(''); updateUserBtn();
     g('fDesde').value = '2020-01-01';
-    g('fHasta').value = todayStr();
+    g('fHasta').value = '2029-12-31';
     g('fReserva').value     = '';
     g('fVilla').value       = '';
     g('fTasktype').value    = '';
@@ -546,7 +563,7 @@
   function clearChip(key) {
     if (key==='users')    { selectedUsers={}; if(currentUserId) selectedUsers[currentUserId]=true; renderUserList(''); updateUserBtn(); }
     if (key==='desde')    g('fDesde').value = '2020-01-01';
-    if (key==='hasta')    g('fHasta').value = todayStr();
+    if (key==='hasta')    g('fHasta').value = '2029-12-31';
     if (key==='reserva')  g('fReserva').value = '';
     if (key==='villa')    g('fVilla').value = '';
     if (key==='booking')  g('fBookingType').value = '';
@@ -557,13 +574,14 @@
   // ── BUSCAR ──
   function doSearch() {
     var myId = ++searchId;
+    proxOpen = false;
     renderChips();
     g('tableWrap').style.display = 'none';
     g('stInit').style.display    = 'none';
     g('stLoad').style.display    = 'block';
     g('stErr').style.display     = 'none';
     g('statsBar').style.display  = 'none';
-    g('hBadge').textContent      = '';
+    if (g('hCount')) g('hCount').textContent = '';
 
     var where = buildWhere();
     var qs    = where ? '&where=' + encodeURIComponent(where) : '';
@@ -579,11 +597,10 @@
           '\n\nResultados API: ' + tasks.length +
           '\n\nPrimera:\n' + JSON.stringify(tasks[0]||{}, null, 2);
 
-        // Verificar qué campo PK devuelve Caspio (para debug)
         if (tasks[0]) {
           var pkCandidates = ['taskid','TaskID','idtask','Id','ID'];
           var found = pkCandidates.filter(function(k){ return tasks[0][k] !== undefined; });
-          console.log('[Tareas] Campos PK encontrados:', found, '| Valores:', found.map(function(k){ return k+'='+tasks[0][k]; }));
+          console.log('[Tareas] PK encontrados:', found);
         }
 
         tasks.forEach(function (t) { if (t.Tasktype) tasktypeSet[String(t.Tasktype).trim()] = true; });
@@ -647,9 +664,53 @@
     return '<span class="' + cls + '">' + lbl + '</span>';
   }
 
+  // ── GENERAR FILA TABLE ──
+  function buildRow(t, extraClass) {
+    var done_t  = isDone(t);
+    var reserva = t.idreserva || t.Idreserva || '';
+    var desc    = (t.Taskname || t.Taskdescription || '').trim();
+    var descShort = desc.length>80 ? desc.slice(0,80)+'…' : desc;
+    var taskId  = getTaskId(t);
+
+    var rowBg = extraClass === 'prox-task-row' ? '' : '';
+    if (!done_t && extraClass !== 'prox-task-row') {
+      var rawD = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
+      if (rawD) {
+        var today2 = new Date(); today2.setHours(0,0,0,0);
+        var diff2 = Math.round((new Date(rawD.split('T')[0]+'T00:00:00') - today2) / 86400000);
+        if (diff2<0)       rowBg = 'background:#fff5f5';
+        else if(diff2===0) rowBg = 'background:#fffbf0';
+      }
+    }
+
+    var btnVer = reserva
+      ? '<button class="act-btn act-btn-ver" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()" title="Ver reserva">📋 Reserva</button>'
+      : '';
+    var btnEdit = taskId
+      ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\'' + taskId + '\',\'' + (reserva||'') + '\')" title="Editar">✏️ Editar</button>'
+      : '<button class="act-btn" style="opacity:.4;cursor:not-allowed" disabled>✏️ —</button>';
+
+    return '<tr class="' + (extraClass||'') + '" style="' + rowBg + '">' +
+      '<td>' + bookingBadge(t) + '</td>' +
+      '<td>' + tasktypeBadge(t) + '</td>' +
+      '<td><div class="villa-cell">' + t._villaName + '</div></td>' +
+      '<td>' + (done_t
+        ? '<span class="est-done">Terminada</span>'
+        : '<span class="est-pend">Pendiente</span>') + '</td>' +
+      '<td style="font-size:12px">' + (t._userName||'—') + '</td>' +
+      '<td style="font-size:12px;max-width:240px">' + (descShort||'<span style="color:var(--gray-3)">(sin desc.)</span>') + '</td>' +
+      '<td>' + dateCell(t) + '</td>' +
+      '<td>' + (reserva
+        ? '<button class="res-link" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()">' + reserva + '</button>'
+        : '—') + '</td>' +
+      '<td><div class="acts-wrap">' + btnVer + btnEdit + '</div></td>' +
+      '</tr>';
+  }
+
   // ── RENDER ──
   function renderTable() {
     g('stLoad').style.display = 'none';
+    var today = new Date(); today.setHours(0,0,0,0);
 
     var filtered = allRows.filter(function (t) {
       if (estadoFilter === 'pend') return !isDone(t);
@@ -675,6 +736,21 @@
       return String(av).localeCompare(String(bv), 'es', {numeric:true}) * sortDir;
     });
 
+    // Separar pendientes en pasadas/hoy vs futuras
+    var pendingPast = [], pendingFuture = [], doneRows = [];
+    filtered.forEach(function(t) {
+      if (isDone(t)) {
+        doneRows.push(t);
+      } else {
+        var rawD = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
+        if (rawD && new Date(rawD.split('T')[0]+'T00:00:00') > today) {
+          pendingFuture.push(t);
+        } else {
+          pendingPast.push(t);
+        }
+      }
+    });
+
     var pend = filtered.filter(function (t) { return !isDone(t); }).length;
     var done = filtered.filter(function (t) { return  isDone(t); }).length;
     g('sCnt').textContent     = filtered.length;
@@ -683,7 +759,8 @@
     g('sPendStat').style.display = pend>0 ? 'flex' : 'none';
     g('sDoneStat').style.display = done>0 ? 'flex' : 'none';
     g('statsBar').style.display  = 'flex';
-    g('hBadge').textContent = filtered.length + ' tareas';
+    // Contador en el título
+    if (g('hCount')) g('hCount').textContent = filtered.length || '';
 
     var tbody = g('tbody');
     if (!filtered.length) {
@@ -692,54 +769,28 @@
       return;
     }
 
-    var today = new Date(); today.setHours(0,0,0,0);
+    // Construir HTML: primero pendientes pasadas/hoy, luego "Próximamente", luego done
+    var html = '';
 
-    tbody.innerHTML = filtered.map(function (t) {
-      var done_t  = isDone(t);
-      var reserva = t.idreserva || t.Idreserva || '';
-      var desc    = (t.Taskname || t.Taskdescription || '').trim();
-      var descShort = desc.length>80 ? desc.slice(0,80)+'…' : desc;
+    // Pendientes urgentes (hoy o atrasadas)
+    pendingPast.forEach(function(t) { html += buildRow(t, ''); });
 
-      // ── ID de la tarea para editar-tarea.html ──
-      var taskId = getTaskId(t);
+    // Fila toggle Próximamente (si hay tareas futuras)
+    if (pendingFuture.length) {
+      html += '<tr class="prox-toggle-row" onclick="toggleProxTareas()">' +
+        '<td colspan="9">' +
+        '<span style="margin-right:8px;font-size:14px">🗓️</span>' +
+        '<strong>Próximamente: ' + pendingFuture.length + ' tarea' + (pendingFuture.length>1?'s':'') + '</strong>' +
+        '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>' +
+        '</td></tr>';
+      // Filas futuras (ocultas por defecto)
+      pendingFuture.forEach(function(t) { html += buildRow(t, 'prox-task-row'); });
+    }
 
-      var rowBg = '';
-      if (!done_t) {
-        var rawD = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
-        if (rawD) {
-          var diff = Math.round((new Date(rawD.split('T')[0]+'T00:00:00') - today) / 86400000);
-          if (diff<0)       rowBg = 'background:#fff5f5';
-          else if(diff===0) rowBg = 'background:#fffbf0';
-        }
-      }
+    // Terminadas
+    doneRows.forEach(function(t) { html += buildRow(t, ''); });
 
-      // Botón "Ver" → Caspio DataPage (solo si hay reserva)
-      var btnVer = reserva
-        ? '<button class="act-btn act-btn-ver" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()" title="Ver reserva">📋 Reserva</button>'
-        : '';
-
-      // Botón "Editar" → editar-tarea.html local con taskid
-      var btnEdit = taskId
-        ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\'' + taskId + '\',\'' + (reserva||'') + '\')" title="Editar esta tarea">✏️ Editar</button>'
-        : '<button class="act-btn" style="opacity:.4;cursor:not-allowed" title="Sin ID de tarea disponible" disabled>✏️ —</button>';
-
-      return '<tr style="' + rowBg + '">' +
-        '<td>' + bookingBadge(t) + '</td>' +
-        '<td>' + tasktypeBadge(t) + '</td>' +
-        '<td><div class="villa-cell">' + t._villaName + '</div></td>' +
-        '<td>' + (done_t
-          ? '<span class="est-done">✓ Terminada</span>'
-          : '<span class="est-pend">● Pendiente</span>') + '</td>' +
-        '<td style="font-size:12px">' + (t._userName||'—') + '</td>' +
-        '<td style="font-size:12px;max-width:240px">' + (descShort||'<span style="color:var(--gray-3)">(sin desc.)</span>') + '</td>' +
-        '<td>' + dateCell(t) + '</td>' +
-        '<td>' + (reserva
-          ? '<button class="res-link" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()">' + reserva + '</button>'
-          : '—') + '</td>' +
-        '<td><div class="acts-wrap">' + btnVer + btnEdit + '</div></td>' +
-        '</tr>';
-    }).join('');
-
+    tbody.innerHTML = html;
     g('tableWrap').style.display = 'block';
   }
 
