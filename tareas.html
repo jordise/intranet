@@ -461,7 +461,7 @@
     if(doSch!==false) schedule();
   }
 
-  function clearAll() {
+  window.clearAll = function() {
     selectedUsers={};
     if(currentUserId) selectedUsers[currentUserId]=true;
     renderUserList(''); updateUserBtn();
@@ -469,7 +469,7 @@
     g('fReserva').value=''; g('fVilla').value='';
     g('fTasktype').value=''; g('fBookingType').value='';
     setEstado('pend',false); renderChips(); doSearch();
-  }
+  };
 
   // ── WHERE ──
   function buildWhere() {
@@ -496,18 +496,29 @@
   }
 
   // ── CHIPS ──
+  var DEFAULT_DESDE='2020-01-01', DEFAULT_HASTA='2029-12-31';
+
   function renderChips() {
-    var html='', keys=selUsersKeys();
-    if(keys.length>0){ var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', '); html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users'); }
+    var html='';
+    var keys=selUsersKeys();
+    // Chip usuario: solo si hay selección no-default (más de 1 usuario, o un usuario distinto al actual)
+    var isDefaultUser=(keys.length===1&&selectedUsers[currentUserId]===true);
+    if(keys.length>0 && !isDefaultUser){
+      var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');
+      html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users');
+    }
+    // Chip fecha: solo si difiere del default
     var d=val('fDesde'), h=val('fHasta');
-    if(d) html+=chip('Desde: '+fmtDate(d),'desde');
-    if(h) html+=chip('Hasta: '+fmtDate(h),'hasta');
+    if(d && d!==DEFAULT_DESDE) html+=chip('Desde: '+fmtDate(d),'desde');
+    if(h && h!==DEFAULT_HASTA) html+=chip('Hasta: '+fmtDate(h),'hasta');
     if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
     if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
     var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
     if(bt) html+=chip(btL[bt]||bt,'booking');
     if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
-    if(estadoFilter!=='all') html+=chip(estadoFilter==='pend'?'Pendientes':'Terminadas','estado');
+    // Chip estado: solo si es Terminadas (Pendientes es el default)
+    if(estadoFilter==='done') html+=chip('Terminadas','estado');
+    if(estadoFilter==='all')  html+=chip('Todas','estado');
     g('chips').innerHTML=html;
     g('chips').querySelectorAll('button[data-key]').forEach(function(btn){
       btn.addEventListener('click',function(){ clearChip(btn.dataset.key); renderChips(); doSearch(); });
@@ -515,14 +526,15 @@
   }
   function chip(label,key){ return '<span class="chip-filter">'+label+' <button data-key="'+key+'">✕</button></span>'; }
   function clearChip(key) {
-    if(key==='users'){ selectedUsers={}; if(currentUserId)selectedUsers[currentUserId]=true; renderUserList(''); updateUserBtn(); }
-    if(key==='desde')   g('fDesde').value='2020-01-01';
-    if(key==='hasta')   g('fHasta').value='2029-12-31';
+    // La X limpia el filtro (quita la restricción), no resetea al default
+    if(key==='users')   { selectedUsers={}; renderUserList(''); updateUserBtn(); }
+    if(key==='desde')   g('fDesde').value='';       // sin límite inferior de fecha
+    if(key==='hasta')   g('fHasta').value='';       // sin límite superior de fecha
     if(key==='reserva') g('fReserva').value='';
     if(key==='villa')   g('fVilla').value='';
     if(key==='booking') g('fBookingType').value='';
     if(key==='tasktype') g('fTasktype').value='';
-    if(key==='estado')  setEstado('all',false);
+    if(key==='estado')  setEstado('pend',false);    // vuelve al default: pendientes
   }
 
   // ── BUSCAR ──
