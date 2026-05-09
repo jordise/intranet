@@ -164,7 +164,7 @@
     .pt-task-card{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--gray-2);cursor:pointer;transition:background .12s;text-decoration:none;color:inherit}
     .pt-task-card:hover{background:var(--orange-light)}
     .pt-task-card:hover .pt-tc-arr{transform:translateX(3px)}
-    .pt-tc-villa{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--gray-5);flex:0 0 auto;min-width:90px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px}
+    .pt-tc-villa{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--gray-5);flex:0 0 auto;min-width:80px;max-width:160px;word-break:break-word;letter-spacing:.3px;line-height:1.3}
     .pt-tc-name{flex:1;font-size:12px;color:var(--gray-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .pt-tc-date{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--gray-3);white-space:nowrap;flex-shrink:0}
     .pt-tc-date.overdue{color:var(--red)}
@@ -527,6 +527,8 @@ const villaPendingMap={};
 async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.filter(Boolean))];if(!unique.length)return;
+  // Resetear entradas anteriores de estas villas para evitar duplicados entre búsquedas
+  unique.forEach(id=>{delete villaPendingMap[String(id)];});
   const orParts=unique.map(id=>`villaid=${parseInt(id)}`).join(' OR ');
   const where=`(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
   try{
@@ -539,10 +541,11 @@ async function loadVillaPendingTasks(villaIds){
       const _done=t.Tarea_terminada;
       const _isDone=_done===true||_done===1||_done===-1||String(_done).toLowerCase()==='yes'||String(_done).toLowerCase()==='sí'||String(_done).toLowerCase()==='true';
       if(!_isDone)villaPendingMap[vid].push({
-        type   : t.Tasktype_booking,
-        name   : t.Taskname||'',
-        taskid : t.taskid||'',                       // ← ID para editar-tarea
-        reserva: t.Idreserva||t.idreserva||'',       // ← código reserva (context)
+        type      : t.Tasktype_booking,
+        name      : t.Taskname||'',
+        taskid    : t.taskid||'',
+        reserva   : t.Idreserva||t.idreserva||'',
+        assignedId: String(t.UserID_asigned_alfanum||''),  // para mostrar el nombre asignado
       });
     }
   }catch(e){console.warn('Villa tasks error:',e.message);}
@@ -555,16 +558,20 @@ function updateVillaTasksInDOM(){
     const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
-    const labels={10:'Limpieza',20:'WelcomePack',30:'Cierre'};
     div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
-      tasks.map(t=>`
-        <div class="vt-row">
+      tasks.map(t=>{
+        // Nombre de la persona asignada (primer nombre, en pequeño)
+        const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';
+        const firstName=assignedName?assignedName.split(' ')[0]:'';
+        return `<div class="vt-row">
           <span class="vt-name">${t.name||'(sin nombre)'}</span>
+          ${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''}
           ${t.taskid
             ? `<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`
             : `<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`
           }
-        </div>`).join('');
+        </div>`;
+      }).join('');
     cardEl.appendChild(div);
   });
 }
