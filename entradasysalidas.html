@@ -624,38 +624,65 @@ async function loadPendingTasksPanel(){
     // Ordenar por fecha más antigua primero
     tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';const db=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';return da<db?-1:da>db?1:0;});
 
-    if($('ptCount'))$('ptCount').textContent=tasks.length;
+    // Separar tareas pasadas/hoy de futuras para el contador y el listado
+    const _today=new Date();_today.setHours(0,0,0,0);
+    const tasksPast=tasks.filter(t=>{
+      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+      if(!rd)return true; // sin fecha → mostrar siempre
+      return new Date(rd.split('T')[0]+'T00:00:00')<=_today;
+    });
+    const tasksFuture=tasks.filter(t=>{
+      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+      if(!rd)return false;
+      return new Date(rd.split('T')[0]+'T00:00:00')>_today;
+    });
+    // Contador muestra solo las urgentes (hoy o atrasadas)
+    if($('ptCount'))$('ptCount').textContent=tasksPast.length;
     if($('ptLoading'))$('ptLoading').style.display='none';
 
     if(!tasks.length){if($('ptEmpty')){$('ptEmpty').textContent='No hay tareas pendientes ✓';$('ptEmpty').style.display='block';}return;}
 
-    // Renderizar tarjetas clicables
-    const today=new Date();today.setHours(0,0,0,0);
+    // Renderizar: primero las urgentes (hoy/atrasadas), luego resumen de futuras
     const ptList=$('ptList');
     if(!ptList)return;
-    ptList.innerHTML=tasks.map(t=>{
-      const vid=t.villaid||'';
-      const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');
-      const taskName=(t.Taskname||'(sin descripción)').slice(0,70);
-      const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      let dateStr='',dateCls='pt-tc-date';
-      if(rawDate){
-        const d=new Date(rawDate.split('T')[0]+'T00:00:00');
-        const diff=Math.round((d-today)/86400000);
-        if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}
-        else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}
-        else if(diff===1){dateStr='Mañana';dateCls='pt-tc-date';}
-        else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
-      }
-      const tid=t.taskid||'';
-      const res=t.Idreserva||t.idreserva||'';
-      return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
-        <div class="pt-tc-villa">${villaName}</div>
-        <div class="pt-tc-name">${taskName}</div>
-        ${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}
-        <div class="pt-tc-arr">›</div>
+    let html='';
+    // Tarjetas clicables: solo tareas pasadas y de hoy
+    if(tasksPast.length){
+      html+=tasksPast.map(t=>{
+        const vid=t.villaid||'';
+        const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');
+        const taskName=(t.Taskname||'(sin descripción)').slice(0,70);
+        const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
+        let dateStr='',dateCls='pt-tc-date';
+        if(rawDate){
+          const d=new Date(rawDate.split('T')[0]+'T00:00:00');
+          const diff=Math.round((d-_today)/86400000);
+          if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}
+          else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}
+          else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
+        }
+        const tid=t.taskid||'';
+        const res=t.Idreserva||t.idreserva||'';
+        return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
+          <div class="pt-tc-villa">${villaName}</div>
+          <div class="pt-tc-name">${taskName}</div>
+          ${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}
+          <div class="pt-tc-arr">›</div>
+        </div>`;
+      }).join('');
+    } else {
+      html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';
+    }
+    // Resumen de tareas futuras (no se muestran individualmente)
+    if(tasksFuture.length){
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:10px 22px;background:var(--gray-1);border-top:1px dashed var(--gray-3);">
+        <span style="font-size:16px">🗓️</span>
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-4)">
+          Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''} pendiente${tasksFuture.length>1?'s':''}
+        </span>
       </div>`;
-    }).join('');
+    }
+    ptList.innerHTML=html;
     ptList.style.display='block';
   }catch(e){console.warn('[Tasks] Error:',e.message);if($('ptLoading'))$('ptLoading').textContent='Error al cargar tareas';}
 }
