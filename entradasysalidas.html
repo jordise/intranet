@@ -530,7 +530,8 @@ async function loadVillaPendingTasks(villaIds){
   // Resetear entradas anteriores de estas villas para evitar duplicados entre búsquedas
   unique.forEach(id=>{delete villaPendingMap[String(id)];});
   const orParts=unique.map(id=>`villaid=${parseInt(id)}`).join(' OR ');
-  const where=`(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+  // Solo filtrar por villaid — Tarea_terminada se filtra cliente (Caspio no soporta bien OR+AND mixto)
+  const where=`(${orParts})`;
   try{
     const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
@@ -581,7 +582,8 @@ async function loadPendingTasks(managerIds){
   const ids=[...new Set([...(currentUserId?[currentUserId]:[]),...(managerIds||[])])];
   if(!ids.length){if($('sPendTask'))$('sPendTask').style.display='none';return;}
   const orParts=ids.map(id=>`UserID_asigned_alfanum='${id}'`).join(' OR ');
-  const where=`(Tarea_terminada=false OR Tarea_terminada IS NULL) AND (${orParts})`;
+  // Solo filtrar por villaid — Tarea_terminada se filtra cliente (Caspio no soporta bien OR+AND mixto)
+  const where=`(${orParts})`;
   try{
     const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
