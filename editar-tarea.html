@@ -105,16 +105,17 @@
     .photo-slot{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s}
 
     /* Vacío: compacto, dos botones */
-    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;aspect-ratio:1;min-height:80px}
+    /* Slot vacío: compacto */
+    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;align-items:center;justify-content:center;gap:6px;height:64px;padding:0 8px}
     .photo-slot.empty:hover{border-color:var(--red);background:var(--red-light)}
-    .photo-slot.empty:hover .ps-add-ico{color:var(--red)}
-    .ps-add-ico{font-size:22px;color:var(--gray-3);pointer-events:none;line-height:1}
-    .ps-btns{display:flex;gap:4px;margin-top:6px;pointer-events:none}
-    .ps-btn{font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--gray-4);background:var(--gray-2);padding:3px 6px;border-radius:6px}
+    /* Botones de icono en slot vacío */
+    .ps-icon-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;padding:8px 14px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;flex:1}
+    .ps-icon-btn:hover{border-color:var(--red);background:var(--red-light);transform:scale(1.06)}
+    /* Ocultar estado vacío cuando hay imagen */
+    .photo-slot.has-img .ps-empty-state{display:none!important}
 
     /* Con foto: grande, ratio 4:3 */
-    .photo-slot.has-img{aspect-ratio:4/3;min-height:0;border:none}
-    .photo-slot.has-img img{width:100%;height:100%;object-fit:cover;display:block;border-radius:12px}
+    .photo-slot.has-img{aspect-ratio:4/3;min-height:90px;border:none;display:block;position:relative}
     .ps-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.0) 50%,rgba(0,0,0,.5));border-radius:12px;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;opacity:0;transition:opacity .2s}
     .photo-slot.has-img:hover .ps-overlay{opacity:1}
     .ps-del{background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
@@ -225,7 +226,7 @@
       <div class="card-body">
         <!-- Toggle terminada grande -->
         <div class="terminada-toggle" id="ttRow" onclick="toggleTerminada()">
-          <div class="tt-circle" id="ttCircle">✓</div>
+          <div class="tt-circle" id="ttCircle"></div>
           <span class="tt-text" id="ttText">Marcar como terminada</span>
         </div>
 
@@ -396,9 +397,11 @@ function setTerminada(val){
   var row=g('ttRow'), circle=g('ttCircle'), text=g('ttText');
   if(isTerminada){
     row&&row.classList.add('on');
+    if(circle) circle.textContent='✓';
     if(text) text.textContent='Tarea terminada ✓';
   } else {
     row&&row.classList.remove('on');
+    if(circle) circle.textContent='';
     if(text) text.textContent='Marcar como terminada';
   }
   updateHeaderStatus();
@@ -516,41 +519,40 @@ function makeSlot(type, idx, label){
   slot.id=(type==='before'?'bslot_':'aslot_')+idx;
   slot.className='photo-slot empty';
 
-  /* Contenido vacío */
-  slot.innerHTML=
-    '<span class="ps-add-ico">📷</span>'+
-    '<div class="ps-btns"><span class="ps-btn">Cámara</span><span class="ps-btn">Archivo</span></div>'+
-    '<div class="ps-spinner"><div class="sp"></div></div>'+
-    '<div class="ps-overlay"><button class="ps-del" type="button">✕ Eliminar</button></div>'+
-    (type==='after'?'<span class="ps-new-badge" style="display:none">NUEVA</span>':'');
-
-  /* Dos inputs: cámara y archivo */
-  var inpCam=document.createElement('input'); inpCam.type='file'; inpCam.accept='image/*'; inpCam.setAttribute('capture','environment');
-  var inpFile=document.createElement('input'); inpFile.type='file'; inpFile.accept='image/*';
-
-  /* En mobile, el capture hace el trabajo. En desktop, el inpFile es el fallback */
-  inpCam.style.cssText='position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;z-index:2';
-  inpFile.style.cssText='position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;z-index:1';
-
-  inpCam.addEventListener('change', function(e){ if(e.target.files&&e.target.files[0]) pickPhoto(type,idx,e.target.files[0]); });
+  // Inputs ocultos
+  var inpCam=document.createElement('input'); inpCam.type='file'; inpCam.accept='image/*'; inpCam.setAttribute('capture','environment'); inpCam.style.display='none';
+  var inpFile=document.createElement('input'); inpFile.type='file'; inpFile.accept='image/*'; inpFile.style.display='none';
+  inpCam.addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) pickPhoto(type,idx,e.target.files[0]); });
   inpFile.addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) pickPhoto(type,idx,e.target.files[0]); });
-
   slot.appendChild(inpCam);
   slot.appendChild(inpFile);
 
-  /* Botón eliminar */
-  slot.querySelector('.ps-del').addEventListener('click',function(e){
-    e.stopPropagation(); clearPhoto(type,idx);
-  });
+  // Estado vacío: dos botones de icono
+  var emptyDiv=document.createElement('div'); emptyDiv.className='ps-empty-state'; emptyDiv.style.cssText='display:flex;gap:6px;width:100%;';
+  var btnCam=document.createElement('button'); btnCam.type='button'; btnCam.className='ps-icon-btn'; btnCam.textContent='📷'; btnCam.title='Hacer foto';
+  var btnFile=document.createElement('button'); btnFile.type='button'; btnFile.className='ps-icon-btn'; btnFile.textContent='📎'; btnFile.title='Subir archivo';
+  btnCam.addEventListener('click',function(e){ e.stopPropagation(); inpCam.value=''; inpCam.click(); });
+  btnFile.addEventListener('click',function(e){ e.stopPropagation(); inpFile.value=''; inpFile.click(); });
+  emptyDiv.appendChild(btnCam); emptyDiv.appendChild(btnFile);
+  slot.appendChild(emptyDiv);
 
-  /* Clic en foto existente → lightbox */
+  // Overlay eliminar
+  var overlay=document.createElement('div'); overlay.className='ps-overlay';
+  var delBtn=document.createElement('button'); delBtn.type='button'; delBtn.className='ps-del'; delBtn.textContent='✕ Eliminar';
+  delBtn.addEventListener('click',function(e){ e.stopPropagation(); clearPhoto(type,idx); });
+  overlay.appendChild(delBtn); slot.appendChild(overlay);
+
+  // Spinner + badge nueva
+  var spin=document.createElement('div'); spin.className='ps-spinner'; spin.innerHTML='<div class="sp"></div>'; slot.appendChild(spin);
+  var nb=document.createElement('span'); nb.className='ps-new-badge'; nb.style.display='none'; nb.textContent='NUEVA'; slot.appendChild(nb);
+
+  // Clic en foto → lightbox
   slot.addEventListener('click',function(e){
     if(slot.classList.contains('has-img')&&!e.target.classList.contains('ps-del')){
-      var store=(type==='before'?beforePhotos:afterPhotos)[idx];
-      openLightbox(store.preview||store.url);
+      var st=(type==='before'?beforePhotos:afterPhotos)[idx];
+      openLightbox(st.preview||st.url);
     }
   });
-
   return slot;
 }
 
@@ -572,21 +574,25 @@ function renderSlot(type,idx){
   var store=(type==='before'?beforePhotos:afterPhotos)[idx];
   var displayUrl=store.preview||(store.deleted?'':store.url);
 
-  /* Limpiar img anterior */
+  // Limpiar img anterior
   var oldImg=slot.querySelector('img'); if(oldImg) oldImg.remove();
 
   if(displayUrl){
-    var img=document.createElement('img'); img.src=displayUrl; img.alt='foto';
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;pointer-events:none';
+    var img=document.createElement('img');
+    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;pointer-events:none;display:block';
+    img.alt='';
+    // Si la URL falla, volver al estado vacío
+    img.onerror=function(){
+      img.remove();
+      slot.classList.remove('has-img'); slot.classList.add('empty');
+      var nb2=slot.querySelector('.ps-new-badge'); if(nb2) nb2.style.display='none';
+    };
+    img.src=displayUrl; // asignar src DESPUÉS del onerror
     slot.insertBefore(img, slot.firstChild);
     slot.classList.add('has-img'); slot.classList.remove('empty');
-    /* Ocultar file inputs cuando hay foto */
-    slot.querySelectorAll('input[type=file]').forEach(function(i){ i.style.zIndex='-1'; });
-    /* Badge NUEVA */
     var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display=store.file?'block':'none';
   } else {
     slot.classList.remove('has-img'); slot.classList.add('empty');
-    slot.querySelectorAll('input[type=file]').forEach(function(i){ i.style.zIndex=''; });
     var nb=slot.querySelector('.ps-new-badge'); if(nb) nb.style.display='none';
   }
 }
