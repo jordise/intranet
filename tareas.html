@@ -65,8 +65,12 @@
     .date-cell{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--gray-4)}
     .date-cell.overdue{color:var(--red)}.date-cell.today{color:var(--orange)}
     .res-link{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 7px;border-radius:4px;white-space:nowrap;cursor:pointer;border:none}
-    .act-btn{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;cursor:pointer;border:none;background:var(--gray-2);color:var(--gray-5)}
-    .act-btn:hover{filter:brightness(.9)}
+    /* Botones de acción */
+    .act-btn{display:inline-flex;align-items:center;gap:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;cursor:pointer;border:none;white-space:nowrap;transition:filter .15s}
+    .act-btn:hover{filter:brightness(.88)}
+    .act-btn-ver{background:var(--gray-2);color:var(--gray-5)}
+    .act-btn-edit{background:var(--blue-light);color:var(--blue)}
+    .acts-wrap{display:flex;gap:5px;flex-wrap:wrap}
     .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
     #dbWrap{position:fixed;bottom:18px;right:18px;z-index:999}
     #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
@@ -94,7 +98,6 @@
 </header>
 
 <div id="filterPanel">
-  <!-- Fila 1: Asignado a + Estado + limpiar -->
   <div class="filter-row">
     <div class="f-group wide" style="position:relative">
       <label class="f-label">Asignado a</label>
@@ -127,7 +130,6 @@
     <button id="btnClear" class="btn-clear" title="Limpiar filtros" style="align-self:flex-end">✕ Limpiar</button>
   </div>
 
-  <!-- Fila 2: Fechas + Villa + Reserva + Tipos -->
   <div class="filter-row">
     <div class="f-group narrow">
       <label class="f-label">Desde</label>
@@ -189,7 +191,7 @@
         <th data-col="Taskname">Descripción<span class="sort-ico"></span></th>
         <th data-col="Data_to_be_done_fixed">Fecha<span class="sort-ico"></span></th>
         <th data-col="idreserva">Id Reserva<span class="sort-ico"></span></th>
-        <th>Acc.</th>
+        <th>Acciones</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -202,48 +204,37 @@
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════
-//  IIFE — aísla scope para evitar conflictos con nav.js
-// ══════════════════════════════════════════════════════
 (function () {
   'use strict';
 
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
-  // Helper sin usar $ (evita conflicto con otras libs)
-  function g(id) { return document.getElementById(id); }
-  function val(id) { return (g(id) || {}).value || ''; }
-  function todayStr() { return new Date().toISOString().split('T')[0]; }
+  function g(id)    { return document.getElementById(id); }
+  function val(id)  { return (g(id) || {}).value || ''; }
+  function todayStr(){ return new Date().toISOString().split('T')[0]; }
   function fmtDate(s) {
     if (!s) return '—';
     var d = new Date(s.includes('T') ? s : s + 'T00:00:00');
     return isNaN(d) ? s : d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
   }
 
-  // ── Estado global ──
-  var estadoFilter   = 'pend';
-  var allUsersMap    = {};   // userId → name
-  var selectedUsers  = {};   // userId → true (objeto como Set)
-  var allUsersList   = [];   // [{id, name}]
-  var currentUserId  = '';
-  var villaNameMap   = {};   // villaid → name
-  var allVillas      = [];   // [{id, name}]
-  var tasktypeSet    = {};   // valores únicos de Tasktype
-  var allRows        = [];
-  var sortCol        = 'Data_to_be_done_fixed';
-  var sortDir        = 1;
-  var searchTimer    = null;
-  var searchId       = 0;
+  var estadoFilter  = 'pend';
+  var allUsersMap   = {};
+  var selectedUsers = {};
+  var allUsersList  = [];
+  var currentUserId = '';
+  var villaNameMap  = {};
+  var allVillas     = [];
+  var tasktypeSet   = {};
+  var allRows       = [];
+  var sortCol       = 'Data_to_be_done_fixed';
+  var sortDir       = 1;
+  var searchTimer   = null;
+  var searchId      = 0;
 
   function selUsersKeys() { return Object.keys(selectedUsers); }
-  function selUsersSize() { return selUsersKeys().length; }
+  function schedule(ms)   { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, ms || 0); }
 
-  function schedule(ms) {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(doSearch, ms || 0);
-  }
-
-  // ── isDone: campo Yes/No de Caspio (puede llegar como bool, número o string) ──
   function isDone(t) {
     var v = t.Tarea_terminada;
     return v === true || v === 1 || v === -1 ||
@@ -252,20 +243,42 @@
            String(v).toLowerCase() === 'true';
   }
 
-  // ────────────────────────────────────────
-  //  DOMContentLoaded — vincular todo aquí
+  // ── Abrir editar-tarea en popup centrado ──────────────────────
+  // Intenta varios nombres posibles del campo PK (por si el schema difiere)
+  function getTaskId(t) {
+    return t.taskid || t.TaskID || t.idtask || t.Id || t.ID || '';
+  }
+
+  window.openEditTask = function (rawId, reserva) {
+    if (!rawId) { alert('No se pudo obtener el ID de la tarea.'); return; }
+    var params = 'taskid=' + encodeURIComponent(rawId);
+    if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
+    var url  = 'editar-tarea.html?' + params;
+    var w = 520, h = 820;
+    var left = Math.round((screen.width  - w) / 2);
+    var top  = Math.round((screen.height - h) / 2);
+    var popup = window.open(url, 'editartarea',
+      'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+      ',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no'
+    );
+    // Al cerrar el popup refrescar la lista automáticamente
+    if (popup) {
+      var timer = setInterval(function () {
+        if (popup.closed) {
+          clearInterval(timer);
+          doSearch(); // refrescar lista tras editar
+        }
+      }, 600);
+    }
+  };
+
   // ────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
-
-    // Estado pills
     g('eAll') .addEventListener('click', function () { setEstado('all');  });
     g('ePend').addEventListener('click', function () { setEstado('pend'); });
     g('eDone').addEventListener('click', function () { setEstado('done'); });
-
-    // Botón limpiar
     g('btnClear').addEventListener('click', clearAll);
 
-    // Panel usuarios
     g('fUserBtn').addEventListener('click', toggleUserPanel);
     g('userSearch').addEventListener('input', function () { renderUserList(this.value); });
     g('btnSelectAll').addEventListener('click', function () {
@@ -276,27 +289,23 @@
       selectedUsers = {}; renderUserList(''); updateUserBtn();
     });
 
-    // Filtros de datos
     g('fDesde').addEventListener('change', function () {
       var h = g('fHasta');
       if (h && h.value && h.value < this.value) h.value = this.value;
       schedule();
     });
-    g('fHasta').addEventListener('change', function () { schedule(); });
-    g('fReserva').addEventListener('input',  function () { schedule(500); });
-    g('fVilla').addEventListener('input',    function () { schedule(500); });
-    g('fTasktype').addEventListener('change',    function () { schedule(); });
+    g('fHasta').addEventListener('change',    function () { schedule(); });
+    g('fReserva').addEventListener('input',   function () { schedule(500); });
+    g('fVilla').addEventListener('input',     function () { schedule(500); });
+    g('fTasktype').addEventListener('change', function () { schedule(); });
     g('fBookingType').addEventListener('change', function () { schedule(); });
 
-    // Debug
     g('dbBtn').addEventListener('click', function () { g('dbBox').classList.toggle('open'); });
 
-    // Cabeceras tabla ordenables
     document.querySelectorAll('th[data-col]').forEach(function (th) {
       th.addEventListener('click', function () { sortBy(th.dataset.col); });
     });
 
-    // Cerrar panel usuario al click fuera
     document.addEventListener('click', function (e) {
       var panel = g('userPanel'), btn = g('fUserBtn');
       if (panel && panel.style.display !== 'none' && btn &&
@@ -306,11 +315,9 @@
     });
     window.addEventListener('resize', repositionUserPanel);
 
-    // Defaults de fecha
     g('fDesde').value = '2020-01-01';
     g('fHasta').value = todayStr();
 
-    // Arrancar
     Promise.allSettled([loadUsers(), loadVillas()]).then(function () {
       setEstado('pend', false);
       doSearch();
@@ -319,7 +326,7 @@
 
   window.addEventListener('pageshow', function (e) { if (e.persisted) doSearch(); });
 
-  // ── CARGAR USUARIOS (todos los activos por User_Status) ──
+  // ── CARGAR USUARIOS ──
   function loadUsers() {
     var btn = g('fUserBtn');
     if (btn) { btn.disabled = true; g('fUserLabel').textContent = 'Cargando...'; }
@@ -327,24 +334,18 @@
       .then(function (r) { return r.json(); })
       .then(function (json) {
         var users = json.Result || json.result || [];
-
         users.forEach(function (u) {
           allUsersMap[String(u.UserID || '')] = String(u.Name || '');
         });
-
-        // Usuario logueado
         var myEmail = Auth.email ? Auth.email() : '';
         var myUser  = users.filter(function (u) {
           return String(u.Email || '').toLowerCase() === myEmail.toLowerCase();
         })[0];
-
         if (myUser) {
           currentUserId = String(myUser['Keyholder_por_defecto'] || myUser.UserID || '').trim();
           if (g('mgrName'))   g('mgrName').value = myUser.Name || '';
           if (g('hUserName')) g('hUserName').textContent = (myUser.Name || '').split(' ')[0];
         }
-
-        // Solo activos: User_Status marcado (yes/no field de Caspio)
         allUsersList = users.filter(function (u) {
           var s = u['User_Status'];
           return s === true || s === 1 || s === -1 ||
@@ -354,12 +355,9 @@
         }).map(function (u) {
           return { id: String(u.UserID || ''), name: String(u.Name || '') };
         });
-
-        // Pre-seleccionar usuario actual
         selectedUsers = {};
         if (currentUserId) selectedUsers[currentUserId] = true;
         if (myUser) selectedUsers[String(myUser.UserID || '')] = true;
-
         renderUserList('');
         updateUserBtn();
         if (btn) btn.disabled = false;
@@ -371,7 +369,7 @@
       });
   }
 
-  // ── CARGAR VILLAS (para buscar por nombre) ──
+  // ── CARGAR VILLAS ──
   function loadVillas() {
     return fetch(Auth.url(WORKER + '?action=data&table=TaVillas&limit=500'))
       .then(function (r) { return r.json(); })
@@ -400,14 +398,12 @@
     var items = q
       ? allUsersList.filter(function (u) { return u.name.toLowerCase().indexOf(q) !== -1; })
       : allUsersList;
-
     list.innerHTML = items.map(function (u) {
       var checked = selectedUsers[u.id] ? ' checked' : '';
       return '<div class="manager-item" data-uid="' + u.id + '">' +
              '<input type="checkbox" id="uc_' + u.id + '"' + checked + '>' +
              '<label for="uc_' + u.id + '">' + u.name + '</label></div>';
     }).join('');
-
     list.querySelectorAll('.manager-item').forEach(function (item) {
       item.addEventListener('click', function () {
         var uid = item.dataset.uid;
@@ -421,7 +417,7 @@
   }
 
   function updateUserBtn() {
-    var lbl = g('fUserLabel'); if (!lbl) return;
+    var lbl  = g('fUserLabel'); if (!lbl) return;
     var keys = selUsersKeys();
     if (keys.length === 0)      lbl.textContent = 'Todos';
     else if (keys.length === 1) lbl.textContent = allUsersMap[keys[0]] || keys[0];
@@ -457,7 +453,7 @@
       var on = (id==='eAll' && mode==='all') ||
                (id==='ePend' && mode==='pend') ||
                (id==='eDone' && mode==='done');
-      if (on) el.classList.add('on'); else el.classList.remove('on');
+      el.classList.toggle('on', on);
     });
     if (doSch !== false) schedule();
   }
@@ -468,58 +464,46 @@
     renderUserList(''); updateUserBtn();
     g('fDesde').value = '2020-01-01';
     g('fHasta').value = todayStr();
-    g('fReserva').value    = '';
-    g('fVilla').value      = '';
-    g('fTasktype').value   = '';
+    g('fReserva').value     = '';
+    g('fVilla').value       = '';
+    g('fTasktype').value    = '';
     g('fBookingType').value = '';
     setEstado('pend', false);
     renderChips();
     doSearch();
   }
 
-  // ── WHERE (sin Tarea_terminada — se filtra client-side) ──
+  // ── WHERE ──
   function buildWhere() {
-    var parts = [];
+    var parts   = [];
     var desde   = val('fDesde');
     var hasta   = val('fHasta');
     var reserva = val('fReserva').trim();
     var tt      = val('fTasktype');
     var bt      = val('fBookingType');
+    var keys    = selUsersKeys();
 
-    // Asignado a
-    var keys = selUsersKeys();
     if (keys.length > 0) {
       var ids = keys.map(function (id) { return "'" + id + "'"; }).join(',');
       parts.push(keys.length === 1
         ? "UserID_asigned_alfanum='" + keys[0] + "'"
         : 'UserID_asigned_alfanum IN (' + ids + ')');
     }
-
-    // Fechas sobre Data_to_be_done_fixed
     if (desde) parts.push("Data_to_be_done_fixed>='" + desde + "T00:00:00'");
     if (hasta) parts.push("Data_to_be_done_fixed<='" + hasta + "T23:59:59'");
-
-    // Tipo reserva
-    if (bt) parts.push('Tasktype_booking=' + bt);
-
-    // Tipo tarea
-    if (tt) parts.push("Tasktype='" + tt.replace(/'/g, "''") + "'");
-
-    // Id reserva
+    if (bt)    parts.push('Tasktype_booking=' + bt);
+    if (tt)    parts.push("Tasktype='" + tt.replace(/'/g, "''") + "'");
     if (reserva) parts.push("idreserva LIKE '%" + reserva + "%'");
 
-    // Villa: convierte nombre → villaid(s) para el WHERE
     var villaQ = val('fVilla').trim().toLowerCase();
     if (villaQ) {
       var mids = allVillas
         .filter(function (v) { return v.name.toLowerCase().indexOf(villaQ) !== -1; })
-        .map(function (v) { return v.id; })
-        .filter(Boolean);
+        .map(function (v) { return v.id; }).filter(Boolean);
       if (!mids.length)         parts.push('villaid=-999');
       else if (mids.length===1) parts.push('villaid=' + mids[0]);
       else                      parts.push('villaid IN (' + mids.join(',') + ')');
     }
-
     return parts.join(' AND ');
   }
 
@@ -540,13 +524,11 @@
     if (vq) html += chip('Villa: ' + vq, 'villa');
     var bt = val('fBookingType');
     var btL = {'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
-    if (bt) html += chip((btL[bt]||bt), 'booking');
+    if (bt) html += chip(btL[bt]||bt, 'booking');
     var tt = val('fTasktype');
     if (tt) html += chip('Tipo: ' + tt, 'tasktype');
     if (estadoFilter !== 'all') html += chip(estadoFilter==='pend'?'Pendientes':'Terminadas', 'estado');
     g('chips').innerHTML = html;
-
-    // Vincular los botones de chip via data-key
     g('chips').querySelectorAll('button[data-key]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         clearChip(btn.dataset.key);
@@ -562,21 +544,20 @@
   }
 
   function clearChip(key) {
-    if (key==='users')   { selectedUsers={}; if(currentUserId) selectedUsers[currentUserId]=true; renderUserList(''); updateUserBtn(); }
-    if (key==='desde')   g('fDesde').value = '2020-01-01';
-    if (key==='hasta')   g('fHasta').value = todayStr();
-    if (key==='reserva') g('fReserva').value = '';
-    if (key==='villa')   g('fVilla').value = '';
-    if (key==='booking') g('fBookingType').value = '';
-    if (key==='tasktype')g('fTasktype').value = '';
-    if (key==='estado')  setEstado('all', false);
+    if (key==='users')    { selectedUsers={}; if(currentUserId) selectedUsers[currentUserId]=true; renderUserList(''); updateUserBtn(); }
+    if (key==='desde')    g('fDesde').value = '2020-01-01';
+    if (key==='hasta')    g('fHasta').value = todayStr();
+    if (key==='reserva')  g('fReserva').value = '';
+    if (key==='villa')    g('fVilla').value = '';
+    if (key==='booking')  g('fBookingType').value = '';
+    if (key==='tasktype') g('fTasktype').value = '';
+    if (key==='estado')   setEstado('all', false);
   }
 
   // ── BUSCAR ──
   function doSearch() {
     var myId = ++searchId;
     renderChips();
-
     g('tableWrap').style.display = 'none';
     g('stInit').style.display    = 'none';
     g('stLoad').style.display    = 'block';
@@ -598,7 +579,13 @@
           '\n\nResultados API: ' + tasks.length +
           '\n\nPrimera:\n' + JSON.stringify(tasks[0]||{}, null, 2);
 
-        // Recoger valores únicos de Tasktype para el select
+        // Verificar qué campo PK devuelve Caspio (para debug)
+        if (tasks[0]) {
+          var pkCandidates = ['taskid','TaskID','idtask','Id','ID'];
+          var found = pkCandidates.filter(function(k){ return tasks[0][k] !== undefined; });
+          console.log('[Tareas] Campos PK encontrados:', found, '| Valores:', found.map(function(k){ return k+'='+tasks[0][k]; }));
+        }
+
         tasks.forEach(function (t) { if (t.Tasktype) tasktypeSet[String(t.Tasktype).trim()] = true; });
         var selTT = g('fTasktype'), curTT = selTT.value;
         selTT.innerHTML = '<option value="">— Todos —</option>' +
@@ -606,7 +593,6 @@
             return '<option value="' + v + '"' + (v===curTT?' selected':'') + '>' + v + '</option>';
           }).join('');
 
-        // Completar mapa de villas con los que vengan en las tareas
         tasks.forEach(function (t) {
           var vid = String(t.villaid || '');
           if (vid && !villaNameMap[vid]) villaNameMap[vid] = 'Villa ' + vid;
@@ -665,14 +651,12 @@
   function renderTable() {
     g('stLoad').style.display = 'none';
 
-    // Filtro client-side: Tarea_terminada (no se pone en WHERE porque Caspio no lo soporta bien)
     var filtered = allRows.filter(function (t) {
       if (estadoFilter === 'pend') return !isDone(t);
       if (estadoFilter === 'done') return  isDone(t);
       return true;
     });
 
-    // Enriquecer con campos calculados para ordenar
     filtered = filtered.map(function (t) {
       return Object.assign({}, t, {
         _villaName: villaNameMap[String(t.villaid||'')] || String(t.villaid||''),
@@ -693,7 +677,7 @@
 
     var pend = filtered.filter(function (t) { return !isDone(t); }).length;
     var done = filtered.filter(function (t) { return  isDone(t); }).length;
-    g('sCnt').textContent    = filtered.length;
+    g('sCnt').textContent     = filtered.length;
     g('sPendCnt').textContent = pend;
     g('sDoneCnt').textContent = done;
     g('sPendStat').style.display = pend>0 ? 'flex' : 'none';
@@ -711,22 +695,34 @@
     var today = new Date(); today.setHours(0,0,0,0);
 
     tbody.innerHTML = filtered.map(function (t) {
-      var done_t   = isDone(t);
-      var reserva  = t.idreserva || t.Idreserva || '';
-      var desc     = (t.Taskname || t.Taskdescription || '').trim();
+      var done_t  = isDone(t);
+      var reserva = t.idreserva || t.Idreserva || '';
+      var desc    = (t.Taskname || t.Taskdescription || '').trim();
       var descShort = desc.length>80 ? desc.slice(0,80)+'…' : desc;
+
+      // ── ID de la tarea para editar-tarea.html ──
+      var taskId = getTaskId(t);
+
       var rowBg = '';
       if (!done_t) {
         var rawD = t.Data_to_be_done_fixed || t.Data_to_be_done || '';
         if (rawD) {
           var diff = Math.round((new Date(rawD.split('T')[0]+'T00:00:00') - today) / 86400000);
-          if (diff<0)     rowBg = 'background:#fff5f5';
+          if (diff<0)       rowBg = 'background:#fff5f5';
           else if(diff===0) rowBg = 'background:#fffbf0';
         }
       }
-      var urlVer = reserva
-        ? 'https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=' + reserva + '&cbResetParam=1'
+
+      // Botón "Ver" → Caspio DataPage (solo si hay reserva)
+      var btnVer = reserva
+        ? '<button class="act-btn act-btn-ver" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()" title="Ver reserva">📋 Reserva</button>'
         : '';
+
+      // Botón "Editar" → editar-tarea.html local con taskid
+      var btnEdit = taskId
+        ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\'' + taskId + '\',\'' + (reserva||'') + '\')" title="Editar esta tarea">✏️ Editar</button>'
+        : '<button class="act-btn" style="opacity:.4;cursor:not-allowed" title="Sin ID de tarea disponible" disabled>✏️ —</button>';
+
       return '<tr style="' + rowBg + '">' +
         '<td>' + bookingBadge(t) + '</td>' +
         '<td>' + tasktypeBadge(t) + '</td>' +
@@ -740,16 +736,14 @@
         '<td>' + (reserva
           ? '<button class="res-link" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=' + reserva + '\',\'tp\',\'width=900,height=700\');})()">' + reserva + '</button>'
           : '—') + '</td>' +
-        '<td>' + (urlVer
-          ? '<button class="act-btn" onclick="(function(){window.open(\'' + urlVer + '\',\'tp\',\'width=900,height=700\');})()" >✎ Ver</button>'
-          : '') + '</td>' +
+        '<td><div class="acts-wrap">' + btnVer + btnEdit + '</div></td>' +
         '</tr>';
     }).join('');
 
     g('tableWrap').style.display = 'block';
   }
 
-})(); // fin IIFE
+})();
 </script>
 </body>
 </html>
