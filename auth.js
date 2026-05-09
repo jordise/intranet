@@ -32,6 +32,7 @@ const PERMISSIONS = {
     'salidas'      : ['admin', 'manager', 'staff', 'cleaner'],
     'tareas'       : ['admin', 'manager', 'staff', 'cleaner'],
     'nueva-tarea'  : ['admin', 'manager', 'staff'],
+    'editar-tarea' : ['admin', 'manager', 'staff'],
     'permisos'     : ['admin'],
     'manuales'     : ['admin', 'manager'],
     'dashboard'    : ['admin', 'manager'],
