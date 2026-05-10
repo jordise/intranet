@@ -5,6 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Entradas y Salidas — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -137,11 +156,9 @@
     /* ── Tareas pendientes de villa (dentro de la card) ── */
     .villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
     .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
-    /* Cada fila de tarea: descripción + botón editar */
     .vt-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(224,123,0,.12);font-size:12px}
     .vt-row:last-child{border-bottom:none;padding-bottom:0}
     .vt-name{flex:1;color:var(--gray-5);font-weight:500;line-height:1.3}
-    /* Botón editar tarea en card — pill naranja clicable */
     .vt-edit-btn{display:inline-flex;align-items:center;gap:3px;background:var(--orange);color:#fff;border:none;border-radius:20px;padding:3px 10px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;flex-shrink:0;transition:filter .15s}
     .vt-edit-btn:hover{filter:brightness(.88)}
 
@@ -160,7 +177,6 @@
     .pt-body.open{display:block}
     .pt-loading{padding:16px 22px;color:var(--gray-4);font-size:13px}
     .pt-empty{padding:20px 22px;color:var(--gray-4);font-size:13px;text-align:center}
-    /* Tarjeta de tarea en el panel — clic para editar */
     .pt-task-card{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--gray-2);cursor:pointer;transition:background .12s;text-decoration:none;color:inherit}
     .pt-task-card:hover{background:var(--orange-light)}
     .pt-task-card:hover .pt-tc-arr{transform:translateX(3px)}
@@ -270,10 +286,9 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
-  
 </div>
 
-<!-- ── Panel tareas pendientes: tarjetas clicables ── -->
+<!-- ── Panel tareas pendientes ── -->
 <div id="pendTasksBar" style="display:none">
   <div class="pt-header" onclick="togglePendTasks()">
     <span class="pt-btn-label">⚑ Tareas pendientes</span>
@@ -282,7 +297,6 @@
   </div>
   <div class="pt-body" id="ptBody">
     <div class="pt-loading" id="ptLoading">Cargando tareas…</div>
-    <!-- Tarjetas generadas por JS -->
     <div id="ptList" style="display:none"></div>
     <div class="pt-empty" id="ptEmpty" style="display:none">No hay tareas pendientes ✓</div>
   </div>
@@ -398,7 +412,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     clearTimeout(_searchTimer);doSearch();
   }catch(err){$('dbBox').textContent='INIT ERROR: '+err.message;console.error(err);}
 });
-function updateSub(){} // fecha eliminada del header (redundante)
+function updateSub(){}
 
 // ════════════════ LOAD DATA ════════════════
 async function loadManagers(){
@@ -511,7 +525,7 @@ function renderCards(records){
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
   const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
   loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
-  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{ if(_sid===_searchId) updateVillaTasksInDOM(); }).catch(e=>console.warn('Villa tasks:',e.message));}
+  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{if(_sid===_searchId)updateVillaTasksInDOM();}).catch(e=>console.warn('Villa tasks:',e.message));}
   if($('hCount'))$('hCount').textContent=rows.length;
   rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));
 }
@@ -526,96 +540,61 @@ function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)retu
 const villaPendingMap={};
 async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
-
-  // Normalizar IDs a enteros > 0
-  const unique=[...new Set(
-    villaIds.map(id=>parseInt(id)||0).filter(id=>id>0)
-  )];
+  const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
-
-  // Cap: máximo 40 villas por búsqueda (evita timeouts sin filtro de fecha)
-  const toLoad = unique.length > 40 ? unique.slice(0, 40) : unique;
-
-  // Reset al inicio: predecible y consistente
-  toLoad.forEach(id => { villaPendingMap[String(id)] = []; });
-
-  const BATCH = 15;
-  const isDoneCheck = d => d===true||d===1||d===-1||
-    String(d).toLowerCase()==='yes'||
-    String(d).toLowerCase()==='sí'||
-    String(d).toLowerCase()==='true';
-
-  for(let i = 0; i < toLoad.length; i += BATCH){
-    const batch = toLoad.slice(i, i + BATCH);
-    const where = batch.length === 1
-      ? 'villaid=' + batch[0]
-      : '(' + batch.map(id => 'villaid=' + id).join(' OR ') + ')';
+  const toLoad=unique.length>40?unique.slice(0,40):unique;
+  toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
+  const BATCH=15;
+  const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
+  for(let i=0;i<toLoad.length;i+=BATCH){
+    const batch=toLoad.slice(i,i+BATCH);
+    const where=batch.length===1?'villaid='+batch[0]:'('+batch.map(id=>'villaid='+id).join(' OR ')+')';
     try{
-      const url = Auth.url(WORKER + '?action=data&table=TaTasks&where=' + encodeURIComponent(where) + '&limit=500');
-      const res  = await fetch(url);
-      const json = await res.json();
-      const tasks = json.Result || json.result || [];
-      console.log('[VillaTasks] lote ' + (Math.floor(i/BATCH)+1) + ': ' + batch.length + ' villas -> ' + tasks.length + ' tareas');
+      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+      const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
       for(const t of tasks){
-        const vid = String(parseInt(t.villaid)||0);
-        if(villaPendingMap[vid] === undefined) continue; // villa no rastreada
-        if(!isDoneCheck(t.Tarea_terminada) && Number(t.Tasktype) !== 20){
-          villaPendingMap[vid].push({
-            type      : t.Tasktype_booking,
-            name      : t.Taskname || '',
-            taskid    : t.taskid || '',
-            reserva   : t.Idreserva || t.idreserva || '',
-            assignedId: String(t.UserID_asigned_alfanum || ''),
-          });
+        const vid=String(parseInt(t.villaid)||0);
+        if(villaPendingMap[vid]===undefined)continue;
+        if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
+          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),});
         }
       }
-    }catch(e){
-      console.warn('[VillaTasks] Error lote ' + (Math.floor(i/BATCH)+1) + ':', e.message);
-    }
+    }catch(e){console.warn('[VillaTasks] Error lote:',e.message);}
   }
 }
 
-
 function updateVillaTasksInDOM(){
   const _grid=$('grid');if(!_grid)return;
-  console.log('[VillaTasks] mapa keys:',Object.keys(villaPendingMap));
   _grid.querySelectorAll('[data-villaid]').forEach(cardEl=>{
     const vKey=cardEl.getAttribute('data-villaid');
-    console.log('[VillaTasks] card villaid='+vKey+' tareas='+(villaPendingMap[vKey]||[]).length);
     const tasks=villaPendingMap[vKey]||[];
     const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
     div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
       tasks.map(t=>{
-        // Nombre de la persona asignada (primer nombre, en pequeño)
         const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';
         const firstName=assignedName?assignedName.split(' ')[0]:'';
         return `<div class="vt-row">
           <span class="vt-name">${t.name||'(sin nombre)'}</span>
           ${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''}
-          ${t.taskid
-            ? `<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`
-            : `<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`
-          }
+          ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}
         </div>`;
       }).join('');
     cardEl.appendChild(div);
   });
 }
 
-// ════════════════ PENDING TASKS (stats bar) ════════════════
+// ════════════════ PENDING TASKS (stats) ════════════════
 async function loadPendingTasks(managerIds){
   const ids=[...new Set([...(currentUserId?[currentUserId]:[]),...(managerIds||[])])];
   if(!ids.length)return;
   const orParts=ids.map(id=>`UserID_asigned_alfanum='${id}'`).join(' OR ');
-  // Solo filtrar por villaid — Tarea_terminada se filtra cliente (Caspio no soporta bien OR+AND mixto)
   const where=`(${orParts})`;
   try{
     const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
     const count=tasks.filter(t=>!t.Tarea_terminada).length;
-    
   }catch(e){console.warn('Pending tasks error:',e.message);}
 }
 
@@ -637,7 +616,6 @@ async function loadPendingTasksPanel(){
     const url=Auth.url(`${CFG.workerUrl}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res=await fetch(url);const json=await res.json();const rawTasks=json.Result||json.result||[];
 
-    // Cargar nombres de villas
     const villaIds=[...new Set(rawTasks.map(t=>t.villaid).filter(Boolean))];
     const villaNameMap={};
     if(villaIds.length){
@@ -649,38 +627,22 @@ async function loadPendingTasksPanel(){
       }catch(e){}
     }
 
-    // Filtrar pendientes — mismo criterio que tareas.html (sin excluir tipos)
     const tasks=rawTasks.filter(t=>{
       const done=t.Tarea_terminada;
       return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');
     });
-
-    // Ordenar por fecha más antigua primero
     tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';const db=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';return da<db?-1:da>db?1:0;});
 
-    // Separar tareas pasadas/hoy de futuras para el contador y el listado
     const _today=new Date();_today.setHours(0,0,0,0);
-    const tasksPast=tasks.filter(t=>{
-      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(!rd)return true; // sin fecha → mostrar siempre
-      return new Date(rd.split('T')[0]+'T00:00:00')<=_today;
-    });
-    const tasksFuture=tasks.filter(t=>{
-      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(!rd)return false;
-      return new Date(rd.split('T')[0]+'T00:00:00')>_today;
-    });
-    // Contador muestra solo las urgentes (hoy o atrasadas)
+    const tasksPast=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return true;return new Date(rd.split('T')[0]+'T00:00:00')<=_today;});
+    const tasksFuture=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return false;return new Date(rd.split('T')[0]+'T00:00:00')>_today;});
+
     if($('ptCount'))$('ptCount').textContent=tasksPast.length;
     if($('ptLoading'))$('ptLoading').style.display='none';
-
     if(!tasks.length){if($('ptEmpty')){$('ptEmpty').textContent='No hay tareas pendientes ✓';$('ptEmpty').style.display='block';}return;}
 
-    // Renderizar: primero las urgentes (hoy/atrasadas), luego resumen de futuras
-    const ptList=$('ptList');
-    if(!ptList)return;
+    const ptList=$('ptList');if(!ptList)return;
     let html='';
-    // Tarjetas clicables: solo tareas pasadas y de hoy
     if(tasksPast.length){
       html+=tasksPast.map(t=>{
         const vid=t.villaid||'';
@@ -695,8 +657,7 @@ async function loadPendingTasksPanel(){
           else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}
           else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
         }
-        const tid=t.taskid||'';
-        const res=t.Idreserva||t.idreserva||'';
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
         return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
           <div class="pt-tc-villa">${villaName}</div>
           <div class="pt-tc-name">${taskName}</div>
@@ -704,26 +665,17 @@ async function loadPendingTasksPanel(){
           <div class="pt-tc-arr">›</div>
         </div>`;
       }).join('');
-    } else {
-      html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';
-    }
-    // "Próximamente" como card colapsable con misma apariencia que las demás
+    }else{html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
+
     if(tasksFuture.length){
-      // Generar HTML de las tareas futuras (ocultas inicialmente)
       const futureCardsHtml=tasksFuture.map(t=>{
         const vid=t.villaid||'';
         const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');
         const taskName=(t.Taskname||'(sin descripción)').slice(0,70);
         const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
         let dateStr='';
-        if(rawDate){
-          const d=new Date(rawDate.split('T')[0]+'T00:00:00');
-          const diff=Math.round((d-_today)/86400000);
-          if(diff===1)dateStr='Mañana';
-          else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');
-        }
-        const tid=t.taskid||'';
-        const res=t.Idreserva||t.idreserva||'';
+        if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
         return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
           <div class="pt-tc-villa">${villaName}</div>
           <div class="pt-tc-name">${taskName}</div>
@@ -731,7 +683,6 @@ async function loadPendingTasksPanel(){
           <div class="pt-tc-arr">›</div>
         </div>`;
       }).join('');
-      // Cabecera colapsable — misma clase pt-task-card, sin onclick de editar
       html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)">
         <span style="font-size:14px;flex-shrink:0">🗓️</span>
         <div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div>
@@ -739,8 +690,7 @@ async function loadPendingTasksPanel(){
       </div>
       <div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
     }
-    ptList.innerHTML=html;
-    ptList.style.display='block';
+    ptList.innerHTML=html;ptList.style.display='block';
   }catch(e){console.warn('[Tasks] Error:',e.message);if($('ptLoading'))$('ptLoading').textContent='Error al cargar tareas';}
 }
 
@@ -798,7 +748,6 @@ function buildCard(r,type){
 
   let html='';const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
 
-  // Header
   const headClass=isSalida?'c-head salida':'c-head';
   const tipoBadge=isSalida?'<span class="tipo-badge tipo-salida">↑ SALIDA</span><br>':'<span class="tipo-badge tipo-entrada">↓ ENTRADA</span><br>';
   html+=`<div class="${headClass}"><div><div class="villa-name">${tipoBadge}${vl}</div>`;
