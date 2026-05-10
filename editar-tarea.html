@@ -9,16 +9,14 @@
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:90px}
-    header{background:var(--red);color:#fff;padding:12px 16px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
-    .h-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
-    .h-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
-    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+    header{background:var(--red);color:#fff;padding:10px 44px 10px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
+    .h-close{position:absolute;top:8px;right:10px;background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
     .h-close:hover{background:rgba(255,255,255,.35)}
-    .h-status{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;transition:all .3s}
-    .h-status.pend{background:rgba(255,255,255,.2);color:#fff}
+    .h-status{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;margin-bottom:4px;transition:all .3s}
+    .h-status.pend{background:rgba(255,255,255,.18);color:#fff}
     .h-status.done{background:var(--green);color:#fff}
-    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,4vw,17px);font-weight:900;letter-spacing:.5px;line-height:1.2;text-transform:uppercase}
-    .h-villa{font-size:11px;opacity:.8;margin-top:2px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(15px,5vw,21px);font-weight:900;line-height:1.2;letter-spacing:.1px;margin:0;text-transform:none}
+    .h-meta{font-size:11px;opacity:.6;margin-top:3px;font-weight:400;letter-spacing:.1px}
     main{padding:14px 12px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
     .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
     .card-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:2px solid var(--gray-2)}
@@ -120,15 +118,11 @@
 <script>Auth.require('tareas');</script>
 <div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
 <div id="toast"></div>
-<header id="mainHeader">
-  <div class="h-top">
-    <div class="h-title" id="hTitle">Editar Tarea</div>
-    <div class="h-right">
-      <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
-      <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
-    </div>
-  </div>
-  <div class="h-villa" id="hVilla"></div>
+<header id="mainHeader" style="position:sticky;top:0">
+  <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
+  <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+  <div class="h-title" id="hTitle">Cargando…</div>
+  <div class="h-meta" id="hMeta"></div>
 </header>
 <main>
   <div id="stLoad" class="card"><div class="big-spinner"></div><p style="font-family:Montserrat,sans-serif;font-weight:700">Cargando tarea…</p></div>
@@ -359,9 +353,11 @@ function populateForm(){
   if(!taskData)return;
   var t=taskData, nombre=t[F.nombre]||'', villa=t._villaName||'';
   // Título: "Tarea Nr. 66712" en header y en card
-  g('hTitle').textContent='Tarea Nr. '+taskId;
+  // Header: nombre grande, nr+villa pequeño
+  g('hTitle').textContent=nombre||'Tarea Nr. '+taskId;
+  var metaParts=['Nr. '+taskId]; if(villa) metaParts.unshift('📍 '+villa);
+  var hm=g('hMeta'); if(hm) hm.textContent=metaParts.join('  ·  ');
   var tct=g('tareaCardTitle'); if(tct) tct.textContent='Tarea Nr. '+taskId;
-  g('hVilla').textContent=(villa?'📍 '+villa+'  ·  ':'')+nombre;
   // Campos
   g('fNombre').value=nombre;
   g('fDesc').value=t[F.descripcion]||'';
