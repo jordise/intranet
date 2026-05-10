@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v8 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v8 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v9 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v9 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -307,27 +307,17 @@
           <div class="field"><label class="lbl">BIC / SWIFT</label><input type="text" id="fBIC" placeholder="BSCHESMMXXX"></div>
         </div>
         <div class="field"><label class="lbl">Texto Deposit Waiver</label><textarea id="fWaverText" rows="3" placeholder="Texto del deposit waiver…"></textarea></div>
-        <div class="field"><label class="lbl">Opción seleccionada por el cliente</label>
-          <div class="dep-opts" id="depOpts"></div>
+        <div class="field">
+          <label class="lbl">Opción seleccionada por el cliente ***Security_deposit_options → TaSecurityDepositOptions.deposit_options_ID***</label>
+          <div id="depPanel" style="display:flex;flex-direction:column;gap:6px">
+            <p style="color:var(--gray-3);font-size:11px">Cargando opciones…</p>
+          </div>
           <input type="hidden" id="fDepOpt">
         </div>
       </div>
     </div>
 
-    <!-- 4.5 Info opciones (desplegable informativo) -->
-    <div class="col-wrap st-na" id="colInfo">
-      <div class="col-head" onclick="tog('colInfo')">
-        <span class="col-ico">ℹ️</span>
-        <span class="col-title" style="color:var(--gray-4)">Opciones disponibles para el cliente</span>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColInfo">
-        <div id="explicacionOpciones" style="font-size:12px;color:var(--gray-5);line-height:1.8;display:flex;flex-direction:column;gap:10px">
-          <!-- se rellena con renderExplicacion() -->
-          <p style="color:var(--gray-4);font-style:italic">Cargando datos…</p>
-        </div>
-      </div>
-    </div>
+    
 
   </div>
 </div>
@@ -488,7 +478,7 @@ function setSelectVal(id,val){var sel=g(id);if(!sel||val===''||val===null||val==
 document.addEventListener('DOMContentLoaded',function(){
   if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
   buildDepOpts();
-  Promise.all([loadBooking(),loadTfnOpts(),loadMultiunits(),loadTiposPension(),loadYesNo()])
+  Promise.all([loadBooking(),loadTfnOpts(),loadMultiunits(),loadTiposPension(),loadYesNo(),loadDepositOptions()])
     .then(function(){
       g('loadOverlay').style.display='none';
       g('mainContent').style.display='';
@@ -497,6 +487,17 @@ document.addEventListener('DOMContentLoaded',function(){
     .catch(function(e){showErr(e.message||'Error cargando datos');});
 });
 
+function loadDepositOptions(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaSecurityDepositOptions&limit=20'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      window.__depOptions=(json.Result||json.result||[]).sort(function(a,b){
+        return (a.deposit_options_ID||0)-(b.deposit_options_ID||0);
+      });
+      // Re-renderizar si ya hay datos de la reserva
+      if(window.__depInfo) renderDepositPanel();
+    }).catch(function(){window.__depOptions=[];});
+}
 function loadYesNo(){
   return fetch(Auth.url(WORKER+'?action=data&table=TaViXYesNo&limit=10'))
     .then(function(r){return r.json();})
@@ -596,6 +597,80 @@ function depOptLabel(val){
   return map[val]||val||'No decidido';
 }
 
+
+
+/* ═══════════════════════════════════════════════════════
+   PANEL OPCIONES DEPÓSITO — muestra todas las opciones
+   de TaSecurityDepositOptions con la selección actual
+═══════════════════════════════════════════════════════ */
+function renderDepositPanel(){
+  var cont=g('depPanel'); if(!cont)return;
+  var opts=window.__depOptions||[];
+  var current=parseInt(g('fDepOpt').value||selDepOpt||'-1');
+
+  if(!opts.length){
+    cont.innerHTML='<p style="color:var(--gray-3);font-size:11px">Sin datos de opciones.</p>';
+    return;
+  }
+
+  // Banner opción actual destacada
+  var curOpt=opts.filter(function(o){return parseInt(o.deposit_options_ID)===current;})[0];
+  var html='';
+
+  // ── Opción actual: banner destacado ──
+  if(curOpt){
+    html+='<div style="background:var(--blue);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:4px">';
+    html+='<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Opción seleccionada actualmente</div>';
+    html+='<div style="font-weight:700;font-size:14px">'+curOpt.Option_description+'</div>';
+    html+='<div style="font-size:11px;opacity:.8;margin-top:2px">Código: <strong>'+curOpt.Option_name+'</strong> · ID: '+curOpt.deposit_options_ID+'</div>';
+    html+='</div>';
+  } else {
+    html+='<div style="background:var(--gray-2);border-radius:10px;padding:10px 14px;margin-bottom:4px">';
+    html+='<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-4)">Sin opción seleccionada</div>';
+    html+='</div>';
+  }
+
+  // ── Tabla de todas las opciones ──
+  html+='<div style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden">';
+  html+='<div style="background:var(--gray-1);padding:8px 12px;border-bottom:1px solid var(--gray-2)">';
+  html+='<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">Todas las opciones disponibles — clic para cambiar</span>';
+  html+='</div>';
+
+  opts.forEach(function(o){
+    var id=parseInt(o.deposit_options_ID);
+    var isSelected=(id===current);
+    var bg=isSelected?'var(--blue-light)':'#fff';
+    var border=isSelected?'border-left:4px solid var(--blue)':'border-left:4px solid transparent';
+    var dotColor=isSelected?'var(--blue)':'var(--gray-3)';
+    var dotContent=isSelected?'●':'○';
+
+    html+='<div onclick="selectDepOpt('+id+')" style="'+border+';background:'+bg+';padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-2);display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background=''+(isSelected?'var(--blue-light)':'var(--gray-1)')+''" onmouseout="this.style.background=''+bg+''">';
+
+    // Dot indicador
+    html+='<span style="font-size:16px;color:'+dotColor+';flex-shrink:0;width:18px;text-align:center">'+dotContent+'</span>';
+
+    // Info opción
+    html+='<div style="flex:1;min-width:0">';
+    html+='<div style="font-size:13px;font-weight:'+(isSelected?'700':'500')+';color:'+(isSelected?'var(--blue)':'var(--gray-5)')+'">'+o.Option_description+'</div>';
+    html+='<div style="font-size:10px;font-family:Montserrat,sans-serif;color:var(--gray-4);margin-top:1px">ID: '+id+' · Código: <strong>'+o.Option_name+'</strong></div>';
+    html+='</div>';
+
+    // Badge seleccionado
+    if(isSelected){
+      html+='<span style="background:var(--blue);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:3px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0">ACTUAL</span>';
+    }
+    html+='</div>';
+  });
+  html+='</div>'; // cierre tabla
+
+  cont.innerHTML=html;
+}
+
+window.selectDepOpt=function(id){
+  selDepOpt=id;
+  var inp=g('fDepOpt'); if(inp)inp.value=id;
+  renderDepositPanel();
+};
 
 /* ── Renderizar explicación de opciones con datos reales ── */
 function renderExplicacion(){
@@ -710,7 +785,7 @@ function populateForm(){
   g('fIBAN').value=String(fB('Numero_cuenta_bancaria_guest')||'');
   g('fBIC').value=String(fB('Numero_swift_bic_bancario_guest')||'');
   g('fWaverText').value=String(fB('Deposit_waver_text')||'');
-  selDepOpt=String(fB('Security_deposit_options')||'');g('fDepOpt').value=selDepOpt;renderDepOpts();
+  selDepOpt=parseInt(fB('Security_deposit_options')||0);g('fDepOpt').value=selDepOpt;renderDepositPanel();if(window.__depOptions&&window.__depOptions.length)renderDepositPanel();
 
   // ── Datos para la explicación de opciones ──
   window.__depInfo={
@@ -777,7 +852,7 @@ window.guardar=function(){
     Deposit_waver_EUR:g('fWavEUR').value||null,
     Gasto_tarjeta_deposito_seguridad:g('fGastoT').value||null,
     Se_permite_waver:g('fSeWaver').value==='Sí'?1:0, // integer
-    Security_deposit_options:selDepOpt||null,
+    Security_deposit_options:parseInt(g('fDepOpt').value)||0,
     Numero_cuenta_bancaria_guest:g('fIBAN').value.trim()||null,
     Numero_swift_bic_bancario_guest:g('fBIC').value.trim()||null,
     Deposit_waver_text:g('fWaverText').value.trim()||null,
