@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas y Salidas v07 — 3Villas</title>
+  <title>Entradas y Salidas v09 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -392,9 +392,23 @@ function getManagerName(){return($('mgrName')||{value:''}).value||Auth.name()||'
 
 // ════════════════ ABRIR EDITAR-TAREA (popup centrado) ════════════════
 function abrirNuevaTareaVilla() {
-  var url = 'nueva-tarea.html?villaid=164';
   var w=520, h=820, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
-  window.open(url,'nuevatarea','width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');
+  var features='width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no';
+  // Abrir popup inmediatamente (dentro del gesto del usuario → no bloqueado)
+  var popup=window.open('about:blank','nuevatarea',features);
+  if(!popup) return;
+  popup.document.write('<p style="font-family:sans-serif;padding:40px;text-align:center;color:#888">Cargando villa…</p>');
+  // Obtener nombre de villa 164 del Worker
+  fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid=164&limit=1'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var v=(json.Result||json.result||[])[0];
+      var name=v?(v.Name_villa_para_inquilinos||v.Name||''):'';
+      popup.location.href='nueva-tarea.html?villa_id=164&villa_name='+encodeURIComponent(name);
+    })
+    .catch(function(){
+      popup.location.href='nueva-tarea.html?villa_id=164';
+    });
 }
 
 function openEditTask(taskId, reserva) {
