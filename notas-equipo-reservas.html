@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v12 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v12 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v13 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v13 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -296,9 +296,9 @@
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div class="field"><label class="lbl">Depósito EUR</label><input type="text" id="fDepEUR" placeholder="0,00"></div>
-          <div class="field"><label class="lbl">Waiver EUR</label><input type="text" id="fWavEUR" placeholder="0,00"></div>
-          <div class="field"><label class="lbl">Gasto tarjeta</label><input type="text" id="fGastoT" placeholder="0,00"></div>
+          <div class="field"><label class="lbl">Depósito EUR</label><input type="text" id="fDepEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
+          <div class="field"><label class="lbl">Waiver EUR</label><input type="text" id="fWavEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
+          <div class="field"><label class="lbl">Gasto tarjeta</label><input type="text" id="fGastoT" oninput="chkImporte(this)" placeholder="0,00"></div>
         </div>
         <div class="alert al-or"><strong>⚠️ MUY IMPORTANTE</strong>NUNCA modificar los importes si ya se han cobrado. BODAS y Reservas conflictivas: en "Se permite waiver" poner NO.</div>
         <div class="field"><label class="lbl">Se permite seleccionar waiver</label>
@@ -328,8 +328,6 @@
 <div class="card">
   <div class="card-head" onclick="togCard('card-extras')"><span class="card-ico">💶</span><h2 style="flex:1">Cobros Extras y Upselling</h2><span class="card-arr" id="arr-card-extras">▾</span></div>
   <div class="card-body collapsed" id="body-card-extras">
-    <div class="alert al-or"><strong>⚠️ IMPORTANTE</strong>Los importes con 2 decimales separados por coma. Ej: 33,00</div>
-
     <!-- Línea 1 -->
     <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:center;gap:8px">
@@ -337,7 +335,7 @@
         <span id="stUp1" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span>
       </div>
       <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp1Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(1)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp1EUR" placeholder="0,00" oninput="updateUpBadge(1)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp1EUR" oninput="chkImporte(this)" placeholder="0,00" oninput="updateUpBadge(1)"></div>
     </div>
 
     <!-- Línea 2 -->
@@ -347,7 +345,7 @@
         <span id="stUp2" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span>
       </div>
       <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp2Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(2)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp2EUR" placeholder="0,00" oninput="updateUpBadge(2)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp2EUR" oninput="chkImporte(this)" placeholder="0,00" oninput="updateUpBadge(2)"></div>
     </div>
 
     <!-- Línea 3 -->
@@ -357,7 +355,7 @@
         <span id="stUp3" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span>
       </div>
       <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp3Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(3)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp3EUR" placeholder="0,00" oninput="updateUpBadge(3)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp3EUR" oninput="chkImporte(this)" placeholder="0,00" oninput="updateUpBadge(3)"></div>
     </div>
 
     <!-- Link cobros -->
@@ -684,6 +682,7 @@ function populateForm(){
 /* ══ GUARDAR ══ */
 window.guardar=function(){
   if(isSaving)return;
+  if(!validarImportes())return;
   isSaving=true;var btn=g('btnSave');btn.disabled=true;btn.textContent='Guardando…';
   var newMUID=g('fMultiunit').value;
   var record={
@@ -724,6 +723,35 @@ window.guardar=function(){
     toast('❌ '+err.message,'err');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
   });
 };
+
+/* Validación importes: solo punto como decimal */
+window.chkImporte=function(el){
+  if(!el)return;
+  if(el.value.indexOf(',')!==-1){
+    el.style.borderColor='var(--red)';
+    el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';
+    toast('⚠️ Usa punto (.) no coma (,) como decimal. Ej: 33.50','err');
+  } else {
+    el.style.borderColor='';
+    el.style.boxShadow='';
+  }
+};
+
+function validarImportes(){
+  var campos=['fDepEUR','fWavEUR','fGastoT','fUp1EUR','fUp2EUR','fUp3EUR'];
+  for(var i=0;i<campos.length;i++){
+    var el=g(campos[i]);
+    if(el&&el.value.indexOf(',')!==-1){
+      el.style.borderColor='var(--red)';
+      el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      toast('⚠️ Importe con coma detectado. Usa punto (.) como decimal. Ej: 33.50','err');
+      el.focus();
+      return false;
+    }
+  }
+  return true;
+}
 
 window.copiarLink=function(){
   var lnk=g('linkCobros');if(!lnk)return;
