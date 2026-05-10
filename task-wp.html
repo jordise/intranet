@@ -2,558 +2,201 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>WelcomePack — 3Villas</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <title>Nueva Tarea v6 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:env(safe-area-inset-bottom,20px)}
-
-    /* Header */
-    header{background:var(--red);color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.25)}
-    .h-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.7;margin-bottom:2px}
-    .h-villa{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
-    .h-res{font-size:12px;opacity:.8;margin-top:3px}
-
-    /* Task type badge */
-    .task-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
-
-    /* Main container */
-    main{padding:16px;max-width:500px;margin:0 auto}
-
-    /* Card section */
-    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
-    .card-title{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);padding:12px 16px 8px;border-bottom:1px solid var(--gray-2)}
-
-    /* Toggle switch rows */
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;transition:background .1s}
-    .toggle-row:not(:last-child){border-bottom:1px solid var(--gray-2)}
-    .toggle-row:active{background:var(--gray-1)}
-    .toggle-label{font-size:14px;font-weight:500;color:var(--gray-5);flex:1;padding-right:12px;line-height:1.3}
-    .toggle-sub{font-size:11px;color:var(--gray-4);margin-top:2px}
-
-    /* Switch */
-    .switch{position:relative;width:50px;height:28px;flex-shrink:0}
-    .switch input{opacity:0;width:0;height:0;position:absolute}
-    .slider{position:absolute;inset:0;background:var(--gray-3);border-radius:28px;transition:background .2s;cursor:pointer}
-    .slider::before{content:'';position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
-    input:checked + .slider{background:var(--green)}
-    input:checked + .slider::before{transform:translateX(22px)}
-
-    /* Photo section */
-    .photo-wrap{padding:14px 16px}
-    .photo-preview-area{background:var(--gray-1);border-radius:10px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:12px;position:relative;border:2px dashed var(--gray-3);cursor:pointer;transition:border-color .2s}
-    .photo-preview-area:active{border-color:var(--red)}
-    .photo-preview-area img{width:100%;height:100%;object-fit:cover;display:none;border-radius:8px}
-    .photo-placeholder{text-align:center;padding:20px;pointer-events:none}
-    .photo-placeholder .ico{font-size:40px;margin-bottom:8px;display:block}
-    .photo-placeholder p{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.5px}
-    .photo-placeholder span{font-size:11px;color:var(--gray-3);display:block;margin-top:4px}
-    .photo-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .photo-btn{height:44px;border-radius:10px;border:1.5px solid var(--gray-2);background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--gray-5);transition:all .15s}
-    .photo-btn:active{background:var(--gray-1)}
-    .photo-btn.primary{background:var(--red);color:#fff;border-color:var(--red)}
-    .photo-btn.primary:active{background:var(--red-dark)}
-    #fileInput{display:none}
-    #cameraInput{display:none}
-
-    /* Photo uploaded state */
-    .photo-remove{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:16px;backdrop-filter:blur(4px)}
-
-    /* Textarea */
-    .comments-wrap{padding:14px 16px}
-    .comments-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:8px;display:block}
-    textarea{width:100%;height:90px;border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 12px;font-family:'Open Sans',sans-serif;font-size:14px;color:var(--gray-5);resize:none;outline:none;transition:border-color .15s}
-    textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
-    textarea::placeholder{color:var(--gray-3)}
-
-    /* Save button */
-    .save-wrap{padding:6px 0 20px}
-    .btn-save{width:100%;height:54px;background:var(--green);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;box-shadow:0 4px 14px rgba(30,158,78,.35)}
-    .btn-save:active{background:#17834a;transform:scale(.98)}
-    .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
-    .btn-save .spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:2px;text-transform:uppercase}
+    .user-pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
+    main{padding:20px 16px 40px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm)}
+    .card-head{padding:12px 18px;border-bottom:2px solid var(--gray-2);display:flex;align-items:center;gap:10px}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5);flex:1}
+    .card-head .ico{font-size:18px}
+    .badge-def{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;background:var(--gray-2);color:var(--gray-4);padding:2px 8px;border-radius:10px;text-transform:uppercase}
+    .card-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .lbl .req{color:var(--red)}
+    .input-wrap{display:flex;gap:6px;align-items:stretch}
+    input,select,textarea{border:1.5px solid var(--gray-2);border-radius:8px;padding:10px 12px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    input.err{border-color:var(--red)!important;background:var(--red-light)}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    textarea{resize:vertical;min-height:72px;line-height:1.5}
+    .mic-btn{flex-shrink:0;width:42px;border:1.5px solid var(--gray-2);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .15s;color:var(--gray-4)}
+    .mic-btn:hover{border-color:var(--red);color:var(--red)}
+    .mic-btn.recording{border-color:var(--red);background:var(--red-light);animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,16,46,.3)}50%{box-shadow:0 0 0 6px rgba(200,16,46,0)}}
+    .mic-btn.hidden{display:none}
+    .villa-dd{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:var(--shadow-lg);display:none}
+    .villa-opt{padding:9px 14px;cursor:pointer;font-size:13px;color:var(--gray-5);border-bottom:1px solid var(--gray-2)}
+    .villa-opt:last-child{border-bottom:none}
+    .villa-opt:hover{background:var(--red-light);color:var(--red)}
+    .villa-match{font-weight:800}
+    .res-pill{display:inline-flex;align-items:center;gap:6px;background:var(--red-light);color:var(--red);padding:6px 12px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700}
+    .defaults-note{font-size:12px;color:var(--gray-4);background:var(--gray-1);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gray-3);line-height:1.5}
+    .defaults-note strong{color:var(--gray-5);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;display:block;margin-bottom:3px}
+    .photos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media(max-width:400px){.photos-grid{grid-template-columns:repeat(2,1fr)}}
+    .photo-slot{position:relative;border-radius:10px;overflow:hidden;transition:all .2s}
+    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;align-items:center;justify-content:center;gap:5px;height:90px}
+    .photo-slot.empty:hover{border-color:var(--red);background:var(--red-light)}
+    .ps-btns{display:flex;gap:5px}
+    .ps-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:8px;padding:7px 11px;font-size:18px;cursor:pointer;line-height:1;transition:all .15s}
+    .ps-btn:hover{border-color:var(--red);background:var(--red-light)}
+    .ps-num{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-3)}
+    .s-ico{font-size:26px;opacity:.35;pointer-events:none}
+    .s-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-4);text-transform:uppercase;pointer-events:none}
+    .photo-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .del-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;display:none;align-items:center;justify-content:center;z-index:2;line-height:1}
+    .photo-slot.has-img .del-btn{display:flex}
+    .photo-slot.has-img .s-ico,.photo-slot.has-img .s-lbl{display:none}
+    .photo-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .up-ov{position:absolute;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center}
+    .up-ov.show{display:flex}
+    .up-spin{width:24px;height:24px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .6s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* Toast messages */
-    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d3142;color:#fff;padding:12px 22px;border-radius:30px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;max-width:90vw;text-align:center}
-    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-    .toast.success{background:var(--green)}
-    .toast.error{background:var(--red)}
-
-    /* Loading overlay */
-    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
-    .load-spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
-    .load-text{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
-
-    /* Error state */
-    .error-state{text-align:center;padding:50px 20px}
-    .error-state .emoji{font-size:50px;margin-bottom:12px}
-    .error-state h3{font-family:'Montserrat',sans-serif;font-size:18px;margin-bottom:8px}
-    .error-state p{font-size:13px;color:var(--gray-4)}
+    .btn-submit{background:var(--red);color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;width:100%;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:10px}
+    .btn-submit:hover{background:var(--red-dark)}
+    .btn-submit:disabled{background:var(--gray-3);cursor:not-allowed}
+    .spin-sm{width:18px;height:18px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none;flex-shrink:0}
+    .btn-submit.loading .spin-sm{display:block}
+    #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-md);transition:transform .3s;z-index:9998;max-width:92vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0)}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+    #successBox{display:none;text-align:center;padding:36px 20px}
+    #successBox .big{font-size:52px;margin-bottom:10px}
+    #successBox h3{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px}
+    #successBox p{font-size:13px;color:var(--gray-4);margin-bottom:4px}
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}}
   </style>
   <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
 </head>
 <body>
-<script>Auth.require('entradas');</script>
-
-<div id="loadOverlay">
-  <div class="load-spinner"></div>
-  <div class="load-text">Cargando...</div>
-</div>
-
-<div id="toast" class="toast"></div>
-
+<script>Auth.require('tareas');</script>
 <header>
-  <div class="h-villa" id="hVilla">Cargando...</div>
-  <div class="h-res" id="hRes"></div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-    <div class="task-badge" id="hTaskBadge">📦 WelcomePack</div>
-    <button onclick="showDebug()" style="background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.7);font-size:11px;padding:3px 8px;border-radius:10px;cursor:pointer">🐛</button>
-  </div>
+  <div class="h-title">Nueva Tarea</div>
+  <div class="user-pill">👤 <span id="hUserName"></span></div>
 </header>
-
-<main id="mainContent" style="display:none">
-
-  <!-- Checkboxes principales -->
-  <div class="card">
-    <div class="card-title">Estado</div>
-
-    <label class="toggle-row" for="swAgua">
-      <div>
-        <div class="toggle-label">🚿 Hay agua caliente</div>
-        <div class="toggle-sub">Verificar antes de salir</div>
-      </div>
-      <div class="switch">
-        <input type="checkbox" id="swAgua">
-        <div class="slider"></div>
-      </div>
-    </label>
-
-    <label class="toggle-row" for="swWifi">
-      <div>
-        <div class="toggle-label">📶 Wifi funciona</div>
-        <div class="toggle-sub">Conectar y verificar</div>
-      </div>
-      <div class="switch">
-        <input type="checkbox" id="swWifi">
-        <div class="slider"></div>
-      </div>
-    </label>
-
+<div class="villa-dd" id="villaDd"></div>
+<div id="toast"></div>
+<main>
+  <div class="card" id="resCard" style="display:none">
+    <div class="card-head"><span class="ico">📋</span><h2>Reserva vinculada</h2></div>
+    <div class="card-body">
+      <div id="resPill" class="res-pill"><span class="res-ico">🏷️</span><span id="resLabel">—</span></div>
+      <p style="font-size:11px;color:var(--gray-4);margin-top:4px">Esta tarea quedará vinculada a la reserva indicada.</p>
+    </div>
   </div>
-
-  <!-- Foto -->
   <div class="card">
-    <div class="card-title">📷 Foto Wellcomepack</div>
-    <div class="photo-wrap">
-      <div class="photo-preview-area" id="photoArea" onclick="handlePhotoAreaClick()">
-        <img id="photoPreview" alt="Foto WelcomePack">
-        <button class="photo-remove" id="photoRemove" onclick="removePhoto(event)">✕</button>
-        <div class="photo-placeholder" id="photoPlaceholder">
-          <span class="ico">📦</span>
-          <p>Añadir foto</p>
-          <span>Toca para seleccionar</span>
+    <div class="card-head"><span class="ico">✏️</span><h2>¿Qué hay que hacer?</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="lbl">Nombre de la tarea <span class="req">*</span></label>
+        <div class="input-wrap"><input type="text" id="fNombre" autocomplete="off" placeholder="Nombre de la tarea..."><button class="mic-btn hidden" id="micNombre" type="button" title="Dictar">🎤</button></div>
+      </div>
+      <div class="field">
+        <label class="lbl">Descripción</label>
+        <div class="input-wrap"><textarea id="fDesc" rows="2" placeholder="Detalles opcionales..."></textarea><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="ico">📸</span><h2>Fotos <span style="font-weight:400;opacity:.5;font-size:11px">(opcional, hasta 5)</span></h2></div>
+    <div class="card-body"><div class="photos-grid" id="photosGrid"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="ico">⚙️</span><h2>Valores por defecto</h2><span class="badge-def">pre-rellenados</span></div>
+    <div class="card-body">
+      <div class="defaults-note"><strong>Cámbialo solo si es necesario</strong>Estos campos se rellenan automáticamente.</div>
+      <div class="field"><label class="lbl">Fecha a realizar <span class="req">*</span></label><input type="date" id="fFecha"></div>
+      <div class="field"><label class="lbl">Asignado a</label><select id="fAsignado"><option value="">Cargando...</option></select></div>
+      <div class="field-row">
+        <div class="field"><label class="lbl">Tipo de tarea</label>
+          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Keyholder">Keyholder</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
         </div>
+        <div class="field"><label class="lbl">Villa</label><input type="text" id="fVillaSearch" autocomplete="off" placeholder="Buscar villa..."><input type="hidden" id="fVilla"></div>
       </div>
-      <div class="photo-btns">
-        <button class="photo-btn primary" onclick="openCamera()">📷 Cámara</button>
-        <button class="photo-btn" onclick="openGallery()">🖼️ Galería</button>
-      </div>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
-      <input type="file" id="fileInput"   accept="image/*" onchange="handlePhoto(this)">
     </div>
   </div>
-
-  <!-- WelcomePack entregado — después de la foto -->
-  <div class="card" id="cardWPDone" style="border:2px solid var(--gray-2);transition:border-color .3s">
-    <label class="toggle-row" for="swDone" style="padding:16px">
-      <div>
-        <div class="toggle-label" style="font-size:15px;font-weight:600">✅ Wellcomepack entregado</div>
-        <div class="toggle-sub" id="wpDoneHint">Sube la foto para marcar automáticamente</div>
-      </div>
-      <div class="switch">
-        <input type="checkbox" id="swDone" onchange="onSwDoneChange()">
-        <div class="slider"></div>
-      </div>
-    </label>
-  </div>
-
-  <!-- Comentarios -->
   <div class="card">
-    <div class="comments-wrap">
-      <label class="comments-label" for="txtComentarios">💬 Comentarios</label>
-      <textarea id="txtComentarios" placeholder="Añade notas o incidencias..."></textarea>
-    </div>
+    <div class="card-body" id="btnWrap"><button class="btn-submit" id="btnSubmit" type="button"><div class="spin-sm"></div><span>✓ Crear tarea</span></button></div>
+    <div id="successBox"><div class="big">✅</div><h3>¡Tarea creada!</h3><p>Volviendo atrás...</p></div>
   </div>
-
-  <!-- Guardar -->
-  <div class="save-wrap">
-    <button class="btn-save" id="btnSave" onclick="guardar()">
-      <div class="spinner" id="saveSpinner"></div>
-      <span id="saveLabel">✓ GUARDAR</span>
-    </button>
-  </div>
-
 </main>
-
 <script>
-const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-
-// ── Leer URL params ──────────────────────────────────────────
-const params    = new URLSearchParams(location.search);
-const idReserva = params.get('Idreserva') || params.get('idreserva') || '';
-const taskType  = params.get('Tasktype_booking') || '20';
-const code      = params.get('code') || ''; // confirmation code opcional
-
-// Task type config
-const TASK_CONFIG = {
-  '10': { label:'🧹 Limpieza',    badge:'🧹 Limpieza',    color:'#1565c0' },
-  '20': { label:'📦 WelcomePack', badge:'📦 WelcomePack', color:'#e07b00' },
-  '30': { label:'🔒 Cierre',      badge:'🔒 Cierre',      color:'#5e35b1' },
-};
-const cfg = TASK_CONFIG[taskType] || TASK_CONFIG['20'];
-
-// ── Photo state ──────────────────────────────────────────────
-let selectedPhoto = null; // File object
-let photoBase64   = null; // base64 string for preview
-
-// ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('hTaskBadge').textContent = cfg.badge;
-  document.getElementById('hTaskBadge').style.background = 'rgba(255,255,255,.2)';
-
-  if (!idReserva) {
-    showError('Faltan parámetros en la URL.<br>Usa el botón desde Entradas y Salidas.');
-    return;
-  }
-
-  try {
-    // Cargar datos de la reserva y la tarea
-    await Promise.allSettled([loadBooking(), loadTask()]);
-    hide('loadOverlay');
-    show('mainContent');
-  } catch(e) {
-    showError('Error al cargar: ' + e.message);
-  }
-});
-
-async function loadBooking() {
-  // Buscar por BookingID o FS_confirmation_code
-  const where = code
-    ? `TaBookings2021_FS_confirmation_code='${code}'`
-    : `TaBookings2021_BookingID='${idReserva}'`;
-
-  const url = Auth.url(`${WORKER}?action=view&view=Vi_villas_and_bookings2021&where=${encodeURIComponent(where)}&limit=1`);
-  const res  = await fetch(url);
-  const json = await res.json();
-  const r    = (json.Result||json.result||[])[0];
-  if (!r) return;
-
-  document.getElementById('hVilla').textContent = r['TaBookings2021_Property_Title'] || `Reserva ${idReserva}`;
-  document.getElementById('hRes').textContent   = `Reserva: ${r['TaBookings2021_FS_confirmation_code'] || idReserva}`;
-
-  // El toggle WP refleja el estado real de la reserva (fuente de verdad)
-  const wpStatus = r['TaBookings2021_Welcomepackentregado'];
-  $sw('swDone', wpStatus);
-  // Actualizar visual del card según el estado cargado
-  if (typeof wpStatus !== 'undefined') onSwDoneChange();
-}
-
-async function loadTask() {
-  const where = `Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-  const url   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=1`);
-  const res   = await fetch(url);
-  const json  = await res.json();
-  const task  = (json.Result||json.result||[])[0];
-
-  // Debug: mostrar todos los campos del registro
-  window.__taskDebug = task;
-  console.log('TaTasks record:', task);
-
-  if (!task) {
-    console.log('No task found for Idreserva='+idReserva+' Tasktype='+taskType);
-    return;
-  }
-
-  // ── WP entregado + Incidencias ──
-  if (task['Tarea_terminada'] !== undefined) $sw('swDone', task['Tarea_terminada']);
-
-  // ── Agua caliente / Wifi ──
-  // Intentar múltiples nombres de campo posibles
-  // Agua caliente → Limpieza_filtrolavaplatos (Yes/No)
-  if (task['Limpieza_filtrolavaplatos'] !== undefined)
-    $sw('swAgua', task['Limpieza_filtrolavaplatos']);
-
-  // Wifi → Limpieza_salyabrillan_lavaplatos (Text: 'Y' = sí)
-  if (task['Limpieza_salyabrillan_lavaplatos'] !== undefined)
-    $sw('swWifi', task['Limpieza_salyabrillan_lavaplatos'] === 'Y');
-
-  // Comentarios → Taskdescription
-  if (task['Taskdescription'])
-    document.getElementById('txtComentarios').value = task['Taskdescription'];
-
-  // ── Foto: buscar URL en Solutiondescription (R2) o Picture_in_cleaning1 (Caspio File) ──
-  const r2Url = task['Picture_cloudfare1'];
-  if (r2Url && r2Url.startsWith('http')) {
-    console.log('Showing R2 photo:', r2Url);
-    showPhotoPreview(r2Url);
-  } else {
-    // Fallback: campo File de Caspio
-    const fotoVal = task['Picture_in_cleaning1'];
-    if (fotoVal) {
-      let fotoUrl = typeof fotoVal === 'string' && fotoVal.startsWith('http')
-        ? fotoVal
-        : (typeof fotoVal === 'object' ? (fotoVal.Url||fotoVal.url||null) : null);
-      if (fotoUrl) showPhotoPreview(fotoUrl);
-    }
-  }
-
-  // Mostrar debug en consola con todos los campos
-  console.log('Task fields:', Object.keys(task));
-  console.log('Agua:', task['Limpieza_filtrolavaplatos'], '| Wifi:', task['Limpieza_salyabrillan_lavaplatos'], '| Foto:', task['Picture_in_cleaning1']);
-}
-
-// ── UI helpers ────────────────────────────────────────────────
-function $sw(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (typeof val === 'boolean') el.checked = val;
-  else el.checked = val === true || val === 1 || val === -1 || String(val) === '1';
-}
-function sw(id)     { return document.getElementById(id)?.checked || false; }
-function hide(id)   { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
-function show(id)   { const el = document.getElementById(id); if(el) el.style.display = ''; }
-function block(id)  { const el = document.getElementById(id); if(el) el.style.display = 'flex'; }
-
-// ── Photo handling ─────────────────────────────────────────────
-function openCamera()  { document.getElementById('cameraInput').click(); }
-function openGallery() { document.getElementById('fileInput').click(); }
-function handlePhotoAreaClick() {
-  if (!selectedPhoto) openGallery();
-}
-
-function handlePhoto(input) {
-  const file = input.files[0];
-  if (!file) return;
-  selectedPhoto = file;
-  const reader  = new FileReader();
-  reader.onload = e => {
-    photoBase64 = e.target.result;
-    showPhotoPreview(photoBase64);
-    markWPDone(); // auto-check WP entregado
-  };
-  reader.readAsDataURL(file);
-  input.value = ''; // reset
-}
-
-function onSwDoneChange() {
-  const el   = document.getElementById('swDone');
-  const card = document.getElementById('cardWPDone');
-  const hint = document.getElementById('wpDoneHint');
-  if (el.checked) {
-    if (card) card.style.borderColor = 'var(--green)';
-    if (hint) { hint.textContent = 'Wellcomepack marcado como entregado'; hint.style.color = 'var(--green)'; }
-  } else {
-    if (card) card.style.borderColor = 'var(--red-light)';
-    if (hint) { hint.textContent = '⚠️ Marcado como pendiente — aparecerá en el listado'; hint.style.color = 'var(--red)'; }
-  }
-}
-function markWPDone() {
-  const swDone = document.getElementById('swDone');
-  const card   = document.getElementById('cardWPDone');
-  const hint   = document.getElementById('wpDoneHint');
-  if (!swDone.checked) {
-    swDone.checked = true;
-    // Visual feedback on card
-    if (card) card.style.borderColor = 'var(--green)';
-    if (hint) hint.textContent = '✓ Marcado automáticamente al subir la foto';
-    if (hint) hint.style.color = 'var(--green)';
-  }
-}
-
-function showPhotoPreview(src) {
-  const img  = document.getElementById('photoPreview');
-  const ph   = document.getElementById('photoPlaceholder');
-  const btn  = document.getElementById('photoRemove');
-  img.src    = src;
-  img.style.display = 'block';
-  ph.style.display  = 'none';
-  btn.style.display = 'flex';
-  document.getElementById('photoArea').style.borderStyle = 'solid';
-  document.getElementById('photoArea').style.borderColor = 'var(--green)';
-}
-
-function removePhoto(e) {
-  e.stopPropagation();
-  selectedPhoto = null;
-  photoBase64   = null;
-  const img = document.getElementById('photoPreview');
-  img.src = '';
-  img.style.display = 'none';
-  document.getElementById('photoPlaceholder').style.display = '';
-  document.getElementById('photoRemove').style.display = 'none';
-  document.getElementById('photoArea').style.borderStyle = 'dashed';
-  document.getElementById('photoArea').style.borderColor = 'var(--gray-3)';
-}
-
-// ── Build description JSON ────────────────────────────────────
-// ── Guardar ───────────────────────────────────────────────────
-async function guardar() {
-  // Validar foto obligatoria
-  const existingPhoto = document.getElementById('photoPreview').style.display === 'block';
-  if (!selectedPhoto && !existingPhoto) {
-    toast('⚠️ La foto es obligatoria', 'error');
-    // Hacer scroll a la foto
-    document.querySelector('.photo-wrap').scrollIntoView({ behavior:'smooth', block:'center' });
-    // Resaltar zona de foto
-    const area = document.getElementById('photoArea');
-    area.style.borderColor = 'var(--red)';
-    area.style.borderStyle = 'solid';
-    setTimeout(()=>{ area.style.borderColor='var(--gray-3)'; area.style.borderStyle='dashed'; }, 2000);
-    return;
-  }
-
-  const btn = document.getElementById('btnSave');
-  const lbl = document.getElementById('saveLabel');
-  const sp  = document.getElementById('saveSpinner');
-
-  btn.disabled    = true;
-  lbl.textContent = 'Guardando...';
-  sp.style.display = 'block';
-
-  try {
-    const data = {
-      Idreserva        : idReserva,
-      Tasktype_booking : taskType,
-      Tarea_terminada  : sw('swDone'),
-      Limpieza_filtrolavaplatos      : sw('swAgua'),
-      Limpieza_salyabrillan_lavaplatos: sw('swWifi') ? 'Y' : '',
-      Taskdescription                : document.getElementById('txtComentarios').value.trim(),
-      Tasktype_booking : parseInt(taskType), // Integer en TaTasks
-      Taskname         : 'WelcomePack',
-    };
-
-    // Si hay foto nueva: incluir base64 (Caspio puede aceptarla como campo de texto/URL)
-    // Si no → omitir del body para no sobreescribir
-    if (selectedPhoto && photoBase64) {
-      // Intentar subir imagen al worker
-      try {
-        const uploadRes = await uploadPhoto(selectedPhoto, idReserva, taskType);
-        if (uploadRes && uploadRes.url) {
-          // URL de la foto en campo separado (Solutiondescription)
-          data['Picture_cloudfare1'] = uploadRes.url;
-          window.__uploadedPhotoUrl  = uploadRes.url;
-          console.log('Uploaded to R2:', uploadRes.filename, uploadRes.url);
-        }
-      } catch(eUp) {
-        console.warn('Photo upload skipped:', eUp.message);
-        // Continuar sin foto — no bloquear el guardado
-      }
-    }
-
-    // PUT/POST a TaTasks
-    // Check if task exists → PUT (update) or POST (insert)
-    const whereCheck = `Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-    const checkUrl   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(whereCheck)}&limit=1`);
-    const checkRes   = await fetch(checkUrl);
-    const checkJson  = await checkRes.json();
-    const exists     = (checkJson.Result||checkJson.result||[]).length > 0;
-
-    const saveMethod = exists ? 'PUT' : 'POST';
-    const saveQs     = exists
-      ? `action=save&table=TaTasks&where=${encodeURIComponent(whereCheck)}&method=PUT`
-      : `action=save&table=TaTasks&method=POST`;
-    const saveUrl = Auth.url(`${WORKER}?${saveQs}`);
-
-    const saveRes = await fetch(saveUrl, {
-      method : 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body   : JSON.stringify(data),
-    });
-
-    if (!saveRes.ok) {
-      const err = await saveRes.text();
-      throw new Error(err);
-    }
-
-    // ── También actualizar TaBookings2021.Welcomepackentregado ──
-    // El badge en Entradas y Salidas lee este campo de la reserva
-    try {
-      const wpDone     = sw('swDone');
-      const bkWhere    = `FS_confirmation_code='${idReserva}'`;
-      const bkSaveUrl  = Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);
-      await fetch(bkSaveUrl, {
-        method : 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body   : JSON.stringify({ Welcomepackentregado: wpDone }),
-      });
-      console.log('Booking updated: Welcomepackentregado =', wpDone);
-    } catch(eBk) {
-      console.warn('No se pudo actualizar TaBookings2021:', eBk.message);
-      // No bloqueamos — la tarea sí se guardó
-    }
-
-    toast('✓ Guardado correctamente', 'success');
-    btn.disabled    = false;
-    lbl.textContent = '✓ GUARDADO';
-    btn.style.background = 'var(--green)';
-
-    // Cerrar popup — funciona siempre porque fue abierto con window.open()
-    setTimeout(() => window.close(), 800);
-
-  } catch(e) {
-    console.error('Save error:', e);
-    toast('Error al guardar: ' + e.message, 'error');
-    btn.disabled    = false;
-    lbl.textContent = '✓ GUARDAR';
-    sp.style.display = 'none';
-  }
-}
-
-async function uploadPhoto(file, idRes, taskType) {
-  const fd = new FormData();
-  fd.append('file',       file, file.name || 'foto.jpg');
-  fd.append('idreserva',  idRes);
-  fd.append('tasktype',   taskType);
-  fd.append('year',       new Date().getFullYear());
-
-  const res = await fetch(Auth.url(`${WORKER}?action=upload`), {
-    method: 'POST',
-    body  : fd,
+(function () {
+  'use strict';
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  var PHOTO_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+  var MAX_PHOT=5,photos=[],allVillas=[],myUserName='',myUserId='';
+  var urlParams=new URLSearchParams(window.location.search);
+  var paramIdReserva=(urlParams.get('Idreserva')||'').trim();
+  var paramVillaId=(urlParams.get('villa_id')||'').trim();
+  var paramVillaName=(urlParams.get('villa_name')||'').trim();
+  for(var _i=0;_i<MAX_PHOT;_i++)photos.push({file:null});
+  function g(id){return document.getElementById(id);}
+  function pad(n){return String(n).padStart(2,'0');}
+  function todayDate(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  var toastT;
+  function toast(msg,type){var el=g('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(toastT);toastT=setTimeout(function(){el.className='';},4000);}
+  document.addEventListener('DOMContentLoaded',function(){
+    myUserName=Auth.name?Auth.name():'';
+    var uEl=g('hUserName');if(uEl)uEl.textContent=myUserName.split(' ')[0];
+    g('fFecha').value=todayDate();
+    if(paramIdReserva){var rc=g('resCard');if(rc)rc.style.display='block';var rl=g('resLabel');if(rl)rl.textContent='Reserva: '+paramIdReserva+(paramVillaName?' — '+paramVillaName:'');}
+    // Villa pre-fill se hace en loadVillas() una vez cargadas todas las villas
+    buildGrid();initVillaSearch();initMic();
+    g('btnSubmit').addEventListener('click',submitForm);
+    loadUsers();loadVillas();
   });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
-  console.log('Photo uploaded:', data.url, '— filename:', data.filename);
-  return data;
-}
-
-// ── Feedback ──────────────────────────────────────────────────
-let toastTimer;
-function toast(msg, type) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = `toast show ${type||''}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = 'toast', 3000);
-}
-
-function showDebug() {
-  const t = JSON.stringify(window.__taskDebug || {}, null, 2);
-  const w = window.open('', '_blank', 'width=600,height=500');
-  w.document.write('<pre style="font-family:monospace;font-size:12px;padding:16px">'+t+'</pre>');
-}
-function showError(msg) {
-  hide('loadOverlay');
-  document.getElementById('mainContent').innerHTML = `
-    <div class="error-state">
-      <div class="emoji">⚠️</div>
-      <h3>Error</h3>
-      <p>${msg}</p>
-    </div>`;
-  show('mainContent');
-}
+  function loadUsers(){fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(function(r){return r.json();}).then(function(json){var users=json.Result||json.result||[];var myEmail=Auth.email?Auth.email():'';var active=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';});active.forEach(function(u){if(String(u.Email||'').toLowerCase()===myEmail.toLowerCase())myUserId=String(u.UserID);});var sel=g('fAsignado');sel.innerHTML=active.map(function(u){var isSel=String(u.UserID)===myUserId?' selected':'';return'<option value="'+u.UserID+'"'+isSel+'>'+u.Name+'</option>';}).join('');}).catch(function(){g('fAsignado').innerHTML='<option value="">Error</option>';});}
+  function loadVillas(){fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500')).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];allVillas=rows.map(function(v){return{id:String(v.villaid),name:v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid};}).sort(function(a,b){return a.name.localeCompare(b.name);});if(paramVillaId){
+    // Buscar nombre de la villa por ID (más robusto que pasarlo en la URL)
+    var found=allVillas.filter(function(v){return v.id===String(paramVillaId);})[0];
+    if(found){g('fVillaSearch').value=found.name;g('fVilla').value=found.id;}
+  }else{
+    for(var i=0;i<allVillas.length;i++){var nl=allVillas[i].name.toLowerCase();if(nl.indexOf('3villas')!==-1||nl.indexOf('tarea interna')!==-1){g('fVillaSearch').value=allVillas[i].name;g('fVilla').value=allVillas[i].id;break;}}
+  }}).catch(function(){});}
+  function initVillaSearch(){var inp=g('fVillaSearch'),dd=g('villaDd');inp.addEventListener('input',function(){var q=inp.value.trim();g('fVilla').value='';if(!q){dd.style.display='none';return;}renderVillaDD(q);});inp.addEventListener('focus',function(){if(inp.value.trim())renderVillaDD(inp.value.trim());});document.addEventListener('click',function(e){if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});window.addEventListener('scroll',function(){repositionDD();},true);window.addEventListener('resize',function(){if(dd.style.display!=='none')repositionDD();});}
+  function repositionDD(){var inp=g('fVillaSearch'),dd=g('villaDd'),rect=inp.getBoundingClientRect();dd.style.top=(rect.bottom+2)+'px';dd.style.left=rect.left+'px';dd.style.width=rect.width+'px';}
+  function renderVillaDD(q){var dd=g('villaDd'),ql=q.toLowerCase(),res=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);if(!res.length){dd.style.display='none';return;}dd.innerHTML=res.map(function(v){var idx=v.name.toLowerCase().indexOf(ql),hi=v.name.slice(0,idx)+'<span class="villa-match">'+v.name.slice(idx,idx+q.length)+'</span>'+v.name.slice(idx+q.length);return'<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,"&quot;")+'">'+hi+'</div>';}).join('');dd.querySelectorAll('.villa-opt').forEach(function(opt){opt.addEventListener('mousedown',function(e){e.preventDefault();g('fVillaSearch').value=opt.dataset.name;g('fVilla').value=opt.dataset.id;dd.style.display='none';});});repositionDD();dd.style.display='block';}
+  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
+  function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
+  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();inpCam.value='';inpCam.click();});btnFile.addEventListener('click',function(e){e.stopPropagation();inpFile.value='';inpFile.click();});btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
+  function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
+  function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
+  function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
+  function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
+  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':g('fDesc').value.trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
+  function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
+})();
 </script>
 </body>
 </html>
