@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v17 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v17 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v18 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v18 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -606,40 +606,37 @@ function loadTiposPension(){
 }
 
 function loadBooking(){
-  var where="FS_confirmation_code='"+confCode+"'";
-  return fetch(Auth.url(WORKER+'?action=data&table=TaBookings2021&where='+encodeURIComponent(where)+'&limit=1'))
+  /* Usamos la vista Vi_villas_and_bookings2021 que ya hace JOIN con TaVillas
+     e incluye TaVillas_Checkin_arrivalform, TaVillas_Checkin_registro_policia, etc. */
+  var where="TaBookings2021_FS_confirmation_code='"+confCode+"'";
+  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=1';
+  return fetch(Auth.url(url))
     .then(function(r){return r.json();})
     .then(function(json){
       var rows=json.Result||json.result||[];
-      if(!rows.length)throw new Error('Reserva no encontrada: '+confCode);
+      if(!rows.length) throw new Error('Reserva no encontrada: '+confCode);
       bookingData=rows[0];
-      /* TaBookings2021 usa VillaID_FSnumber como FK a TaVillas */
-      var vid=String(
-        bookingData['VillaID_FSnumber']||
-        bookingData['villaid']||
-        bookingData['VillaId']||
-        bookingData['villa_id']||''
-      ).trim();
-      console.log('Villa ID encontrado:', vid, '| keys:', Object.keys(bookingData).filter(function(k){return k.toLowerCase().indexOf('villa')!==-1;}));
-      return vid?loadVilla(vid):Promise.resolve();
+      /* La vista ya incluye los campos de TaVillas — usamos bookingData directamente */
+      villaData=bookingData;
+      console.log('Vista cargada OK. Keys villa:', Object.keys(bookingData).filter(function(k){return k.toLowerCase().indexOf('checkin')!==-1;}));
     }).then(populateForm);
 }
 
-function loadVilla(vid){
-  var where='villaid='+parseInt(vid);
-  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=1'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];
-      villaData=rows[0]||null;
-      console.log('loadVilla result:', vid, '→ rows:', rows.length, villaData?'OK':'NOT FOUND');
-      if(villaData) console.log('TaVillas keys:', Object.keys(villaData));
-    })
-    .catch(function(e){console.warn('loadVilla error:', e);});
-}
+/* loadVilla eliminado — la vista ya incluye TaVillas */
 
-function fB(k){if(!bookingData)return'';var v=bookingData[k];if(v!==undefined&&v!==null)return v;v=bookingData['TaBookings2021_'+k];return(v!==undefined&&v!==null)?v:'';}
-function fV(k){if(!villaData)return'';var v=villaData[k];if(v!==undefined&&v!==null)return v;v=villaData['TaVillas_'+k];return(v!==undefined&&v!==null)?v:'';}
+function fB(k){
+  if(!bookingData)return'';
+  var v=bookingData[k]; if(v!==undefined&&v!==null)return v;
+  v=bookingData['TaBookings2021_'+k]; if(v!==undefined&&v!==null)return v;
+  return'';
+}
+function fV(k){
+  /* En la vista Vi_villas_and_bookings2021, campos de TaVillas vienen con prefijo TaVillas_ */
+  if(!villaData)return'';
+  var v=villaData['TaVillas_'+k]; if(v!==undefined&&v!==null)return v;
+  v=villaData[k]; if(v!==undefined&&v!==null)return v;
+  return'';
+}
 
 function populateForm(){
   /* Header */
