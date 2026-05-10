@@ -3,6 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
   <title>Tareas — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -13,7 +30,6 @@
     .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
     .h-sub{font-size:clamp(10px,2.5vw,12px);opacity:.75;margin-top:1px}
     .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
-    /* ── Filter panel ── */
     #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
     .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:10px}
     .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
@@ -49,11 +65,9 @@
     #chips{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0}
     .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
     .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
-    /* ── Stats ── */
     #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
     .stat{display:flex;align-items:baseline;gap:5px}
     .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
-    /* ── Table ── */
     main{padding:18px 22px;max-width:1400px;margin:0 auto}
     .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
     .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
@@ -70,7 +84,6 @@
     tbody tr:hover{background:var(--gray-1)}
     tbody tr:last-child{border-bottom:none}
     td{padding:9px 14px;vertical-align:middle}
-    /* Villa + estado + asignado combinados */
     .meta-cell{display:flex;flex-direction:column;gap:4px;min-width:140px}
     .meta-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5);text-transform:uppercase;letter-spacing:.3px}
     .meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -89,7 +102,6 @@
     .act-btn-edit{background:var(--blue-light);color:var(--blue)}
     .acts-wrap{display:flex;gap:5px;flex-wrap:wrap}
     .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
-    /* Próximamente */
     .prox-toggle-row td{cursor:pointer;padding:10px 14px;background:var(--gray-1);border-top:2px dashed var(--gray-3)}
     .prox-toggle-row:hover td{background:var(--orange-light)}
     .prox-task-row{display:none}
@@ -107,7 +119,6 @@
 <body>
 <input type="hidden" id="mgrName">
 <script>Auth.require('tareas');</script>
-
 <header>
   <div>
     <div class="h-title"><span id="hCount" style="letter-spacing:0"></span> TAREAS</div>
@@ -117,10 +128,7 @@
     <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
   </div>
 </header>
-
-<!-- ── PANEL FILTROS ── -->
 <div id="filterPanel">
-  <!-- Barra siempre visible: Estado + botón Filtros -->
   <div class="main-bar">
     <div class="pill-group">
       <span class="pill-label">Estado</span>
@@ -131,16 +139,10 @@
       </div>
     </div>
     <div style="flex:1"></div>
-    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
-      <span>Filtros</span><span class="arr">▾</span>
-    </button>
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()"><span>Filtros</span><span class="arr">▾</span></button>
     <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
   </div>
-
-  <!-- Chips activos -->
   <div id="chips"></div>
-
-  <!-- Panel colapsable -->
   <div id="masFiltros">
     <div class="mas-inner">
       <div class="filter-row">
@@ -161,53 +163,29 @@
             </div>
           </div>
         </div>
-        <div class="f-group narrow">
-          <label class="f-label">Desde</label>
-          <input type="date" id="fDesde" class="f-input">
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Hasta</label>
-          <input type="date" id="fHasta" class="f-input">
-        </div>
+        <div class="f-group narrow"><label class="f-label">Desde</label><input type="date" id="fDesde" class="f-input"></div>
+        <div class="f-group narrow"><label class="f-label">Hasta</label><input type="date" id="fHasta" class="f-input"></div>
       </div>
       <div class="filter-row" style="margin-bottom:0">
-        <div class="f-group">
-          <label class="f-label">Villa</label>
-          <input type="text" id="fVilla" class="f-input" list="villasList" placeholder="Nombre de villa...">
-          <datalist id="villasList"></datalist>
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Id Reserva</label>
-          <input type="text" id="fReserva" class="f-input" placeholder="ej. j5oQcmp4FQ">
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Tipo tarea</label>
-          <select id="fTasktype" class="f-select"><option value="">— Todos —</option></select>
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Tipo reserva</label>
-          <select id="fBookingType" class="f-select">
-            <option value="">— Todos —</option>
-            <option value="10">🧹 Limpieza</option>
-            <option value="20">🎁 WelcomePack</option>
-            <option value="30">🔒 Cierre</option>
-          </select>
+        <div class="f-group"><label class="f-label">Villa</label><input type="text" id="fVilla" class="f-input" list="villasList" placeholder="Nombre de villa..."><datalist id="villasList"></datalist></div>
+        <div class="f-group narrow"><label class="f-label">Id Reserva</label><input type="text" id="fReserva" class="f-input" placeholder="ej. j5oQcmp4FQ"></div>
+        <div class="f-group narrow"><label class="f-label">Tipo tarea</label><select id="fTasktype" class="f-select"><option value="">— Todos —</option></select></div>
+        <div class="f-group narrow"><label class="f-label">Tipo reserva</label>
+          <select id="fBookingType" class="f-select"><option value="">— Todos —</option><option value="10">🧹 Limpieza</option><option value="20">🎁 WelcomePack</option><option value="30">🔒 Cierre</option></select>
         </div>
       </div>
     </div>
   </div>
 </div>
-
 <div id="statsBar">
   <div class="stat"><strong id="sCnt">0</strong> tareas</div>
   <div class="stat" id="sPendStat" style="display:none"><strong id="sPendCnt" style="color:var(--red)">0</strong> pendientes</div>
   <div class="stat" id="sDoneStat" style="display:none"><strong id="sDoneCnt" style="color:var(--green)">0</strong> terminadas</div>
 </div>
-
 <main>
   <div id="stInit" class="state-box"><div class="spinner"></div><p>Iniciando...</p></div>
   <div id="stLoad" class="state-box" style="display:none"><div class="spinner"></div><p>Cargando tareas...</p></div>
-  <div id="stErr"  class="state-box" style="display:none">
+  <div id="stErr" class="state-box" style="display:none">
     <div style="font-size:40px;margin-bottom:10px">⚠️</div>
     <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
     <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
@@ -225,492 +203,79 @@
     </table>
   </div>
 </main>
-
-<div id="dbWrap">
-  <button id="dbBtn">🐛</button>
-  <div id="dbBox">Sin datos aún.</div>
-</div>
-
+<div id="dbWrap"><button id="dbBtn">🐛</button><div id="dbBox">Sin datos aún.</div></div>
 <script>
 (function () {
   'use strict';
-
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-
   function g(id)   { return document.getElementById(id); }
   function val(id) { return (g(id) || {}).value || ''; }
-  function todayStr(){ return new Date().toISOString().split('T')[0]; }
   function fmtDate(s) {
     if (!s) return '—';
     var d = new Date(s.includes('T') ? s : s + 'T00:00:00');
     return isNaN(d) ? s : d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
   }
-
-  var estadoFilter  = 'pend';
-  var allUsersMap   = {};
-  var selectedUsers = {};
-  var allUsersList  = [];
-  var currentUserId = '';
-  var villaNameMap  = {};
-  var allVillas     = [];
-  var tasktypeSet   = {};
-  var allRows       = [];
-  var sortCol       = 'Data_to_be_done_fixed';
-  var sortDir       = 1;
-  var searchTimer   = null;
-  var searchId      = 0;
-  var proxOpen      = false;
-
+  var estadoFilter='pend',allUsersMap={},selectedUsers={},allUsersList=[],currentUserId='';
+  var villaNameMap={},allVillas=[],tasktypeSet={},allRows=[],sortCol='Data_to_be_done_fixed',sortDir=1;
+  var searchTimer=null,searchId=0,proxOpen=false;
   function selUsersKeys() { return Object.keys(selectedUsers); }
-  function schedule(ms)   { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, ms||0); }
-
-  function isDone(t) {
-    var v = t.Tarea_terminada;
-    return v===true||v===1||v===-1||
-           String(v).toLowerCase()==='yes'||
-           String(v).toLowerCase()==='sí'||
-           String(v).toLowerCase()==='true';
-  }
+  function schedule(ms) { clearTimeout(searchTimer); searchTimer=setTimeout(doSearch,ms||0); }
+  function isDone(t) { var v=t.Tarea_terminada; return v===true||v===1||v===-1||String(v).toLowerCase()==='yes'||String(v).toLowerCase()==='sí'||String(v).toLowerCase()==='true'; }
   function getTaskId(t) { return t.taskid||t.TaskID||t.idtask||t.Id||t.ID||''; }
-
-  // ── Toggle filtros colapsables ──
-  window.toggleMas = function() {
-    g('btnMas').classList.toggle('on');
-    g('masFiltros').classList.toggle('open');
-  };
-
-  // ── Toggle Próximamente ──
-  window.toggleProxTareas = function() {
-    proxOpen = !proxOpen;
-    document.querySelectorAll('.prox-task-row').forEach(function(r) {
-      r.style.display = proxOpen ? 'table-row' : 'none';
-    });
-    var arr = g('proxArrow');
-    if (arr) arr.style.transform = proxOpen ? 'rotate(90deg)' : '';
-  };
-
-  window.openEditTask = function(rawId, reserva) {
-    if (!rawId) { alert('Sin ID de tarea.'); return; }
-    var params = 'taskid=' + encodeURIComponent(rawId);
-    if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
-    var url = 'editar-tarea.html?' + params;
-    var w=520, h=820, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
-    var popup = window.open(url,'editartarea','width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');
-    if (popup) {
-      var t = setInterval(function(){ if(popup.closed){clearInterval(t);doSearch();} }, 600);
-    }
-  };
-
-  document.addEventListener('DOMContentLoaded', function() {
-    g('eAll') .addEventListener('click', function(){ setEstado('all');  });
-    g('ePend').addEventListener('click', function(){ setEstado('pend'); });
-    g('eDone').addEventListener('click', function(){ setEstado('done'); });
-    g('fUserBtn').addEventListener('click', toggleUserPanel);
-    g('userSearch').addEventListener('input', function(){ renderUserList(this.value); });
-    g('btnSelectAll').addEventListener('click', function(){
-      allUsersList.forEach(function(u){ selectedUsers[u.id]=true; });
-      renderUserList(''); updateUserBtn();
-    });
-    g('btnClearUsers').addEventListener('click', function(){
-      selectedUsers={}; renderUserList(''); updateUserBtn();
-    });
-    g('fDesde').addEventListener('change', function(){
-      var h=g('fHasta'); if(h&&h.value&&h.value<this.value)h.value=this.value; schedule();
-    });
-    g('fHasta').addEventListener('change',    function(){ schedule(); });
-    g('fReserva').addEventListener('input',   function(){ schedule(500); });
-    g('fVilla').addEventListener('input',     function(){ schedule(500); });
-    g('fTasktype').addEventListener('change', function(){ schedule(); });
-    g('fBookingType').addEventListener('change', function(){ schedule(); });
-    g('dbBtn').addEventListener('click', function(){ g('dbBox').classList.toggle('open'); });
-    document.querySelectorAll('th[data-col]').forEach(function(th){
-      th.addEventListener('click', function(){ sortBy(th.dataset.col); });
-    });
-    document.addEventListener('click', function(e){
-      var panel=g('userPanel'), btn=g('fUserBtn');
-      if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))
-        panel.style.display='none';
-    });
-    window.addEventListener('resize', repositionUserPanel);
-
-    g('fDesde').value = '2020-01-01';
-    g('fHasta').value = '2029-12-31';
-
-    Promise.allSettled([loadUsers(), loadVillas()]).then(function(){
-      setEstado('pend', false);
-      doSearch();
-    });
-  });
-
-  window.addEventListener('pageshow', function(e){ if(e.persisted) doSearch(); });
-
-  // ── CARGAR USUARIOS ──
-  function loadUsers() {
-    var btn = g('fUserBtn');
-    if (btn){ btn.disabled=true; g('fUserLabel').textContent='Cargando...'; }
-    return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
-      .then(function(r){ return r.json(); })
-      .then(function(json){
-        var users = json.Result||json.result||[];
-        users.forEach(function(u){
-          allUsersMap[String(u.UserID||'')] = String(u.Name||'');
-          var kpd = String(u['Keyholder_por_defecto']||'').trim();
-          if (kpd) allUsersMap[kpd] = String(u.Name||'');
-        });
-        var myEmail = Auth.email ? Auth.email() : '';
-        var myUser  = users.filter(function(u){
-          return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();
-        })[0];
-        if (myUser) {
-          currentUserId = String(myUser['Keyholder_por_defecto']||myUser.UserID||'').trim();
-          if (g('mgrName'))   g('mgrName').value = myUser.Name||'';
-          if (g('hUserName')) g('hUserName').textContent = (myUser.Name||'').split(' ')[0];
-        }
-        allUsersList = users.filter(function(u){
-          var s=u['User_Status'];
-          return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';
-        }).map(function(u){ return {id:String(u.UserID||''),name:String(u.Name||'')}; });
-        selectedUsers = {};
-        if (currentUserId) selectedUsers[currentUserId] = true;
-        if (myUser) selectedUsers[String(myUser.UserID||'')] = true;
-        renderUserList(''); updateUserBtn();
-        if (btn) btn.disabled = false;
-        g('dbBox').textContent = 'Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
-      })
-      .catch(function(e){
-        if(btn){g('fUserLabel').textContent='Error';btn.disabled=false;}
-        console.error('loadUsers:',e);
-      });
-  }
-
-  // ── CARGAR VILLAS ──
-  function loadVillas() {
-    return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
-      .then(function(r){ return r.json(); })
-      .then(function(json){
-        var rows=json.Result||json.result||[];
-        var dl=g('villasList');
-        rows.forEach(function(v){
-          var id=String(v.villaid||'');
-          var name=v.Name_villa_para_inquilinos||v.Name||id;
-          villaNameMap[id]=name;
-          allVillas.push({id:id,name:name});
-          if(dl){ var opt=document.createElement('option'); opt.value=name; dl.appendChild(opt); }
-        });
-      })
-      .catch(function(e){ console.warn('loadVillas:',e.message); });
-  }
-
-  // ── PANEL USUARIOS ──
-  function renderUserList(filter) {
-    var list=g('userList'); if(!list)return;
-    var q=(filter||'').toLowerCase();
-    var items=q?allUsersList.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}):allUsersList;
-    list.innerHTML=items.map(function(u){
-      var checked=selectedUsers[u.id]?' checked':'';
-      return '<div class="manager-item" data-uid="'+u.id+'">'+
-             '<input type="checkbox" id="uc_'+u.id+'"'+checked+'>'+
-             '<label for="uc_'+u.id+'">'+u.name+'</label></div>';
-    }).join('');
-    list.querySelectorAll('.manager-item').forEach(function(item){
-      item.addEventListener('click', function(){
-        var uid=item.dataset.uid;
-        if(selectedUsers[uid]) delete selectedUsers[uid]; else selectedUsers[uid]=true;
-        renderUserList(g('userSearch').value||''); updateUserBtn(); schedule(300);
-      });
-    });
-  }
-
-  function updateUserBtn() {
-    var lbl=g('fUserLabel'); if(!lbl)return;
-    var keys=selUsersKeys();
-    if(keys.length===0)      lbl.textContent='Todos';
-    else if(keys.length===1) lbl.textContent=allUsersMap[keys[0]]||keys[0];
-    else                     lbl.textContent=keys.length+' usuarios';
-    var hSub=g('hSub');
-    if(hSub){
-      if(keys.length===1){ var name=allUsersMap[keys[0]]||''; hSub.textContent=name?'de '+name.split(' ')[0]:''; }
-      else hSub.textContent='';
-    }
-  }
-
-  function toggleUserPanel(e) {
-    e.stopPropagation();
-    var panel=g('userPanel'), btn=g('fUserBtn');
-    if(!panel||!btn)return;
-    if(panel.style.display!=='none'){panel.style.display='none';return;}
-    repositionUserPanel();
-    panel.style.display='flex';
-    g('userSearch').value=''; renderUserList(''); g('userSearch').focus();
-  }
-  function repositionUserPanel() {
-    var panel=g('userPanel'), btn=g('fUserBtn');
-    if(!panel||!btn||panel.style.display==='none')return;
-    var r=btn.getBoundingClientRect();
-    panel.style.top=(r.bottom+4)+'px'; panel.style.left=r.left+'px'; panel.style.width=r.width+'px';
-  }
-
-  // ── ESTADO ──
-  function setEstado(mode, doSch) {
-    estadoFilter=mode;
-    ['eAll','ePend','eDone'].forEach(function(id){
-      var el=g(id); if(!el)return;
-      var on=(id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done');
-      el.classList.toggle('on',on);
-    });
-    if(doSch!==false) schedule();
-  }
-
-  window.clearAll = function() {
-    selectedUsers={};
-    if(currentUserId) selectedUsers[currentUserId]=true;
-    renderUserList(''); updateUserBtn();
+  window.toggleMas=function(){g('btnMas').classList.toggle('on');g('masFiltros').classList.toggle('open');};
+  window.toggleProxTareas=function(){proxOpen=!proxOpen;document.querySelectorAll('.prox-task-row').forEach(function(r){r.style.display=proxOpen?'table-row':'none';});var arr=g('proxArrow');if(arr)arr.style.transform=proxOpen?'rotate(90deg)':'';};
+  window.openEditTask=function(rawId,reserva){if(!rawId){alert('Sin ID de tarea.');return;}var params='taskid='+encodeURIComponent(rawId);if(reserva)params+='&Idreserva='+encodeURIComponent(reserva);var url='editar-tarea.html?'+params;if(window.innerWidth<768||/Mobi|Android/i.test(navigator.userAgent)){location.href=url;return;}var w=520,h=820,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);var popup=window.open(url,'editartarea','width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');if(popup){var t=setInterval(function(){if(popup.closed){clearInterval(t);doSearch();}},600);}};
+  document.addEventListener('DOMContentLoaded',function(){
+    g('eAll').addEventListener('click',function(){setEstado('all');});
+    g('ePend').addEventListener('click',function(){setEstado('pend');});
+    g('eDone').addEventListener('click',function(){setEstado('done');});
+    g('fUserBtn').addEventListener('click',toggleUserPanel);
+    g('userSearch').addEventListener('input',function(){renderUserList(this.value);});
+    g('btnSelectAll').addEventListener('click',function(){allUsersList.forEach(function(u){selectedUsers[u.id]=true;});renderUserList('');updateUserBtn();});
+    g('btnClearUsers').addEventListener('click',function(){selectedUsers={};renderUserList('');updateUserBtn();});
+    g('fDesde').addEventListener('change',function(){var h=g('fHasta');if(h&&h.value&&h.value<this.value)h.value=this.value;schedule();});
+    g('fHasta').addEventListener('change',function(){schedule();});
+    g('fReserva').addEventListener('input',function(){schedule(500);});
+    g('fVilla').addEventListener('input',function(){schedule(500);});
+    g('fTasktype').addEventListener('change',function(){schedule();});
+    g('fBookingType').addEventListener('change',function(){schedule();});
+    g('dbBtn').addEventListener('click',function(){g('dbBox').classList.toggle('open');});
+    document.querySelectorAll('th[data-col]').forEach(function(th){th.addEventListener('click',function(){sortBy(th.dataset.col);});});
+    document.addEventListener('click',function(e){var panel=g('userPanel'),btn=g('fUserBtn');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))panel.style.display='none';});
+    window.addEventListener('resize',repositionUserPanel);
     g('fDesde').value='2020-01-01'; g('fHasta').value='2029-12-31';
-    g('fReserva').value=''; g('fVilla').value='';
-    g('fTasktype').value=''; g('fBookingType').value='';
-    setEstado('pend',false); renderChips(); doSearch();
-  };
-
-  // ── WHERE ──
-  function buildWhere() {
-    var parts=[], desde=val('fDesde'), hasta=val('fHasta');
-    var reserva=val('fReserva').trim(), tt=val('fTasktype'), bt=val('fBookingType');
-    var keys=selUsersKeys();
-    if(keys.length>0){
-      var ids=keys.map(function(id){return"'"+id+"'";}).join(',');
-      parts.push(keys.length===1?"UserID_asigned_alfanum='"+keys[0]+"'":'UserID_asigned_alfanum IN ('+ids+')');
-    }
-    // Solo filtrar desde en servidor (hasta client-side para no excluir tareas sin fecha)
-    if(desde) parts.push("Data_to_be_done_fixed>='"+desde+"T00:00:00'");
-    if(bt)    parts.push('Tasktype_booking='+bt);
-    if(tt)    parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
-    if(reserva) parts.push("idreserva LIKE '%"+reserva+"%'");
-    var villaQ=val('fVilla').trim().toLowerCase();
-    if(villaQ){
-      var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);
-      if(!mids.length) parts.push('villaid=-999');
-      else if(mids.length===1) parts.push('villaid='+mids[0]);
-      else parts.push('villaid IN ('+mids.join(',')+')');
-    }
-    return parts.join(' AND ');
-  }
-
-  // ── CHIPS ──
-  var DEFAULT_DESDE='2020-01-01', DEFAULT_HASTA='2029-12-31';
-
-  function renderChips() {
-    var html='';
-    var keys=selUsersKeys();
-    // Chip usuario: solo si hay selección no-default (más de 1 usuario, o un usuario distinto al actual)
-    var isDefaultUser=(keys.length===1&&selectedUsers[currentUserId]===true);
-    if(keys.length>0 && !isDefaultUser){
-      var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');
-      html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users');
-    }
-    // Chip fecha: solo si difiere del default
-    var d=val('fDesde'), h=val('fHasta');
-    if(d && d!==DEFAULT_DESDE) html+=chip('Desde: '+fmtDate(d),'desde');
-    if(h && h!==DEFAULT_HASTA) html+=chip('Hasta: '+fmtDate(h),'hasta');
-    if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
-    if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
-    var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
-    if(bt) html+=chip(btL[bt]||bt,'booking');
-    if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
-    // Chip estado: solo si es Terminadas (Pendientes es el default)
-    if(estadoFilter==='done') html+=chip('Terminadas','estado');
-    if(estadoFilter==='all')  html+=chip('Todas','estado');
-    g('chips').innerHTML=html;
-    g('chips').querySelectorAll('button[data-key]').forEach(function(btn){
-      btn.addEventListener('click',function(){ clearChip(btn.dataset.key); renderChips(); doSearch(); });
-    });
-  }
-  function chip(label,key){ return '<span class="chip-filter">'+label+' <button data-key="'+key+'">✕</button></span>'; }
-  function clearChip(key) {
-    // La X limpia el filtro (quita la restricción), no resetea al default
-    if(key==='users')   { selectedUsers={}; renderUserList(''); updateUserBtn(); }
-    if(key==='desde')   g('fDesde').value='';       // sin límite inferior de fecha
-    if(key==='hasta')   g('fHasta').value='';       // sin límite superior de fecha
-    if(key==='reserva') g('fReserva').value='';
-    if(key==='villa')   g('fVilla').value='';
-    if(key==='booking') g('fBookingType').value='';
-    if(key==='tasktype') g('fTasktype').value='';
-    if(key==='estado')  setEstado('pend',false);    // vuelve al default: pendientes
-  }
-
-  // ── BUSCAR ──
-  function doSearch() {
-    var myId=++searchId; proxOpen=false; renderChips();
-    g('tableWrap').style.display='none'; g('stInit').style.display='none';
-    g('stLoad').style.display='block';   g('stErr').style.display='none';
-    g('statsBar').style.display='none';  if(g('hCount'))g('hCount').textContent='';
-    var where=buildWhere();
-    var qs=where?'&where='+encodeURIComponent(where):'';
-    var url=WORKER+'?action=data&table=TaTasks'+qs+'&limit=1000';
-    fetch(Auth.url(url))
-      .then(function(r){ return r.json(); })
-      .then(function(json){
-        if(myId!==searchId)return;
-        if(json.error) throw new Error(json.error);
-        var tasks=json.Result||json.result||[];
-        g('dbBox').textContent='WHERE:\n'+(where||'(sin filtros)')+'\n\nResultados: '+tasks.length+'\n\n'+JSON.stringify(tasks[0]||{},null,2);
-        tasks.forEach(function(t){ if(t.Tasktype) tasktypeSet[String(t.Tasktype).trim()]=true; });
-        var selTT=g('fTasktype'), curTT=selTT.value;
-        selTT.innerHTML='<option value="">— Todos —</option>'+
-          Object.keys(tasktypeSet).sort().map(function(v){
-            return '<option value="'+v+'"'+(v===curTT?' selected':'')+'>'+v+'</option>';
-          }).join('');
-        tasks.forEach(function(t){ var vid=String(t.villaid||''); if(vid&&!villaNameMap[vid])villaNameMap[vid]='Villa '+vid; });
-        allRows=tasks; renderTable();
-      })
-      .catch(function(err){
-        if(myId!==searchId)return;
-        g('stLoad').style.display='none'; g('stErr').style.display='block';
-        g('errMsg').textContent=err.message; g('dbBox').textContent='Error:\n'+err.message;
-      });
-  }
-
-  // ── SORT ──
-  function sortBy(col) {
-    if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
-    document.querySelectorAll('th[data-col]').forEach(function(th){
-      th.classList.remove('sort-asc','sort-desc');
-      if(th.dataset.col===col) th.classList.add(sortDir===1?'sort-asc':'sort-desc');
-    });
-    renderTable();
-  }
-
-  // ── FECHA CELL ──
-  function dateCell(t) {
-    var raw=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-    if(!raw) return '<span class="date-cell">—</span>';
-    var d=new Date(raw.split('T')[0]+'T00:00:00');
-    var today=new Date(); today.setHours(0,0,0,0);
-    var diff=Math.round((d-today)/86400000);
-    var cls='date-cell'+(diff<0?' overdue':diff===0?' today':'');
-    var lbl=diff===0?'Hoy':diff===-1?'Ayer':diff===1?'Mañana':fmtDate(raw);
-    return '<span class="'+cls+'">'+lbl+'</span>';
-  }
-
-  // ── GENERAR FILA ──
-  function buildRow(t, extraClass) {
-    var done_t  = isDone(t);
-    var reserva = t.idreserva||t.Idreserva||'';
-    var taskName = (t.Taskname||'').trim();
-    var taskNameShort = taskName.length>70?taskName.slice(0,70)+'…':taskName;
-    var taskDesc = (t.Taskdescription||'').trim();
-    var taskDescShort = taskDesc.length>110?taskDesc.slice(0,110)+'…':taskDesc;
-    var taskId  = getTaskId(t);
-    var villaName = t._villaName||'—';
-    var userName  = t._userName||'';
-
-    var rowBg='';
-    if(!done_t && extraClass!=='prox-task-row'){
-      var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(rawD){
-        var today2=new Date(); today2.setHours(0,0,0,0);
-        var diff2=Math.round((new Date(rawD.split('T')[0]+'T00:00:00')-today2)/86400000);
-        if(diff2<0)      rowBg='background:#fff5f5';
-        else if(diff2===0) rowBg='background:#fffbf0';
-      }
-    }
-
-    var btnVer = reserva
-      ? '<button class="act-btn act-btn-ver" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code='+reserva+'\',\'tp\',\'width=900,height=700\');})()" title="Ver reserva">📋</button>'
-      : '';
-    var btnEdit = taskId
-      ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\'' + taskId + '\',\'' + (reserva||'') + '\')" title="Editar">✏️ Editar</button>'
-      : '<button class="act-btn" style="opacity:.4;cursor:not-allowed" disabled>✏️ —</button>';
-
-    // Celda combinada Villa / Estado / Asignado
-    var metaCell = '<div class="meta-cell">'+
-      '<div class="meta-villa">'+villaName+'</div>'+
-      '<div class="meta-row">'+
-        (done_t?'<span class="est-done">Terminada</span>':'<span class="est-pend">Pendiente</span>')+
-        (userName?'<span class="meta-sep">·</span><span class="meta-user">'+userName.split(' ')[0]+'</span>':'')+
-      '</div>'+
-    '</div>';
-
-    return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'+
-      '<td><div class="acts-wrap">'+btnVer+btnEdit+'</div></td>'+
-      '<td style="font-size:12px;font-weight:600;max-width:180px">'+(taskNameShort||'<span style="color:var(--gray-3)">(sin nombre)</span>')+'</td>'+
-      '<td style="font-size:12px;max-width:260px;color:var(--gray-4)">'+(taskDescShort||'')+'</td>'+
-      '<td>'+metaCell+'</td>'+
-      '<td>'+dateCell(t)+'</td>'+
-    '</tr>';
-  }
-
-  // ── RENDER ──
-  function renderTable() {
-    g('stLoad').style.display='none';
-    var today=new Date(); today.setHours(0,0,0,0);
-
-    var hastaVal=val('fHasta');
-    var filtered=allRows.filter(function(t){
-      if(estadoFilter==='pend') return !isDone(t);
-      if(estadoFilter==='done') return  isDone(t);
-      return true;
-    }).filter(function(t){
-      // Filtro hasta en cliente: tareas sin fecha siempre pasan
-      if(!hastaVal) return true;
-      var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(!rawD) return true; // sin fecha → siempre visible
-      return rawD.split('T')[0]<=hastaVal;
-    }).map(function(t){
-      return Object.assign({},t,{
-        _villaName: villaNameMap[String(t.villaid||'')]||String(t.villaid||''),
-        _userName:  allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),
-        _done:      isDone(t)?1:0,
-      });
-    });
-
-    filtered.sort(function(a,b){
-      var av=a[sortCol]!==undefined?a[sortCol]:'', bv=b[sortCol]!==undefined?b[sortCol]:'';
-      if(sortCol==='Data_to_be_done_fixed'){av=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';bv=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';}
-      return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
-    });
-
-    // Separar: pendientes urgentes vs futuras vs terminadas
-    var pendPast=[], pendFuture=[], doneRows=[];
-    filtered.forEach(function(t){
-      if(isDone(t)){ doneRows.push(t); return; }
-      var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(rawD && new Date(rawD.split('T')[0]+'T00:00:00')>today) pendFuture.push(t);
-      else pendPast.push(t);
-    });
-
-    var pend=filtered.filter(function(t){return!isDone(t);}).length;
-    var done=filtered.filter(function(t){return isDone(t);}).length;
-    g('sCnt').textContent=filtered.length;
-    g('sPendCnt').textContent=pend; g('sDoneCnt').textContent=done;
-    g('sPendStat').style.display=pend>0?'flex':'none';
-    g('sDoneStat').style.display=done>0?'flex':'none';
-    g('statsBar').style.display='flex';
-    if(g('hCount'))g('hCount').textContent=filtered.length||'';
-
-    var tbody=g('tbody');
-    if(!filtered.length){
-      tbody.innerHTML='<tr class="empty-row"><td colspan="5">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
-      g('tableWrap').style.display='block'; return;
-    }
-
-    var html='';
-    pendPast.forEach(function(t){ html+=buildRow(t,''); });
-
-    if(pendFuture.length){
-      html+='<tr class="prox-toggle-row" onclick="toggleProxTareas()">'+
-        '<td colspan="5">'+
-        '<span style="margin-right:8px;font-size:14px">🗓️</span>'+
-        '<strong>Próximamente: '+pendFuture.length+' tarea'+(pendFuture.length>1?'s':'')+'</strong>'+
-        '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>'+
-        '</td></tr>';
-      pendFuture.forEach(function(t){ html+=buildRow(t,'prox-task-row'); });
-    }
-
-    doneRows.forEach(function(t){ html+=buildRow(t,''); });
-    tbody.innerHTML=html;
-    g('tableWrap').style.display='block';
-  }
-
+    Promise.allSettled([loadUsers(),loadVillas()]).then(function(){setEstado('pend',false);doSearch();});
+  });
+  window.addEventListener('pageshow',function(e){if(e.persisted)doSearch();});
+  function loadUsers(){var btn=g('fUserBtn');if(btn){btn.disabled=true;g('fUserLabel').textContent='Cargando...';}
+    return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(function(r){return r.json();}).then(function(json){
+      var users=json.Result||json.result||[];
+      users.forEach(function(u){allUsersMap[String(u.UserID||'')]=String(u.Name||'');var kpd=String(u['Keyholder_por_defecto']||'').trim();if(kpd)allUsersMap[kpd]=String(u.Name||'');});
+      var myEmail=Auth.email?Auth.email():'';
+      var myUser=users.filter(function(u){return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();})[0];
+      if(myUser){currentUserId=String(myUser['Keyholder_por_defecto']||myUser.UserID||'').trim();if(g('mgrName'))g('mgrName').value=myUser.Name||'';if(g('hUserName'))g('hUserName').textContent=(myUser.Name||'').split(' ')[0];}
+      allUsersList=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';}).map(function(u){return{id:String(u.UserID||''),name:String(u.Name||'')};});
+      selectedUsers={};if(currentUserId)selectedUsers[currentUserId]=true;if(myUser)selectedUsers[String(myUser.UserID||'')]=true;
+      renderUserList('');updateUserBtn();if(btn)btn.disabled=false;
+      g('dbBox').textContent='Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
+    }).catch(function(e){if(btn){g('fUserLabel').textContent='Error';btn.disabled=false;}console.error('loadUsers:',e);});}
+  function loadVillas(){return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500')).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];var dl=g('villasList');rows.forEach(function(v){var id=String(v.villaid||''),name=v.Name_villa_para_inquilinos||v.Name||id;villaNameMap[id]=name;allVillas.push({id:id,name:name});if(dl){var opt=document.createElement('option');opt.value=name;dl.appendChild(opt);}});}).catch(function(e){console.warn('loadVillas:',e.message);});}
+  function renderUserList(filter){var list=g('userList');if(!list)return;var q=(filter||'').toLowerCase();var items=q?allUsersList.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}):allUsersList;list.innerHTML=items.map(function(u){var checked=selectedUsers[u.id]?' checked':'';return'<div class="manager-item" data-uid="'+u.id+'"><input type="checkbox" id="uc_'+u.id+'"'+checked+'><label for="uc_'+u.id+'">'+u.name+'</label></div>';}).join('');list.querySelectorAll('.manager-item').forEach(function(item){item.addEventListener('click',function(){var uid=item.dataset.uid;if(selectedUsers[uid])delete selectedUsers[uid];else selectedUsers[uid]=true;renderUserList(g('userSearch').value||'');updateUserBtn();schedule(300);});});}
+  function updateUserBtn(){var lbl=g('fUserLabel');if(!lbl)return;var keys=selUsersKeys();if(keys.length===0)lbl.textContent='Todos';else if(keys.length===1)lbl.textContent=allUsersMap[keys[0]]||keys[0];else lbl.textContent=keys.length+' usuarios';var hSub=g('hSub');if(hSub){if(keys.length===1){var name=allUsersMap[keys[0]]||'';hSub.textContent=name?'de '+name.split(' ')[0]:'';}else hSub.textContent='';}}
+  function toggleUserPanel(e){e.stopPropagation();var panel=g('userPanel'),btn=g('fUserBtn');if(!panel||!btn)return;if(panel.style.display!=='none'){panel.style.display='none';return;}repositionUserPanel();panel.style.display='flex';g('userSearch').value='';renderUserList('');g('userSearch').focus();}
+  function repositionUserPanel(){var panel=g('userPanel'),btn=g('fUserBtn');if(!panel||!btn||panel.style.display==='none')return;var r=btn.getBoundingClientRect();panel.style.top=(r.bottom+4)+'px';panel.style.left=r.left+'px';panel.style.width=r.width+'px';}
+  function setEstado(mode,doSch){estadoFilter=mode;['eAll','ePend','eDone'].forEach(function(id){var el=g(id);if(!el)return;var on=(id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done');el.classList.toggle('on',on);});if(doSch!==false)schedule();}
+  window.clearAll=function(){selectedUsers={};if(currentUserId)selectedUsers[currentUserId]=true;renderUserList('');updateUserBtn();g('fDesde').value='2020-01-01';g('fHasta').value='2029-12-31';g('fReserva').value='';g('fVilla').value='';g('fTasktype').value='';g('fBookingType').value='';setEstado('pend',false);renderChips();doSearch();};
+  function buildWhere(){var parts=[],desde=val('fDesde'),hasta=val('fHasta'),reserva=val('fReserva').trim(),tt=val('fTasktype'),bt=val('fBookingType'),keys=selUsersKeys();if(keys.length>0){var ids=keys.map(function(id){return"'"+id+"'";}).join(',');parts.push(keys.length===1?"UserID_asigned_alfanum='"+keys[0]+"'":'UserID_asigned_alfanum IN ('+ids+')');}if(desde)parts.push("Data_to_be_done_fixed>='"+desde+"T00:00:00'");if(bt)parts.push('Tasktype_booking='+bt);if(tt)parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");if(reserva)parts.push("idreserva LIKE '%"+reserva+"%'");var villaQ=val('fVilla').trim().toLowerCase();if(villaQ){var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);if(!mids.length)parts.push('villaid=-999');else if(mids.length===1)parts.push('villaid='+mids[0]);else parts.push('villaid IN ('+mids.join(',')+')');}return parts.join(' AND ');}
+  var DEFAULT_DESDE='2020-01-01',DEFAULT_HASTA='2029-12-31';
+  function renderChips(){var html='',keys=selUsersKeys(),isDefaultUser=(keys.length===1&&selectedUsers[currentUserId]===true);if(keys.length>0&&!isDefaultUser){var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users');}var d=val('fDesde'),h=val('fHasta');if(d&&d!==DEFAULT_DESDE)html+=chip('Desde: '+fmtDate(d),'desde');if(h&&h!==DEFAULT_HASTA)html+=chip('Hasta: '+fmtDate(h),'hasta');if(val('fReserva').trim())html+=chip('Reserva: '+val('fReserva').trim(),'reserva');if(val('fVilla').trim())html+=chip('Villa: '+val('fVilla').trim(),'villa');var bt=val('fBookingType'),btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};if(bt)html+=chip(btL[bt]||bt,'booking');if(val('fTasktype'))html+=chip('Tipo: '+val('fTasktype'),'tasktype');if(estadoFilter==='done')html+=chip('Terminadas','estado');if(estadoFilter==='all')html+=chip('Todas','estado');g('chips').innerHTML=html;g('chips').querySelectorAll('button[data-key]').forEach(function(btn){btn.addEventListener('click',function(){clearChip(btn.dataset.key);renderChips();doSearch();});});}
+  function chip(label,key){return'<span class="chip-filter">'+label+' <button data-key="'+key+'">✕</button></span>';}
+  function clearChip(key){if(key==='users'){selectedUsers={};renderUserList('');updateUserBtn();}if(key==='desde')g('fDesde').value='';if(key==='hasta')g('fHasta').value='';if(key==='reserva')g('fReserva').value='';if(key==='villa')g('fVilla').value='';if(key==='booking')g('fBookingType').value='';if(key==='tasktype')g('fTasktype').value='';if(key==='estado')setEstado('pend',false);}
+  function doSearch(){var myId=++searchId;proxOpen=false;renderChips();g('tableWrap').style.display='none';g('stInit').style.display='none';g('stLoad').style.display='block';g('stErr').style.display='none';g('statsBar').style.display='none';if(g('hCount'))g('hCount').textContent='';var where=buildWhere();var qs=where?'&where='+encodeURIComponent(where):'';var url=WORKER+'?action=data&table=TaTasks'+qs+'&limit=1000';fetch(Auth.url(url)).then(function(r){return r.json();}).then(function(json){if(myId!==searchId)return;if(json.error)throw new Error(json.error);var tasks=json.Result||json.result||[];g('dbBox').textContent='WHERE:\n'+(where||'(sin filtros)')+'\n\nResultados: '+tasks.length+'\n\n'+JSON.stringify(tasks[0]||{},null,2);tasks.forEach(function(t){if(t.Tasktype)tasktypeSet[String(t.Tasktype).trim()]=true;});var selTT=g('fTasktype'),curTT=selTT.value;selTT.innerHTML='<option value="">— Todos —</option>'+Object.keys(tasktypeSet).sort().map(function(v){return'<option value="'+v+'"'+(v===curTT?' selected':'')+'>'+v+'</option>';}).join('');tasks.forEach(function(t){var vid=String(t.villaid||'');if(vid&&!villaNameMap[vid])villaNameMap[vid]='Villa '+vid;});allRows=tasks;renderTable();}).catch(function(err){if(myId!==searchId)return;g('stLoad').style.display='none';g('stErr').style.display='block';g('errMsg').textContent=err.message;g('dbBox').textContent='Error:\n'+err.message;});}
+  function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}document.querySelectorAll('th[data-col]').forEach(function(th){th.classList.remove('sort-asc','sort-desc');if(th.dataset.col===col)th.classList.add(sortDir===1?'sort-asc':'sort-desc');});renderTable();}
+  function dateCell(t){var raw=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!raw)return'<span class="date-cell">—</span>';var d=new Date(raw.split('T')[0]+'T00:00:00');var today=new Date();today.setHours(0,0,0,0);var diff=Math.round((d-today)/86400000);var cls='date-cell'+(diff<0?' overdue':diff===0?' today':'');var lbl=diff===0?'Hoy':diff===-1?'Ayer':diff===1?'Mañana':fmtDate(raw);return'<span class="'+cls+'">'+lbl+'</span>';}
+  function buildRow(t,extraClass){var done_t=isDone(t),reserva=t.idreserva||t.Idreserva||'',taskName=(t.Taskname||'').trim(),taskNameShort=taskName.length>70?taskName.slice(0,70)+'…':taskName,taskDesc=(t.Taskdescription||'').trim(),taskDescShort=taskDesc.length>110?taskDesc.slice(0,110)+'…':taskDesc,taskId=getTaskId(t),villaName=t._villaName||'—',userName=t._userName||'';var rowBg='';if(!done_t&&extraClass!=='prox-task-row'){var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(rawD){var today2=new Date();today2.setHours(0,0,0,0);var diff2=Math.round((new Date(rawD.split('T')[0]+'T00:00:00')-today2)/86400000);if(diff2<0)rowBg='background:#fff5f5';else if(diff2===0)rowBg='background:#fffbf0';}}var btnVer=reserva?'<button class="act-btn act-btn-ver" onclick="(function(){window.open(\'https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code='+reserva+'\',\'tp\',\'width=900,height=700\');})()" title="Ver reserva">📋</button>':'';var btnEdit=taskId?'<button class="act-btn act-btn-edit" onclick="openEditTask(\''+taskId+'\',\''+(reserva||')+'\')" title="Editar">✏️ Editar</button>':'<button class="act-btn" style="opacity:.4;cursor:not-allowed" disabled>✏️ —</button>';var metaCell='<div class="meta-cell"><div class="meta-villa">'+villaName+'</div><div class="meta-row">'+(done_t?'<span class="est-done">Terminada</span>':'<span class="est-pend">Pendiente</span>')+(userName?'<span class="meta-sep">·</span><span class="meta-user">'+userName.split(' ')[0]+'</span>':'')+' </div></div>';return'<tr class="'+(extraClass||'')+'" style="'+rowBg+'"><td><div class="acts-wrap">'+btnVer+btnEdit+'</div></td><td style="font-size:12px;font-weight:600;max-width:180px">'+(taskNameShort||'<span style="color:var(--gray-3)">(sin nombre)</span>')+'</td><td style="font-size:12px;max-width:260px;color:var(--gray-4)">'+(taskDescShort||'')+'</td><td>'+metaCell+'</td><td>'+dateCell(t)+'</td></tr>';}
+  function renderTable(){g('stLoad').style.display='none';var today=new Date();today.setHours(0,0,0,0);var hastaVal=val('fHasta');var filtered=allRows.filter(function(t){if(estadoFilter==='pend')return!isDone(t);if(estadoFilter==='done')return isDone(t);return true;}).filter(function(t){if(!hastaVal)return true;var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rawD)return true;return rawD.split('T')[0]<=hastaVal;}).map(function(t){return Object.assign({},t,{_villaName:villaNameMap[String(t.villaid||'')]||String(t.villaid||''),_userName:allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),_done:isDone(t)?1:0});});filtered.sort(function(a,b){var av=a[sortCol]!==undefined?a[sortCol]:'',bv=b[sortCol]!==undefined?b[sortCol]:'';if(sortCol==='Data_to_be_done_fixed'){av=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';bv=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';}return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;});var pendPast=[],pendFuture=[],doneRows=[];filtered.forEach(function(t){if(isDone(t)){doneRows.push(t);return;}var rawD=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(rawD&&new Date(rawD.split('T')[0]+'T00:00:00')>today)pendFuture.push(t);else pendPast.push(t);});var pend=filtered.filter(function(t){return!isDone(t);}).length,done=filtered.filter(function(t){return isDone(t);}).length;g('sCnt').textContent=filtered.length;g('sPendCnt').textContent=pend;g('sDoneCnt').textContent=done;g('sPendStat').style.display=pend>0?'flex':'none';g('sDoneStat').style.display=done>0?'flex':'none';g('statsBar').style.display='flex';if(g('hCount'))g('hCount').textContent=filtered.length||'';var tbody=g('tbody');if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="5">🏖️ Sin tareas para los filtros seleccionados</td></tr>';g('tableWrap').style.display='block';return;}var html='';pendPast.forEach(function(t){html+=buildRow(t,'');});if(pendFuture.length){html+='<tr class="prox-toggle-row" onclick="toggleProxTareas()"><td colspan="5"><span style="margin-right:8px;font-size:14px">🗓️</span><strong>Próximamente: '+pendFuture.length+' tarea'+(pendFuture.length>1?'s':'')+'</strong><span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span></td></tr>';pendFuture.forEach(function(t){html+=buildRow(t,'prox-task-row');});}doneRows.forEach(function(t){html+=buildRow(t,'');});tbody.innerHTML=html;g('tableWrap').style.display='block';}
 })();
 </script>
 </body>
