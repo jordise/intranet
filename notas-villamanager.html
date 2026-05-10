@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Villamanager v1 — 3Villas</title>
+  <title>Notas Villamanager v2 — 3Villas</title>
   <!-- notas-villamanager.html v1 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
@@ -117,6 +117,10 @@
   <div class="card">
     <div class="card-head"><span class="card-ico">🗝️</span><h2>Notas Keyholder</h2></div>
     <div class="card-body">
+            <div class="field">
+        <label class="lbl">Notas limpieza <span style="color:var(--gray-3);font-size:9px;font-weight:600;text-transform:none">· visibles en pantalla de entradas</span></label>
+        <textarea id="fCleaningNotes" rows="3" placeholder="Notas para el equipo de limpieza…"></textarea>
+      </div>
       <div class="field">
         <textarea id="fKeyholderNotes" rows="4" placeholder="Notas para el keyholder…"></textarea>
       </div>
@@ -124,36 +128,7 @@
   </div>
 
   <!-- CAMBIAR APARTAMENTO -->
-  <div class="card">
-    <div class="card-head"><span class="card-ico">🏠</span><h2>Cambiar Apartamento</h2></div>
-    <div class="card-body">
-      <div class="field">
-        <label class="lbl">Actual</label>
-        <div class="current-info">
-          <div>
-            <strong>Código</strong>
-            <span id="currentMultiunitCode">—</span>
-          </div>
-          <div style="text-align:right">
-            <strong>Nombre</strong>
-            <span id="currentMultiunitName">—</span>
-          </div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="lbl">Nuevo apartamento</label>
-        <select id="fMultiunit">
-          <option value="">— Sin cambio —</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="lbl">Tipo Pensión</label>
-        <select id="fTipoPension">
-          <option value="">— Sin especificar —</option>
-        </select>
-      </div>
-    </div>
-  </div>
+  
 
   <!-- INCIDENCIAS -->
   <div class="card">
@@ -200,7 +175,7 @@ function goBack(){ try{window.close();}catch(e){} setTimeout(function(){ history
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', function(){
   if(!confCode){ showErr('Falta el parámetro TaBookings2021_FS_confirmation_code en la URL.'); return; }
-  Promise.all([loadBooking(), loadMultiunits(), loadTiposPension()])
+  Promise.all([loadBooking(),  loadTiposPension()])
     .then(function(){
       hide('loadOverlay');
       g('mainContent').style.display='';
@@ -234,6 +209,7 @@ function populateForm(){
   g('hMeta').textContent  = 'Reserva: '+confCode + (guest ? ' · '+guest : '');
 
   // Campos
+  var _c=document.getElementById('fCleaningNotes');if(_c)_c.value=String(t['CleaningNotes']||t['TaBookings2021_CleaningNotes']||'');
   g('fKeyholderNotes').value = b['keyholderNotes']||b['TaBookings2021_keyholderNotes']||'';
   g('fIncidencias').value    = b['Incidencias_Notes_Villamanager']||b['TaBookings2021_Incidencias_Notes_Villamanager']||'';
 
@@ -249,13 +225,12 @@ function populateForm(){
 }
 
 // ── CARGAR MULTIUNITS ──
-function loadMultiunits(){
+function {
   var url = Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200');
   return fetch(url)
     .then(function(r){ return r.json(); })
     .then(function(json){
       var rows = json.Result||json.result||[];
-      var sel  = g('fMultiunit');
       rows.forEach(function(m){
         var id   = String(m.multiunitID||m.MultiunitID||'');
         var desc = String(m.descripcion||m.Descripcion||m.name||id);
@@ -301,12 +276,12 @@ function guardar(){
   var btn = g('btnSave'); btn.disabled=true; btn.textContent='Guardando…';
 
   var record = {
-    keyholderNotes: g('fKeyholderNotes').value.trim(),
+    keyholderNotes: var _c=document.getElementById('fCleaningNotes');if(_c)_c.value=String(t['CleaningNotes']||t['TaBookings2021_CleaningNotes']||'');
+  g('fKeyholderNotes').value.trim(),
     Incidencias_Notes_Villamanager: g('fIncidencias').value.trim(),
   };
 
   // Solo actualizar multiunit si se seleccionó uno nuevo
-  var newMUID = g('fMultiunit').value;
   if(newMUID) record['PMSmultiunitID'] = parseInt(newMUID)||newMUID;
 
   // Tipo pensión
