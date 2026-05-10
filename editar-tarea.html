@@ -3,33 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <!-- ══ PWA ══ -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#C8102E">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="3Villas">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/3villas-manuals/sw.js')
-          .then(r => console.log('SW registrado:', r.scope))
-          .catch(e => console.warn('SW error:', e));
-      });
-    }
-  </script>
   <title>Editar Tarea — 3Villas</title>
+  <!-- v2.4 —— editar-tarea.html —— 10/05/2026 -->
+  <!-- editar-tarea v2.2 -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:90px}
     header{background:var(--red);color:#fff;padding:10px 44px 10px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
-    .h-close{position:absolute;top:8px;right:10px;background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
+    .h-corner{position:absolute;top:8px;right:10px;display:flex;flex-direction:column;align-items:center;gap:5px}
+    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
     .h-close:hover{background:rgba(255,255,255,.35)}
-    .h-status{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;margin-bottom:4px;transition:all .3s}
+    .h-status{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;transition:all .3s;white-space:nowrap}
     .h-status.pend{background:rgba(255,255,255,.18);color:#fff}
     .h-status.done{background:var(--green);color:#fff}
     .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(15px,5vw,21px);font-weight:900;line-height:1.2;letter-spacing:.1px;margin:0;text-transform:none}
@@ -109,9 +95,12 @@
     .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
     .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
     .btn-save:hover{background:var(--red-dark)}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
     .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
-    .btn-save .sp-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none;flex-shrink:0}
-    .btn-save.loading .sp-sm{display:block}
+    .btn-save.loading{opacity:.85}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
     #stLoad,#stErr{padding:60px 20px;text-align:center;color:var(--gray-4)}
     .big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -129,14 +118,17 @@
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
+  <meta name="theme-color" content="#C8102E">
 </head>
 <body>
 <script>Auth.require('tareas');</script>
 <div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
 <div id="toast"></div>
 <header id="mainHeader" style="position:sticky;top:0">
-  <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
-  <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+  <div class="h-corner">
+    <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
+    <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+  </div>
   <div class="h-title" id="hTitle">Cargando…</div>
   <div class="h-meta" id="hMeta"></div>
 </header>
@@ -253,7 +245,8 @@
 </main>
 
 <div class="save-bar" id="saveBar" style="display:none">
-  <button class="btn-save" id="btnSaveBar" type="button"><span class="sp-sm" style="display:none"></span><span>💾 Guardar cambios</span></button>
+  <button class="btn-back2" onclick="goBack()">← Volver</button>
+  <button class="btn-save" id="btnSaveBar" type="button"><span id="saveBarLabel">💾 Guardar cambios</span></button>
 </div>
 
 <script>
@@ -399,6 +392,8 @@ function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof
 // ── Villa search ──
 function initVillaSearch(){
   var inp=g('fVillaSearch'),drop=g('villaDropdown'); if(!inp||!drop)return;
+  // Mover dropdown al body para evitar que overflow:hidden del card lo corte
+  document.body.appendChild(drop);
   inp.addEventListener('input',function(){
     var q=inp.value.trim().toLowerCase(); drop.innerHTML=''; drop.style.display='none';
     if(!q||q.length<2)return;
@@ -418,14 +413,14 @@ function initVillaSearch(){
     });
     // Posicionar fixed para no quedar cortado por overflow del card
     var rect=inp.getBoundingClientRect();
-    drop.style.top=(rect.bottom+window.scrollY+4)+'px';
+    drop.style.top=(rect.bottom+4)+'px'; // fixed: relativo al viewport, sin scrollY
     drop.style.left=rect.left+'px';
     drop.style.width=rect.width+'px';
     drop.style.display='block';
   });
   inp.addEventListener('blur',function(){ setTimeout(function(){ drop.style.display='none'; },200); });
   // Reposicionar si el usuario hace scroll mientras está abierto
-  window.addEventListener('scroll',function(){ if(drop.style.display==='block'){ var r=inp.getBoundingClientRect(); drop.style.top=(r.bottom+window.scrollY+4)+'px'; drop.style.left=r.left+'px'; } },true);
+  window.addEventListener('scroll',function(){ if(drop.style.display==='block'){ var r=inp.getBoundingClientRect(); drop.style.top=(r.bottom+4)+'px'; drop.style.left=r.left+'px'; } },true);
 }
 
 // ── FOTOS: galería con slots fijos (orden garantizado) ──
@@ -526,7 +521,8 @@ function uploadPhoto(type,idx){
 function setBusy(on){
   isSaving=on;
   ['btnCerrar','btnSoloGuardar','btnSaveBar'].forEach(function(id){ var b=g(id); if(b)b.disabled=on; });
-  var sb=g('btnSaveBar'); if(sb)sb.classList.toggle('loading',on);
+  var sb=g('btnSaveBar'); if(sb)sb.disabled=on;
+  var sbl=g('saveBarLabel'); if(sbl)sbl.textContent=on?'Guardando…':'💾 Guardar cambios';
   var sc=g('spinCerrar'); if(sc)sc.style.display=on?'inline-block':'none';
 }
 
