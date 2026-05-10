@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Notas Villamanager v1 — 3Villas</title>
+  <!-- notas-villamanager.html v1 — 10/05/2026 -->
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--r:12px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
+
+    /* Header */
+    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .h-villa{font-family:'Montserrat',sans-serif;font-size:clamp(14px,4vw,18px);font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+    .h-meta{font-size:12px;opacity:.75;margin-top:3px}
+    .h-actions{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+    .btn-nueva-tarea{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.35);color:#fff;padding:6px 14px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;transition:background .15s}
+    .btn-nueva-tarea:hover{background:rgba(255,255,255,.3)}
+    .btn-back{background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;font-family:'Montserrat',sans-serif;font-weight:600;padding:0}
+    .btn-back:hover{color:#fff}
+
+    /* Loading */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .load-spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    .load-text{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Main */
+    main{padding:14px 12px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+
+    /* Cards */
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px solid var(--gray-2)}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);flex:1}
+    .card-ico{font-size:17px;flex-shrink:0}
+    .card-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+
+    /* Campos */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .lbl-info{font-size:11px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-weight:600}
+    textarea,select,input[type=text]{border:1.5px solid var(--gray-2);border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    textarea:focus,select:focus,input[type=text]:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    textarea{resize:vertical;min-height:90px;line-height:1.5}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+    /* Info actual multiunit */
+    .current-info{background:var(--gray-1);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--gray-5);display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .current-info strong{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4);display:block;margin-bottom:2px}
+
+    /* Save bar */
+    .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
+    .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+    .btn-save:hover{background:var(--red-dark)}
+    .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
+    .btn-save-back{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .btn-save-back:hover{background:var(--gray-3)}
+
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-md);transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+
+    /* Error */
+    #stErr{display:none;text-align:center;padding:60px 20px;color:var(--gray-4)}
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<div id="loadOverlay">
+  <div class="load-spinner"></div>
+  <div class="load-text">Cargando reserva…</div>
+</div>
+
+<div id="toast"></div>
+
+<header>
+  <div id="hVilla" class="h-villa">Cargando…</div>
+  <div id="hMeta" class="h-meta"></div>
+  <div class="h-actions">
+    <button class="btn-back" onclick="goBack()">← Volver</button>
+    <button class="btn-nueva-tarea" onclick="abrirNuevaTarea()">＋ añadir tarea</button>
+  </div>
+</header>
+
+<main id="mainContent" style="display:none">
+
+  <div id="stErr">
+    <div style="font-size:44px;margin-bottom:12px">⚠️</div>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
+    <p style="font-size:12px">Comprueba el parámetro en la URL.</p>
+  </div>
+
+  <!-- NOTAS KEYHOLDER -->
+  <div class="card">
+    <div class="card-head"><span class="card-ico">🗝️</span><h2>Notas Keyholder</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <textarea id="fKeyholderNotes" rows="4" placeholder="Notas para el keyholder…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMBIAR APARTAMENTO -->
+  <div class="card">
+    <div class="card-head"><span class="card-ico">🏠</span><h2>Cambiar Apartamento</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="lbl">Actual</label>
+        <div class="current-info">
+          <div>
+            <strong>Código</strong>
+            <span id="currentMultiunitCode">—</span>
+          </div>
+          <div style="text-align:right">
+            <strong>Nombre</strong>
+            <span id="currentMultiunitName">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl">Nuevo apartamento</label>
+        <select id="fMultiunit">
+          <option value="">— Sin cambio —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Tipo Pensión</label>
+        <select id="fTipoPension">
+          <option value="">— Sin especificar —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- INCIDENCIAS -->
+  <div class="card">
+    <div class="card-head"><span class="card-ico">⚠️</span><h2>Incidencias</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="lbl" style="color:var(--gray-4);font-size:9px">Las incidencias que se anoten aquí el equipo de reservas recibirá un email el día antes de la salida. IMPORTANTE anotar las incidencias relevantes.</label>
+        <textarea id="fIncidencias" rows="4" placeholder="Describe la incidencia…"></textarea>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="save-bar" id="saveBar" style="display:none">
+  <button class="btn-save-back" onclick="goBack()">← Volver</button>
+  <button class="btn-save" id="btnSave" onclick="guardar()">💾 Guardar</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+// Parámetro que recibía la DataPage de Caspio (nombre exacto)
+var params  = new URLSearchParams(location.search);
+var confCode = (params.get('TaBookings2021_FS_confirmation_code') || '').trim();
+
+var bookingData   = null;
+var isSaving      = false;
+
+function g(id){ return document.getElementById(id); }
+
+// Toast
+var _toastT;
+function toast(msg, type){
+  var el=g('toast'); el.textContent=msg; el.className='show '+(type||'');
+  clearTimeout(_toastT); _toastT=setTimeout(function(){ el.className=''; }, 4000);
+}
+
+function goBack(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); }, 200); }
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', function(){
+  if(!confCode){ showErr('Falta el parámetro TaBookings2021_FS_confirmation_code en la URL.'); return; }
+  Promise.all([loadBooking(), loadMultiunits(), loadTiposPension()])
+    .then(function(){
+      hide('loadOverlay');
+      g('mainContent').style.display='';
+      g('saveBar').style.display='flex';
+    })
+    .catch(function(e){ showErr(e.message||'Error cargando datos'); });
+});
+
+// ── CARGAR RESERVA ──
+function loadBooking(){
+  var where = "FS_confirmation_code='"+confCode+"'";
+  var url   = Auth.url(WORKER+'?action=data&table=TaBookings2021&where='+encodeURIComponent(where)+'&limit=1');
+  return fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows = json.Result||json.result||[];
+      if(!rows.length) throw new Error('Reserva no encontrada (código: '+confCode+')');
+      bookingData = rows[0];
+      populateForm();
+    });
+}
+
+function populateForm(){
+  if(!bookingData) return;
+  var b = bookingData;
+
+  // Header
+  var villa = b['Property_Title']||b['TaBookings2021_Property_Title']||'';
+  var guest = b['Guest_Full_Name']||b['TaBookings2021_Guest_Full_Name']||'';
+  g('hVilla').textContent = villa || 'Reserva';
+  g('hMeta').textContent  = 'Reserva: '+confCode + (guest ? ' · '+guest : '');
+
+  // Campos
+  g('fKeyholderNotes').value = b['keyholderNotes']||b['TaBookings2021_keyholderNotes']||'';
+  g('fIncidencias').value    = b['Incidencias_Notes_Villamanager']||b['TaBookings2021_Incidencias_Notes_Villamanager']||'';
+
+  // Multiunit actual
+  var currentMUID = String(b['PMSmultiunitID']||b['TaBookings2021_PMSmultiunitID']||'');
+  g('currentMultiunitCode').textContent = currentMUID || '—';
+  // El nombre se rellena tras cargar TaMultiunits (en loadMultiunits)
+  window.__currentMUID = currentMUID;
+
+  // Tipo pensión actual
+  var tipoPensID = String(b['Tipo_pensionID']||b['TaBookings2021_Tipo_pensionID']||'');
+  window.__tipoPensID = tipoPensID;
+}
+
+// ── CARGAR MULTIUNITS ──
+function loadMultiunits(){
+  var url = Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200');
+  return fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows = json.Result||json.result||[];
+      var sel  = g('fMultiunit');
+      rows.forEach(function(m){
+        var id   = String(m.multiunitID||m.MultiunitID||'');
+        var desc = String(m.descripcion||m.Descripcion||m.name||id);
+        var opt  = document.createElement('option');
+        opt.value       = id;
+        opt.textContent = desc;
+        sel.appendChild(opt);
+        // Nombre del multiunit actual
+        if(id === window.__currentMUID){
+          g('currentMultiunitName').textContent = desc;
+        }
+      });
+      // No preseleccionar ninguno ("Sin cambio" = no modificar el campo)
+    })
+    .catch(function(){ /* no bloquear si falla */ });
+}
+
+// ── CARGAR TIPOS DE PENSIÓN ──
+function loadTiposPension(){
+  var url = Auth.url(WORKER+'?action=data&table=TaTipo_pension&limit=100');
+  return fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows = json.Result||json.result||[];
+      var sel  = g('fTipoPension');
+      rows.forEach(function(t){
+        var id   = String(t.PensionID||t.pensionID||t.ID||'');
+        var name = String(t.Type_name||t.type_name||t.nombre||t.Nombre||id);
+        var opt  = document.createElement('option');
+        opt.value       = id;
+        opt.textContent = name;
+        if(id === window.__tipoPensID) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(){ /* tabla puede tener nombre diferente — no bloquear */ });
+}
+
+// ── GUARDAR ──
+function guardar(){
+  if(isSaving) return;
+  isSaving = true;
+  var btn = g('btnSave'); btn.disabled=true; btn.textContent='Guardando…';
+
+  var record = {
+    keyholderNotes: g('fKeyholderNotes').value.trim(),
+    Incidencias_Notes_Villamanager: g('fIncidencias').value.trim(),
+  };
+
+  // Solo actualizar multiunit si se seleccionó uno nuevo
+  var newMUID = g('fMultiunit').value;
+  if(newMUID) record['PMSmultiunitID'] = parseInt(newMUID)||newMUID;
+
+  // Tipo pensión
+  var tipoPens = g('fTipoPension').value;
+  if(tipoPens) record['Tipo_pensionID'] = parseInt(tipoPens)||tipoPens;
+
+  var where = "FS_confirmation_code='"+confCode+"'";
+  var url   = Auth.url(WORKER+'?action=update&table=TaBookings2021&id='+encodeURIComponent(confCode));
+
+  // Usar PUT via action=save
+  var saveUrl = Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
+
+  fetch(saveUrl, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(record)
+  })
+  .then(function(r){ return r.ok ? r.json() : r.json().then(function(e){ throw new Error(e.Message||e.error||'HTTP '+r.status); }); })
+  .then(function(){
+    toast('✅ Guardado correctamente', 'ok');
+    btn.textContent='💾 Guardar';
+    btn.disabled=false;
+    isSaving=false;
+    setTimeout(function(){ try{window.close();}catch(e){} history.back(); }, 1500);
+  })
+  .catch(function(err){
+    toast('❌ '+err.message, 'err');
+    btn.textContent='💾 Guardar';
+    btn.disabled=false;
+    isSaving=false;
+  });
+}
+
+// ── Nueva tarea para esta reserva ──
+function abrirNuevaTarea(){
+  var villa = bookingData ? (bookingData['Property_Title']||bookingData['TaBookings2021_Property_Title']||'') : '';
+  var url = 'nueva-tarea.html?Idreserva='+encodeURIComponent(confCode)+'&villa_name='+encodeURIComponent(villa);
+  var isMob = window.innerWidth<768||/Mobi|Android/i.test(navigator.userAgent);
+  if(isMob){ location.href=url; return; }
+  var w=520,h=820,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);
+  window.open(url,'nuevatarea','width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');
+}
+
+function hide(id){ var el=g(id); if(el)el.style.display='none'; }
+
+function showErr(msg){
+  hide('loadOverlay');
+  g('mainContent').style.display='';
+  g('stErr').style.display='block';
+  if(g('errMsg')) g('errMsg').textContent=msg;
+}
+
+})();
+</script>
+</body>
+</html>
