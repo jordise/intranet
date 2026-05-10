@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v14 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v14 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v15 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v15 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -228,7 +228,7 @@
       </div>
       <div class="col-body" id="bodyColArrival">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="vr no" id="vrArrival">No se solicita</span>
+          <div id="vrArrival" style="width:100%"></div>
         </div>
         <div class="chk-row" id="rowArrDone">
           <input type="checkbox" class="hcb" id="cbArrDone" disabled>
@@ -248,7 +248,7 @@
         <div class="col-arr">▾</div>
       </div>
       <div class="col-body" id="bodyColPolicia">
-        <div><span class="vr no" id="vrPolicia">No se solicita</span></div>
+        <div><div id="vrPolicia" style="width:100%"></div></div>
         <div class="alert al-rd"><strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.</div>
         <div class="chk-row" id="rowPolDone" onclick="chkTog('cbPolDone','rowPolDone','colPolicia')">
           <input type="checkbox" class="hcb" id="cbPolDone">
@@ -267,7 +267,7 @@
         <div class="col-arr">▾</div>
       </div>
       <div class="col-body" id="bodyColEcotasa">
-        <div><span class="vr no" id="vrEcotasa">No se solicita</span></div>
+        <div><div id="vrEcotasa" style="width:100%"></div></div>
         <div class="field"><label class="lbl">Cobrada?</label>
           <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
             <option value="">— Pendiente —</option>
@@ -287,6 +287,7 @@
         <div class="col-arr">▾</div>
       </div>
       <div class="col-body" id="bodyColDeposito">
+        <span id="vrDeposito" style="font-size:11px;padding:4px 8px;border-radius:6px">—</span>
         <div class="alert al-rd" style="margin-bottom:4px">
           <strong>⚠️ PELIGRO — NO TOCAR SIN AVISAR PRIMERO</strong>
           En principio este campo NO se debe modificar. Si necesita tocarse: avisar antes a <strong>Jordi</strong> y dejar una nota en "Notas depósito de seguridad" explicando el motivo.
@@ -386,7 +387,7 @@ var bookingData=null,villaData=null,isSaving=false;
 var selDepOpt=0; // integer: deposit_options_ID de TaSecurityDepositOptions
 
 function g(id){return document.getElementById(id);}
-function isTruthy(v){return v===true||v===1||v===-1||['yes','sí','true','1'].indexOf(String(v||'').toLowerCase().trim())!==-1;}
+function isTruthy(v){if(v===null||v===undefined||v===''||v===false||v===0)return false;if(v===true||v===1||v===-1)return true;var s=String(v).toLowerCase().trim();return['yes','sí','true','1','-1'].indexOf(s)!==-1;}
 function isOk(v){if(v===null||v===undefined||v==='')return null;var s=String(v).toLowerCase().trim();if(['pagado','hecho','done','1'].indexOf(s)!==-1)return true;if(['pendiente','0','false','no'].indexOf(s)!==-1)return false;return null;}
 
 /* Toast */
@@ -424,7 +425,21 @@ function setColState(wrapId,stId,villaSolicita,done){
   if(done){w.classList.add('st-done');st.textContent='✓ Terminado';}
   else{w.classList.add('st-pend');st.textContent='Pendiente';}
 }
-function setVr(id,active){var el=g(id);if(!el)return;el.textContent=active?'Sí se solicita':'No se solicita';el.className='vr '+(active?'si':'no');}
+function setVr(id,active,label){
+  var el=g(id);if(!el)return;
+  var villa=String(fB('Property_Title')||'Esta villa');
+  if(active){
+    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#d4edda;color:#155724;border:1.5px solid #c3e6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
+      '<span style="font-size:16px">✅</span>'+
+      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
+      'Se solicita <strong>'+label+'</strong> en el checkin online de esta villa</span></span>';
+  } else {
+    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#f8d7da;color:#721c24;border:1.5px solid #f5c6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
+      '<span style="font-size:16px">❌</span>'+
+      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
+      'Esta villa <strong>NO</strong> requiere '+label+' en el checkin online</span></span>';
+  }
+}
 window.updateEcoStatus=function(){
   var eco=g('fEcotasaCobrada').value;
   setColState('colEcotasa','stEcotasa',true,eco==='1'||eco==='Pagado');
@@ -634,20 +649,20 @@ function populateForm(){
 
   /* Arrival Form */
   var aV=isTruthy(fV('Checkin_arrivalform')),aD=isTruthy(fB('Arrivalform_done'));
-  setVr('vrArrival',aV);setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
+  setVr('vrArrival',aV,'Arrival Form');setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
 
   /* Policía */
   var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
-  setVr('vrPolicia',pV);setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
+  setVr('vrPolicia',pV,'Registro de Policía');setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
 
   /* Ecotasa */
   var eV=isTruthy(fV('Checkin_ecotasa')),eCob=String(fB('Ecotasa_cobrada')||'');
-  setVr('vrEcotasa',eV);setSelectVal('fEcotasaCobrada',eCob);
+  setVr('vrEcotasa',eV,'Ecotasa');setSelectVal('fEcotasaCobrada',eCob);
   setColState('colEcotasa','stEcotasa',eV,eCob==='1'||eCob==='Pagado');
 
   /* Depósito */
   var dV=isTruthy(fV('Checkin_deposito')),dD=isTruthy(fB('Security_deposit_terminado'));
-  setVr('vrDeposito',dV);
+  setVr('vrDeposito',dV,'Depósito de Seguridad');
   setCb('cbDepTerm','rowDepTerm',dD);
   setColState('colDeposito','stDeposito',dV,dD);
   g('fDepEUR').value=String(fB('Security_deposit_EUR')||'');
