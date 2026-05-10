@@ -11,8 +11,9 @@
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:90px}
     header{background:var(--red);color:#fff;padding:12px 16px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
     .h-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
-    .h-back{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer}
-    .h-back:hover{background:rgba(255,255,255,.28)}
+    .h-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+    .h-close:hover{background:rgba(255,255,255,.35)}
     .h-status{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;transition:all .3s}
     .h-status.pend{background:rgba(255,255,255,.2);color:#fff}
     .h-status.done{background:var(--green);color:#fff}
@@ -82,7 +83,7 @@
     .mas-opt-panel{display:none;padding-top:10px}
     .mas-opt-panel.open{display:block}
     .villa-search-wrap{position:relative}
-    .villa-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;box-shadow:var(--shadow-md);z-index:500;max-height:200px;overflow-y:auto;display:none}
+    .villa-dropdown{position:fixed;background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;box-shadow:var(--shadow-md);z-index:9000;max-height:220px;overflow-y:auto;display:none}
     .villa-opt{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-2);transition:background .1s}
     .villa-opt:last-child{border-bottom:none}
     .villa-opt:hover{background:var(--red-light);color:var(--red)}
@@ -96,8 +97,6 @@
     .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
     .btn-save .sp-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none;flex-shrink:0}
     .btn-save.loading .sp-sm{display:block}
-    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
-    .btn-back2:hover{background:var(--gray-3)}
     #stLoad,#stErr{padding:60px 20px;text-align:center;color:var(--gray-4)}
     .big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -123,10 +122,12 @@
 <div id="toast"></div>
 <header id="mainHeader">
   <div class="h-top">
-    <button class="h-back" onclick="goBack()">← Volver</button>
-    <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+    <div class="h-title" id="hTitle">Editar Tarea</div>
+    <div class="h-right">
+      <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
+      <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+    </div>
   </div>
-  <div class="h-title" id="hTitle">Editar Tarea</div>
   <div class="h-villa" id="hVilla"></div>
 </header>
 <main>
@@ -242,8 +243,7 @@
 </main>
 
 <div class="save-bar" id="saveBar" style="display:none">
-  <button class="btn-back2" onclick="goBack()">← Volver</button>
-  <button class="btn-save" id="btnSaveBar" type="button"><span class="sp-sm"></span><span>💾 Guardar cambios</span></button>
+  <button class="btn-save" id="btnSaveBar" type="button"><span class="sp-sm" style="display:none"></span><span>💾 Guardar cambios</span></button>
 </div>
 
 <script>
@@ -404,9 +404,16 @@ function initVillaSearch(){
         var nom=g('fNombre'); g('hVilla').textContent='📍 '+opt.dataset.name+'  ·  '+(nom?nom.value:'');
       });
     });
+    // Posicionar fixed para no quedar cortado por overflow del card
+    var rect=inp.getBoundingClientRect();
+    drop.style.top=(rect.bottom+window.scrollY+4)+'px';
+    drop.style.left=rect.left+'px';
+    drop.style.width=rect.width+'px';
     drop.style.display='block';
   });
   inp.addEventListener('blur',function(){ setTimeout(function(){ drop.style.display='none'; },200); });
+  // Reposicionar si el usuario hace scroll mientras está abierto
+  window.addEventListener('scroll',function(){ if(drop.style.display==='block'){ var r=inp.getBoundingClientRect(); drop.style.top=(r.bottom+window.scrollY+4)+'px'; drop.style.left=r.left+'px'; } },true);
 }
 
 // ── FOTOS: galería con slots fijos (orden garantizado) ──
