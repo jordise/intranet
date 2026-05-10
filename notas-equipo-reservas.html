@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v9 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v9 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v10 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v10 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -380,37 +380,29 @@
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 var params=new URLSearchParams(location.search);
 var confCode=(params.get('TaBookings2021_FS_confirmation_code')||'').trim();
-var bookingData=null,villaData=null,isSaving=false,selDepOpt='';
-
-var DEP_OPTS=[
-  {val:'',lbl:'No decidido'},
-  {val:'pendiente_seleccion',lbl:'Pendiente que el cliente seleccione'},
-  {val:'security_deposit_waiver',lbl:'Security deposit waiver'},
-  {val:'pago_tarjeta',lbl:'Pago depósito con tarjeta de crédito'},
-  {val:'pago_transferencia',lbl:'Pago con transferencia (o plataforma airbnb)'},
-  {val:'sin_deposito',lbl:'El cliente no quiere depósito de seguridad'},
-  {val:'solo_airbnb',lbl:'Solo disponible para clientes de airbnb'},
-];
+var bookingData=null,villaData=null,isSaving=false;
+var selDepOpt=0; // integer: deposit_options_ID de TaSecurityDepositOptions
 
 function g(id){return document.getElementById(id);}
 function isTruthy(v){return v===true||v===1||v===-1||['yes','sí','true','1'].indexOf(String(v||'').toLowerCase().trim())!==-1;}
-function isOk(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='boolean')return v;if(typeof v==='number'){if(v===0)return false;if(v===-1)return true;return v>0;}var s=String(v).toLowerCase().trim();if(['yes','true','sí','1','pagado','hecho','done','cobrado'].indexOf(s)!==-1)return true;if(['no','false','0','no aplica'].indexOf(s)!==-1)return false;return null;}
+function isOk(v){if(v===null||v===undefined||v==='')return null;var s=String(v).toLowerCase().trim();if(['pagado','hecho','done','1'].indexOf(s)!==-1)return true;if(['pendiente','0','false','no'].indexOf(s)!==-1)return false;return null;}
 
+/* Toast */
 var _tt;
 function toast(msg,type){var el=g('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);}
 
-/* ── Colapsar card ── */
+/* Colapsar cards */
 window.togCard=function(id){
-  var body=g('body-'+id),arr=g('arr-'+id);
-  if(!body)return;
+  var body=g('body-'+id),arr=g('arr-'+id);if(!body)return;
   var open=body.classList.contains('collapsed');
   body.classList.toggle('collapsed',!open);
   if(arr)arr.style.transform=open?'rotate(180deg)':'';
 };
-/* ── Colapsar col ── */
+
+/* Colapsar subapartados */
 window.tog=function(id){var w=g(id);if(w)w.classList.toggle('open');};
 
-/* ── Checkbox ── */
+/* Checkbox */
 window.chkTog=function(cbId,rowId){
   var cb=g(cbId);if(!cb||cb.disabled)return;
   cb.checked=!cb.checked;syncChk(cbId,rowId);
@@ -423,7 +415,7 @@ function syncChk(cbId,rowId){
 }
 function setCb(cbId,rowId,val){var cb=g(cbId);if(cb)cb.checked=val;syncChk(cbId,rowId);}
 
-/* ── Estado subapartados checkin (franja verde/roja) ── */
+/* Estado subapartados (franja verde/roja) */
 function setColState(wrapId,stId,villaSolicita,done){
   var w=g(wrapId),st=g(stId);if(!w||!st)return;
   w.classList.remove('st-done','st-pend','st-na');
@@ -434,89 +426,90 @@ function setColState(wrapId,stId,villaSolicita,done){
 function setVr(id,active){var el=g(id);if(!el)return;el.textContent=active?'Sí se solicita':'No se solicita';el.className='vr '+(active?'si':'no');}
 window.updateEcoStatus=function(){
   var eco=g('fEcotasaCobrada').value;
-  var ok=isOk(eco);
-  setColState('colEcotasa','stEcotasa',g('vrEcotasa').classList.contains('si'),ok===true);
+  setColState('colEcotasa','stEcotasa',g('vrEcotasa').classList.contains('si'),eco==='1'||eco==='Pagado');
 };
 
-/* ── Badge upselling ── */
+/* Badge upselling (solo lectura) */
 window.updateUpBadge=function(n){
-  var eur=g('fUp'+n+'EUR').value.trim();
+  var eur=(g('fUp'+n+'EUR')||{}).value||'';
   var cob=window.__upCobrado&&window.__upCobrado[n];
   var st=g('stUp'+n);if(!st)return;
-  if(!eur){st.style.display='none';return;}
+  if(!eur.trim()){st.style.display='none';return;}
   st.style.display='';
   if(cob===1){st.textContent='✓ Cobrado';st.style.background='var(--green)';st.style.color='#fff';}
   else{st.textContent='Pendiente';st.style.background='var(--red)';st.style.color='#fff';}
 };
-window.upBadge=function(cbId,stId){
-  var cb=g(cbId),st=g(stId);if(!cb||!st)return;
-  st.textContent=cb.checked?'✓ Cobrado':'Pendiente';
-  st.style.background=cb.checked?'var(--green)':'var(--red)';
-  st.style.color='#fff';
+
+/* ══ PANEL OPCIONES DEPÓSITO ══
+   Carga real de TaSecurityDepositOptions
+   Muestra todas las opciones + resalta la seleccionada
+   Permite cambiar haciendo clic */
+window.selectDepOpt=function(id){
+  selDepOpt=parseInt(id);
+  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
+  renderDepositPanel();
 };
 
-/* ── Opciones depósito ── */
-function buildDepOpts(){
-  var cont=g('depOpts');if(!cont)return;
-  DEP_OPTS.forEach(function(o){
-    var d=document.createElement('div');d.className='dep-opt';d.dataset.val=o.val;
-    d.innerHTML='<div class="dep-dot"></div><div class="dep-txt">'+o.lbl+'</div>';
-    d.addEventListener('click',function(){selDepOpt=o.val;g('fDepOpt').value=o.val;renderDepOpts();});
-    cont.appendChild(d);
+function renderDepositPanel(){
+  var cont=g('depPanel');if(!cont)return;
+  var opts=window.__depOptions||[];
+  var current=selDepOpt;
+  if(!opts.length){cont.innerHTML='<p style="color:var(--gray-3);font-size:11px;padding:8px">Cargando opciones…</p>';return;}
+
+  var curOpt=opts.filter(function(o){return parseInt(o.deposit_options_ID)===current;})[0];
+  var html='';
+
+  /* Banner opción actual */
+  if(curOpt){
+    html+='<div style="background:var(--blue);color:#fff;border-radius:10px;padding:12px 14px">';
+    html+='<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Opción seleccionada actualmente</div>';
+    html+='<div style="font-weight:700;font-size:14px;line-height:1.3">'+curOpt.Option_description+'</div>';
+    html+='<div style="font-size:10px;opacity:.75;margin-top:3px;font-family:Montserrat,sans-serif">Código: <b>'+curOpt.Option_name+'</b> · ID: '+curOpt.deposit_options_ID+'</div>';
+    html+='</div>';
+  } else {
+    html+='<div style="background:var(--gray-2);border-radius:10px;padding:10px 14px">';
+    html+='<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-4)">Sin opción seleccionada</div>';
+    html+='</div>';
+  }
+
+  /* Tabla todas las opciones */
+  html+='<div style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;margin-top:2px">';
+  html+='<div style="background:var(--gray-1);padding:7px 12px;border-bottom:1px solid var(--gray-2)">';
+  html+='<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">Todas las opciones — toca para cambiar</span>';
+  html+='</div>';
+  opts.forEach(function(o,i){
+    var id=parseInt(o.deposit_options_ID);
+    var sel=(id===current);
+    var bg=sel?'var(--blue-light)':'#fff';
+    var bl=sel?'border-left:4px solid var(--blue)':'border-left:4px solid transparent';
+    var last=(i===opts.length-1)?'':'border-bottom:1px solid var(--gray-2)';
+    html+='<div onclick="selectDepOpt('+id+')" style="'+bl+';'+last+';background:'+bg+';padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">';
+    html+='<span style="font-size:15px;color:'+(sel?'var(--blue)':'var(--gray-3)')+';flex-shrink:0;width:16px;text-align:center">'+(sel?'●':'○')+'</span>';
+    html+='<div style="flex:1">';
+    html+='<div style="font-size:12px;font-weight:'+(sel?'700':'400')+';color:'+(sel?'var(--blue)':'var(--gray-5)')+'">'+o.Option_description+'</div>';
+    html+='<div style="font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif;margin-top:1px">ID: '+id+' · <b>'+o.Option_name+'</b></div>';
+    html+='</div>';
+    if(sel) html+='<span style="background:var(--blue);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:8px;flex-shrink:0">ACTUAL</span>';
+    html+='</div>';
   });
-}
-function renderDepOpts(){
-  document.querySelectorAll('.dep-opt').forEach(function(el){
-    var on=el.dataset.val===selDepOpt;el.classList.toggle('on',on);
-    el.querySelector('.dep-dot').style.background=on?'var(--blue)':'var(--gray-3)';
-  });
+  html+='</div>';
+  cont.innerHTML=html;
 }
 
-function setSelectVal(id,val){var sel=g(id);if(!sel||val===''||val===null||val===undefined)return;for(var i=0;i<sel.options.length;i++){if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;}}}
-
-/* ── INIT ── */
-document.addEventListener('DOMContentLoaded',function(){
-  if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
-  buildDepOpts();
-  Promise.all([loadBooking(),loadTfnOpts(),loadMultiunits(),loadTiposPension(),loadYesNo(),loadDepositOptions()])
-    .then(function(){
-      g('loadOverlay').style.display='none';
-      g('mainContent').style.display='';
-      g('saveBar').style.display='flex';
-    })
-    .catch(function(e){showErr(e.message||'Error cargando datos');});
-});
-
-function loadDepositOptions(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaSecurityDepositOptions&limit=20'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      window.__depOptions=(json.Result||json.result||[]).sort(function(a,b){
-        return (a.deposit_options_ID||0)-(b.deposit_options_ID||0);
-      });
-      // Re-renderizar si ya hay datos de la reserva
-      if(window.__depInfo) renderDepositPanel();
-    }).catch(function(){window.__depOptions=[];});
+/* ecoVal: convierte valor de ecotasa a integer */
+function ecoVal(){
+  var eco=g('fEcotasaCobrada').value;
+  if(eco==='1'||eco==='Pagado')return 1;
+  if(eco===''||eco===null)return null;
+  return 0;
 }
-function loadYesNo(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaViXYesNo&limit=10'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];
-      var sel=g('fSeWaver');sel.innerHTML='';
-      rows.forEach(function(t){
-        var id=String(t.TableID!==undefined?t.TableID:'');
-        var nm=String(t.TableName||t.tableName||id);
-        var opt=document.createElement('option');opt.value=id;opt.textContent=nm;
-        sel.appendChild(opt);
-      });
-      if(!rows.length){
-        sel.innerHTML='<option value="0">No</option><option value="1">Sí</option>';
-      }
-    }).catch(function(){
-      g('fSeWaver').innerHTML='<option value="0">No</option><option value="1">Sí</option>';
-    });
+
+/* ══ CARGA DE DATOS ══ */
+function setSelectVal(id,val){
+  var sel=g(id);if(!sel||val===''||val===null||val===undefined)return;
+  for(var i=0;i<sel.options.length;i++){if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;}}
 }
+
 function loadTfnOpts(){
   return fetch(Auth.url(WORKER+'?action=data&table=Ta_numero_tfn_a_usar&limit=50'))
     .then(function(r){return r.json();})
@@ -524,11 +517,41 @@ function loadTfnOpts(){
       var rows=json.Result||json.result||[];
       var sel=g('fPhoneCual');
       rows.forEach(function(t){
-        var id=String(t.Id_que_numerousar||''),desc=String(t.Descripcion||id);
-        var opt=document.createElement('option');opt.value=id;opt.textContent=desc;sel.appendChild(opt);
+        var opt=document.createElement('option');
+        opt.value=String(t.Id_que_numerousar||'');
+        opt.textContent=String(t.Descripcion||opt.value);
+        sel.appendChild(opt);
       });
     }).catch(function(){});
 }
+
+function loadYesNo(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaViXYesNo&limit=10'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      var sel=g('fSeWaver');sel.innerHTML='';
+      if(!rows.length){sel.innerHTML='<option value="0">No</option><option value="1">Sí</option>';return;}
+      rows.forEach(function(t){
+        var opt=document.createElement('option');
+        opt.value=String(t.TableID!==undefined?t.TableID:'');
+        opt.textContent=String(t.TableName||opt.value);
+        sel.appendChild(opt);
+      });
+    }).catch(function(){g('fSeWaver').innerHTML='<option value="0">No</option><option value="1">Sí</option>';});
+}
+
+function loadDepositOptions(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaSecurityDepositOptions&limit=20'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      window.__depOptions=(json.Result||json.result||[]).sort(function(a,b){
+        return parseInt(a.deposit_options_ID||0)-parseInt(b.deposit_options_ID||0);
+      });
+      renderDepositPanel();
+    }).catch(function(){window.__depOptions=[];});
+}
+
 function loadMultiunits(){
   return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200'))
     .then(function(r){return r.json();})
@@ -536,11 +559,14 @@ function loadMultiunits(){
       var rows=json.Result||json.result||[];window.__mu=rows;
       var sel=g('fMultiunit');
       rows.forEach(function(m){
-        var id=String(m.multiunitID||''),desc=String(m.descripcion||m.Descripcion||id);
-        var opt=document.createElement('option');opt.value=id;opt.textContent=desc;sel.appendChild(opt);
+        var opt=document.createElement('option');
+        opt.value=String(m.multiunitID||'');
+        opt.textContent=String(m.descripcion||m.Descripcion||opt.value);
+        sel.appendChild(opt);
       });
     }).catch(function(){});
 }
+
 function loadTiposPension(){
   return fetch(Auth.url(WORKER+'?action=data&table=TaTipo_pension&limit=100'))
     .then(function(r){return r.json();})
@@ -548,11 +574,14 @@ function loadTiposPension(){
       var rows=json.Result||json.result||[];
       var sel=g('fTipoPension');
       rows.forEach(function(t){
-        var id=String(t.PensionID||t.pensionID||''),name=String(t.Type_name||t.type_name||id);
-        var opt=document.createElement('option');opt.value=id;opt.textContent=name;sel.appendChild(opt);
+        var opt=document.createElement('option');
+        opt.value=String(t.PensionID||t.pensionID||'');
+        opt.textContent=String(t.Type_name||t.type_name||opt.value);
+        sel.appendChild(opt);
       });
     }).catch(function(){});
 }
+
 function loadBooking(){
   var where="FS_confirmation_code='"+confCode+"'";
   return fetch(Auth.url(WORKER+'?action=data&table=TaBookings2021&where='+encodeURIComponent(where)+'&limit=1'))
@@ -565,215 +594,57 @@ function loadBooking(){
       return vid?loadVilla(vid):Promise.resolve();
     }).then(populateForm);
 }
+
 function loadVilla(vid){
   return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('villaid='+parseInt(vid))+'&limit=1'))
     .then(function(r){return r.json();})
     .then(function(json){villaData=(json.Result||json.result||[])[0]||null;})
     .catch(function(){});
 }
+
 function fB(k){if(!bookingData)return'';var v=bookingData[k];if(v!==undefined&&v!==null)return v;v=bookingData['TaBookings2021_'+k];return(v!==undefined&&v!==null)?v:'';}
 function fV(k){if(!villaData)return'';var v=villaData[k];if(v!==undefined&&v!==null)return v;v=villaData['TaVillas_'+k];return(v!==undefined&&v!==null)?v:'';}
 
-/* Convierte integer 0/1 de Ta_Pagado_Pendiente al nombre */
-function lookupPP(v){
-  if(v===null||v===undefined||v==='')return'—';
-  var n=parseInt(v);
-  if(n===0)return'Pendiente';
-  if(n===1||n===-1)return'Pagado';
-  return String(v);
-}
-
-/* Devuelve label de la opción seleccionada */
-function depOptLabel(val){
-  var map={
-    '':'No decidido',
-    'pendiente_seleccion':'Pendiente que el cliente seleccione',
-    'security_deposit_waiver':'Security deposit waiver',
-    'pago_tarjeta':'Pago depósito con tarjeta de crédito',
-    'pago_transferencia':'Pago con transferencia (o plataforma airbnb)',
-    'sin_deposito':'El cliente no quiere depósito de seguridad',
-    'solo_airbnb':'Solo disponible para clientes de airbnb',
-  };
-  return map[val]||val||'No decidido';
-}
-
-
-
-/* ═══════════════════════════════════════════════════════
-   PANEL OPCIONES DEPÓSITO — muestra todas las opciones
-   de TaSecurityDepositOptions con la selección actual
-═══════════════════════════════════════════════════════ */
-function renderDepositPanel(){
-  var cont=g('depPanel'); if(!cont)return;
-  var opts=window.__depOptions||[];
-  var current=parseInt(g('fDepOpt').value||selDepOpt||'-1');
-
-  if(!opts.length){
-    cont.innerHTML='<p style="color:var(--gray-3);font-size:11px">Sin datos de opciones.</p>';
-    return;
-  }
-
-  // Banner opción actual destacada
-  var curOpt=opts.filter(function(o){return parseInt(o.deposit_options_ID)===current;})[0];
-  var html='';
-
-  // ── Opción actual: banner destacado ──
-  if(curOpt){
-    html+='<div style="background:var(--blue);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:4px">';
-    html+='<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Opción seleccionada actualmente</div>';
-    html+='<div style="font-weight:700;font-size:14px">'+curOpt.Option_description+'</div>';
-    html+='<div style="font-size:11px;opacity:.8;margin-top:2px">Código: <strong>'+curOpt.Option_name+'</strong> · ID: '+curOpt.deposit_options_ID+'</div>';
-    html+='</div>';
-  } else {
-    html+='<div style="background:var(--gray-2);border-radius:10px;padding:10px 14px;margin-bottom:4px">';
-    html+='<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-4)">Sin opción seleccionada</div>';
-    html+='</div>';
-  }
-
-  // ── Tabla de todas las opciones ──
-  html+='<div style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden">';
-  html+='<div style="background:var(--gray-1);padding:8px 12px;border-bottom:1px solid var(--gray-2)">';
-  html+='<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">Todas las opciones disponibles — clic para cambiar</span>';
-  html+='</div>';
-
-  opts.forEach(function(o){
-    var id=parseInt(o.deposit_options_ID);
-    var isSelected=(id===current);
-    var bg=isSelected?'var(--blue-light)':'#fff';
-    var border=isSelected?'border-left:4px solid var(--blue)':'border-left:4px solid transparent';
-    var dotColor=isSelected?'var(--blue)':'var(--gray-3)';
-    var dotContent=isSelected?'●':'○';
-
-    html+='<div onclick="selectDepOpt('+id+')" style="'+border+';background:'+bg+';padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-2);display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background=''+(isSelected?'var(--blue-light)':'var(--gray-1)')+''" onmouseout="this.style.background=''+bg+''">';
-
-    // Dot indicador
-    html+='<span style="font-size:16px;color:'+dotColor+';flex-shrink:0;width:18px;text-align:center">'+dotContent+'</span>';
-
-    // Info opción
-    html+='<div style="flex:1;min-width:0">';
-    html+='<div style="font-size:13px;font-weight:'+(isSelected?'700':'500')+';color:'+(isSelected?'var(--blue)':'var(--gray-5)')+'">'+o.Option_description+'</div>';
-    html+='<div style="font-size:10px;font-family:Montserrat,sans-serif;color:var(--gray-4);margin-top:1px">ID: '+id+' · Código: <strong>'+o.Option_name+'</strong></div>';
-    html+='</div>';
-
-    // Badge seleccionado
-    if(isSelected){
-      html+='<span style="background:var(--blue);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:3px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0">ACTUAL</span>';
-    }
-    html+='</div>';
-  });
-  html+='</div>'; // cierre tabla
-
-  cont.innerHTML=html;
-}
-
-window.selectDepOpt=function(id){
-  selDepOpt=id;
-  var inp=g('fDepOpt'); if(inp)inp.value=id;
-  renderDepositPanel();
-};
-
-/* ── Renderizar explicación de opciones con datos reales ── */
-function renderExplicacion(){
-  var d=window.__depInfo||{};
-  var cont=g('explicacionOpciones'); if(!cont)return;
-
-  function val(v,empty){
-    var text=(v&&v!=='—')?v:(empty||'—');
-    return '<span style="background:#fff3cd;color:#856404;font-family:monospace;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid #ffc107">'+text+'</span>';
-  }
-  function pend(v){
-    var isPag=(v==='Pagado');
-    return '<span style="background:'+(isPag?'#d4edda':'#f8d7da')+'bold;color:'+(isPag?'#155724':'#721c24')+'font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;border:1px solid '+(isPag?'#c3e6cb':'#f5c6cb')+'">'+v+'</span>';
-  }
-
-  var html='';
-
-  // Info importes
-  html+='<div style="background:var(--gray-1);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--gray-4)">';
-  html+='<strong style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-5)">Importes de esta reserva:</strong><br>';
-  html+='Depósito: '+val(d.depEUR)+' · Waiver: '+val(d.waverEUR)+' · Gasto tarjeta: '+val(d.gastoT);
-  html+='<br><span style="font-size:10px">Si los importes no son correctos para esta villa, solicitar el cambio a <strong>admin@3villas.com</strong> copiando el link de esta página.</span>';
-  html+='</div>';
-
-  // Opción seleccionada
-  html+='<div style="padding:8px 12px;background:var(--blue-light);border-radius:8px;border-left:3px solid var(--blue)">';
-  html+='<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--blue)">Opción seleccionada por el cliente:</span><br>';
-  html+='<span style="font-size:13px;font-weight:600">'+val(d.optionLabel,'No decidido')+'</span>';
-  if(d.iban&&d.iban!=='—') html+='<br>IBAN: '+val(d.iban);
-  if(d.bic&&d.bic!=='—')  html+='<br>BIC/SWIFT: '+val(d.bic);
-  html+='</div>';
-
-  // Lista de opciones
-  html+='<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-4);text-transform:uppercase;letter-spacing:.5px">Opciones disponibles:</div>';
-
-  var opts=[
-    {key:'',ico:'⬜',title:'No decidido',
-      body:'Pendiente que el cliente seleccione una de las opciones.'},
-    {key:'security_deposit_waiver',ico:'🔵',title:'Security deposit waiver',
-      body:'Actualmente el estado del waiver es: '+pend(d.waverCob)},
-    {key:'pago_tarjeta',ico:'💳',title:'Pago depósito con tarjeta de crédito',
-      body:'Depósito: '+pend(d.depCob)+'&nbsp;&nbsp;Gastos tarjeta: '+pend(d.gastoTarjetaCob)},
-    {key:'pago_transferencia',ico:'🏦',title:'Pago con transferencia (o plataforma airbnb)',
-      body:'Cuando el equipo de administración reciba la transferencia i/o justificante se marcará como Terminado. Para que el cliente pueda ver la info de entrada.'},
-    {key:'sin_deposito',ico:'❌',title:'El cliente no quiere depósito de seguridad',
-      body:''},
-    {key:'solo_airbnb',ico:'✈️',title:'Solo disponible para clientes de airbnb',
-      body:'Está preparado si hace falta pero de momento está desactivado.'},
-  ];
-
-  opts.forEach(function(o){
-    var isSelected=(o.key===selDepOpt||(o.key===''&&!selDepOpt));
-    var bg=isSelected?'var(--blue-light)':'#fff';
-    var border=isSelected?'2px solid var(--blue)':'1.5px solid var(--gray-2)';
-    html+='<div style="border:'+border+';border-radius:8px;padding:10px 12px;background:'+bg+'">';
-    html+='<div style="font-weight:700;font-size:12px;margin-bottom:4px">'+o.ico+' '+o.title+'</div>';
-    if(o.body) html+='<div style="font-size:11px;color:var(--gray-4)">'+o.body+'</div>';
-    html+='</div>';
-  });
-
-  cont.innerHTML=html;
-}
-
 function populateForm(){
-  // Header
+  /* Header */
   g('hVilla').textContent=String(fB('Property_Title')||confCode);
   g('hMeta').textContent='Reserva: '+confCode+(fB('Guest_Full_Name')?' · '+fB('Guest_Full_Name'):'');
   g('hStatus').textContent=String(fB('Status_name_formula')||fB('Status')||confCode);
 
-  // Notas
+  /* Notas */
   g('fCleaningNotes').value=String(fB('CleaningNotes')||'');
   g('fSecurityNotes').value=String(fB('Security_deposit_notes_comentar')||'');
   g('fKeyholderNotes').value=String(fB('keyholderNotes')||'');
   setSelectVal('fEarlyCheckin',String(fB('Checkin_earlycheckin')||''));
 
-  // Teléfonos
+  /* Teléfonos */
   g('fPhone1').value=String(fB('Guest_phonenumber')||'');
   g('fPhone2').value=String(fB('Segundo_Telefono')||'');
   setSelectVal('fPhoneCual',String(fB('Guest_phonenumber_cual_usar')||''));
 
-  // Multiunits
+  /* Multiunits */
   var muid=String(fB('PMSmultiunitID')||'');
   g('muCode').textContent=muid||'—';
-  var muNm='Sin multiunit asignado';
+  var muNm='Sin multiunit';
   if(muid&&window.__mu){var f=(window.__mu||[]).filter(function(m){return String(m.multiunitID)===muid;})[0];if(f)muNm=String(f.descripcion||f.Descripcion||muid);}
-  g('muName').textContent=muNm==='Sin multiunit asignado'?'—':muNm;
+  g('muName').textContent=muNm==='Sin multiunit'?'—':muNm;
   g('muSubtitle').textContent=muNm;
   setSelectVal('fTipoPension',String(fB('Tipo_pensionID')||''));
 
-  // Checkin — Arrival Form
+  /* Arrival Form */
   var aV=isTruthy(fV('Checkin_arrivalform')),aD=isTruthy(fB('Arrivalform_done'));
   setVr('vrArrival',aV);setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
 
-  // Policía
+  /* Policía */
   var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
   setVr('vrPolicia',pV);setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
 
-  // Ecotasa
+  /* Ecotasa */
   var eV=isTruthy(fV('Checkin_ecotasa')),eCob=String(fB('Ecotasa_cobrada')||'');
   setVr('vrEcotasa',eV);setSelectVal('fEcotasaCobrada',eCob);
-  setColState('colEcotasa','stEcotasa',eV,isOk(eCob)===true);
+  setColState('colEcotasa','stEcotasa',eV,eCob==='1'||eCob==='Pagado');
 
-  // Depósito
+  /* Depósito */
   var dV=isTruthy(fV('Checkin_deposito')),dD=isTruthy(fB('Security_deposit_terminado'));
   setVr('vrDeposito',dV);
   var dEl=g('depTermEl');if(dEl){dEl.textContent=dD?'Terminado ✓':'Pendiente';dEl.style.color=dD?'var(--green)':'var(--orange)';}
@@ -785,23 +656,13 @@ function populateForm(){
   g('fIBAN').value=String(fB('Numero_cuenta_bancaria_guest')||'');
   g('fBIC').value=String(fB('Numero_swift_bic_bancario_guest')||'');
   g('fWaverText').value=String(fB('Deposit_waver_text')||'');
-  selDepOpt=parseInt(fB('Security_deposit_options')||0);g('fDepOpt').value=selDepOpt;renderDepositPanel();if(window.__depOptions&&window.__depOptions.length)renderDepositPanel();
 
-  // ── Datos para la explicación de opciones ──
-  window.__depInfo={
-    optionLabel:depOptLabel(selDepOpt),
-    iban:String(fB('Numero_cuenta_bancaria_guest')||''),
-    bic:String(fB('Numero_swift_bic_bancario_guest')||''),
-    waverCob:lookupPP(fB('Deposit_waver_cobrado')),
-    depCob:lookupPP(fB('Security_deposit_cobrado')),
-    gastoTarjetaCob:lookupPP(fB('Gasto_tarjeta_dep_seguri_cobrado')),
-    depEUR:String(fB('Security_deposit_EUR')||'—'),
-    waverEUR:String(fB('Deposit_waver_EUR')||'—'),
-    gastoT:String(fB('Gasto_tarjeta_deposito_seguridad')||'—'),
-  };
-  renderExplicacion();
+  /* Opción depósito — integer de TaSecurityDepositOptions */
+  selDepOpt=parseInt(fB('Security_deposit_options')||0);
+  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
+  renderDepositPanel();
 
-  // Cobros extras (cobrado es READ ONLY — solo se muestra, nunca se guarda)
+  /* Cobros extras */
   window.__upCobrado={};
   g('fUp1Text').value=String(fB('Upselling1_text')||'');
   g('fUp1EUR').value=String(fB('Upselling1_EUR')||'');
@@ -814,29 +675,17 @@ function populateForm(){
   window.__upCobrado[3]=parseInt(fB('Upselling3_cobrado')||0);
   updateUpBadge(1);updateUpBadge(2);updateUpBadge(3);
 
-  // Link cobros
+  /* Link cobros */
   var lk='https://c1abn932.caspio.com/dp/353f70008194047f5b8b4cdc8970?FS_confirmation_code='+encodeURIComponent(confCode);
   var lEl=g('linkCobros');if(lEl){lEl.href=lk;lEl.textContent=lk;}
 }
 
-window.copiarLink=function(){
-  var lnk=g('linkCobros');if(!lnk)return;
-  navigator.clipboard.writeText(lnk.href).then(function(){toast('✅ Enlace copiado','ok');}).catch(function(){toast('❌ No se pudo copiar','err');});
-};
-
-/* ── GUARDAR ── */
-function ecoVal(){
-  var eco=g('fEcotasaCobrada').value;
-  if(eco==='Pagado')return 1;
-  if(eco==='' || eco==null)return null;
-  return 0;
-}
+/* ══ GUARDAR ══ */
 window.guardar=function(){
   if(isSaving)return;
   isSaving=true;var btn=g('btnSave');btn.disabled=true;btn.textContent='Guardando…';
   var newMUID=g('fMultiunit').value;
   var record={
-    // ── Campos de texto (siempre se envían) ──
     CleaningNotes:g('fCleaningNotes').value.trim(),
     Security_deposit_notes_comentar:g('fSecurityNotes').value.trim(),
     keyholderNotes:g('fKeyholderNotes').value.trim(),
@@ -844,26 +693,22 @@ window.guardar=function(){
     Segundo_Telefono:g('fPhone2').value.trim(),
     Guest_phonenumber_cual_usar:g('fPhoneCual').value||null,
     Tipo_pensionID:g('fTipoPension').value||null,
-    // ── Checkin (integers vinculados a Ta_Pagado_Pendiente: 0=Pendiente, 1=Pagado) ──
     Registro_policia_done:g('cbPolDone').checked?1:0,
-    Ecotasa_cobrada:ecoVal(),        // integer 0/1
-    // ── Depósito (texto/numeric) ──
+    Ecotasa_cobrada:ecoVal(),
     Security_deposit_EUR:g('fDepEUR').value||null,
     Deposit_waver_EUR:g('fWavEUR').value||null,
     Gasto_tarjeta_deposito_seguridad:g('fGastoT').value||null,
-    Se_permite_waver:g('fSeWaver').value==='Sí'?1:0, // integer
-    Security_deposit_options:parseInt(g('fDepOpt').value)||0,
+    Se_permite_waver:parseInt(g('fSeWaver').value||0),
+    Security_deposit_options:parseInt(g('fDepOpt').value||0),
     Numero_cuenta_bancaria_guest:g('fIBAN').value.trim()||null,
     Numero_swift_bic_bancario_guest:g('fBIC').value.trim()||null,
     Deposit_waver_text:g('fWaverText').value.trim()||null,
-    // ── Extras (SOLO concepto e importe — cobrado es READ ONLY, nunca se envía) ──
     Upselling1_text:g('fUp1Text').value.trim()||null,
     Upselling1_EUR:g('fUp1EUR').value||null,
     Upselling2_text:g('fUp2Text').value.trim()||null,
     Upselling2_EUR:g('fUp2EUR').value||null,
     Upselling3_text:g('fUp3Text').value.trim()||null,
     Upselling3_EUR:g('fUp3EUR').value||null,
-  
   };
   if(newMUID)record['PMSmultiunitID']=parseInt(newMUID)||newMUID;
   var where="FS_confirmation_code='"+confCode+"'";
@@ -871,17 +716,43 @@ window.guardar=function(){
     {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
   .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});})
   .then(function(){
-    toast('✅ Guardado correctamente','ok');
-    btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
+    toast('✅ Guardado','ok');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
     setTimeout(function(){history.back();},1200);
   })
   .catch(function(err){
-    toast('❌ '+err.message,'err');
-    btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
+    toast('❌ '+err.message,'err');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
   });
+};
+
+window.copiarLink=function(){
+  var lnk=g('linkCobros');if(!lnk)return;
+  navigator.clipboard.writeText(lnk.href).then(function(){toast('✅ Enlace copiado','ok');}).catch(function(){toast('❌ No se pudo copiar','err');});
+};
+
+function showErr(msg){
+  g('loadOverlay').style.display='none';g('mainContent').style.display='';
+  g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p style="color:var(--red);font-weight:600">'+msg+'</p></div>';
 }
 
-function showErr(msg){g('loadOverlay').style.display='none';g('mainContent').style.display='';g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p style="color:var(--red);font-weight:600">'+msg+'</p></div>';}
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded',function(){
+  if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
+  Promise.all([
+    loadBooking(),
+    loadTfnOpts(),
+    loadMultiunits(),
+    loadTiposPension(),
+    loadYesNo(),
+    loadDepositOptions()
+  ]).then(function(){
+    g('loadOverlay').style.display='none';
+    g('mainContent').style.display='';
+    g('saveBar').style.display='flex';
+  }).catch(function(e){
+    showErr(e.message||'Error cargando datos');
+  });
+});
+
 })();
 </script>
 </body>
