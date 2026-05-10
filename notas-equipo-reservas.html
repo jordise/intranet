@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v13 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v13 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v14 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v14 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -287,28 +287,30 @@
         <div class="col-arr">▾</div>
       </div>
       <div class="col-body" id="bodyColDeposito">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <span class="vr no" id="vrDeposito">No se solicita</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-4)">Terminado:</span>
-            <span id="depTermEl" style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-3)">—</span>
-            <span style="font-family:Montserrat,sans-serif;font-size:9px;color:var(--gray-3);font-weight:700;background:var(--gray-2);padding:2px 6px;border-radius:4px">NO TOCAR</span>
-          </div>
+        <div class="alert al-rd" style="margin-bottom:4px">
+          <strong>⚠️ PELIGRO — NO TOCAR SIN AVISAR PRIMERO</strong>
+          En principio este campo NO se debe modificar. Si necesita tocarse: avisar antes a <strong>Jordi</strong> y dejar una nota en "Notas depósito de seguridad" explicando el motivo.
+        </div>
+        <div class="chk-row" id="rowDepTerm" onclick="chkTog('cbDepTerm','rowDepTerm')">
+          <input type="checkbox" class="hcb" id="cbDepTerm">
+          <div class="chk-circle" id="circDepTerm"></div>
+          <span class="chk-label">Depósito de Seguridad — Terminado</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
           <div class="field"><label class="lbl">Depósito EUR</label><input type="text" id="fDepEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
           <div class="field"><label class="lbl">Waiver EUR</label><input type="text" id="fWavEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
           <div class="field"><label class="lbl">Gasto tarjeta</label><input type="text" id="fGastoT" oninput="chkImporte(this)" placeholder="0,00"></div>
         </div>
-        <div class="alert al-or"><strong>⚠️ MUY IMPORTANTE</strong>NUNCA modificar los importes si ya se han cobrado. BODAS y Reservas conflictivas: en "Se permite waiver" poner NO.</div>
-        <div class="field"><label class="lbl">Se permite seleccionar waiver</label>
+        <div class="alert al-or"><strong>⚠️ MUY IMPORTANTE</strong>NUNCA modificar los importes si ya se han cobrado. Para BODAS y Reservas conflictivas: en "Se permite waiver" poner NO. (para evitar que seleccionen el seguro en vez de pagar el depósito)</div>
+        <div class="field"><label class="lbl">Se permite seleccionar waiver en esta reserva</label>
+          <p class="lbl-hint">Solo puede ser <strong>Sí</strong> o <strong>No</strong>. Cambia a <strong>No</strong> para BODAS y reservas conflictivas.</p>
           <select id="fSeWaver"><option value="">Cargando…</option></select>
         </div>
         <div class="field-row">
           <div class="field"><label class="lbl">IBAN Inquilino</label><input type="text" id="fIBAN" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
           <div class="field"><label class="lbl">BIC / SWIFT</label><input type="text" id="fBIC" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
         </div>
-        <div class="field"><label class="lbl">Texto Deposit Waiver</label><textarea id="fWaverText" rows="3" placeholder="Texto del deposit waiver…"></textarea></div>
+        <div class="field"><label class="lbl">Comentarios sobre el waiver</label><p class="lbl-hint" style="margin-bottom:6px">Anota aquí cualquier comentario: cambios en el waiver, incidencias o cualquier observación del inquilino sobre el pago del waiver.</p><textarea id="fWaverText" rows="3" placeholder="Comentarios sobre el waiver…"></textarea></div>
         <div class="field">
           <label class="lbl">Opción seleccionada por el cliente ***Security_deposit_options → TaSecurityDepositOptions.deposit_options_ID***</label>
           <div id="depPanel" style="display:flex;flex-direction:column;gap:6px">
@@ -646,7 +648,7 @@ function populateForm(){
   /* Depósito */
   var dV=isTruthy(fV('Checkin_deposito')),dD=isTruthy(fB('Security_deposit_terminado'));
   setVr('vrDeposito',dV);
-  var dEl=g('depTermEl');if(dEl){dEl.textContent=dD?'Terminado ✓':'Pendiente';dEl.style.color=dD?'var(--green)':'var(--orange)';}
+  setCb('cbDepTerm','rowDepTerm',dD);
   setColState('colDeposito','stDeposito',dV,dD);
   g('fDepEUR').value=String(fB('Security_deposit_EUR')||'');
   g('fWavEUR').value=String(fB('Deposit_waver_EUR')||'');
@@ -694,6 +696,7 @@ window.guardar=function(){
     Guest_phonenumber_cual_usar:g('fPhoneCual').value||null,
     Tipo_pensionID:g('fTipoPension').value||null,
     Registro_policia_done:g('cbPolDone').checked?1:0,
+    Security_deposit_terminado:g('cbDepTerm').checked?1:0,
     Ecotasa_cobrada:ecoVal(),
     Security_deposit_EUR:g('fDepEUR').value||null,
     Deposit_waver_EUR:g('fWavEUR').value||null,
