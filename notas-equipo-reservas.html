@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v16 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v16 — 10/05/2026 -->
+  <title>Notas Equipo Reservas v17 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v17 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -613,16 +613,29 @@ function loadBooking(){
       var rows=json.Result||json.result||[];
       if(!rows.length)throw new Error('Reserva no encontrada: '+confCode);
       bookingData=rows[0];
-      var vid=String(bookingData['villaid']||'').trim();
+      /* TaBookings2021 usa VillaID_FSnumber como FK a TaVillas */
+      var vid=String(
+        bookingData['VillaID_FSnumber']||
+        bookingData['villaid']||
+        bookingData['VillaId']||
+        bookingData['villa_id']||''
+      ).trim();
+      console.log('Villa ID encontrado:', vid, '| keys:', Object.keys(bookingData).filter(function(k){return k.toLowerCase().indexOf('villa')!==-1;}));
       return vid?loadVilla(vid):Promise.resolve();
     }).then(populateForm);
 }
 
 function loadVilla(vid){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('villaid='+parseInt(vid))+'&limit=1'))
+  var where='villaid='+parseInt(vid);
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=1'))
     .then(function(r){return r.json();})
-    .then(function(json){villaData=(json.Result||json.result||[])[0]||null;})
-    .catch(function(){});
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      villaData=rows[0]||null;
+      console.log('loadVilla result:', vid, '→ rows:', rows.length, villaData?'OK':'NOT FOUND');
+      if(villaData) console.log('TaVillas keys:', Object.keys(villaData));
+    })
+    .catch(function(e){console.warn('loadVilla error:', e);});
 }
 
 function fB(k){if(!bookingData)return'';var v=bookingData[k];if(v!==undefined&&v!==null)return v;v=bookingData['TaBookings2021_'+k];return(v!==undefined&&v!==null)?v:'';}
@@ -656,8 +669,8 @@ function populateForm(){
 
   /* DEBUG: ver valores reales de TaVillas */
   console.log('=== TaVillas Checkin fields ===');
-  console.log('Checkin_arrivalform RAW:', fV('Checkin_arrivalform'), '→ isTruthy:', isTruthy(fV('Checkin_arrivalform')));
-  console.log('Checkin_registro_policia RAW:', fV('Checkin_registro_policia'), '→ isTruthy:', isTruthy(fV('Checkin_registro_policia')));
+  var raw_arr=fV('Checkin_arrivalform'); console.log('Checkin_arrivalform RAW:', JSON.stringify(raw_arr), 'typeof:', typeof raw_arr, '→ isTruthy:', isTruthy(raw_arr));
+  var raw_pol=fV('Checkin_registro_policia'); console.log('Checkin_registro_policia RAW:', JSON.stringify(raw_pol), 'typeof:', typeof raw_pol, '→ isTruthy:', isTruthy(raw_pol));
   console.log('Checkin_ecotasa RAW:', fV('Checkin_ecotasa'), '→ isTruthy:', isTruthy(fV('Checkin_ecotasa')));
   console.log('Checkin_deposito RAW:', fV('Checkin_deposito'), '→ isTruthy:', isTruthy(fV('Checkin_deposito')));
   console.log('villaData keys:', villaData?Object.keys(villaData):[]);
