@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v7 — 3Villas</title>
+  <title>Nueva Tarea v8 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -94,12 +94,28 @@
     #successBox p{font-size:13px;color:var(--gray-4);margin-bottom:4px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}}
   
-    /* ── Rich editor inline ── */
-    .lbl-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-    .itb{display:flex;gap:3px}
-    .itb-btn{background:var(--gray-1);border:1px solid var(--gray-2);border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.5;font-family:'Montserrat',sans-serif;transition:all .1s}
-    .itb-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
-    .rich-ta{font-family:'Open Sans',sans-serif}
+    /* ═══ RICH EDITOR ═══ */
+    .rich-field{display:flex;flex-direction:column;gap:0}
+    .rich-lbl-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+    .rich-lbl-row .lbl{margin:0}
+    .rtb{display:flex;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);border-bottom:none;border-radius:10px 10px 0 0;padding:5px 8px}
+    .rtb-btn{display:flex;align-items:center;gap:5px;border:1.5px solid transparent;border-radius:7px;background:transparent;padding:5px 10px;cursor:pointer;color:var(--gray-4);font-size:12px;font-family:'Montserrat',sans-serif;font-weight:700;transition:all .15s;white-space:nowrap}
+    .rtb-btn svg{width:16px;height:16px;flex-shrink:0}
+    .rtb-btn:hover{background:#fff;border-color:var(--gray-2);color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .rtb-btn.rtb-on{background:#fff;border-color:var(--red);color:var(--red)}
+    .rtb-sep{width:1px;background:var(--gray-2);margin:4px 2px}
+    .rich-ed{border:1.5px solid var(--gray-2);border-radius:0 0 10px 10px;padding:10px 14px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);min-height:80px;outline:none;line-height:1.8;word-wrap:break-word;transition:border-color .15s,box-shadow .15s;background:#fff}
+    .rich-ed:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .rich-ed:empty::before{content:attr(data-ph);color:var(--gray-3);pointer-events:none;display:block}
+    /* Líneas enriquecidas */
+    .re-line{display:flex;align-items:flex-start;gap:8px;min-height:28px;padding:1px 0}
+    .re-bullet-dot{color:var(--red);font-size:18px;flex-shrink:0;line-height:1.6;user-select:none;pointer-events:none}
+    .re-cb{flex-shrink:0;width:18px;height:18px;border:2px solid var(--gray-3);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:4px;transition:all .15s;user-select:none;background:#fff}
+    .re-cb:hover{border-color:var(--green)}
+    .re-done .re-cb{background:var(--green);border-color:var(--green);color:#fff}
+    .re-done .re-cb::after{content:'✓';font-size:11px;font-weight:900;color:#fff}
+    .re-txt{flex:1;outline:none;min-width:10px}
+    .re-done .re-txt{text-decoration:line-through;color:var(--gray-3)}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -129,8 +145,8 @@
         <div class="input-wrap"><input type="text" id="fNombre" autocomplete="off" placeholder="Nombre de la tarea..."><button class="mic-btn hidden" id="micNombre" type="button" title="Dictar">🎤</button></div>
       </div>
       <div class="field">
-        <div class="lbl-row"><label class="lbl">Descripción</label><div class="itb"><button type="button" class="itb-btn" onclick="richInsert('fDesc','bullet')" title="Bullet">•</button><button type="button" class="itb-btn" onclick="richInsert('fDesc','check')" title="Checkbox">☐</button></div></div>
-        <div class="input-wrap"><textarea id="fDesc" class="rich-ta" rows="2" placeholder="Detalles opcionales..."></textarea><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+        <label class="lbl">Descripción</label>
+        <div class="input-wrap"><textarea id="fDesc" rows="2" placeholder="Detalles opcionales..."></textarea><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
       </div>
     </div>
   </div>
@@ -201,52 +217,241 @@
   function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
   function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
   function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
-  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':g('fDesc').value.trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
+  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(typeof richGet==='function'?richGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
   function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
 })();
 
-/* ── Rich editor: auto-continue bullets y checkboxes ── */
+/* ════════════════════════════════════════
+   RICH EDITOR — contenteditable WYSIWYG
+   Guarda HTML en textarea oculto → Caspio
+════════════════════════════════════════ */
 (function(){
-  function getCurrentLine(ta){
-    var pos=ta.selectionStart,txt=ta.value;
-    var ls=txt.lastIndexOf('\n',pos-1)+1;
-    var le=txt.indexOf('\n',pos);if(le<0)le=txt.length;
-    return{text:txt.slice(ls,le),start:ls,end:le,pos:pos};
-  }
-  function bindRichEnter(fieldId){
-    var ta=document.getElementById(fieldId);if(!ta)return;
-    ta.addEventListener('keydown',function(e){
-      if(e.key!=='Enter')return;
-      var cl=getCurrentLine(ta);
-      var line=cl.text;
-      var pre='';
-      if(/^\[ \] /.test(line)||/^\[x\] /.test(line)){
-        if(line.slice(4).trim()===''){/* línea vacía → salir del modo */e.preventDefault();var t=ta.value;ta.value=t.slice(0,cl.start)+'\n'+t.slice(cl.end);ta.selectionStart=ta.selectionEnd=cl.start+1;return;}
-        pre='[ ] ';
-      }else if(/^• /.test(line)){
-        if(line.slice(2).trim()===''){e.preventDefault();var t=ta.value;ta.value=t.slice(0,cl.start)+'\n'+t.slice(cl.end);ta.selectionStart=ta.selectionEnd=cl.start+1;return;}
-        pre='• ';
-      }
-      if(pre){e.preventDefault();var t=ta.value,p=cl.pos;ta.value=t.slice(0,p)+'\n'+pre+t.slice(p);ta.selectionStart=ta.selectionEnd=p+1+pre.length;}
+
+function g(id){return document.getElementById(id);}
+
+/* Serializar DOM del editor a HTML para guardar en Caspio */
+function editorToHtml(edId){
+  var ed=g(edId+'_ed'); if(!ed)return g(edId)?g(edId).value:'';
+  return ed.innerHTML;
+}
+
+/* Actualizar textarea oculto */
+function syncHidden(edId){
+  var ta=g(edId); if(ta)ta.value=editorToHtml(edId);
+}
+
+/* Cargar HTML guardado en Caspio al editor */
+function loadEditor(edId, html){
+  var ed=g(edId+'_ed'); if(!ed)return;
+  if(!html||html.trim()===''){ed.innerHTML='';return;}
+  // Si es HTML enriquecido, cargarlo directamente
+  if(html.indexOf('<')!==-1){
+    ed.innerHTML=html;
+    // Rebind click handlers en checkboxes cargados
+    ed.querySelectorAll('.re-cb').forEach(function(cb){
+      cb.onclick=function(){toggleCb(cb);};
     });
+  } else {
+    // Texto plano → convertir a HTML
+    ed.innerHTML=plainToHtml(html);
   }
-  window.richInsert=function(fId,type){
-    var ta=document.getElementById(fId);if(!ta)return;
-    var cl=getCurrentLine(ta),ls=cl.start,pos=cl.pos;
-    var txt=ta.value;
-    // Si la línea ya tiene prefijo, quitarlo y poner el nuevo
-    var line=cl.text,newPre=type==='bullet'?'• ':'[ ] ';
-    var hasBullet=/^• /.test(line),hasCheck=/^\[([x ])\] /.test(line);
-    if(hasBullet&&type==='bullet'||hasCheck&&type==='check'){/* ya tiene → quitar */
-      var old=hasBullet?2:4;ta.value=txt.slice(0,ls)+line.slice(old)+txt.slice(cl.end);ta.selectionStart=ta.selectionEnd=Math.max(ls,pos-old);
-    }else{ta.value=txt.slice(0,ls)+newPre+line.slice(hasBullet?2:hasCheck?4:0)+txt.slice(cl.end);ta.selectionStart=ta.selectionEnd=ls+newPre.length+(Math.max(0,pos-ls-(hasBullet?2:hasCheck?4:0)));}
-    ta.focus();
-  };
-  /* Inicializar cuando cargue el DOM */
-  document.addEventListener('DOMContentLoaded',function(){
-    ['fDesc','fSolucion','fNotas'].forEach(function(id){bindRichEnter(id);});
+  syncHidden(edId);
+}
+
+/* Texto plano → HTML (compatibilidad con datos previos) */
+function plainToHtml(text){
+  return text.split('\n').map(function(line){
+    if(/^\[ \] /.test(line)){return makeLine('check',false,line.slice(4));}
+    if(/^\[x\] /.test(line)){return makeLine('check',true,line.slice(4));}
+    if(/^• /.test(line)){return makeLine('bullet',false,line.slice(2));}
+    return '<div>'+(line||'<br>')+'</div>';
+  }).join('');
+}
+
+function makeLine(type,done,text){
+  if(type==='bullet'){
+    return '<div class="re-line" data-t="b"><span class="re-bullet-dot" contenteditable="false">•</span><span class="re-txt">'+esc(text)+'</span></div>';
+  }
+  if(type==='check'){
+    var doneClass=done?' re-done':'';
+    return '<div class="re-line re-c'+doneClass+'" data-t="c"><span class="re-cb" contenteditable="false"></span><span class="re-txt">'+esc(text)+'</span></div>';
+  }
+  return '<div>'+esc(text)+'</div>';
+}
+
+function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* Toggle checkbox */
+function toggleCb(cbEl){
+  var line=cbEl.closest('.re-c');
+  if(!line)return;
+  line.classList.toggle('re-done');
+  // Sincronizar hidden
+  var edId=cbEl.closest('.rich-ed').dataset.for;
+  syncHidden(edId);
+}
+
+/* Insertar línea del tipo en posición del cursor */
+window.richFmt=function(edId,type){
+  var ed=g(edId+'_ed'); if(!ed)return;
+  ed.focus();
+  var sel=window.getSelection();
+  if(!sel||!sel.rangeCount)return;
+  var range=sel.getRangeAt(0);
+  var node=range.startContainer;
+  // Subir hasta línea directa del editor
+  var line=node.nodeType===3?node.parentNode:node;
+  while(line&&line.parentNode!==ed)line=line.parentNode;
+  
+  var newDiv=document.createElement('div');
+  if(type==='bullet'){
+    newDiv.className='re-line';newDiv.dataset.t='b';
+    var dot=document.createElement('span');dot.className='re-bullet-dot';dot.contentEditable='false';dot.textContent='•';
+    var txt=document.createElement('span');txt.className='re-txt';txt.textContent='';
+    newDiv.appendChild(dot);newDiv.appendChild(txt);
+  } else {
+    newDiv.className='re-line re-c';newDiv.dataset.t='c';
+    var cb=document.createElement('span');cb.className='re-cb';cb.contentEditable='false';cb.onclick=function(){toggleCb(cb);};
+    var txt=document.createElement('span');txt.className='re-txt';txt.textContent='';
+    newDiv.appendChild(cb);newDiv.appendChild(txt);
+  }
+  
+  if(line&&line.parentNode===ed){
+    ed.insertBefore(newDiv,line.nextSibling);
+  } else {
+    ed.appendChild(newDiv);
+  }
+  
+  // Colocar cursor en el span de texto
+  var textSpan=newDiv.querySelector('.re-txt');
+  if(textSpan){
+    var r=document.createRange(),s=window.getSelection();
+    r.setStart(textSpan,0);r.collapse(true);
+    s.removeAllRanges();s.addRange(r);
+  }
+  syncHidden(edId);
+};
+
+/* Enter key: auto-continuar tipo de línea */
+function handleEnter(e,ed,edId){
+  e.preventDefault();
+  var sel=window.getSelection();if(!sel||!sel.rangeCount)return;
+  var range=sel.getRangeAt(0);
+  var node=range.startContainer;
+  var line=node.nodeType===3?node.parentNode:node;
+  while(line&&line.parentNode!==ed)line=line.parentNode;
+  
+  if(line&&line.dataset&&line.dataset.t){
+    var type=line.dataset.t;
+    var textSpan=line.querySelector('.re-txt');
+    var txt=textSpan?textSpan.textContent:'';
+    
+    if(!txt.trim()){
+      // Línea vacía → convertir a párrafo normal
+      var plain=document.createElement('div');plain.innerHTML='<br>';
+      ed.replaceChild(plain,line);
+      var r=document.createRange(),s=window.getSelection();
+      r.setStart(plain,0);r.collapse(true);
+      s.removeAllRanges();s.addRange(r);
+      syncHidden(edId);return;
+    }
+    
+    // Crear nueva línea del mismo tipo
+    var newDiv=document.createElement('div');
+    if(type==='b'){
+      newDiv.className='re-line';newDiv.dataset.t='b';
+      var dot=document.createElement('span');dot.className='re-bullet-dot';dot.contentEditable='false';dot.textContent='•';
+      var ntxt=document.createElement('span');ntxt.className='re-txt';ntxt.textContent='';
+      newDiv.appendChild(dot);newDiv.appendChild(ntxt);
+    } else {
+      newDiv.className='re-line re-c';newDiv.dataset.t='c';
+      var cb=document.createElement('span');cb.className='re-cb';cb.contentEditable='false';cb.onclick=function(){toggleCb(cb);};
+      var ntxt=document.createElement('span');ntxt.className='re-txt';ntxt.textContent='';
+      newDiv.appendChild(cb);newDiv.appendChild(ntxt);
+    }
+    ed.insertBefore(newDiv,line.nextSibling);
+    var r=document.createRange(),s=window.getSelection();
+    var sp=newDiv.querySelector('.re-txt');
+    if(sp){r.setStart(sp,0);r.collapse(true);s.removeAllRanges();s.addRange(r);}
+    syncHidden(edId);
+  } else {
+    // Línea normal → Enter normal
+    document.execCommand('insertParagraph');
+    syncHidden(edId);
+  }
+}
+
+/* Inicializar editor para un campo */
+function initEditor(fieldId, placeholder){
+  var ta=g(fieldId); if(!ta)return;
+  // Crear wrapper
+  var wrap=document.createElement('div');
+  wrap.className='rtb-wrap';
+  ta.parentNode.insertBefore(wrap,ta);
+  // Toolbar
+  var toolbar=document.createElement('div');
+  toolbar.className='rtb';
+  toolbar.innerHTML=
+    '<button type="button" class="rtb-btn" title="Lista de puntos" onclick="richFmt(\''+fieldId+'\',\'bullet\')">'+
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">'+
+    '<circle cx="2" cy="4" r="1.2" fill="currentColor" stroke="none"/>'+
+    '<line x1="5" y1="4" x2="15" y2="4"/>'+
+    '<circle cx="2" cy="8" r="1.2" fill="currentColor" stroke="none"/>'+
+    '<line x1="5" y1="8" x2="15" y2="8"/>'+
+    '<circle cx="2" cy="12" r="1.2" fill="currentColor" stroke="none"/>'+
+    '<line x1="5" y1="12" x2="13" y2="12"/>'+
+    '</svg>Lista</button>'+
+    '<div class="rtb-sep"></div>'+
+    '<button type="button" class="rtb-btn" title="Lista de tareas" onclick="richFmt(\''+fieldId+'\',\'check\')">'+
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">'+
+    '<rect x="1" y="2.5" width="4" height="4" rx="0.5"/>'+
+    '<line x1="7" y1="4.5" x2="15" y2="4.5"/>'+
+    '<rect x="1" y="9" width="4" height="4" rx="0.5"/>'+
+    '<polyline points="1.5,11 2.5,12.2 4.5,9.5" stroke-width="1.3"/>'+
+    '<line x1="7" y1="11" x2="15" y2="11"/>'+
+    '</svg>Check</button>';
+  wrap.appendChild(toolbar);
+  // Editor contenteditable
+  var ed=document.createElement('div');
+  ed.id=fieldId+'_ed';
+  ed.className='rich-ed';
+  ed.contentEditable='true';
+  ed.dataset.ph=placeholder||ta.placeholder||'';
+  ed.dataset.for=fieldId;
+  ed.spellcheck=true;
+  wrap.appendChild(ed);
+  // Ocultar textarea original pero mantenerlo en el DOM
+  ta.style.display='none';
+  wrap.appendChild(ta);
+  
+  // Cargar valor existente
+  loadEditor(fieldId, ta.value);
+  
+  // Sincronizar en cada edición
+  ed.addEventListener('input',function(){syncHidden(fieldId);});
+  // Enter key
+  ed.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){handleEnter(e,ed,fieldId);}
   });
+}
+
+/* API pública: cargar valor en el editor (llamar desde populateForm) */
+window.richLoad=function(fieldId, value){loadEditor(fieldId,value);};
+window.richGet=function(fieldId){return editorToHtml(fieldId);};
+
+/* Auto-inicializar cuando cargue el DOM */
+document.addEventListener('DOMContentLoaded',function(){
+  var fields=[
+    {id:'fDesc',ph:'Detalles de la tarea\u2026'},
+    {id:'fSolucion',ph:'Describe brevemente la soluci\u00f3n\u2026'},
+  ];
+  fields.forEach(function(f){
+    if(document.getElementById(f.id)) initEditor(f.id,f.ph);
+  });
+});
+
 })();
+
 </script>
 </body>
 </html>
