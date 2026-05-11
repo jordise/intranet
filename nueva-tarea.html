@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v6 — 3Villas</title>
+  <title>Nueva Tarea v15 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -93,10 +93,25 @@
     #successBox h3{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px}
     #successBox p{font-size:13px;color:var(--gray-4);margin-bottom:4px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}}
+  
+    .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .re-row .lbl{margin:0}
+    .re-btn{border:1px solid var(--gray-3);border-radius:6px;background:var(--gray-1);padding:2px 9px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.6;transition:all .12s}
+    .re-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .ql-wrap{flex:1}
+    .ql-container.ql-snow{border:1.5px solid var(--gray-2);border-radius:8px;font-size:14px;transition:border-color .15s,box-shadow .15s}
+    .ql-container.ql-snow:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .ql-editor{min-height:72px;padding:10px 12px;line-height:1.5;color:var(--gray-5);font-size:14px;font-family:'Open Sans',sans-serif}
+    .ql-editor.ql-blank::before{color:var(--gray-3);font-style:normal}
+    .ql-editor ul>li::before{color:var(--red)}
+    .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
+    .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </head>
 <body>
 <script>Auth.require('tareas');</script>
@@ -122,8 +137,9 @@
         <div class="input-wrap"><input type="text" id="fNombre" autocomplete="off" placeholder="Nombre de la tarea..."><button class="mic-btn hidden" id="micNombre" type="button" title="Dictar">🎤</button></div>
       </div>
       <div class="field">
-        <label class="lbl">Descripción</label>
-        <div class="input-wrap"><textarea id="fDesc" rows="2" placeholder="Detalles opcionales..."></textarea><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+        <div class="re-row"><label class="lbl">Descripción</label><button type="button" class="re-btn" onclick="qFmt('fDesc','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fDesc','check')">☐ Check</button></div>
+        <div class="input-wrap"><div class="ql-wrap"><div id="fDesc_ql"></div></div><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+        <textarea id="fDesc" style="display:none"></textarea>
       </div>
     </div>
   </div>
@@ -173,6 +189,7 @@
     if(paramIdReserva){var rc=g('resCard');if(rc)rc.style.display='block';var rl=g('resLabel');if(rl)rl.textContent='Reserva: '+paramIdReserva+(paramVillaName?' — '+paramVillaName:'');}
     // Villa pre-fill se hace en loadVillas() una vez cargadas todas las villas
     buildGrid();initVillaSearch();initMic();
+    if(window._qlInit)_qlInit('fDesc','Detalles opcionales…');
     g('btnSubmit').addEventListener('click',submitForm);
     loadUsers();loadVillas();
   });
@@ -194,8 +211,69 @@
   function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
   function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
   function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
-  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':g('fDesc').value.trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
+  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
   function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
+})();
+
+/* ════ Rich editor Quill ════ */
+(function() {
+  var _q = {};
+
+  function toPlain(html) {
+    if (!html) return '';
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    var lines = [];
+    d.childNodes.forEach(function(n) {
+      if (n.nodeName === 'UL') {
+        var chk = n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li) {
+          var t = (li.innerText || li.textContent || '').trim();
+          if (chk === 'true') lines.push('[x] ' + t);
+          else if (chk === 'false') lines.push('[ ] ' + t);
+          else lines.push('\u2022 ' + t);
+        });
+      } else {
+        var t = (n.innerText || n.textContent || '').replace(/\n/g, ' ').trim();
+        if (t) lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+
+  function toHtml(text) {
+    if (!text) return '';
+    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) return text;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    return text.split('\n').map(function(line) {
+      if (/^\[x\] /.test(line)) return '<ul data-checked="true"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\[ \] /.test(line)) return '<ul data-checked="false"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\u2022 /.test(line)) return '<ul><li>' + esc(line.slice(2)) + '</li></ul>';
+      return '<p>' + esc(line) + '</p>';
+    }).join('');
+  }
+
+  window._qlInit = function(fId, ph) {
+    var ta = document.getElementById(fId);
+    var wrap = document.getElementById(fId + '_ql');
+    if (!ta || !wrap || !window.Quill) return;
+    var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
+    _q[fId] = q;
+    if (ta.value) q.root.innerHTML = toHtml(ta.value);
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    ta.style.display = 'none';
+  };
+
+  window._qlGet = function(fId) {
+    return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
+  };
+
+  window.qFmt = function(fId, type) {
+    var q = _q[fId]; if (!q) return; q.focus();
+    var f = q.getFormat();
+    if (type === 'bullet') q.format('list', f.list === 'bullet' ? false : 'bullet');
+    else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
+  };
 })();
 </script>
 </body>
