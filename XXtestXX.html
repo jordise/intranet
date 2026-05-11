@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v21 — 3Villas</title>
+  <title>Notas Equipo Reservas v22 — 3Villas</title>
   <!-- notas-equipo-reservas.html v20 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
@@ -251,6 +251,16 @@
       </div>
       <div class="col-body" id="bodyColPolicia">
         <div><div id="vrPolicia" style="width:100%"></div></div>
+        <!-- Link Registro Policía -->
+        <div id="policeUrlWrap" style="display:none;background:var(--gray-1);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:6px">🔗 Enlace Registro de Policía</div>
+          <a id="policeUrl" href="#" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--blue,#1a73e8);word-break:break-all;font-family:monospace;display:block;margin-bottom:6px">—</a>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('policeUrl').href).then(function(){toast('✅ Enlace copiado','ok');})"
+                  style="background:#fff;border:1.5px solid var(--blue,#1a73e8);color:var(--blue,#1a73e8);border-radius:7px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer">
+            📋 Copiar enlace
+          </button>
+        </div>
         <div class="alert al-rd"><strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.</div>
         <div class="chk-row" id="rowPolDone" onclick="chkTog('cbPolDone','rowPolDone','colPolicia')">
           <input type="checkbox" class="hcb" id="cbPolDone">
@@ -342,35 +352,34 @@
               </div>
             </div>
 
-            <!-- Checkbox modificar/cobrada -->
-            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#f0f4ff;border-radius:8px;padding:10px 12px;border:1px solid rgba(26,115,232,.3)">
-              <input type="checkbox" id="cbEcotasaCobrada" style="width:16px;height:16px;margin-top:1px;flex-shrink:0;accent-color:#1a73e8">
-              <span style="font-size:12px;color:var(--gray-5);line-height:1.4">Modificar manualmente el importe de la Ecotasa o marcarla como cobrada</span>
-            </label>
-
-            <hr style="border:none;border-top:1px dashed var(--gray-2)">
-
-            <!-- Casos excepcionales -->
-            <div style="border:1.5px solid #b0c4ff;border-radius:8px;padding:12px;background:#f8f9ff">
-              <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:#4060cc;margin-bottom:4px">Usar SOLO EN CASOS EXCEPCIONALES</div>
-              <p style="font-size:11px;color:var(--gray-4);margin-bottom:10px;line-height:1.4">Si por el motivo que sea el cálculo de la ecotasa es incorrecto podemos poner el IMPORTE a cobrar aquí manualmente.</p>
-              <div class="field" style="margin-bottom:10px">
-                <label class="lbl">Importe Ecotasa manual</label>
-                <input type="text" id="fEcotasaManual" placeholder="0.00" oninput="chkImporte(this)" style="max-width:140px">
+            <!-- Casos excepcionales (desplegable con alerta) -->
+            <div style="border:2px solid var(--orange,#e07b00);border-radius:10px;overflow:hidden">
+              <div onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.eco-arr').textContent=this.nextElementSibling.classList.contains('open')?'▴':'▾'"
+                   style="background:var(--orange-light,#fff4e0);padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(224,123,0,.2)">
+                <span style="font-size:16px">⚠️</span>
+                <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--orange,#e07b00);flex:1">PELIGRO — Modificar Ecotasa</span>
+                <span class="eco-arr" style="color:var(--orange,#e07b00);font-size:11px">▾</span>
               </div>
-              <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Si la ecotasa se ha pagado por otro canal marcarla como cobrada e indicar en comentarios, donde se ha cobrado.</p>
-              <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start">
-                <div class="field">
-                  <label class="lbl">Estado</label>
-                  <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
-                    <option value="">— Pendiente —</option>
-                    <option value="1">Pagado</option>
-                    <option value="0">Pendiente</option>
-                  </select>
+              <div style="display:none;padding:12px;background:#fffdf5" class="eco-casos-body">
+                <p style="font-size:11px;color:var(--orange,#e07b00);font-weight:700;margin-bottom:10px;line-height:1.4">⚠️ Usar SOLO EN CASOS EXCEPCIONALES. Si el cálculo de la ecotasa es incorrecto podemos poner el IMPORTE a cobrar aquí manualmente.</p>
+                <div class="field" style="margin-bottom:10px">
+                  <label class="lbl">Importe Ecotasa manual</label>
+                  <input type="text" id="fEcotasaManual" placeholder="0.00" oninput="chkImporte(this)" style="max-width:140px">
                 </div>
-                <div class="field">
-                  <label class="lbl">Comentarios Ecotasa</label>
-                  <textarea id="fEcotasaComentarios" rows="2" placeholder="Donde se ha cobrado, incidencias…"></textarea>
+                <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Si la ecotasa se ha pagado por otro canal marcarla como cobrada e indicar en comentarios, donde se ha cobrado.</p>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start">
+                  <div class="field">
+                    <label class="lbl">Estado</label>
+                    <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
+                      <option value="">— Pendiente —</option>
+                      <option value="1">Pagado</option>
+                      <option value="0">Pendiente</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Comentarios Ecotasa</label>
+                    <textarea id="fEcotasaComentarios" rows="2" placeholder="Donde se ha cobrado, incidencias…"></textarea>
+                  </div>
                 </div>
               </div>
             </div>
@@ -848,6 +857,45 @@ function populateForm(){
 }
 
 /* ══ GUARDAR ══ */
+
+/* ── Link Registro de Policía ── */
+function toYMD(s){
+  if(!s)return'';
+  var d=String(s).replace(/[T ].*/,'').split('-');
+  if(d.length===3)return d[0]+d[1]+d[2];
+  return String(s).replace(/-/g,'');
+}
+function buildPoliceUrl(){
+  var org=fB('TaVillas_Link_Registrodepolicia')||fB('Link_Registrodepolicia')||'';
+  var wrap=g('policeUrlWrap');
+  if(!org||!wrap){if(wrap)wrap.style.display='none';return;}
+  wrap.style.display='block';
+  var reserv=confCode||'';
+  /* Campos calculados equivalentes */
+  var checkin=toYMD(fB('Checkin')||fB('TaBookings2021_Checkin')||'');
+  var checkout=toYMD(fB('Checkout')||fB('TaBookings2021_Checkout')||'');
+  var created=toYMD(fB('Cretated_At')||fB('TaBookings2021_Cretated_At')||fB('Created_At')||'');
+  /* totalinquilinos */
+  var aform=String(fB('Guest_adults_nr_form')||'').trim();
+  var cform=String(fB('Guest_children_nr_form')||'').trim();
+  var total=aform?((parseInt(aform)||0)+(parseInt(cform)||0)):((parseInt(fB('Adults')||0))+(parseInt(fB('Children')||0)));
+  /* Nombre */
+  var fiscNm=String(fB('Fiscal_guest_name')||'').trim();
+  var firstName=(fiscNm&&fiscNm!==' ')?fiscNm:String(fB('Guest_Full_Name')||'');
+  /* Apellido */
+  var lastName=(fiscNm&&fiscNm!==' ')?String(fB('Fiscal_guest_surename')||''):String(fB('Guest_Surename')||'');
+  /* Teléfono */
+  var ph2=String(fB('Segundo_Telefono')||'').trim();
+  var ph=ph2?ph2:String(fB('Guest_phonenumber')||'');
+  ph=ph.replace(/\+/g,'00').replace(/\s/g,'');
+  var base='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96';
+  var url=base+'/organization/'+encodeURIComponent(org)+'/reservation/'+encodeURIComponent(reserv)+
+    '?checkInDate='+checkin+'&checkOutDate='+checkout+'&contractDate='+created+
+    '&number='+total+'&firstName='+encodeURIComponent(firstName)+
+    '&lastName1='+encodeURIComponent(lastName)+'&phone='+encodeURIComponent(ph);
+  var el=g('policeUrl');
+  if(el){el.href=url;el.textContent=url;}
+}
 window.guardar=function(){
   if(isSaving)return;
   if(!validarImportes())return;
