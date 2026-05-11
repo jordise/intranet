@@ -94,17 +94,12 @@
     #successBox p{font-size:13px;color:var(--gray-4);margin-bottom:4px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}}
   
-    /* ── Mini toolbar texto enriquecido ── */
-    .rich-tb{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px}
-    .tb-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:7px;padding:5px 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;color:var(--gray-5);transition:all .15s;white-space:nowrap}
-    .tb-btn:hover{border-color:var(--red);color:var(--red)}
-    .tb-btn.tb-active{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
-    .rich-preview{border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 14px;min-height:76px;font-size:14px;background:#fff;line-height:1.6}
-    .prev-line{padding:2px 0;display:flex;align-items:flex-start;gap:6px;min-height:26px}
-    .prev-bullet{color:var(--red);flex-shrink:0;font-size:16px;line-height:1.6}
-    .prev-chk{font-size:19px;cursor:pointer;flex-shrink:0;line-height:1.4;user-select:none}
-    .prev-done{text-decoration:line-through;color:var(--gray-4)}
-    .prev-empty{color:var(--gray-3);font-size:12px;font-style:italic}
+    /* ── Rich editor inline ── */
+    .lbl-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .itb{display:flex;gap:3px}
+    .itb-btn{background:var(--gray-1);border:1px solid var(--gray-2);border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.5;font-family:'Montserrat',sans-serif;transition:all .1s}
+    .itb-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .rich-ta{font-family:'Open Sans',sans-serif}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -134,10 +129,8 @@
         <div class="input-wrap"><input type="text" id="fNombre" autocomplete="off" placeholder="Nombre de la tarea..."><button class="mic-btn hidden" id="micNombre" type="button" title="Dictar">🎤</button></div>
       </div>
       <div class="field">
-        <label class="lbl">Descripción</label>
-        <div class="input-wrap"><div class="rich-tb"><button type="button" class="tb-btn" onclick="richInsert('fDesc','bullet')">• Punto</button><button type="button" class="tb-btn" onclick="richInsert('fDesc','check')">☐ Check</button><button type="button" class="tb-btn" id="pbtn-fDesc" onclick="richPreview('fDesc')">👁 Vista previa</button></div>
-<textarea id="fDesc" rows="2" placeholder="Detalles opcionales..."></textarea>
-<div class="rich-preview" id="prev-fDesc" style="display:none"></div><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+        <div class="lbl-row"><label class="lbl">Descripción</label><div class="itb"><button type="button" class="itb-btn" onclick="richInsert('fDesc','bullet')" title="Bullet">•</button><button type="button" class="itb-btn" onclick="richInsert('fDesc','check')" title="Checkbox">☐</button></div></div>
+        <div class="input-wrap"><textarea id="fDesc" class="rich-ta" rows="2" placeholder="Detalles opcionales..."></textarea><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
       </div>
     </div>
   </div>
@@ -212,12 +205,48 @@
   function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
 })();
 
-/* ── Mini rich editor ── */
-function richInsert(fId,type){var ta=document.getElementById(fId);if(!ta)return;var s=ta.selectionStart,txt=ta.value;var ls=txt.lastIndexOf('\n',s-1)+1;var pre=type==='bullet'?'• ':'[ ] ';ta.value=txt.slice(0,ls)+pre+txt.slice(ls);ta.selectionStart=ta.selectionEnd=s+pre.length;ta.focus();}
-function richPreview(fId){var ta=document.getElementById(fId),prev=document.getElementById('prev-'+fId),btn=document.getElementById('pbtn-'+fId);if(!ta||!prev)return;var on=prev.style.display!=='none';if(on){prev.style.display='none';ta.style.display='';if(btn)btn.classList.remove('tb-active');}else{richRender(fId);prev.style.display='';ta.style.display='none';if(btn)btn.classList.add('tb-active');}}
-function richRender(fId){var ta=document.getElementById(fId),prev=document.getElementById('prev-'+fId);if(!ta||!prev)return;if(!ta.value.trim()){prev.innerHTML='<span class="prev-empty">Sin contenido todavía</span>';return;}prev.innerHTML=ta.value.split('\n').map(function(l,i){if(/^\[ \] /.test(l))return'<div class="prev-line"><span class="prev-chk" onclick="richToggle(\''+fId+'\','+i+')">☐</span><span>'+esc(l.slice(4))+'</span></div>';if(/^\[x\] /.test(l))return'<div class="prev-line"><span class="prev-chk" onclick="richToggle(\''+fId+'\','+i+')">☑</span><span class="prev-done">'+esc(l.slice(4))+'</span></div>';if(/^• /.test(l))return'<div class="prev-line"><span class="prev-bullet">•</span><span>'+esc(l.slice(2))+'</span></div>';return'<div class="prev-line">'+(l?esc(l):'&nbsp;')+'</div>';}).join('');}
-function richToggle(fId,i){var ta=document.getElementById(fId);if(!ta)return;var ls=ta.value.split('\n');var l=ls[i];if(/^\[ \] /.test(l))ls[i]='[x] '+l.slice(4);else if(/^\[x\] /.test(l))ls[i]='[ ] '+l.slice(4);ta.value=ls.join('\n');richRender(fId);}
-function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* ── Rich editor: auto-continue bullets y checkboxes ── */
+(function(){
+  function getCurrentLine(ta){
+    var pos=ta.selectionStart,txt=ta.value;
+    var ls=txt.lastIndexOf('\n',pos-1)+1;
+    var le=txt.indexOf('\n',pos);if(le<0)le=txt.length;
+    return{text:txt.slice(ls,le),start:ls,end:le,pos:pos};
+  }
+  function bindRichEnter(fieldId){
+    var ta=document.getElementById(fieldId);if(!ta)return;
+    ta.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;
+      var cl=getCurrentLine(ta);
+      var line=cl.text;
+      var pre='';
+      if(/^\[ \] /.test(line)||/^\[x\] /.test(line)){
+        if(line.slice(4).trim()===''){/* línea vacía → salir del modo */e.preventDefault();var t=ta.value;ta.value=t.slice(0,cl.start)+'\n'+t.slice(cl.end);ta.selectionStart=ta.selectionEnd=cl.start+1;return;}
+        pre='[ ] ';
+      }else if(/^• /.test(line)){
+        if(line.slice(2).trim()===''){e.preventDefault();var t=ta.value;ta.value=t.slice(0,cl.start)+'\n'+t.slice(cl.end);ta.selectionStart=ta.selectionEnd=cl.start+1;return;}
+        pre='• ';
+      }
+      if(pre){e.preventDefault();var t=ta.value,p=cl.pos;ta.value=t.slice(0,p)+'\n'+pre+t.slice(p);ta.selectionStart=ta.selectionEnd=p+1+pre.length;}
+    });
+  }
+  window.richInsert=function(fId,type){
+    var ta=document.getElementById(fId);if(!ta)return;
+    var cl=getCurrentLine(ta),ls=cl.start,pos=cl.pos;
+    var txt=ta.value;
+    // Si la línea ya tiene prefijo, quitarlo y poner el nuevo
+    var line=cl.text,newPre=type==='bullet'?'• ':'[ ] ';
+    var hasBullet=/^• /.test(line),hasCheck=/^\[([x ])\] /.test(line);
+    if(hasBullet&&type==='bullet'||hasCheck&&type==='check'){/* ya tiene → quitar */
+      var old=hasBullet?2:4;ta.value=txt.slice(0,ls)+line.slice(old)+txt.slice(cl.end);ta.selectionStart=ta.selectionEnd=Math.max(ls,pos-old);
+    }else{ta.value=txt.slice(0,ls)+newPre+line.slice(hasBullet?2:hasCheck?4:0)+txt.slice(cl.end);ta.selectionStart=ta.selectionEnd=ls+newPre.length+(Math.max(0,pos-ls-(hasBullet?2:hasCheck?4:0)));}
+    ta.focus();
+  };
+  /* Inicializar cuando cargue el DOM */
+  document.addEventListener('DOMContentLoaded',function(){
+    ['fDesc','fSolucion','fNotas'].forEach(function(id){bindRichEnter(id);});
+  });
+})();
 </script>
 </body>
 </html>
