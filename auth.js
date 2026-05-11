@@ -33,6 +33,8 @@ const PERMISSIONS = {
     'tareas'       : ['admin', 'manager', 'staff', 'cleaner'],
     'nueva-tarea'  : ['admin', 'manager', 'staff'],
     'editar-tarea' : ['admin', 'manager', 'staff'],
+    'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
+    'notas-villamanager' : ['admin', 'manager', 'staff'],
     'permisos'     : ['admin'],
     'manuales'     : ['admin', 'manager'],
     'dashboard'    : ['admin', 'manager'],
