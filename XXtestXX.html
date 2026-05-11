@@ -11,23 +11,6 @@
 <meta name="apple-mobile-web-app-title" content="3Villas">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>
-/* Convierte texto plano (• [x] [ ]) a HTML para mostrar */
-function esc2(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function descToHtml(text){
-  if(!text)return'';
-  if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1){
-    var d=document.createElement('div');d.innerHTML=text;
-    return'<span>'+(d.innerText||d.textContent||'').replace(/\n/g,' ').trim()+'</span>';
-  }
-  return text.split('\n').map(function(line){
-    if(/^\[x\] /.test(line))return'<span style="text-decoration:line-through;color:#c4c9d4">✓ '+esc2(line.slice(4))+'</span>';
-    if(/^\[ \] /.test(line))return'<span style="color:#7a8194">☐ '+esc2(line.slice(4))+'</span>';
-    if(/^\u2022 /.test(line))return'<span><b style="color:#C8102E">•</b> '+esc2(line.slice(2))+'</span>';
-    return'<span>'+esc2(line)+'</span>';
-  }).join('<br>');
-}
-</script>
-<script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/3villas-manuals/sw.js')
@@ -139,15 +122,36 @@ function descToHtml(text){
     #fabNueva:active{transform:translateY(0)}
     #fabNueva .fab-ico{font-size:20px;line-height:1;flex-shrink:0}
   
-  .desc-cell-wrap{display:flex;flex-direction:column;gap:2px}
-  .desc-preview{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6}
-  .desc-preview.open{-webkit-line-clamp:unset;overflow:visible}
-  .desc-toggle{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:'Montserrat',sans-serif;font-weight:700;padding:0;text-align:left;letter-spacing:.3px}
-  .desc-toggle:hover{color:var(--gray-5)}
+  .desc-wrap{display:flex;flex-direction:column;gap:3px}
+  .desc-lines{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6}
+  .desc-lines.open{-webkit-line-clamp:unset;overflow:visible}
+  .desc-more{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
+  .desc-more:hover{color:var(--gray-5)}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
+<script>
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function descHtml(t){
+  if(!t)return'';
+  if(t.indexOf('<ul')!==-1||t.indexOf('<p>')!==-1){
+    var d=document.createElement('div');d.innerHTML=t;
+    return _esc((d.innerText||d.textContent||'').replace(/\n/g,' ').trim());
+  }
+  return t.split('\n').map(function(l){
+    if(/^\[x\] /.test(l))return'<s style="color:#c4c9d4">✓ '+_esc(l.slice(4))+'</s>';
+    if(/^\[ \] /.test(l))return'<span style="color:#7a8194">☐ '+_esc(l.slice(4))+'</span>';
+    if(/^\u2022 /.test(l))return'<b style="color:#C8102E;font-weight:900">•</b> '+_esc(l.slice(2));
+    return _esc(l);
+  }).join('<br>');
+}
+function toggleDesc(btn){
+  var p=btn.previousElementSibling;
+  p.classList.toggle('open');
+  btn.textContent=p.classList.contains('open')?'▲ menos':'▼ más';
+}
+</script>
 </head>
 <body>
 <input type="hidden" id="mgrName">
@@ -397,8 +401,6 @@ function descToHtml(text){
     g('fHasta').value = '2029-12-31';
 
     Promise.allSettled([loadUsers(), loadVillas()]).then(function(){
-
-
       setEstado('pend', false);
       doSearch();
     });
@@ -692,7 +694,7 @@ function descToHtml(text){
     return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'+
       '<td>'+btnEdit+'</td>'+
       '<td style="font-size:12px;font-weight:600;max-width:180px">'+(taskNameShort||'<span style="color:var(--gray-3)">(sin nombre)</span>')+'</td>'+
-      '<td style="font-size:12px;max-width:260px;color:var(--gray-4);vertical-align:top;line-height:1.6">'+(taskDesc?'<div class="desc-cell-wrap"><div class="desc-preview">'+descToHtml(taskDesc)+'</div><button class="desc-toggle" onclick="toggleDesc(this)">▼ más</button></div>':'')+</td>'+
+      '<td style="font-size:12px;max-width:260px;color:var(--gray-4)">'+(taskDesc?'<div class="desc-wrap"><div class="desc-lines">'+descHtml(taskDesc)+'</div><button class="desc-more" onclick="toggleDesc(this)">▼ más</button></div>':'')+'</td>'+
       '<td>'+metaCell+'</td>'+
       '<td>'+dateCell(t)+'</td>'+
     '</tr>';
@@ -771,13 +773,6 @@ function descToHtml(text){
   }
 
 })();
-</script>
-<script>
-function toggleDesc(btn){
-  var p=btn.previousElementSibling;
-  p.classList.toggle('open');
-  btn.textContent=p.classList.contains('open')?'▲ menos':'▼ más';
-}
 </script>
 </body>
 </html>
