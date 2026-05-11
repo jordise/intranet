@@ -20,8 +20,8 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v24 — 3Villas</title>
-  <!-- v24 —— editar-tarea.html —— 10/05/2026 -->
+  <title>Editar Tarea v25 — 3Villas</title>
+  <!-- v25 —— editar-tarea.html —— 10/05/2026 -->
   
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -643,6 +643,19 @@ window._initQuill = function(fId, ph) {
   if (ta.value) q.clipboard.dangerouslyPasteHTML(ta.value);
   q.on('text-change', function() { ta.value = q.root.innerHTML; });
   ta.style.display = 'none';
+  /* Interceptar copy: salida como texto plano sin markdown */
+  q.root.addEventListener('copy', function(e) {
+    var qSel = q.getSelection();
+    if (!qSel || qSel.length === 0) return;
+    e.preventDefault();
+    /* Extraer texto limpio del delta seleccionado */
+    var delta = q.getContents(qSel.index, qSel.length);
+    var plain = '';
+    delta.ops.forEach(function(op) {
+      if (typeof op.insert === 'string') plain += op.insert;
+    });
+    e.clipboardData.setData('text/plain', plain.trim());
+  });
 };
 })();
 </script>
