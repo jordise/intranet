@@ -20,8 +20,8 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v15 — 3Villas</title>
-  <!-- v15 —— editar-tarea.html —— 10/05/2026 -->
+  <title>Editar Tarea v27 — 3Villas</title>
+  <!-- v27 —— editar-tarea.html —— 10/05/2026 -->
   
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -131,11 +131,26 @@
     #lightbox.open{display:flex}
     #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}.res-btns{grid-template-columns:1fr}.btn-cerrar{grid-column:auto}}
+  
+    .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .re-row .lbl{margin:0}
+    .re-btn{border:1px solid var(--gray-3);border-radius:6px;background:var(--gray-1);padding:2px 9px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.6;transition:all .12s}
+    .re-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .ql-wrap{flex:1}
+    .ql-container.ql-snow{border:1.5px solid var(--gray-2);border-radius:10px;font-size:14px;transition:border-color .15s,box-shadow .15s}
+    .ql-container.ql-snow:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .ql-editor{min-height:76px;padding:11px 14px;line-height:1.5;color:var(--gray-5);font-size:14px;font-family:'Open Sans',sans-serif}
+    .ql-editor.ql-blank::before{color:var(--gray-3);font-style:normal}
+    .ql-editor ul>li::before{color:var(--red)}
+    .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
+    .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
   <meta name="theme-color" content="#C8102E">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </head>
 <body>
 <script>Auth.require('tareas');</script>
@@ -164,11 +179,9 @@
           <span class="tt-text" id="ttText">Marcar como terminada</span>
         </div>
         <div class="field">
-          <label class="lbl">Solución aplicada</label>
-          <div class="input-mic">
-            <textarea id="fSolucion" rows="2" placeholder="Describe brevemente la solución…"></textarea>
-            <button class="mic-btn hidden" id="micSolucion" type="button">🎤</button>
-          </div>
+          <div class="re-row"><label class="lbl">Solución aplicada</label><button type="button" class="re-btn" onclick="qFmt('fSolucion','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fSolucion','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fSolucion_ql"></div></div><button class="mic-btn hidden" id="micSolucion" type="button">🎤</button></div>
+          <textarea id="fSolucion" style="display:none"></textarea>
         </div>
         <div class="res-btns">
           <button class="btn-cerrar" id="btnCerrar" type="button">
@@ -193,11 +206,9 @@
           </div>
         </div>
         <div class="field">
-          <label class="lbl">Descripción</label>
-          <div class="input-mic">
-            <textarea id="fDesc" rows="2" placeholder="Detalles de la tarea…"></textarea>
-            <button class="mic-btn hidden" id="micDesc" type="button">🎤</button>
-          </div>
+          <div class="re-row"><label class="lbl">Descripción</label><button type="button" class="re-btn" onclick="qFmt('fDesc','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fDesc','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fDesc_ql"></div></div><button class="mic-btn hidden" id="micDesc" type="button">🎤</button></div>
+          <textarea id="fDesc" style="display:none"></textarea>
         </div>
         <div class="field">
           <label class="lbl">Notas internas del equipo</label>
@@ -329,6 +340,7 @@ document.addEventListener('DOMContentLoaded',function(){
       g('stLoad').style.display='none';
       g('formWrap').style.display='flex';
       g('saveBar').style.display='flex';
+      if(window._qlInit){_qlInit('fDesc','Detalles de la tarea…');_qlInit('fSolucion','Describe brevemente la solución…');}
     })
     .catch(function(e){ showErr(e.message||'Error cargando tarea'); });
 });
@@ -386,7 +398,7 @@ function populateForm(){
   var tct=g('tareaCardTitle'); if(tct) tct.textContent='Tarea Nr. '+taskId;
   // Campos
   g('fNombre').value=nombre;
-  g('fDesc').value=t[F.descripcion]||'';
+  g('fDesc').value=t[F.descripcion]||''; /* richLoad se llama desde _initQuill */
   g('fNotas').value=t[F.notas]||'';
   g('fSolucion').value=t[F.solucion]||'';
   var rf=t[F.fecha]||t.Data_to_be_done||'';
@@ -563,12 +575,12 @@ function submitForm(markDone){
     var afterUrls =results.slice(5,10).map(function(r){ return r.status==='fulfilled'?r.value:''; });
     var record={};
     record[F.nombre]     =nombre;
-    record[F.descripcion]=g('fDesc').value.trim();
+    record[F.descripcion]=(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim();
     record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
     record[F.asignado]   =g('fAsignado').value||'';
     record[F.terminada]  =isTerminada;
     record[F.notas]      =g('fNotas').value.trim();
-    record[F.solucion]   =g('fSolucion').value.trim();
+    record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
     if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
     BEFORE_FIELDS.forEach(function(f,i){ record[f]=beforeUrls[i]||''; });
     AFTER_FIELDS.forEach(function(f,i){ record[f]=afterUrls[i]||''; });
@@ -587,6 +599,67 @@ function onDone(){
   setTimeout(function(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); },400); },1800);
 }
 
+})();
+
+/* ════ Rich editor con Quill (fuera del IIFE principal) ════ */
+(function() {
+  var _q = {};
+
+  function toPlain(html) {
+    if (!html) return '';
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    var lines = [];
+    d.childNodes.forEach(function(n) {
+      if (n.nodeName === 'UL') {
+        var chk = n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li) {
+          var t = (li.innerText || li.textContent || '').trim();
+          if (chk === 'true') lines.push('[x] ' + t);
+          else if (chk === 'false') lines.push('[ ] ' + t);
+          else lines.push('\u2022 ' + t);
+        });
+      } else {
+        var t = (n.innerText || n.textContent || '').replace(/\n/g, ' ').trim();
+        if (t) lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+
+  function toHtml(text) {
+    if (!text) return '';
+    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) return text;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    return text.split('\n').map(function(line) {
+      if (/^\[x\] /.test(line)) return '<ul data-checked="true"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\[ \] /.test(line)) return '<ul data-checked="false"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\u2022 /.test(line)) return '<ul><li>' + esc(line.slice(2)) + '</li></ul>';
+      return '<p>' + esc(line) + '</p>';
+    }).join('');
+  }
+
+  window._qlInit = function(fId, ph) {
+    var ta = document.getElementById(fId);
+    var wrap = document.getElementById(fId + '_ql');
+    if (!ta || !wrap || !window.Quill) return;
+    var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
+    _q[fId] = q;
+    if (ta.value) q.root.innerHTML = toHtml(ta.value);
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    ta.style.display = 'none';
+  };
+
+  window._qlGet = function(fId) {
+    return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
+  };
+
+  window.qFmt = function(fId, type) {
+    var q = _q[fId]; if (!q) return; q.focus();
+    var f = q.getFormat();
+    if (type === 'bullet') q.format('list', f.list === 'bullet' ? false : 'bullet');
+    else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
+  };
 })();
 </script>
 </body>
