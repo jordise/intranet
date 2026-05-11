@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas v15 — 3Villas</title>
+  <title>Entradas v16 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -606,6 +606,7 @@ async function loadVillaPendingTasks(villaIds){
             taskid    : t.taskid || '',
             reserva   : t.Idreserva || t.idreserva || '',
             assignedId: String(t.UserID_asigned_alfanum || ''),
+            dueDate   : t.Data_to_be_done || t.Data_to_be_done_fixed || '',
           });
         }
       }
@@ -618,11 +619,20 @@ async function loadVillaPendingTasks(villaIds){
 
 function updateVillaTasksInDOM(){
   const _grid=$('grid');if(!_grid)return;
-  console.log('[VillaTasks] mapa keys:',Object.keys(villaPendingMap));
+  // Fecha límite: usar fDesde del filtro o hoy si no hay filtro
+  const _filterDate=(($('fDesde')||{}).value||todayStr());
+  const _limit=new Date(_filterDate+'T23:59:59');
+  console.log('[VillaTasks] mapa keys:',Object.keys(villaPendingMap),'filtro<=',_filterDate);
   _grid.querySelectorAll('[data-villaid]').forEach(cardEl=>{
     const vKey=cardEl.getAttribute('data-villaid');
-    console.log('[VillaTasks] card villaid='+vKey+' tareas='+(villaPendingMap[vKey]||[]).length);
-    const tasks=villaPendingMap[vKey]||[];
+    const allTasks=villaPendingMap[vKey]||[];
+    // Solo tareas sin fecha futura respecto al filtro
+    const tasks=allTasks.filter(t=>{
+      if(!t.dueDate)return true; // sin fecha → mostrar siempre
+      const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');
+      return isNaN(d)||d<=_limit;
+    });
+    console.log('[VillaTasks] card villaid='+vKey+' total='+allTasks.length+' visibles='+tasks.length);
     const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
