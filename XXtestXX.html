@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v23 — 3Villas</title>
+  <title>Notas Equipo Reservas v25 — 3Villas</title>
   <!-- notas-equipo-reservas.html v20 — 10/05/2026 -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
@@ -244,6 +244,7 @@
             <div style="grid-column:1/-1"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades adultos</span><br><span id="af_ages" style="color:var(--gray-5)">—</span></div>
             <div style="grid-column:1/-1"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades niños y bebés</span><br><span id="af_childAges" style="color:var(--gray-5)">—</span></div>
             <div id="af_infoWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--orange);text-transform:uppercase">Extras (cunas, tronas…)</span><br><span id="af_info" style="color:var(--orange);font-weight:600">—</span></div>
+            <div id="af_camasWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--blue,#1a73e8);text-transform:uppercase">🛏 Reorganizar camas</span><br><span id="af_camas" style="color:var(--blue,#1a73e8);font-weight:700">—</span></div>
           </div>
 
           <!-- Horas -->
@@ -405,7 +406,7 @@
 
             <!-- Casos excepcionales (desplegable con alerta) -->
             <div style="border:2px solid var(--orange,#e07b00);border-radius:10px;overflow:hidden">
-              <div onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.eco-arr').textContent=this.nextElementSibling.classList.contains('open')?'▴':'▾'"
+              <div onclick="var b=this.nextElementSibling;var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.eco-arr').textContent=open?'▾':'▴';"
                    style="background:var(--orange-light,#fff4e0);padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(224,123,0,.2)">
                 <span style="font-size:16px">⚠️</span>
                 <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--orange,#e07b00);flex:1">PELIGRO — Modificar Ecotasa</span>
@@ -861,6 +862,36 @@ function populateForm(){
   /* Arrival Form */
   var aV=isTruthy(fV('Checkin_arrivalform')),aD=isTruthy(fB('Arrivalform_done'));
   setVr('vrArrival',aV,'Arrival Form');setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
+  /* ── Resumen Arrival Form ── */
+  (function(){
+    function af(id,val){var el=document.getElementById(id);if(el)el.textContent=(val&&String(val).trim()&&String(val).trim()!=='null')?String(val).trim():'—';}
+    af('af_adults',    fB('Guest_adults_nr_form'));
+    af('af_children',  fB('Guest_children_nr_form'));
+    af('af_ages',      fB('Guest_ages_form'));
+    af('af_childAges', fB('Guest_children_babies_ages_form'));
+    var info=String(fB('Guest_info')||'').trim();
+    var infoEl=document.getElementById('af_info'),infoWr=document.getElementById('af_infoWrap');
+    if(info&&infoEl){infoEl.textContent=info;if(infoWr)infoWr.style.display='block';}
+    var camas=String(fB('TaVillas_Reorganizar_camas')||fB('Reorganizar_camas')||'').trim();
+    var camasEl=document.getElementById('af_camas'),camasWr=document.getElementById('af_camasWrap');
+    if(camas&&camasEl){camasEl.textContent=camas;if(camasWr)camasWr.style.display='block';}
+    af('af_arrival',     fB('Arrival_Time_to_Menorca'));
+    af('af_checkinTime', fB('Checkin_time'));
+    af('af_checkoutTime',fB('Checkout_time'));
+    af('af_departure',   fB('Departure_Time_to_Menorca'));
+    af('af_name',    fB('Fiscal_guest_name'));
+    af('af_surname', fB('Fiscal_guest_surename')||fB('Fiscal_guest_surname'));
+    af('af_dni',     fB('Fiscal_guest_DNI_passport'));
+    af('af_city',    fB('Fiscal_guest_city'));
+    af('af_country', fB('Fiscal_guest_Country'));
+    af('af_address', fB('Fiscal_guest_address'));
+    af('af_email',   fB('Segundo_email'));
+    af('af_phone',   fB('Segundo_Telefono'));
+    /* Mostrar siempre el panel si hay datos del arrival form */
+    var summary=document.getElementById('arrFormSummary');
+    if(summary)summary.style.display='block';
+  })();
+
 
   /* Policía */
   var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
@@ -919,8 +950,8 @@ function toYMD(s){
 function buildPoliceUrl(){
   var org=fB('TaVillas_Link_Registrodepolicia')||fB('Link_Registrodepolicia')||'';
   var wrap=g('policeUrlWrap');
-  if(!org||!wrap){if(wrap)wrap.style.display='none';return;}
-  wrap.style.display='block';
+  if(!wrap)return;
+  wrap.style.display='block';   /* mostrar siempre */
   var reserv=confCode||'';
   /* Campos calculados equivalentes */
   var checkin=toYMD(fB('Checkin')||fB('TaBookings2021_Checkin')||'');
