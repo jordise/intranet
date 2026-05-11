@@ -257,6 +257,18 @@
     color:#fff;z-index:10;font-weight:900;backdrop-filter:blur(4px);transition:background .15s}
   .wk-modal-close:hover{background:rgba(0,0,0,.7)}
 
+
+  /* Status buttons en ficha semanal */
+  .wk-row{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+  .wk-status{display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:20px;border-radius:5px;border:none;font-size:11px;
+    font-weight:900;cursor:pointer;flex-shrink:0;text-decoration:none;
+    line-height:1;transition:opacity .15s}
+  .wk-status:hover{opacity:.75}
+  .wk-status.ok{background:#dcfce7;color:#166534}
+  .wk-status.ko{background:#fee2e2;color:#991b1b}
+  .wk-villa2{font-size:11px;font-weight:700;color:#222;flex:1;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
   /* Botón calendario */
   #btnCalendar{background:#fff;border:1.5px solid #ddd;border-radius:10px;
     width:36px;height:36px;cursor:pointer;display:flex;align-items:center;
@@ -1114,42 +1126,50 @@ function renderWeekly(){
 
     if(!recs.length){
       var empty=document.createElement('div');
-      empty.className='wk-empty';
-      empty.textContent='\u2014';
+      empty.className='wk-empty';empty.textContent='\u2014';
       wrap.appendChild(empty);
     } else {
       recs.forEach(function(rec){
         var r=rec.r,type=rec.type,id=rec._wid;
         var isSal=type==='salida';
         var villa=g(r,'villaName')||'\u2014';
+        var code=g(r,'confirmCode')||'';
         var limpOk=_isDone(g(r,'limpieza'));
-        var wpOk=_isDone(g(r,'wellcomePack'));
-        var cierreOk=_isDone(g(r,'cierre'));
+        var wpOk  =_isDone(g(r,'wellcomePack'));
+        var cierOk=_isDone(g(r,'cierre'));
+
+        /* URLs — mismas que buildCard */
+        var uLimp='http://c1abn932.caspio.com/dp/353f70000ad4eac80ca64b2d82fa?Idreserva='+code+'&Tasktype_booking=10';
+        var uWP  ='task-wp.html?Idreserva='+code+'&Tasktype_booking=20&code='+code;
+        var uCier='https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva='+code+'&Tasktype_booking=30';
+
+        function statusBtn(ok,url){
+          return '<a class="wk-status '+(ok?'ok':'ko')+'" href="'+url+'" '
+            +'onclick="openTaskPopup(\''+url+'\');return false;" '
+            +'title="'+(ok?'Hecho':'Pendiente')+'" target="_blank">'
+            +(ok?'\u2713':'\u2715')+'</a>';
+        }
 
         var card=document.createElement('div');
         card.className='wk-card '+(isSal?'sal':'ent');
-        card.onclick=function(){_openModal(id);};
+        /* Click en la ficha → modal, excepto en los botones de status */
+        card.onclick=function(e){
+          if(!e.target.classList.contains('wk-status'))_openModal(id);
+        };
 
-        var inner='<div class="wk-card-inner">'+
-          '<div class="wk-pill-row">'+
-            '<span class="wk-pill '+(isSal?'sal':'ent')+'">'+(isSal?'\u2191 SAL':'\u2193 ENT')+'</span>'+
-          '</div>'+
-          '<div class="wk-villa">'+villa+'</div>';
-
+        var pills='<span class="wk-pill '+(isSal?'sal':'ent')+'">'+(isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
+        var btns='';
         if(isSal){
-          /* Salidas: solo botón cierre */
-          inner+='<button class="wk-cierre-btn '+(cierreOk?'ok':'ko')+'" onclick="event.stopPropagation()">'+
-            (cierreOk?'\u2713 Cierre hecho':'\u2715 Cierre pendiente')+'</button>';
+          btns=statusBtn(cierOk,uCier);
         } else {
-          /* Entradas: dots limpieza + welcomepack */
-          inner+='<div class="wk-dots">'+
-            '<span class="wk-dot '+(limpOk?'ok':'ko')+'" title="Limpieza"></span>'+
-            '<span class="wk-dot '+(wpOk?'ok':'ko')+'" title="WelcomePack"></span>'+
-            '<span class="wk-dot-lbl">L\u00b7WP</span>'+
-          '</div>';
+          btns=statusBtn(limpOk,uLimp)+statusBtn(wpOk,uWP);
         }
-        inner+='</div>';
-        card.innerHTML=inner;
+
+        card.innerHTML='<div class="wk-card-inner">'+
+          '<div class="wk-row">'+pills+btns+
+            '<span class="wk-villa2" title="'+villa+'">'+villa+'</span>'+
+          '</div>'+
+        '</div>';
         wrap.appendChild(card);
       });
     }
