@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas y Salidas v14 — 3Villas</title>
+  <title>Entradas v15 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -342,7 +342,7 @@ const CFG = {
 const U = { id:'UserID', name:'Name', email:'Email' };
 const F = {
   reservationId:'TaBookings2021_BookingID',confirmCode:'TaBookings2021_FS_confirmation_code',
-  villaName:'TaBookings2021_Property_Title',nights:'TaBookings2021_Nights',
+  villaName:'TaVillas_Name_villa_para_inquilinos',nights:'TaBookings2021_Nights',
   checkIn:'TaBookings2021_Checkin',checkOut:'TaBookings2021_Checkout',
   checkinTime:'TaBookings2021_Checkin_time',checkinDay:'TaBookings2021_Checkin_day',
   checkinMonth:'TaBookings2021_Checkin_month',checkinYear:'TaBookings2021_Checin_year',
@@ -481,7 +481,7 @@ document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$(
 window.addEventListener('scroll',e=>{const panel=$('managerPanel');if(!panel||panel.style.display==='none')return;if(panel.contains(e.target))return;closeManagerPanel();},true);
 window.addEventListener('resize',()=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn){const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';}});
 async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null)contactsMap.set(String(r.ContactID),r.Name||'');if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
-async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();if(id)multiunitsMap.set(id,key);});}catch(e){}}
+async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);}});}catch(e){}}
 function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=contactsMap.get(String(rawVal));return byId||String(rawVal);}
 
 // ════════════════ UI CONTROLS ════════════════
@@ -812,7 +812,9 @@ function buildCard(r,type){
   const gn=g(r,'guestName'),ad=g(r,'adults'),ch=g(r,'children');
   const st=g(r,'status');
   const code=g(r,'confirmCode'),villaId=r['TaVillas_villaid']||'';
-  const vl=g(r,'villaName')||'Villa sin nombre';
+  const _vlBase=g(r,'villaName')||g(r,'reservationId')||'Villa sin nombre';
+  const _muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
+  const vl=_muName?_vlBase+' / '+_muName:_vlBase;
   const portal=g(r,'portalName');
   const ph=g(r,'guestPhone'),em=g(r,'guestEmail'),ph2=g(r,'phoneArrival');
   const cual=g(r,'phoneCual');const useArr=useArrival(cual);
