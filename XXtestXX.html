@@ -11,6 +11,23 @@
 <meta name="apple-mobile-web-app-title" content="3Villas">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>
+/* Convierte texto plano (• [x] [ ]) a HTML para mostrar */
+function esc2(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function descToHtml(text){
+  if(!text)return'';
+  if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1){
+    var d=document.createElement('div');d.innerHTML=text;
+    return'<span>'+(d.innerText||d.textContent||'').replace(/\n/g,' ').trim()+'</span>';
+  }
+  return text.split('\n').map(function(line){
+    if(/^\[x\] /.test(line))return'<span style="text-decoration:line-through;color:#c4c9d4">✓ '+esc2(line.slice(4))+'</span>';
+    if(/^\[ \] /.test(line))return'<span style="color:#7a8194">☐ '+esc2(line.slice(4))+'</span>';
+    if(/^\u2022 /.test(line))return'<span><b style="color:#C8102E">•</b> '+esc2(line.slice(2))+'</span>';
+    return'<span>'+esc2(line)+'</span>';
+  }).join('<br>');
+}
+</script>
+<script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/3villas-manuals/sw.js')
@@ -375,22 +392,6 @@
 
     Promise.allSettled([loadUsers(), loadVillas()]).then(function(){
 
-  /* Convierte texto plano (• [x] [ ]) a HTML para mostrar */
-  function descToHtml(text) {
-    if (!text) return '';
-    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) {
-      // Ya es HTML antiguo — extraer texto plano
-      var d = document.createElement('div'); d.innerHTML = text;
-      return '<span>' + (d.innerText || d.textContent || '').replace(/\n/g, ' ').trim() + '</span>';
-    }
-    return text.split('\n').map(function(line) {
-      if (/^\[x\] /.test(line)) return '<span style="text-decoration:line-through;color:var(--gray-3)">✓ ' + esc2(line.slice(4)) + '</span>';
-      if (/^\[ \] /.test(line)) return '<span style="color:var(--gray-4)">☐ ' + esc2(line.slice(4)) + '</span>';
-      if (/^\u2022 /.test(line)) return '<span><span style="color:var(--red);font-weight:900">•</span> ' + esc2(line.slice(2)) + '</span>';
-      return '<span>' + esc2(line) + '</span>';
-    }).join('<br>');
-  }
-  function esc2(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
       setEstado('pend', false);
       doSearch();
