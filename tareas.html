@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v9 — 3Villas</title>
+  <title>Tareas v10 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -127,6 +127,13 @@
   .desc-lines.open{-webkit-line-clamp:unset;overflow:visible}
   .desc-more{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
   .desc-more:hover{color:var(--gray-5)}
+  
+  .desc-edit{width:100%;min-height:80px;border:1.5px solid var(--red);border-radius:7px;
+    padding:7px 9px;font-size:12px;font-family:inherit;resize:vertical;
+    box-sizing:border-box;outline:none;line-height:1.6;display:none}
+  .desc-edit:focus{border-color:var(--red-dark,#a50d26);box-shadow:0 0 0 2px rgba(200,16,46,.15)}
+  .desc-saving{font-size:10px;color:var(--gray-3);font-family:Montserrat,sans-serif;
+    font-weight:700;margin-left:4px;display:none}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -146,10 +153,44 @@ function descHtml(t){
     return _esc(l);
   }).join('<br>');
 }
+function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function toggleDesc(btn){
-  var p=btn.previousElementSibling;
-  p.classList.toggle('open');
-  btn.textContent=p.classList.contains('open')?'▲ menos':'▼ más';
+  var wrap=btn.parentElement.parentElement; /* desc-wrap */
+  var lines=wrap.querySelector('.desc-lines');
+  var ta=wrap.querySelector('.desc-edit');
+  var saving=wrap.querySelector('.desc-saving');
+  var isOpen=lines.style.display==='none';
+
+  if(!isOpen){
+    /* ▼ más → expandir y editar */
+    lines.style.display='none';
+    ta.value=wrap.getAttribute('data-raw')||'';
+    ta.style.display='block';
+    btn.textContent='▲ menos';
+    ta.focus();
+  } else {
+    /* ▲ menos → colapsar y guardar */
+    var newText=ta.value.trim();
+    ta.style.display='none';
+    lines.innerHTML=descHtml(newText);
+    lines.style.display='';
+    btn.textContent='▼ más';
+    wrap.setAttribute('data-raw',newText);
+
+    /* Guardar en Caspio via Worker */
+    var taskId=wrap.getAttribute('data-tid')||'';
+    if(taskId){
+      if(saving)saving.style.display='inline';
+      fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({Taskdescription:newText})
+      })
+      .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||'Error');});})
+      .then(function(){if(saving){saving.textContent='✓ Guardado';setTimeout(function(){saving.style.display='none';saving.textContent='Guardando…';},1500);}})
+      .catch(function(e){if(saving){saving.textContent='✗ Error';saving.style.color='var(--red)';setTimeout(function(){saving.style.display='none';saving.style.color='';saving.textContent='Guardando…';},2500);}console.error('desc save:',e);});
+    }
+  }
 }
 </script>
 </head>
@@ -694,7 +735,7 @@ function toggleDesc(btn){
     return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'+
       '<td>'+btnEdit+'</td>'+
       '<td style="font-size:12px;font-weight:600;max-width:180px">'+(taskNameShort||'<span style="color:var(--gray-3)">(sin nombre)</span>')+'</td>'+
-      '<td style="font-size:12px;max-width:260px;color:var(--gray-4)">'+(taskDesc?'<div class="desc-wrap"><div class="desc-lines">'+descHtml(taskDesc)+'</div><button class="desc-more" onclick="toggleDesc(this)">▼ más</button></div>':'')+'</td>'+
+      '<td style="font-size:12px;max-width:260px;color:var(--gray-4)">'+(taskDesc?'<div class="desc-wrap" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(taskId)+'">'+'<div class="desc-lines">'+descHtml(taskDesc)+'</div>'+'<textarea class="desc-edit"></textarea>'+'<div style="display:flex;align-items:center;gap:4px">'+'<button class="desc-more" onclick="toggleDesc(this)">▼ más</button>'+'<span class="desc-saving">Guardando…</span></div>'+'</div>':'')+'</td>'+
       '<td>'+metaCell+'</td>'+
       '<td>'+dateCell(t)+'</td>'+
     '</tr>';
