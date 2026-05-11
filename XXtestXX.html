@@ -3,310 +3,242 @@
 <head>
   <meta charset="UTF-8">
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#C8102E">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="3Villas">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/3villas-manuals/sw.js')
-        .then(r => console.log('SW registrado:', r.scope))
-        .catch(e => console.warn('SW error:', e));
-    });
-  }
-</script>
+  <meta name="theme-color" content="#C8102E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Entradas v15 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--r:10px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
-    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px;flex-wrap:nowrap}
-    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
-    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:background .15s;white-space:nowrap;flex-shrink:0}
     
-    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700}
+
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200}
     .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px}
-    #chips{flex:1;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-width:0}
-    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
-    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
-    .btn-mas{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border:1.5px dashed var(--gray-3);border-radius:7px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
-    .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
-    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;flex-shrink:0}
-    
-    #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
-    #masFiltros.open{max-height:400px}
-    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 6px}
-    .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
-    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-4)}
-    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%}
-    
     .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
     .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)}
     .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
-    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s}
-    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4)}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:var(--shadow-sm)}
 
-    /* ═════════ MODO CALENDARIO ═════════ */
-    main { padding: 18px 22px; max-width: 1600px; margin: 0 auto; }
+    /* ═════════ MODO CALENDARIO MINIMALISTA ═════════ */
+    main { padding: 18px 10px; max-width: 100%; margin: 0 auto; }
     #grid { 
         display: grid; 
-        grid-template-columns: repeat(7, minmax(160px, 1fr)); 
-        gap: 12px; 
+        grid-template-columns: repeat(7, minmax(150px, 1fr)); 
+        gap: 10px; 
         align-items: start; 
         overflow-x: auto;
     }
-    .cal-column { background: #e0e2e7; border-radius: 10px; min-height: 70vh; padding-bottom: 15px; }
+    .cal-column { background: #fbfbfb; border-radius: 12px; min-height: 75vh; border: 1px solid #eee; }
     .cal-header { 
-        background: var(--gray-5); color: #fff; padding: 10px 5px; 
-        text-align: center; border-radius: 10px 10px 0 0; 
-        position: sticky; top: 0; z-index: 10;
+        padding: 15px 5px; text-align: center; border-bottom: 2px solid #eee;
+        background: #fff; border-radius: 12px 12px 0 0;
     }
-    .cal-day-num { font-family: 'Montserrat'; font-size: 22px; font-weight: 900; display: block; }
-    .cal-day-name { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+    .cal-day-num { font-family: 'Montserrat'; font-size: 24px; font-weight: 900; color: var(--gray-5); display: block; line-height: 1; }
+    .cal-day-name { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gray-4); font-weight: 700; }
     
     .mini-card {
-        margin: 8px; padding: 10px; border-radius: 8px; 
-        font-family: 'Montserrat'; font-size: 11px; font-weight: 800; 
-        color: #fff; box-shadow: var(--shadow-sm);
-        cursor: pointer; position: relative; transition: transform 0.1s;
-        line-height: 1.2; text-transform: uppercase;
+        margin: 10px 8px; padding: 12px; border-radius: 10px; 
+        background: #fff; border: 1px solid #eee;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        position: relative; transition: all 0.2s;
     }
-    .mini-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .mini-card.entrada { background: var(--red); border-left: 5px solid #8b0000; }
-    .mini-card.salida { background: #1565c0; border-left: 5px solid #0a3d7a; }
-    .mini-card .m-guest { display: block; font-family: 'Open Sans'; font-size: 9px; font-weight: 400; text-transform: none; margin-top: 3px; opacity: 0.9; }
+    .mini-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--gray-3); }
+    
+    /* Indicador lateral de tipo */
+    .mini-card.entrada { border-left: 4px solid var(--red); }
+    .mini-card.salida { border-left: 4px solid #1565c0; }
 
-    /* RELLENO / ESTADOS */
-    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:none;flex-direction:column;max-height:300px;min-width:220px}
-    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
-    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px}
-    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
-    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5)}
-    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4);grid-column: 1 / -1;}
-    .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
+    .m-villa { font-family: 'Montserrat'; font-size: 11px; font-weight: 800; color: var(--gray-5); text-transform: uppercase; margin-bottom: 4px; line-height: 1.2; }
+    .m-guest { display: block; font-size: 10px; color: var(--gray-4); margin-bottom: 8px; }
 
-    /* ── Tareas pendientes (Igual a tu original) ── */
-    #pendTasksBar{background:#fff8f0;border-bottom:2px solid #ffe5c0}
-    .pt-header{display:flex;align-items:center;gap:10px;padding:8px 22px;cursor:pointer}
-    .pt-btn-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;color:#e07b00}
-    .pt-count{background:#e07b00;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px}
-    .pt-body{display:none;border-top:1px solid #ffe5c0}
-    .pt-body.open{display:block}
-    .pt-task-card{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--gray-2);cursor:pointer;background:#fff}
+    /* Botones redondos L, W, C */
+    .m-btns { display: flex; gap: 5px; }
+    .m-btn {
+        width: 26px; height: 26px; border-radius: 50%; 
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Montserrat'; font-size: 11px; font-weight: 900;
+        text-decoration: none; border: none; cursor: pointer; transition: opacity 0.2s;
+    }
+    .m-btn:hover { opacity: 0.8; }
+    
+    /* Colores botones Entrada (Rojos) */
+    .entrada .btn-l { background: var(--red-light); color: var(--red); }
+    .entrada .btn-w { background: var(--orange-light); color: var(--orange); }
+    /* Colores botones Salida (Azules) */
+    .salida .btn-c { background: #e3f2fd; color: #1565c0; }
 
-    @media(max-width: 900px){ #grid { grid-template-columns: repeat(7, 160px); } }
+    /* Estados de los botones (Iconos ✓ / ✗) */
+    .status-icon { font-size: 8px; margin-right: 2px; }
+
+    /* ESTILOS ORIGINALES RELLENO */
+    #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
+    #masFiltros.open{max-height:400px}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+    .f-input{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px}
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px}
+
+    @media(max-width: 900px){ #grid { grid-template-columns: repeat(7, 180px); } }
   </style>
   <script src="auth.js"></script>
-  <script src="nav.js"></script>
-  <script src="nav-component.js"></script>
 </head>
 <body>
 <input type="hidden" id="mgrName">
-<script>Auth.require('entradas');</script>
 
 <header>
-  <div>
-    <div class="h-title" id="hTitle"><span id="hCount" style="letter-spacing:0"></span> ENTRADAS Y SALIDAS</div>
-  </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
-  </div>
+  <div class="h-title">3VILLAS — E/S</div>
+  <div class="logout-btn">👤 <span id="hUserName"></span></div>
 </header>
 
 <div id="filterPanel">
   <div class="main-bar">
     <div class="pill-group">
-      <span class="pill-label">Check-in online</span>
+      <span class="pill-label">Check-in</span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tAll" onclick="setToggle('all')">Todos</button>
-        <button class="pill-opt" id="tPend" onclick="setToggle('pend')">Pendiente</button>
+        <button class="pill-opt" id="tPend" onclick="setToggle('pend')">Pend.</button>
       </div>
     </div>
     <div class="pill-group">
-      <span class="pill-label">WelcomePack</span>
+      <span class="pill-label">WP</span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tWPall" onclick="setWPFilter('all')">Todos</button>
-        <button class="pill-opt" id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+        <button class="pill-opt" id="tWPpend" onclick="setWPFilter('pending')">Pend.</button>
       </div>
     </div>
     <div class="pill-group">
       <span class="pill-label">Mostrar</span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tTipo_both" onclick="setTipoFilter('both')">Todo</button>
-        <button class="pill-opt" id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
-        <button class="pill-opt" id="tTipo_salida" onclick="setTipoFilter('salida')">Salidas</button>
+        <button class="pill-opt" id="tTipo_entrada" onclick="setTipoFilter('entrada')">Ent.</button>
+        <button class="pill-opt" id="tTipo_salida" onclick="setTipoFilter('salida')">Sal.</button>
       </div>
     </div>
     <div style="flex:1"></div>
-    <button class="btn-mas" id="btnMas" onclick="toggleMas()">Filtros ▾</button>
-    <button class="btn-clear" onclick="clearAll()">✕</button>
+    <button style="border:none; background:none; color:var(--gray-4); cursor:pointer" onclick="$('masFiltros').classList.toggle('open')">Filtros ▾</button>
   </div>
-  <div id="chips"></div>
+
   <div id="masFiltros">
-    <div class="mas-inner">
-      <div class="filter-row">
-        <div class="f-group" style="position:relative">
-          <label class="f-label">Villa Manager</label>
-          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left">
-            <span id="fManagerLabel">Cargando...</span>
-          </button>
-          <div id="managerPanel" class="manager-panel">
-            <div id="managerList" class="manager-list"></div>
-          </div>
-        </div>
+    <div style="padding:10px 0; border-top:1px solid #eee; display:flex; gap:10px; flex-wrap:wrap">
         <div class="f-group">
           <label class="f-label">Desde</label>
-          <input type="date" id="fDesde" class="f-input" onchange="onDesdeChange()">
+          <input type="date" id="fDesde" class="f-input" onchange="doSearch()">
         </div>
         <div class="f-group">
-          <label class="f-label">Código reserva</label>
-          <input type="text" id="fCodigo" class="f-input" oninput="scheduleSearch(400)">
+          <label class="f-label">Manager</label>
+          <select id="fManager" class="f-input" onchange="doSearch()"><option value="">Cargando...</option></select>
         </div>
-      </div>
     </div>
   </div>
 </div>
 
 <div id="statsBar">
-  <div class="stat"><strong id="sCnt">0</strong></div>
-  <div class="stat"><strong id="sPax">0</strong> pax</div>
-</div>
-
-<div id="pendTasksBar" style="display:none">
-  <div class="pt-header" onclick="togglePendTasks()">
-    <span class="pt-btn-label">⚑ Tareas pendientes</span>
-    <span class="pt-count" id="ptCount">…</span>
-  </div>
-  <div class="pt-body" id="ptBody">
-    <div id="ptList"></div>
-  </div>
+  <div><strong id="sCnt">0</strong> Movs.</div>
+  <div><strong id="sPax">0</strong> Pax</div>
 </div>
 
 <main>
-  <div id="stLoad" class="state-box" style="display:none"><div class="spinner"></div><p>Cargando calendario...</p></div>
   <div id="grid"></div>
 </main>
 
 <script>
-// ════════════════ CONFIGURACIÓN ORIGINAL ════════════════
 const CFG = {
   workerUrl: 'https://caspio-proxy.jordi-89b.workers.dev',
-  viewName: 'Vi_villas_and_bookings2021',
-  usersTable: 'TaUsers'
+  viewName: 'Vi_villas_and_bookings2021'
 };
+
 const F = {
-  reservationId:'TaBookings2021_BookingID',confirmCode:'TaBookings2021_FS_confirmation_code',
-  villaName:'TaVillas_Name_villa_para_inquilinos',checkIn:'TaBookings2021_Checkin',checkOut:'TaBookings2021_Checkout',
-  status:'TaBookings2021_BookingStatus',guestName:'TaBookings2021_Guest_Full_Name',
-  villaManager:'TaVillas_KeyHolder_person',adults:'TaBookings2021_Adults',children:'TaBookings2021_Children',
-  wellcomePack:'TaBookings2021_Welcomepackentregado',checkinPend:'TaBookings2021_checkinonline_todo_terminado',
+  confirmCode:'TaBookings2021_FS_confirmation_code',
+  villaName:'TaVillas_Name_villa_para_inquilinos',
+  guestName:'TaBookings2021_Guest_Full_Name',
+  checkIn:'TaBookings2021_Checkin',
+  checkOut:'TaBookings2021_Checkout',
+  status:'TaBookings2021_BookingStatus',
+  limpieza:'TaBookings2021_LimpiezaTerminada',
+  wellcomePack:'TaBookings2021_Welcomepackentregado',
+  cierre:'TaBookings2021_Checkoutcontrolado',
+  adults:'TaBookings2021_Adults',
+  children:'TaBookings2021_Children',
+  checkinPend:'TaBookings2021_checkinonline_todo_terminado'
 };
 
-let toggleMode='all', _searchId=0, fWelcomePack='all', tipoFilter='both';
-let managersMap=new Map(), allUsersMap=new Map(), selectedManagers=new Set();
+let toggleMode='all', fWelcomePack='all', tipoFilter='both';
 const $=id=>document.getElementById(id);
-function todayStr(){return new Date().toISOString().split('T')[0];}
-function g(r,key){return r[F[key]]??'';}
-function isOk(val){ if(val===null||val===undefined)return null; if(typeof val==='boolean')return val; const s=String(val).toLowerCase(); return !['0','x','no','false','pendiente'].includes(s); }
+const g = (r, key) => r[F[key]] ?? '';
+const isOk = (val) => {
+    if(val===null||val===undefined) return null;
+    const s = String(val).toLowerCase();
+    return !['0','x','no','false','pendiente'].includes(s);
+};
 
-// ════════════════ LÓGICA DE BÚSQUEDA Y RENDER ════════════════
+// URLs de formularios originales
+const getUrlLimpieza = (code) => `http://c1abn932.caspio.com/dp/353f70000ad4eac80ca64b2d82fa?Idreserva=${code}&Tasktype_booking=10`;
+const getUrlWP = (code) => `task-wp.html?Idreserva=${code}&Tasktype_booking=20&code=${code}`;
+const getUrlCierre = (code) => `https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
 
-window.addEventListener('DOMContentLoaded', async()=>{
-    $('fDesde').value = todayStr();
+window.addEventListener('DOMContentLoaded', async () => {
+    $('fDesde').value = new Date().toISOString().split('T')[0];
+    if(typeof Auth !== 'undefined') $('hUserName').textContent = Auth.name();
     await loadManagers();
     doSearch();
 });
 
 async function loadManagers(){
-    try{
-        const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`));
-        const json=await res.json();
-        const users=json.Result||[];
-        users.forEach(u=>{
-            allUsersMap.set(String(u['UserID']), String(u['Name']));
-            if(u['Keyholder_por_defecto']) managersMap.set(String(u['UserID']), String(u['Name']));
-        });
-        renderManagerList();
-        $('fManagerLabel').textContent = "Seleccionar Manager";
-    }catch(e){console.error(e)}
+    const res = await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaUsers&limit=100`));
+    const json = await res.json();
+    const sel = $('fManager');
+    sel.innerHTML = '<option value="">Todos los Managers</option>';
+    (json.Result||[]).filter(u => u.Keyholder_por_defecto).forEach(u => {
+        sel.innerHTML += `<option value="${u.UserID}">${u.Name}</option>`;
+    });
 }
 
-function renderManagerList(){
-    const list=$('managerList');
-    list.innerHTML = Array.from(managersMap).map(([id, name]) => `
-        <div class="manager-item" onclick="toggleManager('${id}')">
-            <input type="checkbox" ${selectedManagers.has(id)?'checked':''}> ${name}
-        </div>
-    `).join('');
+function setToggle(m){ toggleMode=m; updatePills('t', ['all','pend'], m); doSearch(); }
+function setWPFilter(m){ fWelcomePack=m; updatePills('tWP', ['all','pending'], m); doSearch(); }
+function setTipoFilter(m){ tipoFilter=m; updatePills('tTipo', ['both','entrada','salida'], m); doSearch(); }
+
+function updatePills(pre, opts, val){
+    opts.forEach(o => $(pre+'_'+o)?.classList.toggle('on', o===val));
 }
-
-function toggleManager(id){
-    if(selectedManagers.has(id)) selectedManagers.delete(id); else selectedManagers.add(id);
-    renderManagerList();
-    $('fManagerLabel').textContent = selectedManagers.size > 0 ? `${selectedManagers.size} seleccionados` : "Seleccionar Manager";
-    doSearch();
-}
-
-function toggleManagerPanel(e){ e.stopPropagation(); const p=$('managerPanel'); p.style.display = p.style.display==='flex'?'none':'flex'; }
-document.addEventListener('click', ()=> $('managerPanel').style.display='none');
-
-function setToggle(m){ toggleMode=m; doSearch(); }
-function setWPFilter(m){ fWelcomePack=m; doSearch(); }
-function setTipoFilter(m){ tipoFilter=m; doSearch(); }
-function toggleMas(){ $('masFiltros').classList.toggle('open'); }
-function onDesdeChange(){ doSearch(); }
 
 async function doSearch(){
-    const mySearchId=++_searchId;
-    $('stLoad').style.display='block';
-    $('grid').innerHTML='';
+    const start = $('fDesde').value;
+    const d = new Date(start + 'T00:00:00');
+    d.setDate(d.getDate() + 6);
+    const end = d.toISOString().split('T')[0];
 
-    // Construir WHERE
-    let parts = [`${F.status}<>'cancelled'`];
-    const desde = $('fDesde').value;
-    const hastaDate = new Date(desde + 'T00:00:00');
-    hastaDate.setDate(hastaDate.getDate() + 6);
-    const hasta = hastaDate.toISOString().split('T')[0];
+    const grid = $('grid');
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px">Cargando...</div>';
 
-    parts.push(`((${F.checkIn} >= '${desde}T00:00:00' AND ${F.checkIn} <= '${hasta}T23:59:59') OR (${F.checkOut} >= '${desde}T00:00:00' AND ${F.checkOut} <= '${hasta}T23:59:59'))`);
+    let where = `${F.status}<>'cancelled' AND ((${F.checkIn} >= '${start}T00:00:00' AND ${F.checkIn} <= '${end}T23:59:59') OR (${F.checkOut} >= '${start}T00:00:00' AND ${F.checkOut} <= '${end}T23:59:59'))`;
     
-    if(selectedManagers.size > 0) {
-        const ids = Array.from(selectedManagers).map(id => `'${id}'`).join(',');
-        parts.push(`${F.villaManager} IN (${ids})`);
-    }
-
-    const url=`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(parts.join(' AND '))}&limit=500`;
+    const mgr = $('fManager').value;
+    if(mgr) where += ` AND TaVillas_KeyHolder_person='${mgr}'`;
 
     try {
-        const res=await fetch(Auth.url(url));
-        const json=await res.json();
-        if(mySearchId !== _searchId) return;
-        renderCalendar(desde, json.Result || []);
-    } catch(e) { console.error(e); }
-    $('stLoad').style.display='none';
+        const res = await fetch(Auth.url(`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&limit=500`));
+        const json = await res.json();
+        renderCalendar(start, json.Result || []);
+    } catch(e) { grid.innerHTML = 'Error al cargar datos.'; }
 }
 
-function renderCalendar(startDate, records){
+function renderCalendar(startStr, records){
     const grid = $('grid');
     grid.innerHTML = '';
-    
     const days = [];
     for(let i=0; i<7; i++){
-        const d = new Date(startDate + 'T00:00:00');
+        const d = new Date(startStr + 'T00:00:00');
         d.setDate(d.getDate() + i);
         days.push(d.toISOString().split('T')[0]);
     }
 
     const columnsMap = {};
-    days.forEach(dateStr => {
-        const d = new Date(dateStr + 'T00:00:00');
+    days.forEach(day => {
+        const d = new Date(day + 'T00:00:00');
         const col = document.createElement('div');
         col.className = 'cal-column';
         col.innerHTML = `
@@ -314,10 +246,10 @@ function renderCalendar(startDate, records){
                 <span class="cal-day-name">${d.toLocaleDateString('es-ES',{weekday:'short'})}</span>
                 <span class="cal-day-num">${d.getDate()}</span>
             </div>
-            <div id="day-${dateStr}"></div>
+            <div id="day-${day}"></div>
         `;
         grid.appendChild(col);
-        columnsMap[dateStr] = col.querySelector(`#day-${dateStr}`);
+        columnsMap[day] = col.querySelector(`#day-${day}`);
     });
 
     let count=0, pax=0;
@@ -325,48 +257,64 @@ function renderCalendar(startDate, records){
     records.forEach(r => {
         const ci = (g(r,'checkIn')||'').split('T')[0];
         const co = (g(r,'checkOut')||'').split('T')[0];
-        const villa = g(r,'villaName');
-        const guest = g(r,'guestName');
+        const code = g(r,'confirmCode');
         
-        // Lógica de filtros adicionales (WP y Checkin online)
-        const wpOk = isOk(g(r,'wellcomePack'));
-        const ciPend = Number(g(r,'checkinPend')) === 3;
-        if(fWelcomePack === 'pending' && wpOk) return;
-        if(toggleMode === 'pend' && !ciPend) return;
+        // Filtros adicionales
+        if(fWelcomePack === 'pending' && isOk(g(r,'wellcomePack'))) return;
+        if(toggleMode === 'pend' && Number(g(r,'checkinPend')) !== 3) return;
 
-        // Pintar en el día correspondiente
+        // Pintar Entrada
         if(columnsMap[ci] && (tipoFilter==='both' || tipoFilter==='entrada')){
-            columnsMap[ci].appendChild(createMiniCard(villa, guest, 'entrada', r));
+            columnsMap[ci].appendChild(createCard(r, 'entrada'));
             count++; pax += (parseInt(g(r,'adults'))||0) + (parseInt(g(r,'children'))||0);
         }
+        // Pintar Salida
         if(columnsMap[co] && (tipoFilter==='both' || tipoFilter==='salida')){
-            columnsMap[co].appendChild(createMiniCard(villa, guest, 'salida', r));
+            columnsMap[co].appendChild(createCard(r, 'salida'));
             if(tipoFilter==='salida') count++;
         }
     });
 
-    $('sCnt').textContent = `${count} Movimientos`;
+    $('sCnt').textContent = count;
     $('sPax').textContent = pax;
-    $('statsBar').style.display='flex';
+    $('statsBar').style.display = 'flex';
 }
 
-function createMiniCard(villa, guest, type, r){
+function createCard(r, type){
     const el = document.createElement('div');
     el.className = `mini-card ${type}`;
+    const villa = g(r, 'villaName');
+    const guest = g(r, 'guestName');
+    const code = g(r, 'confirmCode');
+
+    let btnsHtml = '';
+    if(type === 'entrada'){
+        const lOk = isOk(g(r,'limpieza'));
+        const wOk = isOk(g(r,'wellcomePack'));
+        btnsHtml = `
+            <a href="${getUrlLimpieza(code)}" onclick="window.open(this.href,'_blank','width=600,height=800');return false;" class="m-btn btn-l" title="Limpieza">
+                <span class="status-icon">${lOk?'✓':'✗'}</span>L
+            </a>
+            <a href="${getUrlWP(code)}" onclick="window.open(this.href,'_blank','width=600,height=800');return false;" class="m-btn btn-w" title="WelcomePack">
+                <span class="status-icon">${wOk?'✓':'✗'}</span>W
+            </a>
+        `;
+    } else {
+        const cOk = isOk(g(r,'cierre'));
+        btnsHtml = `
+            <a href="${getUrlCierre(code)}" onclick="window.open(this.href,'_blank','width=600,height=800');return false;" class="m-btn btn-c" title="Cierre">
+                <span class="status-icon">${cOk?'✓':'✗'}</span>C
+            </a>
+        `;
+    }
+
     el.innerHTML = `
-        <div>${type==='entrada'?'↓':'↑'} ${villa}</div>
+        <div class="m-villa">${villa}</div>
         <span class="m-guest">${guest}</span>
+        <div class="m-btns">${btnsHtml}</div>
     `;
-    el.onclick = () => {
-        const code = g(r, 'confirmCode');
-        // Abrir tu pantalla de edición original o notas
-        window.open(`notas-villamanager.html?TaBookings2021_FS_confirmation_code=${code}`, '_blank');
-    };
     return el;
 }
-
-function scheduleSearch(ms){ clearTimeout(window.searchT); window.searchT = setTimeout(doSearch, ms); }
-function togglePendTasks(){ $('ptBody').classList.toggle('open'); }
 </script>
 </body>
 </html>
