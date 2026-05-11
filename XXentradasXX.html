@@ -619,20 +619,20 @@ async function loadVillaPendingTasks(villaIds){
 
 function updateVillaTasksInDOM(){
   const _grid=$('grid');if(!_grid)return;
-  // Fecha límite: usar fDesde del filtro o hoy si no hay filtro
-  const _filterDate=(($('fDesde')||{}).value||todayStr());
-  const _limit=new Date(_filterDate+'T23:59:59');
-  console.log('[VillaTasks] mapa keys:',Object.keys(villaPendingMap),'filtro<=',_filterDate);
+  console.log('[VillaTasks] mapa keys:',Object.keys(villaPendingMap));
   _grid.querySelectorAll('[data-villaid]').forEach(cardEl=>{
     const vKey=cardEl.getAttribute('data-villaid');
+    // Fecha límite = checkout de ESTA reserva (no el filtro global)
+    const coStr=cardEl.getAttribute('data-checkout')||'';
+    const _limit=coStr?new Date(coStr+'T23:59:59'):null;
     const allTasks=villaPendingMap[vKey]||[];
-    // Solo tareas sin fecha futura respecto al filtro
+    // Ocultar tareas cuya fecha de ejecución es posterior al checkout de la reserva
     const tasks=allTasks.filter(t=>{
-      if(!t.dueDate)return true; // sin fecha → mostrar siempre
+      if(!t.dueDate||!_limit)return true; // sin fecha o sin checkout → mostrar
       const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');
       return isNaN(d)||d<=_limit;
     });
-    console.log('[VillaTasks] card villaid='+vKey+' total='+allTasks.length+' visibles='+tasks.length);
+    console.log('[VillaTasks] card villaid='+vKey+' checkout='+coStr+' total='+allTasks.length+' visibles='+tasks.length);
     const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
@@ -931,6 +931,7 @@ function buildCard(r,type){
 
   html+='</div>';
   el.setAttribute('data-villaid',String(parseInt(villaId)||0));
+  el.setAttribute('data-checkout',(co||'').split('T')[0]);
   el.innerHTML=html;
   return el;
 }
