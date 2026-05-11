@@ -19,7 +19,7 @@ var NAV_MENU = [
  
 
   {
-    label: 'Manuales',
+    label: 'Manuales BETA no usar',
     icon : '📖',
     children: [
       { label: 'Generar manual',           url: 'generar.html',                  icon: '📄' },
@@ -35,8 +35,8 @@ var NAV_MENU = [
     icon : '📖',
     children: [
         { label: 'Roles',           url: 'permisos.html',                  icon: '📄' },
-        { label: 'Test',   url: 'entradasysalidas.html',  icon: '🚪' },
-        { label: 'Test_añadir',   url: 'nueva-tarea.html',  icon: '🚪' },
+        { label: 'Test',   url: 'XXtestXX',  icon: '🚪' },
+        { label: 'Test_menu',   url: 'XXmenuXX',  icon: '🚪' },
     ]
   },
  { label: 'Login',   url: 'login.html',  icon: '' },
