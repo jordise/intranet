@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- task-limpieza.html v01 — 12/05/2026 -->
+  <!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  task-limpieza.html — Formulario de tarea de Limpieza (tipo 10) ║
+  ╠══════════════════════════════════════════════════════════════════╣
+  ║  Campos Caspio (tabla TaTasks) que maneja esta página:          ║
+  ║                                                                 ║
+  ║  CHECKS OBLIGATORIOS (deben estar todos marcados para guardar): ║
+  ║    Limpieza_filtrolavaplatos      → Ventanas y puertas cerradas ║
+  ║    Limpieza_salyabrillan_lavaplatos → Aires acondicionados       ║
+  ║    Limpieza_cajon_lavadora_limpio → Basura recogida             ║
+  ║                                                                 ║
+  ║  FOTO OBLIGATORIA:                                              ║
+  ║    Picture_cloudfare1  → URL de foto subida a R2 (principal)    ║
+  ║    Picture_in_cleaning1 → campo Caspio (fallback lectura)       ║
+  ║                                                                 ║
+  ║  INCIDENCIAS (solo si se activa el toggle):                     ║
+  ║    Incidencias          → YES/NO, ¿hay algo roto?               ║
+  ║    Solutiondescription  → descripción de la incidencia          ║
+  ║    Picture_cloudfare2   → foto incidencia 1 (R2)                ║
+  ║    Picture_cloudfare3   → foto incidencia 2 (R2)                ║
+  ║    Picture_cloudfare4   → foto incidencia 3 (R2)                ║
+  ║                                                                 ║
+  ║  SOLO VISIBLE PARA ROL != cleaner:                              ║
+  ║    Internal_notes       → notas internas del equipo             ║
+  ║                                                                 ║
+  ║  OTROS:                                                         ║
+  ║    Tarea_terminada      → boolean, tarea marcada como hecha     ║
+  ║    Taskname             → siempre 'Limpieza'                    ║
+  ║    Tasktype_booking     → siempre 10                            ║
+  ╚══════════════════════════════════════════════════════════════════╝
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1565c0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <title>Limpieza — 3Villas v01</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --blue:#1565c0;--blue-dark:#0d47a1;--blue-light:#e3f0fc;
+      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+      --green:#1e9e4e;--green-light:#e6f7ee;
+      --orange:#e07b00;--orange-light:#fff4e0;
+      --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;
+      --r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:env(safe-area-inset-bottom,20px)}
+
+    /* ── Header ── */
+    header{background:var(--blue);color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+    .h-villa{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+    .h-res{font-size:12px;opacity:.8;margin-top:3px}
+    .task-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+
+    /* ── Cards ── */
+    main{padding:16px;max-width:500px;margin:0 auto}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+    .card-title{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);padding:12px 16px 8px;border-bottom:1px solid var(--gray-2)}
+
+    /* ── Toggles ── */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;transition:background .1s}
+    .toggle-row:not(:last-child){border-bottom:1px solid var(--gray-2)}
+    .toggle-row:active{background:var(--gray-1)}
+    .toggle-label{font-size:14px;font-weight:500;color:var(--gray-5);flex:1;padding-right:12px;line-height:1.3}
+    .toggle-sub{font-size:11px;color:var(--gray-4);margin-top:2px}
+    .switch{position:relative;width:50px;height:28px;flex-shrink:0}
+    .switch input{opacity:0;width:0;height:0;position:absolute}
+    .slider{position:absolute;inset:0;background:var(--gray-3);border-radius:28px;transition:background .2s;cursor:pointer}
+    .slider::before{content:'';position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+    input:checked + .slider{background:var(--green)}
+    input:checked + .slider::before{transform:translateX(22px)}
+
+    /* ── Incidencias toggle especial ── */
+    #cardIncidencia{border:2px solid var(--gray-2);transition:border-color .3s}
+    #cardIncidencia.activa{border-color:var(--orange)}
+
+    /* ── Panel incidencias (desplegable) ── */
+    #panelIncidencias{display:none;border-top:1px solid var(--orange-light);background:#fffaf5}
+    #panelIncidencias.open{display:block}
+    .inc-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);padding:10px 16px 6px}
+
+    /* ── Fotos ── */
+    .photo-wrap{padding:14px 16px}
+    .photo-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:10px;display:block}
+    .photo-row{display:flex;gap:8px;flex-wrap:wrap}
+    .photo-slot{position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;transition:all .2s;flex-shrink:0}
+    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer}
+    .photo-slot.empty:hover{border-color:var(--blue);background:var(--blue-light)}
+    .photo-slot.empty.required:hover{border-color:var(--red)}
+    .ps-num{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-3)}
+    .ps-btns{display:flex;gap:4px}
+    .ps-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:7px;padding:5px 8px;font-size:16px;cursor:pointer;line-height:1;transition:all .15s}
+    .ps-btn:hover{border-color:var(--blue);background:var(--blue-light)}
+    .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
+    .photo-preview{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .photo-slot.has-img .photo-preview{display:block}
+
+    /* ── Texto / textareas ── */
+    .text-wrap{padding:0 16px 14px}
+    .text-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:8px;display:block}
+    textarea{width:100%;height:90px;border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 12px;font-family:'Open Sans',sans-serif;font-size:14px;color:var(--gray-5);resize:none;outline:none;transition:border-color .15s}
+    textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(21,101,192,.08)}
+    textarea::placeholder{color:var(--gray-3)}
+    textarea.small{height:70px}
+
+    /* ── Sección interna (solo no-cleaner) ── */
+    #cardInterno{display:none}
+
+    /* ── Guardar ── */
+    .save-wrap{padding:6px 0 20px}
+    .btn-save{width:100%;height:54px;background:var(--blue);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;box-shadow:0 4px 14px rgba(21,101,192,.35)}
+    .btn-save:active{background:var(--blue-dark);transform:scale(.98)}
+    .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
+    .btn-save .spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d3142;color:#fff;padding:12px 22px;border-radius:30px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;max-width:90vw;text-align:center}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.success{background:var(--green)}.toast.error{background:var(--red)}.toast.warn{background:var(--orange)}
+
+    /* ── Overlay carga ── */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .load-spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+    .load-text{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+
+    /* ── Error ── */
+    .error-state{text-align:center;padding:50px 20px}
+    .error-state .emoji{font-size:50px;margin-bottom:12px}
+    .error-state h3{font-family:'Montserrat',sans-serif;font-size:18px;margin-bottom:8px}
+    .error-state p{font-size:13px;color:var(--gray-4)}
+
+    /* ── Checks obligatorios — borde rojo si no están marcados al intentar guardar ── */
+    .toggle-row.shake{animation:shake .3s}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<div id="loadOverlay"><div class="load-spinner"></div><div class="load-text">Cargando...</div></div>
+<div id="toast" class="toast"></div>
+
+<header>
+  <div class="h-villa" id="hVilla">Cargando...</div>
+  <div class="h-res" id="hRes"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <div class="task-badge">🧹 Limpieza</div>
+    <button onclick="showDebug()" style="background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.7);font-size:11px;padding:3px 8px;border-radius:10px;cursor:pointer">🐛</button>
+  </div>
+</header>
+
+<main id="mainContent" style="display:none">
+
+  <!-- ── CHECKS LIMPIEZA ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">✅ Checklist de salida</div>
+
+    <!-- Limpieza_filtrolavaplatos → Ventanas y puertas cerradas -->
+    <label class="toggle-row" for="swVentanas" id="rowVentanas">
+      <div>
+        <div class="toggle-label">🪟 Ventanas y puertas cerradas</div>
+        <div class="toggle-sub">Verificar todas las habitaciones</div>
+      </div>
+      <div class="switch"><input type="checkbox" id="swVentanas"><div class="slider"></div></div>
+    </label>
+
+    <!-- Limpieza_salyabrillan_lavaplatos → Aires acondicionados cerrados -->
+    <label class="toggle-row" for="swAires" id="rowAires">
+      <div>
+        <div class="toggle-label">❄️ Aires acondicionados apagados</div>
+        <div class="toggle-sub">Comprobar todos los splits</div>
+      </div>
+      <div class="switch"><input type="checkbox" id="swAires"><div class="slider"></div></div>
+    </label>
+
+    <!-- Limpieza_cajon_lavadora_limpio → Basura recogida -->
+    <label class="toggle-row" for="swBasura" id="rowBasura">
+      <div>
+        <div class="toggle-label">🗑️ Basura recogida</div>
+        <div class="toggle-sub">Vaciar todos los cubos</div>
+      </div>
+      <div class="switch"><input type="checkbox" id="swBasura"><div class="slider"></div></div>
+    </label>
+  </div>
+
+  <!-- ── FOTO OBLIGATORIA (cocina) ─────────────────────────── -->
+  <!--
+    Picture_cloudfare1 → URL en R2 (lo que se guarda en Caspio)
+    Picture_in_cleaning1 → campo archivo Caspio (solo para leer foto existente)
+  -->
+  <div class="card" id="cardFoto">
+    <div class="card-title">📷 Foto cocina (con puerta basura abierta) <span style="color:var(--red)">*</span></div>
+    <div class="photo-wrap">
+      <div class="photo-slot empty required" id="photoSlot0" onclick="openPhotoMenu(0)">
+        <span class="ps-num">1</span>
+        <div class="ps-btns">
+          <button class="ps-btn" onclick="event.stopPropagation();triggerInput(0,'cam')" title="Cámara">📷</button>
+          <button class="ps-btn" onclick="event.stopPropagation();triggerInput(0,'file')" title="Galería">📂</button>
+        </div>
+        <img class="photo-preview" id="photoPreview0" alt="">
+        <button class="pt-del" id="photoDel0" onclick="removePhoto(event,0)" style="display:none">✕</button>
+      </div>
+      <input type="file" id="camInput0"  accept="image/*" capture="environment" onchange="handlePhoto(this,0)" style="display:none">
+      <input type="file" id="fileInput0" accept="image/*"                       onchange="handlePhoto(this,0)" style="display:none">
+    </div>
+  </div>
+
+  <!-- ── TAREA TERMINADA ──────────────────────────────────── -->
+  <div class="card" id="cardDone" style="border:2px solid var(--gray-2);transition:border-color .3s">
+    <label class="toggle-row" for="swDone" style="padding:16px">
+      <div>
+        <div class="toggle-label" style="font-size:15px;font-weight:600">✅ Limpieza terminada</div>
+        <div class="toggle-sub" id="doneHint">Marca cuando la limpieza esté completada</div>
+      </div>
+      <div class="switch"><input type="checkbox" id="swDone" onchange="onSwDoneChange()"><div class="slider"></div></div>
+    </label>
+  </div>
+
+  <!-- ── INCIDENCIAS ────────────────────────────────────────── -->
+  <!--
+    Incidencias (YES/NO) → toggle principal
+    Si está activo se muestran: Solutiondescription + 3 fotos (cloudfare2/3/4)
+  -->
+  <div class="card" id="cardIncidencia">
+    <label class="toggle-row" for="swIncidencias" style="padding:16px" onclick="onIncidenciasChange()">
+      <div>
+        <div class="toggle-label" style="font-size:15px;font-weight:600">⚠️ Hay una incidencia</div>
+        <div class="toggle-sub">Marcar solo si hay algo roto o dañado</div>
+      </div>
+      <div class="switch"><input type="checkbox" id="swIncidencias"><div class="slider" style=""></div></div>
+    </label>
+
+    <!-- Panel desplegable — visible solo si Incidencias está marcado -->
+    <div id="panelIncidencias">
+      <div class="inc-title">Descripción de la incidencia</div>
+      <div class="text-wrap">
+        <textarea id="txtIncidencia" class="small" placeholder="Describe el problema (qué está roto, dónde está, etc.)"></textarea>
+      </div>
+
+      <div class="inc-title">Fotos de la incidencia (opcionales)</div>
+      <div class="photo-wrap" style="padding-top:4px">
+        <div class="photo-row">
+          <!-- Foto incidencia 1 → Picture_cloudfare2 -->
+          <div class="photo-slot empty" id="photoSlot1" onclick="openPhotoMenu(1)">
+            <span class="ps-num">1</span>
+            <div class="ps-btns">
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(1,'cam')" title="Cámara">📷</button>
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(1,'file')" title="Galería">📂</button>
+            </div>
+            <img class="photo-preview" id="photoPreview1" alt="">
+            <button class="pt-del" id="photoDel1" onclick="removePhoto(event,1)" style="display:none">✕</button>
+          </div>
+          <input type="file" id="camInput1"  accept="image/*" capture="environment" onchange="handlePhoto(this,1)" style="display:none">
+          <input type="file" id="fileInput1" accept="image/*"                       onchange="handlePhoto(this,1)" style="display:none">
+
+          <!-- Foto incidencia 2 → Picture_cloudfare3 -->
+          <div class="photo-slot empty" id="photoSlot2" onclick="openPhotoMenu(2)">
+            <span class="ps-num">2</span>
+            <div class="ps-btns">
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(2,'cam')" title="Cámara">📷</button>
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(2,'file')" title="Galería">📂</button>
+            </div>
+            <img class="photo-preview" id="photoPreview2" alt="">
+            <button class="pt-del" id="photoDel2" onclick="removePhoto(event,2)" style="display:none">✕</button>
+          </div>
+          <input type="file" id="camInput2"  accept="image/*" capture="environment" onchange="handlePhoto(this,2)" style="display:none">
+          <input type="file" id="fileInput2" accept="image/*"                       onchange="handlePhoto(this,2)" style="display:none">
+
+          <!-- Foto incidencia 3 → Picture_cloudfare4 -->
+          <div class="photo-slot empty" id="photoSlot3" onclick="openPhotoMenu(3)">
+            <span class="ps-num">3</span>
+            <div class="ps-btns">
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(3,'cam')" title="Cámara">📷</button>
+              <button class="ps-btn" onclick="event.stopPropagation();triggerInput(3,'file')" title="Galería">📂</button>
+            </div>
+            <img class="photo-preview" id="photoPreview3" alt="">
+            <button class="pt-del" id="photoDel3" onclick="removePhoto(event,3)" style="display:none">✕</button>
+          </div>
+          <input type="file" id="camInput3"  accept="image/*" capture="environment" onchange="handlePhoto(this,3)" style="display:none">
+          <input type="file" id="fileInput3" accept="image/*"                       onchange="handlePhoto(this,3)" style="display:none">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NOTAS INTERNAS (solo para rol != cleaner) ──────────── -->
+  <!--
+    Internal_notes → campo libre para el equipo interno.
+    Este bloque se oculta si el usuario tiene rol "cleaner".
+  -->
+  <div class="card" id="cardInterno">
+    <div class="card-title">🔒 Notas internas (equipo 3Villas)</div>
+    <div class="text-wrap" style="padding-top:12px">
+      <label class="text-label" for="txtInterno">Solo visible para el equipo interno. No se envía al cliente.</label>
+      <textarea id="txtInterno" placeholder="Notas internas, observaciones, etc."></textarea>
+    </div>
+  </div>
+
+  <!-- ── BOTÓN GUARDAR ──────────────────────────────────────── -->
+  <div class="save-wrap">
+    <button class="btn-save" id="btnSave" onclick="guardar()">
+      <div class="spinner" id="saveSpinner"></div>
+      <span id="saveLabel">✓ GUARDAR</span>
+    </button>
+  </div>
+
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN
+   ════════════════════════════════════════════════════════════════ */
+const WORKER     = 'https://caspio-proxy.jordi-89b.workers.dev';
+const TASK_TYPE  = 10;   /* Limpieza */
+const TASK_NAME  = 'Limpieza';
+
+/* Parámetros de la URL */
+const params     = new URLSearchParams(location.search);
+const idReserva  = params.get('Idreserva') || params.get('idreserva') || '';
+const code       = params.get('code') || '';
+
+/* ════════════════════════════════════════════════════════════════
+   ESTADO GLOBAL DE FOTOS
+   Índice de fotos:
+     0 → foto principal cocina    → Picture_cloudfare1
+     1 → foto incidencia 1        → Picture_cloudfare2
+     2 → foto incidencia 2        → Picture_cloudfare3
+     3 → foto incidencia 3        → Picture_cloudfare4
+   ════════════════════════════════════════════════════════════════ */
+const photos = [
+  { file: null, base64: null, existingUrl: null },   /* 0 - principal */
+  { file: null, base64: null, existingUrl: null },   /* 1 - incidencia 1 */
+  { file: null, base64: null, existingUrl: null },   /* 2 - incidencia 2 */
+  { file: null, base64: null, existingUrl: null },   /* 3 - incidencia 3 */
+];
+
+/* Campos Caspio que corresponden a cada índice de foto */
+const PHOTO_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4'];
+
+/* Rol del usuario (se rellena en init) */
+let userRole = '';
+
+/* ════════════════════════════════════════════════════════════════
+   INICIO
+   ════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!idReserva) {
+    showError('Faltan parámetros en la URL.<br>Usa el botón desde Entradas y Salidas.');
+    return;
+  }
+  try {
+    await Promise.allSettled([loadBooking(), loadTask(), loadUserRole()]);
+    hide('loadOverlay');
+    show('mainContent');
+  } catch(e) {
+    showError('Error al cargar: ' + e.message);
+  }
+});
+
+/* ── Carga datos de la reserva (nombre villa) ── */
+async function loadBooking() {
+  const where = code
+    ? `TaBookings2021_FS_confirmation_code='${code}'`
+    : `TaBookings2021_BookingID='${idReserva}'`;
+  const url = Auth.url(`${WORKER}?action=view&view=Vi_villas_and_bookings2021&where=${encodeURIComponent(where)}&limit=1`);
+  const res  = await fetch(url);
+  const json = await res.json();
+  const r    = (json.Result||json.result||[])[0];
+  if (!r) return;
+  $('hVilla').textContent = r['TaBookings2021_Property_Title'] || `Reserva ${idReserva}`;
+  $('hRes').textContent   = `Reserva: ${r['TaBookings2021_FS_confirmation_code'] || idReserva}`;
+}
+
+/* ── Carga tarea existente de TaTasks ── */
+async function loadTask() {
+  const where = `Idreserva='${idReserva}' AND Tasktype_booking=${TASK_TYPE}`;
+  const url   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=1`);
+  const res   = await fetch(url);
+  const json  = await res.json();
+  const task  = (json.Result||json.result||[])[0];
+  window.__taskDebug = task;
+  if (!task) return;
+
+  /* Checks */
+  $sw('swDone',       task['Tarea_terminada']);
+  $sw('swVentanas',   task['Limpieza_filtrolavaplatos']);
+  $sw('swAires',      task['Limpieza_salyabrillan_lavaplatos'] === 'Y' || task['Limpieza_salyabrillan_lavaplatos'] === true);
+  $sw('swBasura',     task['Limpieza_cajon_lavadora_limpio']   === 'Y' || task['Limpieza_cajon_lavadora_limpio']   === true);
+
+  /* Incidencias */
+  $sw('swIncidencias', task['Incidencias']);
+  if (task['Incidencias']) onIncidenciasChange();
+  if (task['Solutiondescription']) $('txtIncidencia').value = task['Solutiondescription'];
+
+  /* Notas internas */
+  if (task['Internal_notes']) $('txtInterno').value = task['Internal_notes'];
+
+  /* Fotos existentes */
+  loadPhotoPreview(0, task['Picture_cloudfare1'] || task['Picture_in_cleaning1']);
+  loadPhotoPreview(1, task['Picture_cloudfare2'] || task['Picture_in_cleaning3']);
+  loadPhotoPreview(2, task['Picture_cloudfare3'] || task['Picture_in_cleaning4']);
+  loadPhotoPreview(3, task['Picture_cloudfare4'] || task['Picture_in_cleaning5']);
+
+  /* Actualizar card Done */
+  onSwDoneChange();
+}
+
+/* ── Carga el rol del usuario desde TaUsers ── */
+async function loadUserRole() {
+  try {
+    const email = Auth.email ? Auth.email() : '';
+    if (!email) return;
+    const url  = Auth.url(`${WORKER}?action=data&table=TaUsers&limit=500`);
+    const res  = await fetch(url);
+    const json = await res.json();
+    const rows = json.Result || json.result || [];
+    const me   = rows.find(u => String(u.Email||u.email||'').toLowerCase() === email.toLowerCase());
+    userRole   = String(me && (me.Role||me.role||me.Rol||me.rol||'')).trim().toLowerCase();
+    console.log('[limpieza] rol:', userRole);
+
+    /* Mostrar sección interna solo si el rol NO es cleaner */
+    if (userRole !== 'cleaner') {
+      $('cardInterno').style.display = 'block';
+    }
+  } catch(e) {
+    console.warn('[limpieza] No se pudo obtener rol:', e.message);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FOTOS — helpers
+   ════════════════════════════════════════════════════════════════ */
+function triggerInput(idx, type) {
+  $(type === 'cam' ? `camInput${idx}` : `fileInput${idx}`).click();
+}
+
+function handlePhoto(input, idx) {
+  const file = input.files[0];
+  if (!file) return;
+  photos[idx].file = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photos[idx].base64 = e.target.result;
+    showPhotoPreview(idx, e.target.result);
+    /* Si es la foto principal, marcar automáticamente como terminada */
+    if (idx === 0) markDone();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function loadPhotoPreview(idx, src) {
+  if (!src) return;
+  const isUrl = typeof src === 'string' && src.startsWith('http');
+  const urlStr = isUrl ? src : (typeof src === 'object' ? (src.Url||src.url||null) : null);
+  if (urlStr) {
+    photos[idx].existingUrl = urlStr;
+    showPhotoPreview(idx, urlStr);
+  }
+}
+
+function showPhotoPreview(idx, src) {
+  const slot = $(`photoSlot${idx}`);
+  const img  = $(`photoPreview${idx}`);
+  const del  = $(`photoDel${idx}`);
+  img.src = src;
+  img.style.display = 'block';
+  del.style.display = 'block';
+  slot.classList.remove('empty');
+  slot.classList.add('has-img');
+}
+
+function removePhoto(e, idx) {
+  e.stopPropagation();
+  photos[idx] = { file: null, base64: null, existingUrl: null };
+  const slot = $(`photoSlot${idx}`);
+  const img  = $(`photoPreview${idx}`);
+  const del  = $(`photoDel${idx}`);
+  img.src = ''; img.style.display = 'none'; del.style.display = 'none';
+  slot.classList.remove('has-img'); slot.classList.add('empty');
+  $(`camInput${idx}`).value = ''; $(`fileInput${idx}`).value = '';
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TOGGLES — callbacks
+   ════════════════════════════════════════════════════════════════ */
+function onSwDoneChange() {
+  const done = $('swDone').checked;
+  const card = $('cardDone');
+  const hint = $('doneHint');
+  card.style.borderColor = done ? 'var(--green)' : 'var(--gray-2)';
+  hint.textContent = done ? '✓ Limpieza marcada como completada' : 'Marca cuando la limpieza esté completada';
+  hint.style.color = done ? 'var(--green)' : '';
+}
+
+function markDone() {
+  /* Se llama automáticamente al subir la foto principal */
+  const sw = $('swDone');
+  if (!sw.checked) {
+    sw.checked = true;
+    onSwDoneChange();
+    const hint = $('doneHint');
+    hint.textContent = '✓ Marcado automáticamente al subir la foto';
+  }
+}
+
+function onIncidenciasChange() {
+  /* El checkbox se actualiza solo (label for), solo necesitamos sincronizar la UI */
+  setTimeout(() => {
+    const activa = $('swIncidencias').checked;
+    const card   = $('cardIncidencia');
+    const panel  = $('panelIncidencias');
+    card.classList.toggle('activa', activa);
+    panel.classList.toggle('open', activa);
+  }, 0);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GUARDAR
+   ════════════════════════════════════════════════════════════════ */
+async function guardar() {
+  /* 1. Validar checks obligatorios */
+  let ok = true;
+  ['swVentanas','swAires','swBasura'].forEach(id => {
+    if (!$(id).checked) {
+      ok = false;
+      const row = $(id).closest('.toggle-row');
+      if (row) { row.classList.add('shake'); setTimeout(()=>row.classList.remove('shake'),400); }
+    }
+  });
+  if (!ok) { toast('⚠️ Marca todos los checks obligatorios', 'warn'); return; }
+
+  /* 2. Validar foto principal */
+  const tieneFotoPrincipal = photos[0].file || photos[0].existingUrl;
+  if (!tieneFotoPrincipal) {
+    toast('📷 La foto de cocina es obligatoria', 'error');
+    const slot = $('photoSlot0');
+    slot.style.borderColor = 'var(--red)'; slot.style.borderStyle = 'solid';
+    setTimeout(()=>{ slot.style.borderColor=''; slot.style.borderStyle='dashed'; }, 2000);
+    $('cardFoto').scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  /* 3. Bloquear botón */
+  const btn = $('btnSave'); const lbl = $('saveLabel'); const sp = $('saveSpinner');
+  btn.disabled = true; lbl.textContent = 'Guardando...'; sp.style.display = 'block';
+
+  try {
+    /* 4. Construir objeto de datos */
+    const data = {
+      Idreserva            : idReserva,
+      Tasktype_booking     : TASK_TYPE,
+      Taskname             : TASK_NAME,
+      Tarea_terminada      : $('swDone').checked,
+      /* checks de limpieza */
+      Limpieza_filtrolavaplatos         : $('swVentanas').checked,          /* YES/NO */
+      Limpieza_salyabrillan_lavaplatos  : $('swAires').checked  ? 'Y' : '', /* STRING */
+      Limpieza_cajon_lavadora_limpio    : $('swBasura').checked ? 'Y' : '', /* STRING */
+      /* incidencias */
+      Incidencias          : $('swIncidencias').checked,
+      Solutiondescription  : $('txtIncidencia').value.trim(),
+      /* notas internas (solo si el rol lo permite) */
+      Internal_notes       : userRole !== 'cleaner' ? $('txtInterno').value.trim() : undefined,
+    };
+
+    /* 5. Subir fotos a R2 */
+    for (let i = 0; i < photos.length; i++) {
+      if (photos[i].file) {
+        try {
+          const result = await uploadPhoto(photos[i].file, idReserva, TASK_TYPE, i);
+          if (result && result.url) data[PHOTO_FIELDS[i]] = result.url;
+        } catch(eUp) {
+          console.warn(`[limpieza] Error subiendo foto ${i}:`, eUp.message);
+        }
+      }
+    }
+
+    /* 6. Comprobar si ya existe la tarea (PUT) o es nueva (POST) */
+    const whereCheck = `Idreserva='${idReserva}' AND Tasktype_booking=${TASK_TYPE}`;
+    const checkUrl   = Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(whereCheck)}&limit=1`);
+    const checkRes   = await fetch(checkUrl);
+    const checkJson  = await checkRes.json();
+    const exists     = (checkJson.Result||checkJson.result||[]).length > 0;
+
+    const saveQs  = exists
+      ? `action=save&table=TaTasks&where=${encodeURIComponent(whereCheck)}&method=PUT`
+      : `action=save&table=TaTasks&method=POST`;
+    const saveUrl = Auth.url(`${WORKER}?${saveQs}`);
+    const saveRes = await fetch(saveUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (!saveRes.ok) throw new Error(await saveRes.text());
+
+    /* 7. Éxito */
+    toast('✓ Guardado correctamente', 'success');
+    btn.style.background = 'var(--green)';
+    lbl.textContent = '✓ GUARDADO';
+    sp.style.display = 'none';
+    setTimeout(() => window.close(), 800);
+
+  } catch(e) {
+    console.error('[limpieza] Save error:', e);
+    toast('Error al guardar: ' + e.message, 'error');
+    btn.disabled = false; lbl.textContent = '✓ GUARDAR'; sp.style.display = 'none';
+  }
+}
+
+/* ── Subir foto a R2 via Worker ── */
+async function uploadPhoto(file, idRes, taskType, photoIndex) {
+  const fd = new FormData();
+  fd.append('file', file, file.name || `foto_${photoIndex}.jpg`);
+  fd.append('idreserva', idRes);
+  fd.append('tasktype',  taskType);
+  fd.append('photoindex', photoIndex);
+  fd.append('year', new Date().getFullYear());
+  const res  = await fetch(Auth.url(`${WORKER}?action=upload`), { method:'POST', body:fd });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+  return data;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   HELPERS
+   ════════════════════════════════════════════════════════════════ */
+function $(id)        { return document.getElementById(id); }
+function hide(id)     { const el=$(id); if(el) el.style.display='none'; }
+function show(id)     { const el=$(id); if(el) el.style.display=''; }
+function $sw(id, val) {
+  const el=$(id); if(!el) return;
+  if (typeof val === 'boolean') el.checked = val;
+  else el.checked = val===true || val===1 || val===-1 || String(val)==='1';
+}
+
+let toastTimer;
+function toast(msg, type) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type||''}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = 'toast', 3200);
+}
+
+function showDebug() {
+  const t = JSON.stringify(window.__taskDebug||{}, null, 2);
+  const w = window.open('','_blank','width=600,height=500');
+  w.document.write(`<pre style="font-family:monospace;font-size:12px;padding:16px">${t}</pre>`);
+}
+
+function showError(msg) {
+  hide('loadOverlay');
+  $('mainContent').innerHTML = `<div class="error-state"><div class="emoji">⚠️</div><h3>Error</h3><p>${msg}</p></div>`;
+  show('mainContent');
+}
+</script>
+</body>
+</html>
