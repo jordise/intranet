@@ -253,8 +253,11 @@ function _doSave(wrap,onDone){
   // Guardar en background
   var saving=wrap.querySelector('.desc-saving');
   if(saving){saving.textContent='Guardando…';saving.style.color='';saving.style.display='inline';}
-  var url=WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
-  fetch(Auth.url(url),{
+  /* Acceder a WORKER y Auth desde window para evitar scope issues */
+  var _worker=window._W||(typeof WORKER!=='undefined'?WORKER:'https://caspio-proxy.jordi-89b.workers.dev');
+  var _authUrl=function(u){return(window.Auth&&Auth.url)?Auth.url(u):u;};
+  var url=_worker+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
+  fetch(_authUrl(url),{
     method:'PUT',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({Taskdescription:newText})
@@ -432,7 +435,7 @@ function _qFmtRow(btn,type){
 (function () {
   'use strict';
 
-  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev'; window._W=WORKER;
 
   function g(id)   { return document.getElementById(id); }
   function val(id) { return (g(id) || {}).value || ''; }
