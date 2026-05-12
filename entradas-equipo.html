@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- entradas-equipo.html v21 — 12/05/2026 -->
+  <!-- entradas-equipo.html v22 — 12/05/2026
+       v22:
+         - Botón "Info Villa" en cada tarjeta → villa-info.html?villa_id=...
+         - Limpieza y VillaManager con link → contactos.html?contactid=...
+  -->
   <!-- FIX v20 (heredado): Duplicados en vista semanal — una reserva con check-in Y check-out
        en la misma semana aparecía dos veces en el mismo día. Causa: renderWeekly
        filtraba con (ci===ds || co===ds) sobre _allRecs que ya tiene dos entradas
@@ -27,7 +31,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v21 — 3Villas</title>
+  <title>Entradas Equipo v22 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -795,7 +799,23 @@ function buildCard(r,type){
   if(nl||ni){html+='<div class="c-notes-outer">';if(nl)html+=`<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;if(ni)html+=`<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;html+='</div>';}
   html+=`<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
   html+=`<div class="c-body-wrap" id="${cardId}">`;
-  if(cleanerName||vmName){html+='<div class="c-staff">';if(cleanerName)html+=`<div class="staff-row">🧹 <strong>${cleanerName}</strong> — Limpieza</div>`;if(vmName)html+=`<div class="staff-row">🏠 <strong>${vmName}</strong> — Villa Manager</div>`;html+='</div>';}
+  if(cleanerName||vmName){
+    html+='<div class="c-staff">';
+    if(cleanerName){
+      const cleanerId=r[F.cleaner]?String(r[F.cleaner]):'';
+      const cleanerLink=cleanerId
+        ?`<a href="contactos.html?contactid=${encodeURIComponent(cleanerId)}" style="color:inherit;text-decoration:none;border-bottom:1px dashed currentColor">${cleanerName}</a>`
+        :cleanerName;
+      html+=`<div class="staff-row">🧹 <strong>${cleanerLink}</strong> — Limpieza</div>`;
+    }
+    if(vmName){
+      const vmLink=vmId
+        ?`<a href="contactos.html?contactid=${encodeURIComponent(vmId)}" style="color:inherit;text-decoration:none;border-bottom:1px dashed currentColor">${vmName}</a>`
+        :vmName;
+      html+=`<div class="staff-row">🏠 <strong>${vmLink}</strong> — Villa Manager</div>`;
+    }
+    html+='</div>';
+  }
   if(mp||kbCode){html+='<div class="c-links">';if(mp)html+=`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;if(kbCode)html+=`<span class="lnk lnk-k">🔑 ${kbCode}</span>`;html+='</div>';}
   html+='<div class="c-body"><hr class="dv">';
   html+=`<div class="gname">${gn||'—'}</div>`;
@@ -823,6 +843,8 @@ function buildCard(r,type){
     html+=`<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}">✏️ Equipo Reservas</a>`;
     html+=`<a class="act-chip ac-host" href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 Hostaway PMS</a>`;
     html+=`<a class="act-chip" style="background:#e8f0fe;color:#1967d2" href="${urlCiOnline}" onclick="return popup('${urlCiOnline}',900,900)">🔗 Checkin online</a>`;
+    /* v22: botón Info Villa */
+    if(villaId)html+=`<a class="act-chip" style="background:#e6f7ee;color:#1e9e4e" href="villa-info.html?villa_id=${encodeURIComponent(villaId)}">🏡 Info Villa</a>`;
     html+='</div>';
     const extras=[{text:g(r,'extra1Text'),eur:g(r,'extra1EUR'),paid:g(r,'extra1Cobrado')},{text:g(r,'extra2Text'),eur:g(r,'extra2EUR'),paid:g(r,'extra2Cobrado')},{text:g(r,'extra3Text'),eur:g(r,'extra3EUR'),paid:g(r,'extra3Cobrado')}].filter(e=>e.text);
     if(extras.length){html+='<div class="extras-panel"><div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px">EXTRAS</div>';extras.forEach(e=>{const paid=Number(e.paid)>0||e.paid===true||String(e.paid)==='1';html+=`<div class="extra-item"><div class="extra-dot ${paid?'paid':'unpaid'}">${paid?'✓':'·'}</div><span style="flex:1">${e.text}</span>${e.eur?`<span class="extra-eur">${e.eur} €</span>`:''}</div>`;});html+='</div>';}
