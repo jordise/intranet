@@ -705,66 +705,63 @@ function renderPivot(rows){
   $('emptyMsg').style.display=grandTotal?'none':'';
   var _sr=$('statsRow');if(_sr)_sr.style.display=grandTotal?'flex':'none';
   var _pdf=$('btnPDF');if(_pdf)_pdf.style.display=grandTotal?'flex':'none';
-  var _st=$('sinTipoStat');if(_st)_st.style.display=allPend.length?'flex':'none';
+  var _st=$('sinTipoStat');if(_st)_st.style.display='none'; /* v07: columnas dinámicas */
 
-  var hasSinTipo=allPend.length>0;
-  var colSpan=hasSinTipo?3:2;
+  /* Gran total de todos los registros */
+  var _allGrandRecs=Object.values(allByTipo).reduce(function(arr,a){return arr.concat(a);},[]); 
+
   var tbody=$('ptBody'),tfoot=$('ptFoot'),thead=$('ptHead');
   tbody.innerHTML='';tfoot.innerHTML='';
-  /* Reconstruir thead con colspan correcto */
+  if(!grandTotal)return;
+
+  /* ── Thead dinámico con columnas reales de TaTipoWellcomepack ── */
   if(thead){
     thead.innerHTML=
       '<tr class="th-top">'
       +'<th style="text-align:left;width:22%">Villa Manager</th>'
-      +'<th colspan="'+colSpan+'" style="text-align:center;background:var(--red);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px;border-left:1px solid rgba(255,255,255,.18)">TipoWellcomepack</th>'
+      +'<th colspan="'+tipoColsOrder.length+'" style="text-align:center;background:var(--red);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px;border-left:1px solid rgba(255,255,255,.18)">TipoWellcomepack</th>'
       +'<th style="text-align:center;background:var(--red);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px;border-left:1px solid rgba(255,255,255,.18);width:14%">Total</th>'
       +'</tr>'
       +'<tr class="th-sub">'
       +'<th style="text-align:left">—</th>'
-      +'<th>🏢 Tipo Apartamento</th>'
-      +'<th>🏡 Tipo Villa</th>'
-      +(hasSinTipo?'<th>❓ Sin tipo</th>':'')
+      +tipoColsOrder.map(function(t){return'<th>'+esc(t)+'</th>';}).join('')
       +'<th>—</th>'
       +'</tr>';
   }
-  if(!grandTotal)return;
 
+  /* ── Filas por manager ── */
   mgrs.forEach(function(m){
-    var tot=m.apto.length+m.villa.length+m.pend.length;
-    if(!tot)return;
+    var mAllRecs=tipoColsOrder.reduce(function(arr,t){return arr.concat(m.tipos[t]||[]);},[]);
+    if(!mAllRecs.length)return;
     var isExp=!!_expanded[m.id];
 
-    /* Fila del manager */
     var tr=document.createElement('tr');
     tr.className='mgr-row'+(isExp?' open':'');
-    tr.onclick=function(){toggleRow(m.id);};
-
+    tr.onclick=(function(mid){return function(){toggleRow(mid);};})(m.id);
     tr.innerHTML=
       '<td><div class="td-mgr"><span class="td-mgr-arr">›</span><span class="td-mgr-name">'+esc(m.name)+'</span></div></td>'
-      +'<td class="num-cell">'+numCellHtml(m.apto)+'</td>'
-      +'<td class="num-cell">'+numCellHtml(m.villa)+'</td>'
-      +(hasSinTipo?'<td class="num-cell">'+numCellHtml(m.pend)+'</td>':'')
-      +'<td class="num-cell">'+numCellHtml(m.apto.concat(m.villa).concat(m.pend))+'</td>';
+      +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(m.tipos[t]||[])+'</td>';}).join('')
+      +'<td class="num-cell">'+numCellHtml(mAllRecs)+'</td>';
     tbody.appendChild(tr);
 
-    /* Fila detalle */
+    /* Fila detalle expandible */
     var detTr=document.createElement('tr');
     detTr.id='det_'+m.id;
     detTr.className='det-row';
     detTr.style.display=isExp?'':'none';
     var detTd=document.createElement('td');
     detTd.colSpan=tipoColsOrder.length+2;
-    detTd.appendChild(buildDetail(m));
+    /* buildDetail espera {id,name,apto,villa,pend} — adaptar a {id,name,tipos} */
+    var mCompat={id:m.id,name:m.name,apto:m.tipos[tipoColsOrder[0]]||[],villa:m.tipos[tipoColsOrder[1]]||[],pend:mAllRecs};
+    detTd.appendChild(buildDetail(mCompat));
     detTr.appendChild(detTd);
     tbody.appendChild(detTr);
   });
 
-  /* Gran total */
-  var sinTipoFootCell=hasSinTipo?'<td class="num-cell">'+numCellHtml(allPend)+'</td>':'';
-  /* Mostrar/ocultar col Sin tipo */
+  /* ── Gran Total ── */
   tfoot.innerHTML=
     '<tr>'
-    +'<td><tfoot-label class="tfoot-label">Gran Total</tfoot-label></td>'
+    +'<td><span class="tfoot-label">Gran Total</span></td>'
     +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(allByTipo[t]||[])+'</td>';}).join('')
     +'<td class="num-cell">'+numCellHtml(_allGrandRecs)+'</td>'
     +'</tr>';
@@ -786,7 +783,8 @@ function toggleRow(mgrId){
 
 /* ── Detalle de reservas ── */
 function buildDetail(m){
-  var recs=[].concat(m.apto,m.villa,m.pend).sort(function(a,b){
+  /* m.pend contiene todos los recs del manager (adaptado en renderPivot) */
+  var recs=[].concat(m.pend||[]).sort(function(a,b){
     return(a['TaBookings2021_Checkin']||'').localeCompare(b['TaBookings2021_Checkin']||'');
   });
   var wrap=document.createElement('div');
