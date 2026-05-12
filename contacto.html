@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- contactos.html v01 — 12/05/2026
+       Página de contactos 3Villas
+       - Lista de contactos con búsqueda + filtros por rol
+       - Detalle al pulsar o por parámetro ?contactid=123
+       - Carga desde TaContacts via Cloudflare Worker
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Contactos v01 — 3Villas</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+      --green:#1e9e4e;--green-light:#e6f7ee;
+      --orange:#e07b00;--orange-light:#fff4e0;
+      --blue:#1967d2;--blue-light:#e8f0fe;
+      --purple:#7b1fa2;--purple-light:#f3e5f5;
+      --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;
+      --gray-4:#7a8194;--gray-5:#2d3142;
+      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+      --shadow-md:0 4px 14px rgba(0,0,0,.12);
+      --r:12px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
+
+    /* ══ HEADER ══ */
+    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:400;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .h-row{display:flex;align-items:center;gap:8px}
+    .h-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1}
+    .h-title{font-family:Montserrat,sans-serif;font-size:clamp(14px,4vw,18px);font-weight:900;text-transform:uppercase;letter-spacing:.5px;flex:1}
+    .h-count{background:rgba(255,255,255,.2);border-radius:6px;padding:3px 9px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;flex-shrink:0}
+    .h-menu{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:34px;height:34px;border-radius:8px;text-decoration:none;font-size:18px;flex-shrink:0}
+
+    /* ══ OVERLAY ══ */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.93);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sp-txt{font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+
+    /* ══ SEARCH & FILTER BAR ══ */
+    #filterBar{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 14px;position:sticky;z-index:300;box-shadow:var(--shadow-sm)}
+    .search-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    #searchInput{flex:1;border:1.5px solid var(--gray-2);border-radius:10px;padding:9px 12px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;transition:border-color .15s}
+    #searchInput:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    #searchCount{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-4);white-space:nowrap;min-width:50px;text-align:right}
+    .filter-scroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+    .filter-scroll::-webkit-scrollbar{display:none}
+    .role-chip{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer;user-select:none;transition:all .15s;flex-shrink:0}
+    .role-chip:hover{border-color:var(--gray-4);color:var(--gray-5)}
+    .role-chip.on{background:var(--red-light);border-color:var(--red);color:var(--red)}
+
+    /* ══ MAIN LIST ══ */
+    #listView{padding:12px;max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+
+    /* ══ CONTACT CARD ══ */
+    .ct-card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:14px;cursor:pointer;transition:all .2s;border-left:4px solid var(--gray-2)}
+    .ct-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+    .ct-card.is-owner{border-left-color:var(--blue)}
+    .ct-card.is-keyholder{border-left-color:var(--red)}
+    .ct-card.is-cleaner{border-left-color:#1565c0}
+    .ct-card.is-pool{border-left-color:#0288d1}
+    .ct-card.is-garden{border-left-color:var(--green)}
+    .ct-card.is-maint{border-left-color:var(--orange)}
+    .ct-name{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);margin-bottom:4px;line-height:1.2}
+    .ct-meta{font-size:12px;color:var(--gray-4);margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .ct-phone{font-weight:600;color:var(--gray-5)}
+    .ct-email{font-size:11px;color:var(--blue);word-break:break-all}
+    .ct-roles{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+    .role-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800}
+    .rb-owner{background:#e3f2fd;color:#0d47a1}
+    .rb-keyholder{background:var(--red-light);color:var(--red-dark)}
+    .rb-cleaner{background:#e3f2fd;color:#1565c0}
+    .rb-pool{background:#e1f5fe;color:#0277bd}
+    .rb-garden{background:var(--green-light);color:var(--green)}
+    .rb-maint{background:var(--orange-light);color:var(--orange)}
+    .rb-admin{background:var(--purple-light);color:var(--purple)}
+    .rb-agency{background:#e8f5e9;color:#2e7d32}
+    .rb-generic{background:var(--gray-2);color:var(--gray-5)}
+    .ct-info{font-size:11px;color:var(--gray-4);line-height:1.4;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .ct-villa{font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;color:var(--gray-4);margin-top:6px}
+
+    /* ══ EMPTY STATE ══ */
+    .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--gray-4)}
+    .empty-ico{font-size:48px;margin-bottom:12px}
+    .empty-txt{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700}
+
+    /* ══ DETAIL PANEL (slide-in) ══ */
+    #detailPanel{position:fixed;inset:0;z-index:500;display:none;flex-direction:column}
+    #detailPanel.open{display:flex}
+    #detailBg{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+    #detailCard{position:relative;z-index:1;background:#fff;width:min(600px,100vw);height:100%;margin-left:auto;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.2);animation:slideIn .25s ease}
+    @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+    .detail-hdr{background:var(--red);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .detail-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;line-height:1}
+    .detail-hdr-name{font-family:Montserrat,sans-serif;font-size:clamp(13px,3.5vw,17px);font-weight:900;text-transform:uppercase;flex:1;letter-spacing:.3px;line-height:1.2}
+    .detail-hdr-id{background:rgba(255,255,255,.2);border-radius:6px;padding:3px 9px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;flex-shrink:0}
+    #detailBody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+
+    /* ── Detail sections ── */
+    .d-sec{background:var(--gray-1);border-radius:10px;overflow:hidden}
+    .d-sec-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);padding:8px 12px;background:var(--gray-2);border-bottom:1px solid var(--gray-2)}
+    .d-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--gray-2)}
+    .d-row:last-child{border-bottom:none}
+    .d-ico{font-size:16px;flex-shrink:0;width:20px;text-align:center;margin-top:1px}
+    .d-val{flex:1}
+    .d-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);margin-bottom:2px}
+    .d-txt{font-size:13px;color:var(--gray-5);font-weight:500;word-break:break-word;line-height:1.4}
+    .d-txt a{color:var(--blue);text-decoration:none}
+    .d-txt a:hover{text-decoration:underline}
+    .d-txt.big{font-size:16px;font-weight:700}
+    .d-txt.phone{font-size:16px;font-weight:800;letter-spacing:.5px}
+
+    /* ── Role badges en detail ── */
+    .d-roles{display:flex;flex-wrap:wrap;gap:6px;padding:12px}
+
+    /* ── Quick actions ── */
+    .d-actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 4px}
+    .d-act{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;transition:opacity .15s;flex:1;justify-content:center;min-width:120px}
+    .d-act:hover{opacity:.85}
+    .d-act.call{background:var(--green);color:#fff}
+    .d-act.wa{background:#25D366;color:#fff}
+    .d-act.mail{background:var(--blue);color:#fff}
+    .d-act.drive{background:var(--gray-5);color:#fff}
+
+    /* ══ TOAST ══ */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);opacity:0;background:var(--gray-5);color:#fff;padding:10px 20px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;transition:all .3s;z-index:9999;pointer-events:none}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* ══ NO CONTACTID LANDING ══ */
+    @media(max-width:600px){
+      #listView{grid-template-columns:1fr}
+      .d-actions{flex-direction:column}
+      .d-act{min-width:0}
+    }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt" id="loadTxt">Cargando contactos…</div></div>
+<div id="toast"></div>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="h-row">
+    <button class="h-back" onclick="history.back()">←</button>
+    <span class="h-title">Contactos</span>
+    <span class="h-count" id="hCount"></span>
+    <a href="index.html" class="h-menu" title="Menú">☰</a>
+  </div>
+</header>
+
+<!-- ══ SEARCH + FILTROS ══ -->
+<div id="filterBar">
+  <div class="search-row">
+    <input id="searchInput" type="text" placeholder="🔍 Buscar por nombre, email, info…" oninput="applyFilters()">
+    <span id="searchCount"></span>
+  </div>
+  <div class="filter-scroll" id="roleFilters">
+    <span class="role-chip" data-role="all" onclick="setRole('all')">👥 Todos</span>
+    <span class="role-chip" data-role="Key_Holder" onclick="setRole('Key_Holder')">🏠 Keyholder</span>
+    <span class="role-chip" data-role="Owner" onclick="setRole('Owner')">💼 Propietario</span>
+    <span class="role-chip" data-role="Limpieza" onclick="setRole('Limpieza')">🧹 Limpieza</span>
+    <span class="role-chip" data-role="Piscina" onclick="setRole('Piscina')">🏊 Piscina</span>
+    <span class="role-chip" data-role="Jardn" onclick="setRole('Jardn')">🌳 Jardinero</span>
+    <span class="role-chip" data-role="Fontanero" onclick="setRole('Fontanero')">🔧 Fontanero</span>
+    <span class="role-chip" data-role="Electricista" onclick="setRole('Electricista')">⚡ Electricista</span>
+    <span class="role-chip" data-role="Aire_acondicionado" onclick="setRole('Aire_acondicionado')">❄️ Aire AC</span>
+    <span class="role-chip" data-role="Construcotr" onclick="setRole('Construcotr')">🏗️ Constructor</span>
+    <span class="role-chip" data-role="Pequeas_Reformas" onclick="setRole('Pequeas_Reformas')">🔨 Reformas</span>
+    <span class="role-chip" data-role="Gestoria" onclick="setRole('Gestoria')">📊 Gestoría</span>
+    <span class="role-chip" data-role="Agencia_turismo_vacacional" onclick="setRole('Agencia_turismo_vacacional')">🌍 Ag. Turismo</span>
+    <span class="role-chip" data-role="Agencia_inmobiliaria" onclick="setRole('Agencia_inmobiliaria')">🏡 Ag. Inmob.</span>
+  </div>
+</div>
+
+<!-- ══ LISTA ══ -->
+<div id="listView"></div>
+
+<!-- ══ PANEL DETALLE ══ -->
+<div id="detailPanel" onclick="if(event.target===this||event.target===document.getElementById('detailBg'))closeDetail()">
+  <div id="detailBg"></div>
+  <div id="detailCard">
+    <div class="detail-hdr">
+      <button class="detail-back" onclick="closeDetail()">←</button>
+      <div class="detail-hdr-name" id="dName">—</div>
+      <div class="detail-hdr-id" id="dId"></div>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+var params = new URLSearchParams(location.search);
+var directId = (params.get('contactid')||params.get('ContactID')||'').trim();
+
+var allContacts = [];
+var villaNames  = {};   /* villaid → Name */
+var activeRole  = 'all';
+
+/* ══ Roles definition ══ */
+var ROLES = [
+  {k:'Key_Holder',      ico:'🏠', lbl:'Keyholder',      cls:'rb-keyholder'},
+  {k:'Owner',           ico:'💼', lbl:'Propietario',     cls:'rb-owner'},
+  {k:'Limpieza',        ico:'🧹', lbl:'Limpieza',        cls:'rb-cleaner'},
+  {k:'Piscina',         ico:'🏊', lbl:'Piscina',         cls:'rb-pool'},
+  {k:'Jardn',           ico:'🌳', lbl:'Jardinero',       cls:'rb-garden'},
+  {k:'Fontanero',       ico:'🔧', lbl:'Fontanero',       cls:'rb-maint'},
+  {k:'Electricista',    ico:'⚡', lbl:'Electricista',    cls:'rb-maint'},
+  {k:'Aire_acondicionado',ico:'❄️',lbl:'Aire AC',        cls:'rb-maint'},
+  {k:'Construcotr',     ico:'🏗️', lbl:'Constructor',    cls:'rb-maint'},
+  {k:'Pequeas_Reformas',ico:'🔨', lbl:'Reformas',        cls:'rb-maint'},
+  {k:'Gestoria',        ico:'📊', lbl:'Gestoría',        cls:'rb-admin'},
+  {k:'Agencia_turismo_vacacional',ico:'🌍',lbl:'Ag. Turismo',cls:'rb-agency'},
+  {k:'Agencia_inmobiliaria',ico:'🏡',lbl:'Ag. Inmob.',   cls:'rb-agency'},
+  {k:'CV',              ico:'📄', lbl:'CV',              cls:'rb-generic'},
+];
+
+/* ══ Helpers ══ */
+function g(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function isTruthy(v){if(!v&&v!==0)return false;if(typeof v==='boolean')return v;if(typeof v==='number')return v!==0;var s=String(v).toLowerCase().trim();return['1','yes','si','sí','true','on','-1'].includes(s);}
+function cleanPhone(ph){return(ph||'').replace(/\s/g,'').replace(/^\+/,'').replace(/-/g,'');}
+var _tt;
+function toast(msg){var el=g('toast');el.textContent=msg;el.className='show';clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},2500);}
+
+/* ══ ROLE FILTER ══ */
+window.setRole = function(role){
+  activeRole = role;
+  document.querySelectorAll('.role-chip').forEach(function(c){
+    c.classList.toggle('on', c.dataset.role === role);
+  });
+  applyFilters();
+};
+/* Activar "Todos" por defecto */
+document.querySelector('[data-role="all"]').classList.add('on');
+
+/* ══ FILTRAR + RENDERIZAR LISTA ══ */
+window.applyFilters = function(){
+  var term = (g('searchInput').value||'').toLowerCase().trim();
+  var filtered = allContacts.filter(function(c){
+    /* Filtro de rol */
+    if(activeRole !== 'all'){
+      if(!isTruthy(c[activeRole])) return false;
+    }
+    /* Filtro de texto */
+    if(term){
+      var haystack = [c.Name,c.Email,c.Phone,c.Information,c.Fiscal_Name,c.NIF_IDnumber]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(term)) return false;
+    }
+    return true;
+  });
+  renderList(filtered);
+  g('hCount').textContent = filtered.length + (filtered.length===allContacts.length?'':'/'+allContacts.length);
+  g('searchCount').textContent = term||activeRole!=='all' ? filtered.length+' contactos' : '';
+};
+
+/* ══ RENDER LISTA ══ */
+function getRoles(c){
+  return ROLES.filter(function(r){return isTruthy(c[r.k]);});
+}
+function getBorderClass(c){
+  if(isTruthy(c.Key_Holder)) return 'is-keyholder';
+  if(isTruthy(c.Owner))      return 'is-owner';
+  if(isTruthy(c.Limpieza))   return 'is-cleaner';
+  if(isTruthy(c.Piscina))    return 'is-pool';
+  if(isTruthy(c.Jardn))      return 'is-garden';
+  if(isTruthy(c.Fontanero)||isTruthy(c.Electricista)||isTruthy(c.Aire_acondicionado)) return 'is-maint';
+  return '';
+}
+
+function renderList(contacts){
+  var list = g('listView');
+  if(!contacts.length){
+    list.innerHTML = '<div class="empty-state"><div class="empty-ico">🔍</div><div class="empty-txt">Sin resultados</div></div>';
+    return;
+  }
+  list.innerHTML = contacts.map(function(c){
+    var roles = getRoles(c);
+    var bdCls = getBorderClass(c);
+    var villaName = c.Villa ? (villaNames[String(c.Villa)] || 'Villa #'+c.Villa) : '';
+    var rolesHtml = roles.map(function(r){
+      return '<span class="role-badge '+r.cls+'">'+r.ico+' '+r.lbl+'</span>';
+    }).join('');
+    var infoTxt = c.Information ? '<div class="ct-info">'+esc(c.Information)+'</div>' : '';
+    var villaTxt = villaName ? '<div class="ct-villa">🏠 '+esc(villaName)+'</div>' : '';
+    return '<div class="ct-card '+bdCls+'" onclick="openDetail(\''+c.ContactID+'\')">'
+      +'<div class="ct-name">'+esc(c.Name||'Sin nombre')+'</div>'
+      +'<div class="ct-meta">'
+      +(c.Phone?'<span class="ct-phone">📞 '+esc(c.Phone)+'</span>':'')
+      +(c.Email?'<span class="ct-email">✉️ '+esc(c.Email)+'</span>':'')
+      +'</div>'
+      +(rolesHtml?'<div class="ct-roles">'+rolesHtml+'</div>':'')
+      +infoTxt+villaTxt
+      +'</div>';
+  }).join('');
+}
+
+/* ══ DETAIL PANEL ══ */
+window.openDetail = function(id){
+  var c = allContacts.find(function(x){return String(x.ContactID)===String(id);});
+  if(!c) return;
+  showDetail(c);
+  /* Actualizar URL sin recargar */
+  history.pushState({contactid:id},'','?contactid='+id);
+};
+
+window.closeDetail = function(){
+  g('detailPanel').classList.remove('open');
+  document.body.style.overflow='';
+  history.pushState({},'',location.pathname);
+};
+
+/* Volver con botón nativo del navegador */
+window.addEventListener('popstate', function(e){
+  if(!e.state||!e.state.contactid){
+    g('detailPanel').classList.remove('open');
+    document.body.style.overflow='';
+  }
+});
+
+function showDetail(c){
+  g('dName').textContent = c.Name||'Sin nombre';
+  g('dId').textContent   = '#'+c.ContactID;
+
+  var roles = getRoles(c);
+  var villaName = c.Villa ? (villaNames[String(c.Villa)] || 'Villa #'+c.Villa) : '';
+  var phone = c.Phone||'';
+  var phoneClean = cleanPhone(phone);
+
+  var html = '';
+
+  /* ── Acciones rápidas ── */
+  if(phone||c.Email){
+    html += '<div class="d-actions">';
+    if(phone){
+      html += '<a class="d-act call" href="tel:'+esc(phone)+'">📞 Llamar</a>';
+      html += '<a class="d-act wa" href="https://wa.me/'+esc(phoneClean)+'" target="_blank">💬 WhatsApp</a>';
+    }
+    if(c.Email) html += '<a class="d-act mail" href="mailto:'+esc(c.Email)+'">✉️ Email</a>';
+    if(c.Drive) html += '<a class="d-act drive" href="'+esc(c.Drive)+'" target="_blank">📁 Drive</a>';
+    html += '</div>';
+  }
+
+  /* ── Contacto ── */
+  html += '<div class="d-sec"><div class="d-sec-title">Contacto</div>';
+  if(phone) html += '<div class="d-row"><span class="d-ico">📞</span><div class="d-val"><div class="d-lbl">Teléfono</div><div class="d-txt phone"><a href="tel:'+esc(phone)+'" style="color:var(--green);text-decoration:none">'+esc(phone)+'</a></div></div></div>';
+  if(c.Email) html += '<div class="d-row"><span class="d-ico">✉️</span><div class="d-val"><div class="d-lbl">Email</div><div class="d-txt"><a href="mailto:'+esc(c.Email)+'">'+esc(c.Email)+'</a></div></div></div>';
+  if(c.Information) html += '<div class="d-row"><span class="d-ico">📝</span><div class="d-val"><div class="d-lbl">Información</div><div class="d-txt">'+esc(c.Information)+'</div></div></div>';
+  if(villaName) html += '<div class="d-row"><span class="d-ico">🏠</span><div class="d-val"><div class="d-lbl">Villa</div><div class="d-txt big"><a href="villa-info.html?villa_id='+esc(c.Villa)+'" style="color:var(--red)">'+esc(villaName)+'</a></div></div></div>';
+  html += '</div>';
+
+  /* ── Roles ── */
+  if(roles.length){
+    html += '<div class="d-sec"><div class="d-sec-title">Roles y servicios</div>';
+    html += '<div class="d-roles">';
+    html += roles.map(function(r){
+      return '<span class="role-badge '+r.cls+'" style="font-size:11px;padding:4px 12px">'+r.ico+' '+r.lbl+'</span>';
+    }).join('');
+    html += '</div></div>';
+  }
+
+  /* ── Datos fiscales ── */
+  if(c.Fiscal_Name||c.Fiscal_Address||c.NIF_IDnumber){
+    html += '<div class="d-sec"><div class="d-sec-title">Datos Fiscales</div>';
+    if(c.Fiscal_Name)    html += '<div class="d-row"><span class="d-ico">📋</span><div class="d-val"><div class="d-lbl">Nombre Fiscal</div><div class="d-txt">'+esc(c.Fiscal_Name)+'</div></div></div>';
+    if(c.NIF_IDnumber)   html += '<div class="d-row"><span class="d-ico">🪪</span><div class="d-val"><div class="d-lbl">NIF / ID</div><div class="d-txt" style="font-family:monospace;font-size:15px;font-weight:700">'+esc(c.NIF_IDnumber)+'</div></div></div>';
+    if(c.Fiscal_Address) html += '<div class="d-row"><span class="d-ico">📍</span><div class="d-val"><div class="d-lbl">Dirección Fiscal</div><div class="d-txt">'+esc(c.Fiscal_Address)+'</div></div></div>';
+    html += '</div>';
+  }
+
+  /* ── Drive ── */
+  if(c.Drive){
+    html += '<div class="d-sec"><div class="d-sec-title">Drive</div>';
+    html += '<div class="d-row"><span class="d-ico">📁</span><div class="d-val"><div class="d-lbl">Enlace Drive</div>';
+    html += '<div class="d-txt"><a href="'+esc(c.Drive)+'" target="_blank">Abrir Drive ↗</a></div></div></div>';
+    html += '</div>';
+  }
+
+  g('detailBody').innerHTML = html;
+  g('detailPanel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  g('detailBody').scrollTop = 0;
+}
+
+/* ══ COPY on tap phone ══ */
+document.addEventListener('click',function(e){
+  var ph = e.target.closest('.ct-phone');
+  if(ph){
+    var txt = ph.textContent.replace('📞 ','');
+    navigator.clipboard&&navigator.clipboard.writeText(txt).then(function(){toast('📞 Copiado: '+txt);}).catch(function(){});
+  }
+});
+
+/* ══ CARGA ══ */
+function loadVillaNames(villaIds){
+  if(!villaIds.length) return Promise.resolve();
+  var where = villaIds.length===1
+    ? 'villaid='+villaIds[0]
+    : '('+villaIds.map(function(id){return'villaid='+id;}).join(' OR ')+')';
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=200'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      (json.Result||json.result||[]).forEach(function(v){
+        if(v.villaid) villaNames[String(v.villaid)] = v.Name_villa_para_inquilinos||v.Name||'Villa #'+v.villaid;
+      });
+    }).catch(function(){});
+}
+
+function loadContacts(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaContacts&limit=500'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      allContacts = (json.Result||json.result||[]).sort(function(a,b){
+        return (a.Name||'').localeCompare(b.Name||'','es');
+      });
+      /* Extraer IDs de villa únicos */
+      var vids = [...new Set(allContacts.map(function(c){return c.Villa;}).filter(Boolean))];
+      return loadVillaNames(vids);
+    });
+}
+
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded',function(){
+  g('loadTxt').textContent = 'Cargando contactos…';
+
+  /* Fix posición del filterBar según altura del header */
+  function fixStickyBar(){
+    var hdr = document.querySelector('header');
+    var fb  = g('filterBar');
+    if(hdr&&fb) fb.style.top = hdr.offsetHeight+'px';
+  }
+  window.addEventListener('resize',fixStickyBar);
+
+  loadContacts()
+    .then(function(){
+      g('loadOverlay').style.display='none';
+      /* Render inicial */
+      applyFilters();
+      g('hCount').textContent = allContacts.length;
+      fixStickyBar();
+
+      /* Si hay contactid en URL, abrir detalle directamente */
+      if(directId){
+        var found = allContacts.find(function(c){return String(c.ContactID)===directId;});
+        if(found){
+          showDetail(found);
+          /* Scroll-into-view de la card en la lista */
+        } else {
+          toast('⚠️ Contacto #'+directId+' no encontrado');
+        }
+      }
+    })
+    .catch(function(e){
+      g('loadOverlay').style.display='none';
+      g('listView').innerHTML =
+        '<div class="empty-state"><div class="empty-ico">⚠️</div>'
+        +'<div class="empty-txt" style="color:var(--red)">Error cargando: '+esc(e.message||String(e))+'</div></div>';
+    });
+});
+
+})();
+</script>
+</body>
+</html>
