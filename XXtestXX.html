@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v25 — 3Villas</title>
+  <title>Entradas Equipo v26 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -120,6 +120,13 @@
     .gname{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:6px}
     .gmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
     .ppill{display:inline-flex;align-items:center;gap:3px;background:var(--gray-2);padding:2px 8px;border-radius:10px;font-size:12px;color:var(--gray-4)}
+    /* v26: pax con edades detalladas */
+    .pax-detail{margin:6px 0 4px;display:flex;flex-direction:column;gap:3px}
+    .pax-row{font-size:12px;color:var(--gray-5);line-height:1.4}
+    .pax-row .pax-lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--gray-4);margin-right:3px}
+    .pax-row .pax-ages{color:var(--gray-4);font-size:11px}
+    .pax-row .pax-reserva{color:var(--gray-3);font-size:10px;font-style:italic}
+    .booking-comment{font-size:11px;color:var(--gray-4);margin-top:5px;padding:5px 8px;background:var(--gray-1);border-radius:7px;line-height:1.4;border-left:2px solid var(--gray-3)}
     .spill{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;padding:2px 9px;border-radius:10px}
     .st-new{background:#fff3cd;color:#7c5e00}.st-conf{background:var(--green-light);color:var(--green)}.st-cancel{background:var(--red-light);color:var(--red)}
     .phones-row{display:flex;flex-direction:column;gap:3px;margin-top:8px}
@@ -428,6 +435,11 @@ const F = {
   guestSurename:'TaBookings2021_Guest_Surename',
   statusNameFormula:'TaBookings2021_Status_name_formula',
   guestAges:'TaBookings2021_Ages',
+  guestAdultsNr:   'TaBookings2021_Guest_adults_nr_form',
+  guestAgesForm:   'TaBookings2021_Guest_ages_form',
+  guestChildrenNr: 'TaBookings2021_Guest_children_nr_form',
+  guestChildrenAges:'TaBookings2021_Guest_children_babies_ages_form',
+  bookingComments: 'TaBookings2021_BookingComments',
 };
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
@@ -749,7 +761,12 @@ function buildCard(r,type){
     ? (_rawGuestName+(_guestSurename?' '+_guestSurename:'')).trim()
     : (_statusFormula||_rawGuestName);
   const ad=g(r,'adults'),ch=g(r,'children');
-  const _agesRaw = (r['TaBookings2021_Ages']||'').toString().trim();
+  /* v26: campos exactos de form para adultos/niños/edades/comentarios */
+  const _adultsNr    = (r['TaBookings2021_Guest_adults_nr_form']  ||'').toString().trim();
+  const _adultsAges  = (r['TaBookings2021_Guest_ages_form']        ||'').toString().trim();
+  const _childrenNr  = (r['TaBookings2021_Guest_children_nr_form'] ||'').toString().trim();
+  const _childrenAges= (r['TaBookings2021_Guest_children_babies_ages_form']||'').toString().trim();
+  const _bookingComments=(r['TaBookings2021_BookingComments']      ||'').toString().trim();
   const st=g(r,'status');
   const code=g(r,'confirmCode'),villaId=r['TaVillas_villaid']||'';
   const _vlBase=g(r,'villaName')||g(r,'reservationId')||'Villa sin nombre';
@@ -764,7 +781,7 @@ function buildCard(r,type){
   const waMsg=phoneClean?encodeURIComponent(buildWAMsg(r,mgrName)):'';
   const waUrlMsg=phoneClean?`https://wa.me/${phoneClean}?text=${waMsg}`:'';
   const waUrlSimple=phoneClean?`https://wa.me/${phoneClean}`:'';
-  const paxTxt=[ad&&`${ad}A`,ch&&`${ch}N`].filter(Boolean).join(' · ');
+  const paxTxt=[ad&&`${ad} ad.`,ch&&`${ch} niños`].filter(Boolean).join(' · ');
   const urlLimpieza=`task-limpieza.html?Idreserva=${code}&Tasktype_booking=10&code=${code}`;
   const urlWP=`task-wp.html?Idreserva=${code}&Tasktype_booking=20&code=${code}`;
   const urlCierre=`https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
@@ -831,8 +848,35 @@ function buildCard(r,type){
   html+='<div class="c-body"><hr class="dv">';
   html+=`<div class="gname">${gn||'—'}</div>`;
   html+='<div class="gmeta">';
-  if(ad)html+=`<span class="ppill">👤 ${ad}</span>`;if(ch)html+=`<span class="ppill">👶 ${ch}</span>`;if(st)html+=`<span class="spill ${stClass(st)}">${st}</span>`;
+  if(st)html+=`<span class="spill ${stClass(st)}">${st}</span>`;
   html+='</div>';
+  /* v26: adultos y niños con edades detalladas según fórmula Caspio
+     Adultos: [Guest_adults_nr_form]([Guest_ages_form])(reserva [Adults])
+     Niños:   [Guest_children_nr_form]([Guest_children_babies_ages_form])
+     [BookingComments]
+  */
+  {
+    const _hasAdult = _adultsNr || ad;
+    const _hasChild = _childrenNr || ch;
+    if(_hasAdult || _hasChild){
+      html += '<div class="pax-detail">';
+      if(_hasAdult){
+        html += '<div class="pax-row">';
+        html += `<span class="pax-lbl">👤 Adultos:</span>${_adultsNr||ad}`;
+        if(_adultsAges) html += ` <span class="pax-ages">(${_adultsAges})</span>`;
+        if(ad && _adultsNr && String(ad)!==String(_adultsNr)) html += ` <span class="pax-reserva">(reserva: ${ad})</span>`;
+        html += '</div>';
+      }
+      if(_hasChild){
+        html += '<div class="pax-row">';
+        html += `<span class="pax-lbl">👶 Niños:</span>${_childrenNr||ch}`;
+        if(_childrenAges) html += ` <span class="pax-ages">(${_childrenAges})</span>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    if(_bookingComments) html += `<div class="booking-comment">💬 ${_bookingComments}</div>`;
+  }
   if(ph||ph2){html+='<div class="phones-row">';if(ph)html+=`<div class="ph-line ${!useArr?'active':''}"><span class="ph-tag">Host</span>${!useArr?'✓ ':''}<a href="tel:${ph}" style="color:inherit;text-decoration:none">${ph}</a></div>`;if(ph2)html+=`<div class="ph-line ${useArr?'active arr':''}"><span class="ph-tag">Arrival</span>${useArr?'✓ ':''}<a href="tel:${ph2}" style="color:inherit;text-decoration:none">${ph2}</a></div>`;html+='</div>';}
   html+='</div>';
   if(!isSalida&&(activePhone||em)){html+='<div class="c-foot">';if(vCardUrl)html+=`<a class="icon-btn" href="${vCardUrl}" target="_blank">${SVG_CONTACT}<span class="btn-label">Contacto</span></a>`;if(waUrlMsg)html+=`<a class="icon-btn" href="${waUrlMsg}" target="_blank">${SVG_WA}<span class="wa-badge">1</span><span class="btn-label">${useArr?'Arrival':'Host'}</span></a>`;if(waUrlSimple)html+=`<a class="icon-btn" href="${waUrlSimple}" target="_blank">${SVG_WA}<span class="btn-label">WA simple</span></a>`;html+='</div>';}
