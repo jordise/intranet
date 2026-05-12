@@ -93,15 +93,27 @@
     .keybox-notes{font-size:12px;opacity:.8;line-height:1.4;margin-top:4px}
 
     .team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:10px}
-    .team-card{background:var(--gray-1);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gray-3)}
+    /* v06: team-card como botón grande clicable con acciones */
+    .team-card{background:var(--gray-1);border-radius:10px;border-left:3px solid var(--gray-3);cursor:pointer;transition:box-shadow .15s,transform .1s;overflow:hidden}
+    .team-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1);transform:translateY(-1px)}
     .team-card.keyholder{border-left-color:var(--red);background:var(--red-light)}
     .team-card.cleaner{border-left-color:#1565c0;background:var(--blue-light)}
     .team-card.pool{border-left-color:#0288d1}
     .team-card.garden{border-left-color:var(--green);background:var(--green-light)}
     .team-card.maintenance{border-left-color:var(--orange)}
-    .team-role{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:4px}
-    .team-name{font-size:13px;font-weight:700;color:var(--gray-5)}
-    .team-email{font-size:11px;color:var(--gray-4);margin-top:2px;word-break:break-all}
+    .team-card-top{padding:10px 12px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+    .team-card-info{flex:1;min-width:0}
+    .team-role{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:3px}
+    .team-name{font-size:13px;font-weight:700;color:var(--gray-5);line-height:1.3;word-break:break-word}
+    .team-arrow{font-size:16px;color:var(--gray-3);flex-shrink:0;padding-left:4px}
+    /* Mini botones de acción dentro del card */
+    .team-actions{display:flex;border-top:1px solid rgba(0,0,0,.06)}
+    .tc-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 4px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-decoration:none;color:var(--gray-5);transition:background .15s;border-right:1px solid rgba(0,0,0,.06)}
+    .tc-btn:last-child{border-right:none}
+    .tc-btn:hover{background:rgba(0,0,0,.06)}
+    .tc-call{color:var(--green)}
+    .tc-wa{color:#25D366}
+    .tc-mail{color:var(--blue)}
 
     .room-row{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:8px;background:var(--gray-1);margin-bottom:6px}
     .room-num{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:900;color:var(--red);width:20px;flex-shrink:0;margin-top:1px}
@@ -384,8 +396,42 @@ var villaId = (params.get('villa_id') || params.get('villaid') || '').trim();
 
 var villaData = null;
 /* Mapas de lookup: {id → displayName} */
-var contactsMap = {};  /* TaContacts: ContactID → Name */
-var usersMap    = {};  /* TaUsers:    UserID    → Name */
+/* TaContacts: ContactID → {name, phone, email} */
+var contactsMap = {};  /* id → {name, phone, email} — compatibilidad: .name para resContact() */
+function loadContacts(){
+  var url = WORKER+'?action=data&table=TaContacts&limit=500';
+  return fetch(Auth.url(url))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows = json.Result||json.result||[];
+      rows.forEach(function(c){
+        var id   = String(c.ContactID||c.contactID||'').trim();
+        var name = (c.Name||c.FullName||c.full_name||
+                   [c.FirstName,c.LastName].filter(Boolean).join(' ')||
+                   c.email||c.Email||id).trim();
+        var phone = (c.Phone||c.phone||'').trim();
+        var email = (c.Email||c.email||'').trim();
+        if(id) contactsMap[id] = {name:name, phone:phone, email:email};
+      });
+    }).catch(function(){});
+}
+
+/* resContact: compatibilidad con código anterior que espera un string */
+function resContact(id){
+  if(!id)return null;
+  var sid=String(id).trim();
+  var data = contactsMap[sid];
+  if(data) return data.name||null;
+  return usersMap[sid]||null;
+}
+/* resContactData: devuelve el objeto completo {name,phone,email} o null */
+function resContactData(id){
+  if(!id)return null;
+  var sid=String(id).trim();
+  return contactsMap[sid]||null;
+}
+
+var usersMap = {};  /* TaUsers: UserID → Name */
 
 /* ══ Utilidades ══ */
 function g(id){return document.getElementById(id);}
@@ -404,13 +450,6 @@ function fUrl(k){
 }
 function empty(s){return !s||String(s).trim()===''||String(s).trim()==='-';}
 function val(k){return empty(v(k))?null:String(v(k)).trim();}
-
-/* Resuelve un ID de contacto a nombre de persona */
-function resContact(id){
-  if(!id)return null;
-  var sid=String(id).trim();
-  return contactsMap[sid]||usersMap[sid]||null;
-}
 
 /* Escapa HTML */
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -688,16 +727,36 @@ function populate(){
     {cls:'',ico:'📦',role:'Welcome Pack',                      k:'Wellcompack'},
   ];
   g('teamGrid').innerHTML = teamDefs.filter(function(t){return val(t.k);}).map(function(t){
-    /* Intentar resolver nombre desde contactsMap / usersMap */
     var rawId   = val(t.k);
-    var display = resContact(rawId) || rawId;
-    var email   = t.emailK && val(t.emailK)
-                  ? '<div class="team-email">'+esc(v(t.emailK))+'</div>'
-                  : '';
-    return '<div class="team-card '+t.cls+'">'
-           +'<div class="team-role">'+t.ico+' '+t.role+'</div>'
-           +'<div class="team-name">'+esc(display)+'</div>'
-           +email+'</div>';
+    var cdata   = resContactData(rawId);         /* {name,phone,email} o null */
+    var display = (cdata && cdata.name) || resContact(rawId) || rawId;
+    var phone   = cdata ? cdata.phone : '';
+    var email   = cdata ? cdata.email : '';
+    var phoneClean = phone.replace(/\s/g,'').replace(/^\+/,'00').replace(/-/g,'');
+
+    /* URL a la página de contacto */
+    var contactUrl = 'https://jordise.github.io/3villas-manuals/contactos.html?contactid='+encodeURIComponent(rawId);
+
+    /* Botones de acción (stopPropagation para no activar el onclick del card) */
+    var actionBtns = '';
+    if(phone){
+      actionBtns += '<a class="tc-btn tc-call" href="tel:'+esc(phone)+'" onclick="event.stopPropagation()" title="Llamar">📞 Llamar</a>';
+      actionBtns += '<a class="tc-btn tc-wa" href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬 WA</a>';
+    }
+    if(email){
+      actionBtns += '<a class="tc-btn tc-mail" href="mailto:'+esc(email)+'" onclick="event.stopPropagation()" title="Email">✉️ Email</a>';
+    }
+
+    return '<div class="team-card '+t.cls+'" onclick="location.href=\''+contactUrl+'\'" role="button">'
+      +'<div class="team-card-top">'
+        +'<div class="team-card-info">'
+          +'<div class="team-role">'+t.ico+' '+t.role+'</div>'
+          +'<div class="team-name">'+esc(display)+'</div>'
+        +'</div>'
+        +(actionBtns?'<div class="team-arrow">›</div>':'')
+      +'</div>'
+      +(actionBtns ? '<div class="team-actions">'+actionBtns+'</div>' : '')
+      +'</div>';
   }).join('');
 
   /* ── 4. ADMIN ──
@@ -897,24 +956,6 @@ function populate(){
 }
 
 /* ══ CARGA DE DATOS ══ */
-
-/* TaContacts: ContactID → Name */
-function loadContacts(){
-  var url = WORKER+'?action=data&table=TaContacts&limit=500';
-  return fetch(Auth.url(url))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows = json.Result||json.result||[];
-      rows.forEach(function(c){
-        /* Intentar distintos campos de nombre */
-        var id   = String(c.ContactID||c.contactID||'').trim();
-        var name = (c.Name||c.FullName||c.full_name||
-                   [c.FirstName,c.LastName].filter(Boolean).join(' ')||
-                   c.email||c.Email||id).trim();
-        if(id) contactsMap[id] = name;
-      });
-    }).catch(function(){});
-}
 
 /* TaUsers: UserID → Name (para lookups que apuntan a TaUsers) */
 function loadUsers(){
