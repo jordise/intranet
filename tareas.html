@@ -174,47 +174,119 @@ function descHtml(t){
   }).join('<br>');
 }
 function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function toggleDesc(btn){
-  var wrap=btn.parentElement.parentElement; /* desc-wrap */
-  var lines=wrap.querySelector('.desc-lines');
-  var ta=wrap.querySelector('.desc-edit');
-  var saving=wrap.querySelector('.desc-saving');
-  var isOpen=lines.style.display==='none';
 
-  if(!isOpen){
-    /* ▼ más → expandir y editar */
-    lines.style.display='none';
-    ta.value=wrap.getAttribute('data-raw')||'';
-    ta.style.display='block';
-    ta.style.height='auto';
-    ta.style.height=(ta.scrollHeight+4)+'px';
-    btn.textContent='▲ menos';
-    ta.focus();
-    /* Auto-resize al escribir */
-    ta.oninput=function(){this.style.height='auto';this.style.height=(this.scrollHeight+4)+'px';};
-  } else {
-    /* ▲ menos → colapsar y guardar */
-    var newText=ta.value.trim();
-    ta.style.display='none';
-    lines.innerHTML=descHtml(newText);
-    lines.style.display='';
-    btn.textContent='▼ más';
-    wrap.setAttribute('data-raw',newText);
-
-    /* Guardar en Caspio via Worker */
-    var taskId=wrap.getAttribute('data-tid')||'';
-    if(taskId){
-      if(saving)saving.style.display='inline';
-      fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{
-        method:'PUT',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({Taskdescription:newText})
-      })
-      .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||'Error');});})
-      .then(function(){if(saving){saving.textContent='✓ Guardado';setTimeout(function(){saving.style.display='none';saving.textContent='Guardando…';},1500);}})
-      .catch(function(e){if(saving){saving.textContent='✗ Error';saving.style.color='var(--red)';setTimeout(function(){saving.style.display='none';saving.style.color='';saving.textContent='Guardando…';},2500);}console.error('desc save:',e);});
-    }
+/* ── Quill inline en tareas ── */
+var _tqls={};
+(function(){
+  function toPlain(h){
+    if(!h)return'';
+    var d=document.createElement('div');d.innerHTML=h;
+    var lines=[];
+    d.childNodes.forEach(function(n){
+      if(n.nodeName==='UL'){
+        var chk=n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li){
+          var t=(li.innerText||li.textContent||'').trim();
+          if(chk==='true')lines.push('[x] '+t);
+          else if(chk==='false')lines.push('[ ] '+t);
+          else lines.push('\u2022 '+t);
+        });
+      } else {
+        var t=(n.innerText||n.textContent||'').replace(/\n/g,' ').trim();
+        if(t)lines.push(t);
+      }
+    });
+    return lines.join('\n');
   }
+  function toHtmlQ(text){
+    if(!text)return'';
+    if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1)return text;
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    return text.split('\n').map(function(line){
+      if(/^\[x\] /.test(line))return'<ul data-checked="true"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^\[ \] /.test(line))return'<ul data-checked="false"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^\u2022 /.test(line))return'<ul><li>'+esc(line.slice(2))+'</li></ul>';
+      return'<p>'+esc(line)+'</p>';
+    }).join('');
+  }
+  window._tplain=toPlain;
+  window._thtml=toHtmlQ;
+})();
+
+function _getWrap(el){return el.closest('.desc-wrap');}
+function _getQ(wrap){return _tqls[wrap.getAttribute('data-tid')]||null;}
+
+function _initQ(wrap){
+  var tid=wrap.getAttribute('data-tid');
+  if(_tqls[tid])return _tqls[tid];
+  var qlEl=wrap.querySelector('.desc-ql');
+  if(!qlEl||!window.Quill)return null;
+  qlEl.innerHTML='';
+  var q=new Quill(qlEl,{modules:{toolbar:false},theme:'snow',placeholder:'Descripci\u00f3n de la tarea\u2026'});
+  q.root.innerHTML=_thtml(wrap.getAttribute('data-raw')||'');
+  _tqls[tid]=q;
+  return q;
+}
+
+function _openDesc(btn){
+  var wrap=_getWrap(btn);
+  var lines=wrap.querySelector('.desc-lines');
+  var editor=wrap.querySelector('.desc-editor');
+  lines.style.display='none';
+  btn.style.display='none';
+  editor.style.display='block';
+  var q=_initQ(wrap);
+  if(q)setTimeout(function(){q.focus();},50);
+}
+
+function _doSave(wrap,onDone){
+  var q=_getQ(wrap);
+  var newText=q?_tplain(q.root.innerHTML):(wrap.getAttribute('data-raw')||'');
+  newText=newText.trim();
+  wrap.setAttribute('data-raw',newText);
+  var lines=wrap.querySelector('.desc-lines');
+  if(lines)lines.innerHTML=descHtml(newText);
+  var saving=wrap.querySelector('.desc-saving');
+  var tid=wrap.getAttribute('data-tid')||'';
+  if(!tid){if(onDone)onDone();return;}
+  if(saving){saving.style.display='inline';saving.textContent='Guardando\u2026';saving.style.color='';}
+  fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(tid)),{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({Taskdescription:newText})
+  })
+  .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||'Error');});})
+  .then(function(){
+    if(saving){saving.textContent='\u2713 Guardado';setTimeout(function(){saving.style.display='none';},1500);}
+    if(onDone)onDone();
+  })
+  .catch(function(e){
+    if(saving){saving.textContent='\u2715 Error';saving.style.color='var(--red)';
+      setTimeout(function(){saving.style.display='none';saving.style.color='';},2500);}
+    console.error('desc save:',e);
+  });
+}
+
+function _closeDesc(btn){
+  var wrap=_getWrap(btn);
+  var lines=wrap.querySelector('.desc-lines');
+  var editor=wrap.querySelector('.desc-editor');
+  var openBtn=wrap.querySelector('.open-btn');
+  _doSave(wrap,function(){
+    editor.style.display='none';
+    lines.style.display='';
+    if(openBtn)openBtn.style.display='';
+  });
+}
+
+function _saveDescBtn(btn){_doSave(_getWrap(btn),null);}
+
+function _qFmtRow(btn,type){
+  var q=_getQ(_getWrap(btn));
+  if(!q)return;
+  q.focus();
+  var f=q.getFormat();
+  if(type==='bullet')q.format('list',f.list==='bullet'?false:'bullet');
+  else q.format('list',(f.list==='unchecked'||f.list==='checked')?false:'unchecked');
 }
 </script>
 </head>
