@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v15 — 3Villas</title>
+  <title>Nueva Tarea v16 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -170,6 +170,56 @@
 (function () {
   'use strict';
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+/* ══ FIX: Persistencia de estado en sessionStorage (evita pérdida al abrir cámara iOS) ══ */
+const _STATE_KEY  = `nueva_state_${idRes}_${villaUrl}`;
+const _MAX_AGE_MS = 300000;
+
+function saveState() {
+  try {
+    const _el = id => document.getElementById(id);
+    sessionStorage.setItem(_STATE_KEY, JSON.stringify({
+      ts: Date.now(),
+      nombre:   document.getElementById('fNombre')?.value||'',
+      fecha:    document.getElementById('fFecha')?.value||'',
+      asignado: document.getElementById('fAsignado')?.value||'',
+      tipo:     document.getElementById('fTipoTarea')?.value||'',
+      villa:    document.getElementById('fVilla')?.value||'',
+      villaName:document.getElementById('fVillaSearch')?.value||''
+    }));
+  } catch(e) {}
+}
+
+function restoreStateIfRecent() {
+  try {
+    const _raw = sessionStorage.getItem(_STATE_KEY);
+    if (!_raw) return;
+    const _s = JSON.parse(_raw);
+    if (Date.now() - _s.ts > _MAX_AGE_MS) return;
+    const _el = id => document.getElementById(id);
+    const nEl=id=>document.getElementById(id);
+    if(nEl('fNombre')&&_s.nombre) nEl('fNombre').value=_s.nombre;
+    if(nEl('fFecha')&&_s.fecha)   nEl('fFecha').value=_s.fecha;
+    if(nEl('fVilla')&&_s.villa)   nEl('fVilla').value=_s.villa;
+    if(nEl('fVillaSearch')&&_s.villaName) nEl('fVillaSearch').value=_s.villaName;
+    if(nEl('fAsignado')&&_s.asignado){for(let i=0;i<nEl('fAsignado').options.length;i++){if(nEl('fAsignado').options[i].value===_s.asignado){nEl('fAsignado').selectedIndex=i;break;}}}
+    if(nEl('fTipoTarea')&&_s.tipo){for(let i=0;i<nEl('fTipoTarea').options.length;i++){if(nEl('fTipoTarea').options[i].value===_s.tipo){nEl('fTipoTarea').selectedIndex=i;break;}}}
+    
+  } catch(e) {}
+}
+
+function clearState() {
+  try { sessionStorage.removeItem(_STATE_KEY); } catch(e) {}
+}
+
+/* Restaurar al volver de la cámara */
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') restoreStateIfRecent();
+});
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) restoreStateIfRecent();
+});
+
   var PHOTO_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
   var MAX_PHOT=5,photos=[],allVillas=[],myUserName='',myUserId='';
   var urlParams=new URLSearchParams(window.location.search);
@@ -186,6 +236,13 @@
     myUserName=Auth.name?Auth.name():'';
     var uEl=g('hUserName');if(uEl)uEl.textContent=myUserName.split(' ')[0];
     g('fFecha').value=todayDate();
+    setTimeout(function(){
+      restoreStateIfRecent(); /* FIX v16 */
+      /* Auto-guardar en cambios */
+      ['fNombre','fFecha'].forEach(function(id){ var el=g(id); if(el) el.addEventListener('input',saveState); });
+      var selA=g('fAsignado'); if(selA) selA.addEventListener('change',saveState);
+      var selT=g('fTipoTarea'); if(selT) selT.addEventListener('change',saveState);
+    },500);
     if(paramIdReserva){var rc=g('resCard');if(rc)rc.style.display='block';var rl=g('resLabel');if(rl)rl.textContent='Reserva: '+paramIdReserva+(paramVillaName?' — '+paramVillaName:'');}
     // Villa pre-fill se hace en loadVillas() una vez cargadas todas las villas
     buildGrid();initVillaSearch();initMic();
@@ -206,13 +263,13 @@
   function renderVillaDD(q){var dd=g('villaDd'),ql=q.toLowerCase(),res=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);if(!res.length){dd.style.display='none';return;}dd.innerHTML=res.map(function(v){var idx=v.name.toLowerCase().indexOf(ql),hi=v.name.slice(0,idx)+'<span class="villa-match">'+v.name.slice(idx,idx+q.length)+'</span>'+v.name.slice(idx+q.length);return'<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,"&quot;")+'">'+hi+'</div>';}).join('');dd.querySelectorAll('.villa-opt').forEach(function(opt){opt.addEventListener('mousedown',function(e){e.preventDefault();g('fVillaSearch').value=opt.dataset.name;g('fVilla').value=opt.dataset.id;dd.style.display='none';});});repositionDD();dd.style.display='block';}
   function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
   function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
-  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();inpCam.value='';inpCam.click();});btnFile.addEventListener('click',function(e){e.stopPropagation();inpFile.value='';inpFile.click();});btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
+  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();saveState();inpCam.value='';inpCam.click();}); /* FIX v16 */btnFile.addEventListener('click',function(e){e.stopPropagation();saveState();inpFile.value='';inpFile.click();}); /* FIX v16 */btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
   function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
   function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
   function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
   function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
   function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
-  function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
+  function done(btn){clearState(); /* FIX v16 */ btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
 })();
 
 /* ════ Rich editor Quill ════ */
