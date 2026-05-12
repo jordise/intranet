@@ -155,7 +155,7 @@
       <div class="field"><label class="lbl">Asignado a</label><select id="fAsignado"><option value="">Cargando...</option></select></div>
       <div class="field-row">
         <div class="field"><label class="lbl">Tipo de tarea</label>
-          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Villamanager">Villamanager</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
+          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Keyholder">Keyholder</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
         </div>
         <div class="field"><label class="lbl">Villa</label><input type="text" id="fVillaSearch" autocomplete="off" placeholder="Buscar villa..."><input type="hidden" id="fVilla"></div>
       </div>
@@ -171,66 +171,55 @@
   'use strict';
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
-/* ══ FIX: Persistencia de estado en sessionStorage (evita pérdida al abrir cámara iOS) ══ */
-const _STATE_KEY  = `nueva_state_${idRes}_${villaUrl}`;
-const _MAX_AGE_MS = 300000;
-
-function saveState() {
-  try {
-    const _el = id => document.getElementById(id);
-    sessionStorage.setItem(_STATE_KEY, JSON.stringify({
-      ts: Date.now(),
-      nombre:   document.getElementById('fNombre')?.value||'',
-      fecha:    document.getElementById('fFecha')?.value||'',
-      asignado: document.getElementById('fAsignado')?.value||'',
-      tipo:     document.getElementById('fTipoTarea')?.value||'',
-      villa:    document.getElementById('fVilla')?.value||'',
-      villaName:document.getElementById('fVillaSearch')?.value||'',
-      desc:     (window._qlGet?window._qlGet('fDesc'):(document.getElementById('fDesc')||{}).value)||''
-    }));
-  } catch(e) {}
-}
-
-function restoreStateIfRecent() {
-  try {
-    const _raw = sessionStorage.getItem(_STATE_KEY);
-    if (!_raw) return;
-    const _s = JSON.parse(_raw);
-    if (Date.now() - _s.ts > _MAX_AGE_MS) return;
-    const _el = id => document.getElementById(id);
-    const nEl=id=>document.getElementById(id);
-    if(nEl('fNombre')&&_s.nombre) nEl('fNombre').value=_s.nombre;
-    if(nEl('fFecha')&&_s.fecha)   nEl('fFecha').value=_s.fecha;
-    if(nEl('fVilla')&&_s.villa)   nEl('fVilla').value=_s.villa;
-    if(nEl('fVillaSearch')&&_s.villaName) nEl('fVillaSearch').value=_s.villaName;
-    if(nEl('fAsignado')&&_s.asignado){for(let i=0;i<nEl('fAsignado').options.length;i++){if(nEl('fAsignado').options[i].value===_s.asignado){nEl('fAsignado').selectedIndex=i;break;}}}
-    if(nEl('fTipoTarea')&&_s.tipo){for(let i=0;i<nEl('fTipoTarea').options.length;i++){if(nEl('fTipoTarea').options[i].value===_s.tipo){nEl('fTipoTarea').selectedIndex=i;break;}}}
-    /* Restaurar descripción al editor Quill o al textarea */
-    if(_s.desc){
-      var _ta=nEl('fDesc');if(_ta)_ta.value=_s.desc;
-      /* Si Quill ya está init, actualizar el editor visible */
-      setTimeout(function(){
-        if(window._qlGet&&window._q&&window._q['fDesc']){
-          window._q['fDesc'].root.innerHTML=_s.desc.replace(/
-/g,'<br>');
-        }
-      },300);
-    }
-  } catch(e) {}
-}
-
-function clearState() {
-  try { sessionStorage.removeItem(_STATE_KEY); } catch(e) {}
-}
-
-/* Restaurar al volver de la cámara */
-document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') restoreStateIfRecent();
-});
-window.addEventListener('pageshow', function(e) {
-  if (e.persisted) restoreStateIfRecent();
-});
-
+  /* ── sessionStorage fix iOS (v16) ── */
+  var _urlP = new URLSearchParams(window.location.search);
+  var _idRes = (_urlP.get('Idreserva')||'').trim();
+  var _villaU = (_urlP.get('villa_id')||'').trim();
+  var STATE_KEY = 'nt_' + _idRes + '_' + _villaU;
+  var MAX_AGE = 300000; /* 5 min */
+  function saveState(){
+    try{
+      var desc = window._qlGet ? window._qlGet('fDesc') : (document.getElementById('fDesc')||{}).value||'';
+      sessionStorage.setItem(STATE_KEY, JSON.stringify({
+        ts:       Date.now(),
+        nombre:   (document.getElementById('fNombre')||{}).value||'',
+        fecha:    (document.getElementById('fFecha')||{}).value||'',
+        asignado: (document.getElementById('fAsignado')||{}).value||'',
+        tipo:     (document.getElementById('fTipoTarea')||{}).value||'',
+        villa:    (document.getElementById('fVilla')||{}).value||'',
+        villaName:(document.getElementById('fVillaSearch')||{}).value||'',
+        desc:     desc
+      }));
+    }catch(e){}
+  }
+  function restoreStateIfRecent(){
+    try{
+      var raw = sessionStorage.getItem(STATE_KEY);
+      if(!raw) return;
+      var s = JSON.parse(raw);
+      if(Date.now()-s.ts > MAX_AGE) return;
+      function se(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;}
+      se('fNombre',s.nombre); se('fFecha',s.fecha);
+      se('fVilla',s.villa);   se('fVillaSearch',s.villaName);
+      if(s.asignado){var sa=document.getElementById('fAsignado');if(sa)for(var i=0;i<sa.options.length;i++)if(sa.options[i].value===s.asignado){sa.selectedIndex=i;break;}}
+      if(s.tipo){var st=document.getElementById('fTipoTarea');if(st)for(var i=0;i<st.options.length;i++)if(st.options[i].value===s.tipo){st.selectedIndex=i;break;}}
+      /* Restaurar descripción */
+      if(s.desc){
+        var ta=document.getElementById('fDesc'); if(ta) ta.value=s.desc;
+        setTimeout(function(){
+          if(window._q&&window._q['fDesc']&&s.desc){
+            try{window._q['fDesc'].root.innerHTML=s.desc.replace(/
+/g,'<br>');}catch(e){}
+          }
+        },400);
+      }
+    }catch(e){}
+  }
+  function clearState(){try{sessionStorage.removeItem(STATE_KEY);}catch(e){}}
+  window.saveState=saveState; /* exponer para Quill IIFE */
+  /* Restaurar al volver de cámara */
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')restoreStateIfRecent();});
+  window.addEventListener('pageshow',function(e){if(e.persisted)restoreStateIfRecent();});
   var PHOTO_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
   var MAX_PHOT=5,photos=[],allVillas=[],myUserName='',myUserId='';
   var urlParams=new URLSearchParams(window.location.search);
@@ -247,19 +236,20 @@ window.addEventListener('pageshow', function(e) {
     myUserName=Auth.name?Auth.name():'';
     var uEl=g('hUserName');if(uEl)uEl.textContent=myUserName.split(' ')[0];
     g('fFecha').value=todayDate();
-    setTimeout(function(){
-      restoreStateIfRecent(); /* FIX v16 */
-      /* Auto-guardar en cambios */
-      ['fNombre','fFecha'].forEach(function(id){ var el=g(id); if(el) el.addEventListener('input',saveState); });
-      var selA=g('fAsignado'); if(selA) selA.addEventListener('change',saveState);
-      var selT=g('fTipoTarea'); if(selT) selT.addEventListener('change',saveState);
-    },500);
     if(paramIdReserva){var rc=g('resCard');if(rc)rc.style.display='block';var rl=g('resLabel');if(rl)rl.textContent='Reserva: '+paramIdReserva+(paramVillaName?' — '+paramVillaName:'');}
     // Villa pre-fill se hace en loadVillas() una vez cargadas todas las villas
     buildGrid();initVillaSearch();initMic();
     if(window._qlInit)_qlInit('fDesc','Detalles opcionales…');
     g('btnSubmit').addEventListener('click',submitForm);
     loadUsers();loadVillas();
+    /* Restaurar estado al volver de cámara iOS */
+    setTimeout(function(){
+      restoreStateIfRecent();
+      /* Auto-guardar al cambiar campos */
+      ['fNombre','fFecha'].forEach(function(id){var el=g(id);if(el)el.addEventListener('input',saveState);});
+      var sa=g('fAsignado'); if(sa) sa.addEventListener('change',saveState);
+      var st=g('fTipoTarea'); if(st) st.addEventListener('change',saveState);
+    }, 500);
   });
   function loadUsers(){fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(function(r){return r.json();}).then(function(json){var users=json.Result||json.result||[];var myEmail=Auth.email?Auth.email():'';var active=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';});active.forEach(function(u){if(String(u.Email||'').toLowerCase()===myEmail.toLowerCase())myUserId=String(u.UserID);});var sel=g('fAsignado');sel.innerHTML=active.map(function(u){var isSel=String(u.UserID)===myUserId?' selected':'';return'<option value="'+u.UserID+'"'+isSel+'>'+u.Name+'</option>';}).join('');}).catch(function(){g('fAsignado').innerHTML='<option value="">Error</option>';});}
   function loadVillas(){fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500')).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];allVillas=rows.map(function(v){return{id:String(v.villaid),name:v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid};}).sort(function(a,b){return a.name.localeCompare(b.name);});if(paramVillaId){
@@ -272,33 +262,15 @@ window.addEventListener('pageshow', function(e) {
   function initVillaSearch(){var inp=g('fVillaSearch'),dd=g('villaDd');inp.addEventListener('input',function(){var q=inp.value.trim();g('fVilla').value='';if(!q){dd.style.display='none';return;}renderVillaDD(q);});inp.addEventListener('focus',function(){if(inp.value.trim())renderVillaDD(inp.value.trim());});document.addEventListener('click',function(e){if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});window.addEventListener('scroll',function(){repositionDD();},true);window.addEventListener('resize',function(){if(dd.style.display!=='none')repositionDD();});}
   function repositionDD(){var inp=g('fVillaSearch'),dd=g('villaDd'),rect=inp.getBoundingClientRect();dd.style.top=(rect.bottom+2)+'px';dd.style.left=rect.left+'px';dd.style.width=rect.width+'px';}
   function renderVillaDD(q){var dd=g('villaDd'),ql=q.toLowerCase(),res=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);if(!res.length){dd.style.display='none';return;}dd.innerHTML=res.map(function(v){var idx=v.name.toLowerCase().indexOf(ql),hi=v.name.slice(0,idx)+'<span class="villa-match">'+v.name.slice(idx,idx+q.length)+'</span>'+v.name.slice(idx+q.length);return'<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,"&quot;")+'">'+hi+'</div>';}).join('');dd.querySelectorAll('.villa-opt').forEach(function(opt){opt.addEventListener('mousedown',function(e){e.preventDefault();g('fVillaSearch').value=opt.dataset.name;g('fVilla').value=opt.dataset.id;dd.style.display='none';});});repositionDD();dd.style.display='block';}
-  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,activeIsDesc=false,isRec=false;
-    function startRec(btn,field,isDesc){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;activeIsDesc=isDesc;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}
-    function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;activeIsDesc=false;}
-    rec.onresult=function(e){
-      var t=e.results[0][0].transcript;
-      if(activeIsDesc){
-        /* Escribir en el editor Quill si está disponible */
-        if(window._q&&window._q['fDesc']){
-          var q=window._q['fDesc'];var sel=q.getSelection(true)||{index:q.getLength()-1,length:0};
-          var prefix=sel.index>0?' ':'';q.insertText(sel.index,prefix+t,'user');
-        }else if(activeField){activeField.value=(activeField.value?activeField.value+' ':'')+t;}
-      }else if(activeField){activeField.value=(activeField.value?activeField.value+' ':'')+t;}
-    };
-    rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};
-    /* Mic nombre: escribe en el input de texto */
-    var btnN=g('micNombre');if(btnN){btnN.classList.remove('hidden');btnN.addEventListener('click',function(){startRec(btnN,g('fNombre'),false);});}
-    /* Mic descripción: escribe en Quill */
-    var btnD=g('micDesc');if(btnD){btnD.classList.remove('hidden');btnD.addEventListener('click',function(){startRec(btnD,g('fDesc'),true);});}
-  }
+  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
   function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
-  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();saveState();inpCam.value='';inpCam.click();}); /* FIX v16 */btnFile.addEventListener('click',function(e){e.stopPropagation();saveState();inpFile.value='';inpFile.click();}); /* FIX v16 */btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
+  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();inpCam.value='';inpCam.click();});btnFile.addEventListener('click',function(e){e.stopPropagation();inpFile.value='';inpFile.click();});btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
   function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
   function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
   function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
   function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
   function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
-  function done(btn){clearState(); /* FIX v16 */ btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
+  function done(btn){clearState();btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
 })();
 
 /* ════ Rich editor Quill ════ */
