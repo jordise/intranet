@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- wellcomepacks.html v01 — 12/05/2026
+       Control de WelcomePacks y estado de reservas
+       - Filtro Villa Manager idéntico a entradas-equipo
+       - Filtros: fechas checkin, WP, limpieza, nombre inquilino
+       - Tabla compacta: villa, inquilino, fechas, 5 badges de estado, acciones
+       - Check-in por defecto = hoy
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+  <title>WelcomePacks v01 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+      --green:#1e9e4e;--green-light:#e6f7ee;
+      --orange:#e07b00;--orange-light:#fff4e0;
+      --blue:#1967d2;--blue-light:#e8f0fe;
+      --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;
+      --gray-4:#7a8194;--gray-5:#2d3142;
+      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+      --shadow-md:0 4px 16px rgba(0,0,0,.12);
+      --r:12px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
+
+    /* ══ HEADER ══ */
+    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:400;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .h-row{display:flex;align-items:center;gap:8px}
+    .h-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;line-height:1;text-decoration:none}
+    .h-title{font-family:Montserrat,sans-serif;font-size:clamp(13px,4vw,17px);font-weight:900;text-transform:uppercase;letter-spacing:.4px;flex:1}
+    .h-menu{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:34px;height:34px;border-radius:8px;text-decoration:none;font-size:18px;flex-shrink:0}
+    .h-stats{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .h-stat{background:rgba(255,255,255,.15);border-radius:8px;padding:4px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;display:flex;gap:5px;align-items:center}
+    .h-stat span{font-size:14px;font-weight:900}
+
+    /* ══ BARRA DE FILTROS ══ */
+    #filterBar{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 14px;position:sticky;z-index:300;box-shadow:var(--shadow-sm)}
+    .filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .f-input,.f-date{border:1.5px solid var(--gray-2);border-radius:8px;padding:7px 10px;font-size:12px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;background:#fff;transition:border-color .15s}
+    .f-input:focus,.f-date:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+    .f-date{width:130px}
+    .f-input{flex:1;min-width:120px}
+
+    /* Manager button (idéntico a entradas-equipo) */
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-md);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
+    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
+    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
+    .manager-item:hover{background:var(--gray-1)}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .manager-item label{cursor:pointer;flex:1}
+    .manager-footer{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--gray-2)}
+
+    /* Pills de filtro estado */
+    .pill-row{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:8px 0 0}
+    .pill-row::-webkit-scrollbar{display:none}
+    .pill{border:1.5px solid var(--gray-2);background:var(--gray-1);color:var(--gray-4);border-radius:20px;padding:4px 12px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
+    .pill.on{background:var(--red-light);border-color:var(--red);color:var(--red)}
+    .pill.on-green{background:var(--green-light);border-color:var(--green);color:var(--green)}
+    .pill.on-orange{background:var(--orange-light);border-color:var(--orange);color:var(--orange)}
+
+    /* ══ LISTA DE RESERVAS ══ */
+    #listWrap{max-width:1100px;margin:0 auto;padding:12px 10px;display:flex;flex-direction:column;gap:8px}
+
+    /* Fila / tarjeta de reserva */
+    .bk-row{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);border-left:4px solid var(--gray-3);overflow:hidden;transition:box-shadow .15s}
+    .bk-row:hover{box-shadow:var(--shadow-md)}
+    .bk-row.wp-done{border-left-color:var(--green)}
+    .bk-row.wp-pend{border-left-color:var(--orange)}
+    .bk-main{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:0;padding:10px 14px 8px}
+    .bk-date-col{display:flex;flex-direction:column;align-items:center;min-width:52px;padding-right:12px;border-right:1px solid var(--gray-2);margin-right:12px}
+    .bk-day{font-family:Montserrat,sans-serif;font-size:22px;font-weight:900;color:var(--gray-5);line-height:1}
+    .bk-mon{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase;letter-spacing:.4px}
+    .bk-nights{background:var(--gray-2);border-radius:10px;padding:1px 6px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-5);margin-top:3px}
+    .bk-info{flex:1;min-width:0}
+    .bk-villa{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bk-guest{font-size:12px;color:var(--gray-5);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bk-meta{font-size:10px;color:var(--gray-4);margin-top:2px}
+    .bk-code{font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:var(--gray-3)}
+    /* Badges de estado */
+    .bk-status-row{display:flex;gap:4px;flex-wrap:wrap;padding:6px 14px 10px;border-top:1px solid var(--gray-2)}
+    .st{display:inline-flex;align-items:center;gap:3px;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;cursor:pointer;transition:opacity .15s;text-decoration:none;border:none}
+    .st:hover{opacity:.8}
+    .st.ok{background:var(--green-light);color:var(--green)}
+    .st.ko{background:var(--red-light);color:var(--red)}
+    .st.na{background:var(--gray-2);color:var(--gray-4)}
+    /* Checkout col */
+    .bk-out{text-align:right;font-size:10px;color:var(--gray-4)}
+    .bk-out strong{font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-5);display:block}
+
+    /* ══ EMPTY / LOAD ══ */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sp-txt{font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--gray-4)}
+    .empty-ico{font-size:48px;margin-bottom:12px}
+    .empty-txt{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700}
+
+    /* ══ TOAST ══ */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);opacity:0;background:var(--gray-5);color:#fff;padding:10px 20px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;transition:all .3s;z-index:9999;pointer-events:none}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    @media(max-width:600px){
+      .bk-main{grid-template-columns:auto 1fr}
+      .bk-out{display:none}
+      .f-date{width:110px}
+    }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt" id="loadTxt">Cargando reservas…</div></div>
+<div id="toast"></div>
+<input type="hidden" id="mgrName">
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="h-row">
+    <a href="index.html" class="h-back">←</a>
+    <span class="h-title">📦 Control WelcomePacks</span>
+    <a href="index.html" class="h-menu">☰</a>
+  </div>
+  <div class="h-stats">
+    <div class="h-stat">Total <span id="sTot">0</span></div>
+    <div class="h-stat">🟠 WP pendiente <span id="sWPpend">0</span></div>
+    <div class="h-stat">🟢 WP listo <span id="sWPok">0</span></div>
+    <div class="h-stat">🧹 Limp. pendiente <span id="sLpend">0</span></div>
+  </div>
+</header>
+
+<!-- ══ FILTROS ══ -->
+<div id="filterBar">
+  <div class="filter-row">
+    <!-- Villa Manager (igual que entradas-equipo) -->
+    <button id="fManagerBtn" class="f-input f-select" onclick="toggleManagerPanel(event)" style="max-width:180px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+      <span id="fManagerLabel">Cargando…</span>
+    </button>
+    <div id="managerPanel" class="manager-panel" style="display:none">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--gray-2)">
+        <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager…" oninput="filterManagerList()" style="width:100%;height:30px;font-size:12px">
+      </div>
+      <div id="managerList" class="manager-list"></div>
+      <div class="manager-footer">
+        <button onclick="selectAllManagers()" class="pill" style="font-size:10px;padding:4px 10px">Todos</button>
+        <button onclick="clearManagers()" class="pill" style="font-size:10px;padding:4px 10px;color:var(--red)">Ninguno</button>
+      </div>
+    </div>
+    <!-- Fechas check-in -->
+    <input type="date" id="fDesde" class="f-date" onchange="doSearch()" title="Check-in desde">
+    <input type="date" id="fHasta" class="f-date" onchange="doSearch()" title="Check-in hasta">
+    <!-- Búsqueda inquilino -->
+    <input type="text" id="fInq" class="f-input" placeholder="🔍 Inquilino…" oninput="scheduleSearch(400)" style="max-width:160px">
+    <button onclick="resetFilters()" class="pill" style="flex-shrink:0">✕ Reset</button>
+  </div>
+  <div class="pill-row">
+    <span class="pill on" id="pWPall"   onclick="setWP('all')">📦 Todos</span>
+    <span class="pill" id="pWPpend"  onclick="setWP('pend')">🟠 WP Pendiente</span>
+    <span class="pill" id="pWPok"    onclick="setWP('ok')">🟢 WP Listo</span>
+    <span class="pill" id="pLall"    onclick="setL('all')">🧹 Limpieza todos</span>
+    <span class="pill" id="pLpend"   onclick="setL('pend')">🔴 Limp. Pendiente</span>
+    <span class="pill" id="pLok"     onclick="setL('ok')">✅ Limp. Lista</span>
+    <span class="pill" id="pAFpend"  onclick="setAF('pend')">📋 Arrival pendiente</span>
+  </div>
+</div>
+
+<!-- ══ LISTA ══ -->
+<div id="listWrap">
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="empty-ico">📦</div>
+    <div class="empty-txt">Sin reservas con estos filtros</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+var CFG = { workerUrl: WORKER, usersTable:'TaUsers', multiunitsTable:'TaMultiunits' };
+var U   = { id:'UserID', name:'Name', email:'Email' };
+var F   = {
+  code:        'TaBookings2021_FS_confirmation_code',
+  villaName:   'TaVillas_Name_villa_para_inquilinos',
+  villaId:     'TaVillas_villaid',
+  checkIn:     'TaBookings2021_Checkin',
+  checkOut:    'TaBookings2021_Checkout',
+  nights:      'TaBookings2021_Nights',
+  adults:      'TaBookings2021_Adults',
+  children:    'TaBookings2021_Children',
+  guestName:   'TaBookings2021_Guest_Full_Name',
+  guestSur:    'TaBookings2021_Guest_Surename',
+  status:      'TaBookings2021_Status_name_formula',
+  bookingStatus:'TaBookings2021_BookingStatus',
+  villaManager:'TaVillas_KeyHolder_person',
+  cleaner:     'TaVillas_Cleanning_team',
+  limpieza:    'TaBookings2021_LimpiezaTerminada',
+  wp:          'TaBookings2021_Welcomepackentregado',
+  cierre:      'TaBookings2021_Checkoutcontrolado',
+  arrivalForm: 'TaBookings2021_Arrivalform_done',
+  ecotasa:     'TaBookings2021_Ecotasa_cobrada',
+  multiunitId: 'TaBookings2021_PMSmultiunitID',
+};
+
+/* Estado global */
+var allUsersMap = new Map(), managersMap = new Map(), allManagersList = [];
+var selectedManagers = new Set(), currentUserId = '';
+var multiunitsMap = new Map();
+var wpFilter = 'all', lFilter = 'all', afFilter = 'all';
+var _searchTimer = null;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var _tt;
+function toast(msg){ var el=$('toast');el.textContent=msg;el.className='show';clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},2500); }
+
+function todayStr(){
+  var d=new Date(); var mm=String(d.getMonth()+1).padStart(2,'0'); var dd=String(d.getDate()).padStart(2,'0');
+  return d.getFullYear()+'-'+mm+'-'+dd;
+}
+function fmtDate(iso){
+  if(!iso)return '—';
+  var d=new Date(iso.replace('T',' ').replace('Z',''));
+  if(isNaN(d))return iso.split('T')[0]||iso;
+  return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+}
+function dayNum(iso){ return iso ? new Date(iso.replace('T',' ').replace('Z','')).getDate() : '—'; }
+function monAbbr(iso){
+  if(!iso)return '';
+  var d=new Date(iso.replace('T',' ').replace('Z',''));
+  return isNaN(d)?'':d.toLocaleDateString('es-ES',{month:'short'}).replace('.','');
+}
+function nightsN(ci,co){
+  try{ return Math.round((new Date(co)-new Date(ci))/(864e5)); } catch(e){ return 0; }
+}
+function isOk(v){
+  if(v===null||v===undefined||v==='')return null;
+  if(typeof v==='boolean') return v;
+  if(typeof v==='number') return v!==0;
+  var s=String(v).toLowerCase().trim();
+  if(['1','yes','sí','si','true','on','-1'].includes(s)) return true;
+  if(['0','no','false','off'].includes(s)) return false;
+  return null;
+}
+
+/* ── Villa Manager (idéntico a entradas-equipo) ── */
+function renderManagerList(filter){
+  filter=filter||'';
+  var list=$('managerList'); if(!list)return;
+  var q=filter.toLowerCase();
+  var filtered=q?allManagersList.filter(function(m){return m.name.toLowerCase().includes(q);}):allManagersList;
+  list.innerHTML=filtered.map(function(m){
+    return '<div class="manager-item" onclick="toggleManager(\''+m.id+'\')">'
+      +'<input type="checkbox" id="mc_'+m.id+'" '+(selectedManagers.has(m.id)?'checked':'')+'>'
+      +'<label for="mc_'+m.id+'">'+m.name+'</label></div>';
+  }).join('');
+}
+window.filterManagerList=function(){ renderManagerList(($('managerSearch')||{}).value||''); };
+window.toggleManager=function(id){
+  if(selectedManagers.has(id)) selectedManagers.delete(id); else selectedManagers.add(id);
+  renderManagerList(($('managerSearch')||{}).value||'');
+  updateManagerBtn(); scheduleSearch(300);
+};
+window.selectAllManagers=function(){ allManagersList.forEach(function(m){selectedManagers.add(m.id);}); renderManagerList(); updateManagerBtn(); };
+window.clearManagers=function(){ selectedManagers.clear(); renderManagerList(); updateManagerBtn(); };
+function updateManagerBtn(){
+  var lbl=$('fManagerLabel'); if(!lbl)return;
+  if(selectedManagers.size===0) lbl.textContent='Todos';
+  else if(selectedManagers.size===1){ var id=[...selectedManagers][0]; lbl.textContent=allUsersMap.get(id)||id; }
+  else lbl.textContent=selectedManagers.size+' managers';
+}
+window.toggleManagerPanel=function(e){
+  e&&e.stopPropagation();
+  var panel=$('managerPanel'),btn=$('fManagerBtn');
+  if(!panel||!btn)return;
+  if(panel.style.display!=='none'){panel.style.display='none';return;}
+  var rect=btn.getBoundingClientRect();
+  panel.style.top=(rect.bottom+4)+'px'; panel.style.left=rect.left+'px'; panel.style.width=rect.width+'px';
+  panel.style.display='flex'; renderManagerList();
+  if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}
+};
+document.addEventListener('click',function(e){
+  var panel=$('managerPanel'),btn=$('fManagerBtn');
+  if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target)) panel.style.display='none';
+});
+window.addEventListener('scroll',function(e){
+  var panel=$('managerPanel');
+  if(!panel||panel.style.display==='none')return;
+  if(panel.contains(e.target))return;
+  panel.style.display='none';
+},true);
+
+/* ── Pills de filtro ── */
+window.setWP=function(mode){
+  wpFilter=mode;
+  ['all','pend','ok'].forEach(function(m){
+    var el=$('pWP'+m); if(!el)return;
+    el.className='pill'+(m===mode?' '+(mode==='ok'?'on-green':mode==='pend'?'on-orange':'on'):'');
+  });
+  doSearch();
+};
+window.setL=function(mode){
+  lFilter=mode;
+  ['all','pend','ok'].forEach(function(m){
+    var el=$('pL'+m); if(!el)return;
+    el.className='pill'+(m===mode?' '+(mode==='ok'?'on-green':mode==='pend'?'on-orange':'on'):'');
+  });
+  doSearch();
+};
+window.setAF=function(mode){
+  afFilter=mode==='pend'?'pend':'all';
+  var el=$('pAFpend'); if(el) el.className='pill'+(afFilter==='pend'?' on-orange':'');
+  doSearch();
+};
+window.resetFilters=function(){
+  if($('fDesde'))$('fDesde').value=todayStr();
+  if($('fHasta'))$('fHasta').value='';
+  if($('fInq'))$('fInq').value='';
+  clearManagers(); updateManagerBtn();
+  wpFilter='all'; lFilter='all'; afFilter='all';
+  setWP('all'); setL('all'); setAF('all');
+};
+
+function scheduleSearch(delay){
+  clearTimeout(_searchTimer); _searchTimer=setTimeout(doSearch, delay||200);
+}
+window.doSearch=doSearch;
+function doSearch(){
+  clearTimeout(_searchTimer);
+  var desde=($('fDesde')||{}).value||todayStr();
+  var hasta=($('fHasta')||{}).value||'';
+  var inq=(($('fInq')||{}).value||'').trim();
+
+  var parts=["TaBookings2021_BookingStatus<>'cancelled'"];
+  /* Fechas check-in */
+  if(desde&&hasta){
+    parts.push("(TaBookings2021_Checkin>='"+desde+"T00:00:00' AND TaBookings2021_Checkin<='"+hasta+"T23:59:59')");
+  } else if(desde){
+    parts.push("TaBookings2021_Checkin>='"+desde+"T00:00:00'");
+  }
+  /* Villa manager */
+  if(selectedManagers.size>0){
+    var ids=[...selectedManagers].map(function(id){return "'"+id+"'";}).join(',');
+    parts.push(selectedManagers.size===1
+      ? "TaVillas_KeyHolder_person='"+[...selectedManagers][0]+"'"
+      : "TaVillas_KeyHolder_person IN ("+ids+")");
+  }
+  /* Inquilino */
+  if(inq) parts.push("TaBookings2021_Guest_Full_Name LIKE '%"+inq.replace(/'/g,"''")+"%'");
+
+  var where=parts.join(' AND ');
+  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=200&orderby=TaBookings2021_Checkin ASC';
+
+  $('loadOverlay').style.display='flex';
+  fetch(Auth.url(url))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      /* Filtros de estado en JS (no van en WHERE de Caspio) */
+      rows=rows.filter(function(r){
+        var wpOk=isOk(r[F.wp]);
+        var lOk =isOk(r[F.limpieza]);
+        var afOk=isOk(r[F.arrivalForm]);
+        if(wpFilter==='pend'&&wpOk===true)  return false;
+        if(wpFilter==='ok'  &&wpOk!==true)  return false;
+        if(lFilter==='pend' &&lOk===true)   return false;
+        if(lFilter==='ok'   &&lOk!==true)   return false;
+        if(afFilter==='pend'&&afOk===true)  return false;
+        return true;
+      });
+      renderList(rows);
+    })
+    .catch(function(e){ toast('❌ Error: '+e.message); renderList([]); })
+    .finally(function(){ $('loadOverlay').style.display='none'; });
+}
+
+/* ── Render ── */
+function renderList(rows){
+  var wrap=$('listWrap');
+  var empty=$('emptyState');
+  /* Limpiar cards anteriores (no el empty state) */
+  Array.from(wrap.children).forEach(function(el){
+    if(el.id!=='emptyState') wrap.removeChild(el);
+  });
+
+  /* Stats */
+  var wpPend=0,wpOk=0,lPend=0;
+  rows.forEach(function(r){
+    var w=isOk(r[F.wp]); var l=isOk(r[F.limpieza]);
+    if(w===true) wpOk++; else wpPend++;
+    if(l!==true) lPend++;
+  });
+  $('sTot').textContent=rows.length;
+  $('sWPpend').textContent=wpPend;
+  $('sWPok').textContent=wpOk;
+  $('sLpend').textContent=lPend;
+
+  if(!rows.length){
+    empty.style.display='block'; return;
+  }
+  empty.style.display='none';
+
+  rows.forEach(function(r){
+    wrap.appendChild(buildRow(r));
+  });
+}
+
+function stBadge(label, raw, url){
+  var ok=isOk(raw);
+  var cls=ok===true?'ok':ok===false?'ko':'na';
+  var ico=ok===true?'✓':ok===false?'✗':'·';
+  if(url){
+    return '<a class="st '+cls+'" href="'+url+'" onclick="openPop(\''+url+'\');return false;" target="_blank">'+ico+' '+label+'</a>';
+  }
+  return '<span class="st '+cls+'">'+ico+' '+label+'</span>';
+}
+
+function openPop(url){ window.open(url,'_wp_task','width=480,height=700,resizable=yes,scrollbars=yes'); }
+window.openPop=openPop;
+
+function buildRow(r){
+  var ci   = r[F.checkIn]||'';
+  var co   = r[F.checkOut]||'';
+  var n    = parseInt(r[F.nights])||nightsN(ci,co);
+  var code = r[F.code]||'';
+  var villa= r[F.villaName]||'Villa';
+  var muId = String(r[F.multiunitId]||'').trim();
+  var muName= muId?(multiunitsMap.get('name_'+muId)||''):'';
+  var fullVilla=muName?villa+' / '+muName:villa;
+  /* Nombre por fórmula */
+  var statusFormula=(r['TaBookings2021_Status_name_formula']||'').trim();
+  var rawName=r[F.guestName]||'';
+  var surname=(r['TaBookings2021_Guest_Surename']||'').trim();
+  var guestDisplay=statusFormula==='Reserva'?(rawName+(surname?' '+surname:'')).trim():(statusFormula||rawName);
+  var ad=r[F.adults]||'', ch=r[F.children]||'';
+  var paxTxt=[ad&&ad+' ad.',ch&&ch+' niños'].filter(Boolean).join(' · ');
+
+  var wpOk=isOk(r[F.wp]);
+  var borderCls=wpOk===true?'wp-done':wpOk===false?'wp-pend':'';
+
+  var urlLimp='task-limpieza.html?Idreserva='+code+'&Tasktype_booking=10&code='+code;
+  var urlWP  ='task-wp.html?Idreserva='+code+'&Tasktype_booking=20&code='+code;
+  var urlCier='https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva='+code+'&Tasktype_booking=30';
+
+  var el=document.createElement('div');
+  el.className='bk-row '+borderCls;
+  el.innerHTML=
+    '<div class="bk-main">'
+    +'<div class="bk-date-col">'
+      +'<div class="bk-day">'+esc(dayNum(ci))+'</div>'
+      +'<div class="bk-mon">'+esc(monAbbr(ci))+'</div>'
+      +(n?'<div class="bk-nights">'+n+'n</div>':'')
+    +'</div>'
+    +'<div class="bk-info">'
+      +'<div class="bk-villa">'+esc(fullVilla)+'</div>'
+      +'<div class="bk-guest">'+esc(guestDisplay)+'</div>'
+      +'<div class="bk-meta">'+esc(paxTxt)+(paxTxt?' · ':'')+'<span class="bk-code">#'+esc(code)+'</span></div>'
+    +'</div>'
+    +'<div class="bk-out">'
+      +'<div style="font-size:9px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:700;text-transform:uppercase;margin-bottom:2px">Salida</div>'
+      +'<strong>'+esc(fmtDate(co))+'</strong>'
+    +'</div>'
+    +'</div>'
+    +'<div class="bk-status-row">'
+      +stBadge('Limpieza',r[F.limpieza],urlLimp)
+      +stBadge('WelcomePack',r[F.wp],urlWP)
+      +stBadge('Cierre',r[F.cierre],urlCier)
+      +stBadge('Arrival form',r[F.arrivalForm])
+      +stBadge('Ecotasa',r[F.ecotasa])
+    +'</div>';
+  return el;
+}
+
+/* ── CARGA INICIAL ── */
+async function loadManagers(){
+  var btn=$('fManagerBtn');
+  if(btn){btn.disabled=true;$('fManagerLabel').textContent='Cargando…';}
+  try{
+    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'));
+    var json=await res.json(); var users=json.Result||json.result||[];
+    users.forEach(function(u){ allUsersMap.set(String(u[U.id]||''),String(u[U.name]||'')); });
+    var myEmail=Auth.email?Auth.email():'';
+    var myUser=users.find(function(u){return String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase();});
+    var myKeyholder=myUser?String(myUser['Keyholder_por_defecto']||'').trim():'';
+    if(myUser&&$('mgrName')) $('mgrName').value=myUser[U.name]||Auth.name()||'';
+    var managers=users.filter(function(u){
+      var s=u['User_Status']; var active=s===true||s===1||s===-1||String(s||'').toLowerCase()==='yes'||String(s||'').toLowerCase()==='sí'||String(s||'').toLowerCase()==='true';
+      return active&&String(u['Keyholder_por_defecto']||'').trim()!=='';
+    });
+    managers.forEach(function(u){ managersMap.set(String(u[U.id]||''),String(u[U.name]||'')); });
+    allManagersList=managers.map(function(u){return{id:String(u[U.id]||''),name:String(u[U.name]||'')};});
+    selectedManagers.clear();
+    if(myKeyholder) selectedManagers.add(myKeyholder);
+    renderManagerList(); updateManagerBtn(); if(btn)btn.disabled=false;
+  }catch(e){
+    if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}
+    console.error('[WP] loadManagers:',e);
+  }
+}
+
+async function loadMultiunits(){
+  try{
+    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'));
+    var json=await res.json(); var rows=json.Result||json.result||[];
+    rows.forEach(function(r){
+      var id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();
+      var muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();
+      if(id) multiunitsMap.set('name_'+id, muName);
+    });
+  }catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded',async function(){
+  if($('fDesde')) $('fDesde').value=todayStr();
+  await Promise.allSettled([loadManagers(), loadMultiunits()]);
+  doSearch();
+});
+
+window.addEventListener('pageshow',function(e){ if(e.persisted) doSearch(); });
+
+})();
+</script>
+</body>
+</html>
