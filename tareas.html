@@ -246,34 +246,41 @@ function _doSave(wrap,onDone){
   wrap.setAttribute('data-raw',newText);
   var lines=wrap.querySelector('.desc-lines');
   if(lines)lines.innerHTML=descHtml(newText);
-  var saving=wrap.querySelector('.desc-saving');
   var tid=wrap.getAttribute('data-tid')||'';
-  if(!tid){if(onDone)onDone();return;}
-  if(saving){saving.style.display='inline';saving.textContent='Guardando\u2026';saving.style.color='';}
-  fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(tid)),{
-    method:'PUT',headers:{'Content-Type':'application/json'},
+  // Cerrar inmediatamente (no esperar al guardado)
+  if(onDone)onDone();
+  if(!tid)return;
+  // Guardar en background
+  var saving=wrap.querySelector('.desc-saving');
+  if(saving){saving.textContent='Guardando…';saving.style.color='';saving.style.display='inline';}
+  var url=WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
+  fetch(Auth.url(url),{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({Taskdescription:newText})
   })
-  .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||'Error');});})
+  .then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.slice(0,80));});
+    return r.json();
+  })
   .then(function(){
-    if(saving){saving.textContent='\u2713 Guardado';setTimeout(function(){saving.style.display='none';},1500);}
-    if(onDone)onDone();
+    if(saving){saving.textContent='✓';setTimeout(function(){saving.style.display='none';},2000);}
   })
   .catch(function(e){
-    if(saving){saving.textContent='\u2715 Error';saving.style.color='var(--red)';
-      setTimeout(function(){saving.style.display='none';saving.style.color='';},2500);}
-    console.error('desc save:',e);
+    console.error('[desc save]',tid,e);
+    if(saving){saving.textContent='✕ '+e.message.slice(0,30);saving.style.color='var(--red)';
+      setTimeout(function(){saving.style.display='none';saving.style.color='';},4000);}
   });
 }
 
 function _closeDesc(btn){
   var wrap=_getWrap(btn);
-  var lines=wrap.querySelector('.desc-lines');
   var editor=wrap.querySelector('.desc-editor');
   var openBtn=wrap.querySelector('.open-btn');
   _doSave(wrap,function(){
     editor.style.display='none';
-    lines.style.display='';
+    var lines=wrap.querySelector('.desc-lines');
+    if(lines)lines.style.display='';
     if(openBtn)openBtn.style.display='';
   });
 }
