@@ -2,988 +2,724 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v29 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v29 — 12/05/2026 -->
-  <!--
-    FIX v28/v29:
-    1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
-       (DataType INTEGER, lookup Ta_Pagado_Pendiente). Se elimina Ecotasa_cobrada_select
-       del record de guardar y se usa ecoVal() directamente en Ecotasa_cobrada.
-    2. Multiunits: loadMultiunits() cargaba todos sin filtrar por villa. Ahora:
-       - loadMultiunits() solo almacena en window.__mu (sin tocar el select)
-       - populateForm() se mueve al Promise.all.then() para garantizar que
-         window.__mu esté disponible al filtrar por villaid de la reserva
-       - populateMultiunitSelect() filtra por TaVillas_villaid de la reserva
-  -->
   <!-- ══ PWA ══ -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#C8102E">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="3Villas">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/3villas-manuals/sw.js')
+        .then(r => console.log('SW registrado:', r.scope))
+        .catch(e => console.warn('SW error:', e));
+    });
+  }
+</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Editar Tarea v28 — 3Villas</title>
+  <!-- v28 —— editar-tarea.html —— 12/05/2026
+       v28:
+         - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
+         - Fix villa search: al escribir sin seleccionar, no guarda texto libre
+           · input limpia selectedVillaId
+           · blur restaura el texto al nombre de la villa seleccionada (o vacía)
+           · badge "✓ seleccionada" / "⚠ escribe y selecciona"
+  -->
+  
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--r:12px}
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
-    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25)}
-    .h-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;opacity:.7;letter-spacing:1px}
-    .h-villa{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,17px);font-weight:900;text-transform:uppercase;line-height:1.2;margin-top:2px}
-    .h-meta{font-size:11px;opacity:.75;margin-top:3px}
-    .h-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
-    .h-badge{background:rgba(255,255,255,.18);border-radius:8px;padding:4px 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
-    .card-arr{font-size:11px;color:var(--gray-4);transition:transform .22s;margin-left:auto}
-    .card-head.open .card-arr{transform:rotate(180deg)}
-    .btn-back-h{background:none;border:none;color:rgba(255,255,255,.85);cursor:pointer;font-size:12px;font-family:'Montserrat',sans-serif;font-weight:700;padding:0}
-    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.93);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
-    .spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .sp-txt{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
-    main{padding:14px 12px;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:90px}
+    header{background:var(--red);color:#fff;padding:10px 44px 10px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
+    .h-corner{position:absolute;top:8px;right:10px;display:flex;flex-direction:column;align-items:center;gap:5px}
+    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
+    .h-close:hover{background:rgba(255,255,255,.35)}
+    .h-status{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;transition:all .3s;white-space:nowrap}
+    .h-status.pend{background:rgba(255,255,255,.18);color:#fff}
+    .h-status.done{background:var(--green);color:#fff}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(15px,5vw,21px);font-weight:900;line-height:1.2;letter-spacing:.1px;margin:0;text-transform:none}
+    .h-meta{font-size:11px;opacity:.6;margin-top:3px;font-weight:400;letter-spacing:.1px}
+    main{padding:14px 12px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
     .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
-    .card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px solid var(--gray-2)}
-    .card-head h2{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);flex:1}
+    .card-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:2px solid var(--gray-2)}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;flex:1}
     .card-ico{font-size:18px;flex-shrink:0}
-    .card-head{cursor:pointer}
-    .card-head:hover{background:var(--gray-1)}
-    .card-body.collapsed{display:none}
     .card-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
-    .col-wrap{border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;transition:border-color .2s}
-    .col-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;background:#fff;transition:background .15s}
-    .col-head:hover{background:var(--gray-1)}
-    .col-ico{font-size:16px;flex-shrink:0}
-    .col-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;flex:1}
-    .col-badge{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0}
-    .col-wrap.st-done .col-head{background:#d4edda}
-    .col-wrap.st-done{border-color:#28a745;border-width:2px}
-    .col-wrap.st-done .col-badge{background:#28a745;color:#fff}
-    .col-wrap.st-done .col-title{color:#155724;font-weight:800}
-    .col-wrap.st-done .col-ico{filter:hue-rotate(80deg)}
-    .col-wrap.st-pend .col-head{background:#fff8f0}
-    .col-wrap.st-pend{border-color:rgba(224,123,0,.4)}
-    .col-wrap.st-pend .col-badge{background:var(--orange);color:#fff}
-    .col-wrap.st-na .col-badge{background:var(--gray-2);color:var(--gray-4)}
-    .col-arr{width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:11px;transition:transform .22s;flex-shrink:0}
-    .col-wrap.open .col-arr{transform:rotate(180deg)}
-    .col-body{display:none;padding:14px;border-top:1px solid var(--gray-2);background:#fff;flex-direction:column;gap:10px}
-    .col-wrap.open .col-body{display:flex}
+    .card-resolucion{border:2px solid var(--green);box-shadow:0 4px 20px rgba(30,158,78,.12)}
+    .card-resolucion .card-head{background:var(--green-light);border-bottom-color:rgba(30,158,78,.2)}
+    .card-resolucion .card-head h2{color:var(--green)}
     .field{display:flex;flex-direction:column;gap:5px}
     .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
-    .lbl-hint{font-size:11px;color:var(--gray-4);line-height:1.4;margin-top:2px}
-    textarea,select,input[type=text]{border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 13px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
-    textarea:focus,select:focus,input[type=text]:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
-    textarea{resize:vertical;min-height:80px;line-height:1.5}
+    .req{color:var(--red)}
+    input[type=text],input[type=date],select,textarea{border:1.5px solid var(--gray-2);border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    input[type=text]:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    input.err{border-color:var(--red)!important;background:var(--red-light)}
     select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-    input:disabled{background:var(--gray-1);color:var(--gray-4);cursor:not-allowed}
-    .chk-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--gray-2);cursor:pointer;user-select:none;transition:all .2s}
-    .chk-row.on{border-color:var(--green);background:var(--green-light)}
-    .chk-circle{width:24px;height:24px;border-radius:50%;border:2.5px solid var(--gray-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;font-size:13px;color:transparent;transition:all .2s}
-    .chk-row.on .chk-circle{border-color:var(--green);background:var(--green);color:#fff}
-    .chk-label{flex:1;font-size:13px;font-weight:500}
-    .chk-row.on .chk-label{color:var(--green-dark);font-weight:600}
-    input[type=checkbox].hcb{display:none}
-    .vr{display:inline-flex;align-items:center;gap:4px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px}
-    .vr.si{background:var(--green-light);color:var(--green)}
-    .vr.no{background:var(--gray-2);color:var(--gray-4)}
-    .alert{border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5}
-    .alert strong{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;display:block;margin-bottom:3px}
-    .al-or{background:var(--orange-light);border-left:3px solid var(--orange)}
-    .al-or strong{color:var(--orange)}
-    .al-rd{background:var(--red-light);border-left:3px solid var(--red)}
-    .al-rd strong{color:var(--red)}
-    .dep-opts{display:flex;flex-direction:column;gap:6px}
-    .dep-opt{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--gray-2);cursor:pointer;transition:all .15s}
-    .dep-opt:hover{border-color:var(--blue)}
-    .dep-opt.on{border-color:var(--blue);background:var(--blue-light)}
-    .dep-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-3);flex-shrink:0;margin-top:5px}
-    .dep-opt.on .dep-dot{background:var(--blue)}
-    .dep-txt{flex:1;font-size:12px;line-height:1.4}
-    .extra-line{background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-    .extra-line-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)}
-    .mu-cur{background:var(--gray-1);border-radius:8px;padding:10px 14px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px}
-    .mu-cur strong{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);display:block;margin-bottom:2px}
+    textarea{resize:vertical;min-height:76px;line-height:1.5}
+    .date-wrap{position:relative;display:block}
+    .date-wrap input[type=date]{cursor:pointer}
+    .date-wrap input[type=date]::-webkit-calendar-picker-indicator{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;opacity:0;cursor:pointer}
+    .input-mic{display:flex;gap:6px}
+    .input-mic input,.input-mic textarea{flex:1}
+    .mic-btn{flex-shrink:0;width:44px;border:1.5px solid var(--gray-2);border-radius:10px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .15s;color:var(--gray-4)}
+    .mic-btn.hidden{display:none}
+    .mic-btn:hover{border-color:var(--red);color:var(--red)}
+    .mic-btn.rec{border-color:var(--red);background:var(--red-light);animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,16,46,.3)}50%{box-shadow:0 0 0 6px rgba(200,16,46,0)}}
+    .terminada-toggle{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid var(--gray-2);border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+    .terminada-toggle:hover{border-color:var(--green)}
+    .terminada-toggle.on{border-color:var(--green);background:var(--green-light)}
+    .tt-circle{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;background:#fff;color:transparent}
+    .terminada-toggle.on .tt-circle{border-color:var(--green);background:var(--green);color:#fff}
+    .tt-text{flex:1;font-size:14px;font-weight:600}
+    .terminada-toggle.on .tt-text{color:var(--green-dark);font-weight:700}
+    .res-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+    .btn-cerrar{background:var(--green);color:#fff;border:none;border-radius:12px;padding:16px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;letter-spacing:.3px;grid-column:1/-1}
+    .btn-cerrar:hover{background:var(--green-dark);transform:translateY(-1px)}
+    .btn-cerrar:disabled{background:var(--gray-3);cursor:not-allowed;transform:none}
+    .btn-solo{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:12px;padding:12px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+    .btn-solo:hover{background:var(--gray-3)}
+    /* Fotos */
+    .photos-section-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .photo-gallery{display:flex;flex-wrap:wrap;gap:8px}
+    .photo-thumb{position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;background:var(--gray-2)}
+    .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .photo-thumb .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:0;transition:opacity .15s}
+    .photo-thumb:hover .pt-del{opacity:1}
+    .photo-thumb .pt-num{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;pointer-events:none}
+    .photo-thumb .pt-new{position:absolute;bottom:4px;left:4px;background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;display:none}
+    .photo-thumb.is-new .pt-new{display:block}
+    /* Slots vacíos */
+    .photo-empty-slot{width:90px;height:90px;border-radius:10px;border:2px dashed var(--gray-3);background:var(--gray-1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;position:relative;overflow:hidden}
+    .photo-empty-slot .pes-num{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-3)}
+    .photo-empty-slot .pes-btns{display:flex;gap:4px}
+    .photo-empty-slot .pes-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:7px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;transition:all .15s}
+    .photo-empty-slot .pes-btn:hover{border-color:var(--red);background:var(--red-light)}
+    .photo-empty-slot input[type=file]{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;font-size:0}
+    /* Más opciones */
+    .mas-opt-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border:1.5px dashed var(--gray-3);border-radius:10px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;width:100%;transition:all .15s}
+    .mas-opt-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .mas-opt-panel{display:none;padding-top:10px}
+    .mas-opt-panel.open{display:block}
+    .villa-search-wrap{position:relative}
+    .villa-dropdown{position:fixed;background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;box-shadow:var(--shadow-md);z-index:9000;max-height:220px;overflow-y:auto;display:none}
+    .villa-opt{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-2);transition:background .1s}
+    .villa-opt:last-child{border-bottom:none}
+    .villa-opt:hover{background:var(--red-light);color:var(--red)}
+    .villa-opt mark{background:rgba(200,16,46,.15);color:var(--red);border-radius:2px;font-style:normal}
+    .villa-current{font-size:11px;color:var(--gray-4);margin-top:4px;font-family:'Montserrat',sans-serif;font-weight:600}
+    .villa-current.ok{color:var(--green)}
+    .villa-current.warn{color:var(--orange)}
+    .photo-divider{border:none;border-top:2px dashed rgba(224,123,0,.35);margin:4px 0}
+    /* Save bar */
     .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
-    .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1}
+    .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
     .btn-save:hover{background:var(--red-dark)}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
     .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
-    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
-    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
+    .btn-save.loading{opacity:.85}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
+    #stLoad,#stErr{padding:60px 20px;text-align:center;color:var(--gray-4)}
+    .big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-lg);transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
     #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
-    #toast.ok{background:var(--green)}#toast.err{background:var(--red)}
-    @media(max-width:480px){.field-row{grid-template-columns:1fr}}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+    #successBox{display:none;text-align:center;padding:40px 20px}
+    #successBox .big{font-size:56px;margin-bottom:12px}
+    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
+    #lightbox.open{display:flex}
+    #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px}
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}.res-btns{grid-template-columns:1fr}.btn-cerrar{grid-column:auto}}
+  
+    .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .re-row .lbl{margin:0}
+    .re-btn{border:1px solid var(--gray-3);border-radius:6px;background:var(--gray-1);padding:2px 9px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.6;transition:all .12s}
+    .re-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .ql-wrap{flex:1}
+    .ql-container.ql-snow{border:1.5px solid var(--gray-2);border-radius:10px;font-size:14px;transition:border-color .15s,box-shadow .15s}
+    .ql-container.ql-snow:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .ql-editor{min-height:76px;padding:11px 14px;line-height:1.5;color:var(--gray-5);font-size:14px;font-family:'Open Sans',sans-serif}
+    .ql-editor.ql-blank::before{color:var(--gray-3);font-style:normal}
+    .ql-editor ul>li::before{color:var(--red)}
+    .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
+    .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
   </style>
   <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+  <meta name="theme-color" content="#C8102E">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </head>
 <body>
-<script>Auth.require('entradas');</script>
-<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt">Cargando reserva…</div></div>
+<script>Auth.require('tareas');</script>
+<div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
 <div id="toast"></div>
-
-<header>
-  <div class="h-label">Notas Equipo Reservas</div>
-  <div class="h-villa" id="hVilla">Cargando…</div>
+<header id="mainHeader" style="position:sticky;top:0">
+  <div class="h-corner">
+    <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
+    <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+  </div>
+  <div class="h-title" id="hTitle">Cargando…</div>
   <div class="h-meta" id="hMeta"></div>
-  <div class="h-row">
-    <button class="btn-back-h" onclick="history.back()">← Volver</button>
-    <span class="h-badge" id="hStatus">—</span>
-  </div>
 </header>
+<main>
+  <div id="stLoad" class="card"><div class="big-spinner"></div><p style="font-family:Montserrat,sans-serif;font-weight:700">Cargando tarea…</p></div>
+  <div id="stErr" class="card" style="display:none"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p><p style="font-size:12px">Comprueba el parámetro taskid en la URL.</p></div>
 
-<main id="mainContent" style="display:none">
+  <div id="formWrap" style="display:none;flex-direction:column;gap:12px">
 
-<!-- ══ 1. NOTAS ══ -->
-<div class="card">
-  <div class="card-head" onclick="togCard('card-notas')"><span class="card-ico">🧹</span><h2 style="flex:1">Notas</h2><span class="card-arr" id="arr-card-notas">▾</span></div>
-  <div class="card-body collapsed" id="body-card-notas">
-    <div class="field">
-      <label class="lbl">Notas limpieza</label>
-      <textarea id="fCleaningNotes" rows="3" placeholder="Notas para el equipo de limpieza…"></textarea>
-    </div>
-    <div class="field">
-      <label class="lbl">Notas depósito de seguridad</label>
-      <p class="lbl-hint">Si no hay que devolver el depósito o se tiene que devolver parcialmente, escríbelo aquí para que administración esté al corriente.</p>
-      <textarea id="fSecurityNotes" rows="3" placeholder="Ej: Devolver solo 500€ por daños…"></textarea>
-    </div>
-    <div class="field">
-      <label class="lbl">Notas villamanager <span style="color:var(--gray-3);font-size:9px;font-weight:600;text-transform:none">· visibles en pantalla de entradas</span></label>
-      <textarea id="fKeyholderNotes" rows="3" placeholder="Notas del villamanager para esta reserva…"></textarea>
-    </div>
-    <div class="field">
-      <label class="lbl">Early check-in <span style="font-weight:400;text-transform:none;font-size:10px">(hora acordada con el cliente)</span></label>
-      <select id="fEarlyCheckin">
-        <option value="">— No aplica —</option>
-        <option value="08:00">08:00</option><option value="09:00">09:00</option>
-        <option value="10:00">10:00</option><option value="11:00">11:00</option>
-        <option value="12:00">12:00</option><option value="13:00">13:00</option>
-      </select>
-    </div>
-  </div>
-</div>
-
-<!-- ══ 2. TELÉFONO DEL INQUILINO ══ -->
-<div class="card">
-  <div class="card-head" onclick="togCard('card-phone')"><span class="card-ico">📞</span><h2 style="flex:1">Teléfono del inquilino</h2><span class="card-arr" id="arr-card-phone">▾</span></div>
-  <div class="card-body collapsed" id="body-card-phone">
-    <div class="field-row">
-      <div class="field"><label class="lbl">Tfn Hostaway</label><input type="text" id="fPhone1" disabled></div>
-      <div class="field"><label class="lbl">Tfn Arrival Form</label><input type="text" id="fPhone2" placeholder="Teléfono arrival form…"></div>
-    </div>
-    <div class="field">
-      <label class="lbl">Cual se está usando</label>
-      <select id="fPhoneCual"><option value="">Número de Hostaway</option></select>
-    </div>
-  </div>
-</div>
-
-<!-- ══ 3. MULTIUNITS ══ -->
-<!-- FIX v28/v29: el selector fMultiunit ahora solo muestra los multiunits
-     de la villa de esta reserva (filtrado por TaVillas_villaid) -->
-<div class="card">
-  <div class="card-head" onclick="togCard('card-mu')"><span class="card-ico">🏠</span><h2 style="flex:1">Multiunits</h2><span class="card-arr" id="arr-card-mu">▾</span></div>
-  <div class="card-body collapsed" id="body-card-mu" style="padding:0">
-    <div class="col-wrap" id="colMu" style="border-radius:0;border:none;border-top:1px solid var(--gray-2)">
-      <div class="col-head" onclick="tog('colMu')">
-        <span class="col-ico">🔀</span>
-        <div style="flex:1"><div class="col-title">Cambiar apartamento</div><div id="muSubtitle" style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:var(--gray-4);margin-top:2px">Sin multiunit asignado</div></div>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColMu">
-        <div class="field"><label class="lbl">Apartamento actual</label>
-          <div class="mu-cur"><div><strong>Código</strong><span id="muCode">—</span></div><div><strong>Nombre</strong><span id="muName">—</span></div></div>
+    <!-- RESOLUCIÓN -->
+    <div class="card card-resolucion">
+      <div class="card-head"><span class="card-ico">🏁</span><h2>Resolución</h2></div>
+      <div class="card-body">
+        <div class="terminada-toggle" id="ttRow" onclick="toggleTerminada()">
+          <div class="tt-circle" id="ttCircle"></div>
+          <span class="tt-text" id="ttText">Marcar como terminada</span>
         </div>
-        <div class="field"><label class="lbl">Cambiar a</label><select id="fMultiunit"><option value="">— Sin cambio —</option></select></div>
-        <div class="field"><label class="lbl">Tipo Pensión</label><select id="fTipoPension"><option value="">— Sin especificar —</option></select></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ 4. CHECKIN ONLINE ══ -->
-<div class="card">
-  <div class="card-head" onclick="togCard('card-ci')"><span class="card-ico">✅</span><h2 style="flex:1">Checkin Online</h2><span class="card-arr" id="arr-card-ci">▾</span></div>
-  <div class="card-body collapsed" id="body-card-ci" style="gap:8px">
-
-    <!-- 4.1 Arrival Form -->
-    <div class="col-wrap st-na" id="colArrival">
-      <div class="col-head" onclick="tog('colArrival')">
-        <span class="col-ico">📋</span>
-        <span class="col-title">Arrival Form</span>
-        <span class="col-badge" id="stArrival">No aplica</span>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColArrival">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div id="vrArrival" style="width:100%"></div>
+        <div class="field">
+          <div class="re-row"><label class="lbl">Solución aplicada</label><button type="button" class="re-btn" onclick="qFmt('fSolucion','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fSolucion','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fSolucion_ql"></div></div><button class="mic-btn hidden" id="micSolucion" type="button">🎤</button></div>
+          <textarea id="fSolucion" style="display:none"></textarea>
         </div>
-        <div id="arrFormSummary" style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;margin-bottom:8px;font-size:12px">
-          <div style="background:var(--gray-1);padding:6px 10px;border-bottom:1px solid var(--gray-2)">
-            <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-5)">🔍 Hostaway vs Arrival Form</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
-            <thead>
-              <tr style="background:var(--gray-1)">
-                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">Campo</th>
-                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">📋 Hostaway</th>
-                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">📝 Formulario</th>
-                <th style="padding:5px 8px;text-align:center;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">≠</th>
-              </tr>
-            </thead>
-            <tbody id="af_cmpBody"></tbody>
-          </table>
-          <div style="background:var(--gray-1);padding:6px 10px;border-top:1px solid var(--gray-2);border-bottom:1px solid var(--gray-2)">
-            <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-5)">📋 Solo en el formulario</span>
-          </div>
-          <div style="padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <div id="af_agesWrap"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades adultos</span><br><span id="af_ages">—</span></div>
-            <div id="af_childAgesWrap"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades niños/bebés</span><br><span id="af_childAges">—</span></div>
-            <div id="af_infoWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--orange);text-transform:uppercase">🛏 Extras (cunas, tronas…)</span><br><span id="af_info" style="color:var(--orange);font-weight:600">—</span></div>
-            <div id="af_camasWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:#4060cc;text-transform:uppercase">🛏 Reorganizar camas</span><br><span id="af_camas" style="color:#4060cc;font-weight:600">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Llegada Menorca</span><br><span id="af_arrival">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Salida Menorca</span><br><span id="af_departure">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Check-in solicitado</span><br><span id="af_checkinTime">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Check-out solicitado</span><br><span id="af_checkoutTime">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">DNI / NIE / Pasaporte</span><br><span id="af_dni" style="font-family:monospace;font-weight:700">—</span></div>
-            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">País / Ciudad</span><br><span id="af_country">—</span> / <span id="af_city">—</span></div>
-            <div style="grid-column:1/-1"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Dirección</span><br><span id="af_address">—</span></div>
-          </div>
-        </div>
-        <div class="alert al-rd" style="margin-bottom:4px">
-          <strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.
-        </div>
-        <div class="chk-row" id="rowArrDone" onclick="chkTog('cbArrDone','rowArrDone')">
-          <input type="checkbox" class="hcb" id="cbArrDone">
-          <div class="chk-circle" id="circArrDone"></div>
-          <span class="chk-label">Arrival Form rellenado</span>
+        <div class="res-btns">
+          <button class="btn-cerrar" id="btnCerrar" type="button">
+            <span id="spinCerrar" style="display:none;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;flex-shrink:0"></span>
+            <span>✅ Cerrar y guardar tarea</span>
+          </button>
+          <button class="btn-solo" id="btnSoloGuardar" type="button">💾 Solo guardar</button>
+          <button class="btn-solo" type="button" onclick="goBack()">← Volver</button>
         </div>
       </div>
     </div>
 
-    <!-- 4.2 Registro de Policía -->
-    <div class="col-wrap st-na" id="colPolicia">
-      <div class="col-head" onclick="tog('colPolicia')">
-        <span class="col-ico">🚔</span>
-        <span class="col-title">Registro de Policía</span>
-        <span class="col-badge" id="stPolicia">No aplica</span>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColPolicia">
-        <div><div id="vrPolicia" style="width:100%"></div></div>
-        <div id="policeUrlWrap" style="display:block;background:var(--gray-1);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-          <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:6px">🔗 Enlace Registro de Policía</div>
-          <a id="policeUrl" href="#" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);word-break:break-all;font-family:monospace;display:block;margin-bottom:6px">—</a>
-          <button onclick="navigator.clipboard.writeText(document.getElementById('policeUrl').href).then(function(){toast('✅ Enlace copiado','ok');})" style="background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:7px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer">📋 Copiar enlace</button>
-        </div>
-        <div class="alert al-rd"><strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.</div>
-        <div class="chk-row" id="rowPolDone" onclick="chkTog('cbPolDone','rowPolDone','colPolicia')">
-          <input type="checkbox" class="hcb" id="cbPolDone">
-          <div class="chk-circle" id="circPolDone"></div>
-          <span class="chk-label">Registro de Policía rellenado</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4.3 Ecotasa -->
-    <!-- FIX v28/v29: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
-         Se usa fEcotasaCobrada (select) y ecoVal() para guardar. -->
-    <div class="col-wrap st-na" id="colEcotasa">
-      <div class="col-head" onclick="tog('colEcotasa')">
-        <span class="col-ico">🌿</span>
-        <span class="col-title">Ecotasa</span>
-        <span class="col-badge" id="stEcotasa">No aplica</span>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColEcotasa">
-        <div id="vrEcotasa" style="margin-bottom:10px"></div>
-        <div style="border:2px solid var(--green);border-radius:10px;overflow:hidden;margin-bottom:10px">
-          <div style="background:var(--green-light);padding:7px 12px;border-bottom:1px solid rgba(30,158,78,.2)">
-            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green)">📋 Datos de la reserva</span>
-          </div>
-          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <div style="flex:1;min-width:120px">
-                <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:2px">Inquilino</div>
-                <div id="ecoGuestName" style="font-size:13px;font-weight:700;color:var(--gray-5)">—</div>
-              </div>
-              <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:8px;padding:6px 12px;text-align:center;min-width:56px">
-                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--green);text-transform:uppercase">Noches</div>
-                <div id="ecoNights" style="font-size:18px;font-weight:900;color:var(--green)">—</div>
-              </div>
-              <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:8px;padding:6px 12px;text-align:center;min-width:80px">
-                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--green);text-transform:uppercase">Niños (formulario)</div>
-                <div id="ecoChildrenForm" style="font-size:18px;font-weight:900;color:var(--green)">—</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Niños (reserva):</div>
-              <div id="ecoChildren" style="font-size:13px;font-weight:700;color:var(--gray-5)">—</div>
-            </div>
+    <!-- TAREA -->
+    <div class="card">
+      <div class="card-head"><span class="card-ico">✏️</span><h2 id="tareaCardTitle">Tarea</h2></div>
+      <div class="card-body">
+        <div class="field">
+          <label class="lbl">Nombre <span class="req">*</span></label>
+          <div class="input-mic">
+            <input type="text" id="fNombre" placeholder="Nombre de la tarea…" autocomplete="off">
+            <button class="mic-btn hidden" id="micNombre" type="button">🎤</button>
           </div>
         </div>
-        <div style="border:2px solid var(--red);border-radius:10px;overflow:hidden;margin-bottom:10px">
-          <div style="background:var(--red-light);padding:7px 12px;border-bottom:1px solid rgba(200,16,46,.15)">
-            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red)">⚠️ CORREGIR EL NÚMERO DE ADULTOS</span>
+        <div class="field">
+          <div class="re-row"><label class="lbl">Descripción</label><button type="button" class="re-btn" onclick="qFmt('fDesc','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fDesc','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fDesc_ql"></div></div><button class="mic-btn hidden" id="micDesc" type="button">🎤</button></div>
+          <textarea id="fDesc" style="display:none"></textarea>
+        </div>
+        <div class="field">
+          <label class="lbl">Notas internas del equipo</label>
+          <div class="input-mic">
+            <textarea id="fNotas" rows="2" placeholder="Notas internas…"></textarea>
+            <button class="mic-btn hidden" id="micNotas" type="button">🎤</button>
           </div>
-          <div style="padding:10px 12px">
-            <p style="font-size:12px;color:var(--red);font-weight:700;line-height:1.5">Si por algún motivo el número de adultos en la reserva está mal, lo podemos cambiar indicando el número correcto en "Adultos corregir" y el cálculo de la ecotasa se recalculará solo.</p>
-          </div>
-        </div>
-        <div style="border:2px solid #1a73e8;border-radius:10px;overflow:hidden">
-          <div style="background:#e8f0fe;padding:7px 12px;border-bottom:1px solid rgba(26,115,232,.2)">
-            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:#1a73e8">🌿 Ecotasa</span>
-          </div>
-          <div style="padding:12px;display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-4)">Ecotasa actual:</span>
-              <span id="ecoFinal" style="font-size:18px;font-weight:900;color:var(--green)">—</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px">
-              <div style="background:var(--gray-1);border-radius:8px;padding:8px;text-align:center">
-                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos reserva</div>
-                <div id="ecoAdults" style="font-size:22px;font-weight:900;color:var(--gray-5)">—</div>
-              </div>
-              <div style="background:var(--gray-1);border-radius:8px;padding:8px">
-                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos (Descripción rellenada en formulario)</div>
-                <div id="ecoAdultsForm" style="font-size:12px;font-weight:600;color:var(--gray-5);word-break:break-all">—</div>
-                <div id="ecoAges" style="font-size:10px;color:var(--gray-4);margin-top:3px"></div>
-              </div>
-              <div style="background:var(--gray-1);border-radius:8px;padding:8px;text-align:center">
-                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos corregir</div>
-                <input type="number" id="fAdultosCorregir" style="width:60px;border:1.5px solid var(--gray-2);border-radius:6px;padding:4px 6px;font-size:16px;font-weight:700;text-align:center">
-              </div>
-            </div>
-            <div style="border:2px solid var(--orange);border-radius:10px;overflow:hidden">
-              <div onclick="var b=this.nextElementSibling;var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.eco-arr').textContent=open?'▾':'▴';"
-                   style="background:var(--orange-light);padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(224,123,0,.2)">
-                <span style="font-size:16px">⚠️</span>
-                <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--orange);flex:1">PELIGRO — Modificar Ecotasa</span>
-                <span class="eco-arr" style="color:var(--orange);font-size:11px">▾</span>
-              </div>
-              <div style="display:none;padding:12px;background:#fffdf5" class="eco-casos-body">
-                <p style="font-size:11px;color:var(--orange);font-weight:700;margin-bottom:10px;line-height:1.4">⚠️ Usar SOLO EN CASOS EXCEPCIONALES. Si el cálculo de la ecotasa es incorrecto podemos poner el IMPORTE a cobrar aquí manualmente.</p>
-                <div class="field" style="margin-bottom:10px">
-                  <label class="lbl">Importe Ecotasa manual</label>
-                  <input type="text" id="fEcotasaManual" placeholder="0.00" oninput="chkImporte(this)" style="max-width:140px">
-                </div>
-                <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Si la ecotasa se ha pagado por otro canal marcarla como cobrada e indicar en comentarios, donde se ha cobrado.</p>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start">
-                  <div class="field">
-                    <label class="lbl">Estado</label>
-                    <!-- fEcotasaCobrada: valores del lookup Ta_Pagado_Pendiente (TableID integer) -->
-                    <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
-                      <option value="">— Pendiente —</option>
-                      <option value="1">Pagado</option>
-                      <option value="0">Pendiente</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label class="lbl">Comentarios Ecotasa</label>
-                    <textarea id="fEcotasaComentarios" rows="2" placeholder="Donde se ha cobrado, incidencias…"></textarea>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4.4 Depósito de Seguridad -->
-    <div class="col-wrap st-na" id="colDeposito">
-      <div class="col-head" onclick="tog('colDeposito')">
-        <span class="col-ico">🔐</span>
-        <span class="col-title">Depósito de Seguridad</span>
-        <span class="col-badge" id="stDeposito">No aplica</span>
-        <div class="col-arr">▾</div>
-      </div>
-      <div class="col-body" id="bodyColDeposito">
-        <span id="vrDeposito" style="font-size:11px;padding:4px 8px;border-radius:6px">—</span>
-        <div class="alert al-rd" style="margin-bottom:4px">
-          <strong>⚠️ PELIGRO — NO TOCAR SIN AVISAR PRIMERO</strong>
-          En principio este campo NO se debe modificar. Si necesita tocarse: avisar antes a <strong>Jordi</strong> y dejar una nota en "Notas depósito de seguridad" explicando el motivo.
-        </div>
-        <div class="chk-row" id="rowDepTerm" onclick="chkTog('cbDepTerm','rowDepTerm')">
-          <input type="checkbox" class="hcb" id="cbDepTerm">
-          <div class="chk-circle" id="circDepTerm"></div>
-          <span class="chk-label">Depósito de Seguridad — Terminado</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div class="field"><label class="lbl">Depósito EUR</label><input type="text" id="fDepEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
-          <div class="field"><label class="lbl">Waiver EUR</label><input type="text" id="fWavEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
-          <div class="field"><label class="lbl">Gasto tarjeta</label><input type="text" id="fGastoT" oninput="chkImporte(this)" placeholder="0,00"></div>
-        </div>
-        <div class="alert al-or"><strong>⚠️ MUY IMPORTANTE</strong>NUNCA modificar los importes si ya se han cobrado. Para BODAS y Reservas conflictivas: en "Se permite waiver" poner NO.</div>
-        <div class="field"><label class="lbl">Se permite seleccionar waiver en esta reserva</label>
-          <p class="lbl-hint">Solo puede ser <strong>Sí</strong> o <strong>No</strong>. Cambia a <strong>No</strong> para BODAS y reservas conflictivas.</p>
-          <select id="fSeWaver"><option value="">Cargando…</option></select>
         </div>
         <div class="field-row">
-          <div class="field"><label class="lbl">IBAN Inquilino</label><input type="text" id="fIBAN" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
-          <div class="field"><label class="lbl">BIC / SWIFT</label><input type="text" id="fBIC" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
-        </div>
-        <div class="field"><label class="lbl">Comentarios sobre el waiver</label><p class="lbl-hint" style="margin-bottom:6px">Anota aquí cualquier comentario: cambios en el waiver, incidencias o cualquier observación del inquilino sobre el pago del waiver.</p><textarea id="fWaverText" rows="3" placeholder="Comentarios sobre el waiver…"></textarea></div>
-        <div class="field">
-          <label class="lbl">Opción seleccionada por el cliente</label>
-          <div id="depPanel" style="display:flex;flex-direction:column;gap:6px">
-            <p style="color:var(--gray-3);font-size:11px">Cargando opciones…</p>
+          <div class="field">
+            <label class="lbl">Asignado a</label>
+            <select id="fAsignado"><option value="">Cargando…</option></select>
           </div>
-          <input type="hidden" id="fDepOpt">
+          <div class="field">
+            <label class="lbl">Fecha</label>
+            <div class="date-wrap"><input type="date" id="fFecha"></div>
+          </div>
+        </div>
+        <!-- v28: Campo villa siempre visible, fuera de "Más opciones" -->
+        <div class="field">
+          <label class="lbl">Villa</label>
+          <div class="villa-search-wrap">
+            <input type="text" id="fVillaSearch" placeholder="Buscar villa por nombre…" autocomplete="off">
+            <div class="villa-dropdown" id="villaDropdown"></div>
+          </div>
+          <div class="villa-current" id="villaCurrentLabel"></div>
         </div>
       </div>
     </div>
 
-  </div>
-</div>
+    <!-- FOTOS -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-ico">📸</span><h2>Fotos</h2>
+        <span id="newPhotosBadge" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;background:var(--orange-light);color:var(--orange);padding:2px 8px;border-radius:10px">NUEVAS</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="photos-section-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray-3);display:inline-block;flex-shrink:0"></span>Fotos antes</div>
+          <div class="photo-gallery" id="beforeGallery"></div>
+          <input type="file" id="beforeCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="beforeFileInp" accept="image/*" style="display:none">
+        </div>
+        <hr class="photo-divider">
+        <div>
+          <div class="photos-section-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;flex-shrink:0"></span>Fotos después</div>
+          <div class="photo-gallery" id="afterGallery"></div>
+          <input type="file" id="afterCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="afterFileInp" accept="image/*" style="display:none">
+        </div>
+      </div>
+    </div>
 
-<!-- ══ 5. COBROS EXTRAS ══ -->
-<div class="card">
-  <div class="card-head" onclick="togCard('card-extras')"><span class="card-ico">💶</span><h2 style="flex:1">Cobros Extras y Upselling</h2><span class="card-arr" id="arr-card-extras">▾</span></div>
-  <div class="card-body collapsed" id="body-card-extras">
-    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">1️⃣ Línea 1</span><span id="stUp1" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
-      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp1Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(1)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp1EUR" oninput="chkImporte(this);updateUpBadge(1)" placeholder="0,00"></div>
+    <div class="card" id="successCard" style="display:none">
+      <div id="successBox"><div class="big">✅</div><h3 style="font-family:Montserrat,sans-serif;font-size:18px;font-weight:800;margin-bottom:6px">¡Tarea actualizada!</h3><p style="color:var(--gray-4);font-size:13px">Cerrando…</p></div>
     </div>
-    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">2️⃣ Línea 2</span><span id="stUp2" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
-      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp2Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(2)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp2EUR" oninput="chkImporte(this);updateUpBadge(2)" placeholder="0,00"></div>
-    </div>
-    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">3️⃣ Línea 3</span><span id="stUp3" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
-      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp3Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(3)"></div>
-      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp3EUR" oninput="chkImporte(this);updateUpBadge(3)" placeholder="0,00"></div>
-    </div>
-    <div style="background:var(--blue-light);border-radius:10px;padding:12px 14px">
-      <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🔗 Link de cobros para el cliente</div>
-      <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Úsalo solo si hace falta pasárselo directamente al cliente.</p>
-      <a id="linkCobros" href="#" target="_blank" style="font-size:11px;color:var(--blue);word-break:break-all;font-family:monospace">—</a>
-      <button onclick="copiarLink()" style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:8px;padding:7px 14px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;width:100%">📋 Copiar enlace</button>
-    </div>
-  </div>
-</div>
 
+  </div>
 </main>
 
 <div class="save-bar" id="saveBar" style="display:none">
-  <button class="btn-back2" onclick="history.back()">← Volver</button>
-  <button class="btn-save" id="btnSave" onclick="guardar()">💾 Guardar</button>
+  <button class="btn-back2" onclick="goBack()">← Volver</button>
+  <button class="btn-save" id="btnSaveBar" type="button"><span id="saveBarLabel">💾 Guardar cambios</span></button>
 </div>
 
 <script>
 (function(){
 'use strict';
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
-var params=new URLSearchParams(location.search);
-var confCode=(params.get('TaBookings2021_FS_confirmation_code')||'').trim();
-var bookingData=null,villaData=null,isSaving=false;
-var selDepOpt=0;
+var PK='taskid';
+var F={nombre:'Taskname',descripcion:'Taskdescription',fecha:'Data_to_be_done_fixed',asignado:'UserID_asigned_alfanum',terminada:'Tarea_terminada',notas:'Internal_notes',solucion:'Solutiondescription'};
+var BEFORE_FIELDS=['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+var AFTER_FIELDS=['Picture_cloudfare_after1','Picture_cloudfare_after2','Picture_cloudfare_after3','Picture_cloudfare_after4','Picture_cloudfare_after5'];
 
-function g(id){return document.getElementById(id);}
-function isTruthy(v){
-  if(v===null||v===undefined||v===''||v===false)return false;
-  if(v===true||v===1||v===-1)return true;
-  var n=Number(v);
-  if(!isNaN(n)&&String(v).trim()!=='')return n!==0;
-  var s=String(v).toLowerCase().trim();
-  return['yes','si','sí','true','1','-1','on'].indexOf(s)!==-1;
+// Estado fotos: array de 5, índice fijo = slot fijo
+var beforePhotos=[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+
+var myUserName='',taskData=null,isSaving=false,isTerminada=false;
+var allVillas=[],selectedVillaId='';
+var urlP=new URLSearchParams(window.location.search);
+var taskId=(urlP.get('taskid')||'').trim();
+
+function g(id){ return document.getElementById(id); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function today(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+var _toastT;
+function toast(msg,type){ var el=g('toast'); el.textContent=msg; el.className='show '+(type||''); clearTimeout(_toastT); _toastT=setTimeout(function(){ el.className=''; },4000); }
+
+window.openLightbox=function(src){ if(!src)return; g('lbImg').src=src; g('lightbox').classList.add('open'); };
+window.closeLightbox=function(){ g('lightbox').classList.remove('open'); };
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') window.closeLightbox(); });
+
+function setTerminada(val){
+  isTerminada=!!val;
+  var row=g('ttRow'),circle=g('ttCircle'),text=g('ttText');
+  if(isTerminada){ row&&row.classList.add('on'); if(circle)circle.textContent='✓'; if(text)text.textContent='Tarea terminada ✓'; }
+  else { row&&row.classList.remove('on'); if(circle)circle.textContent=''; if(text)text.textContent='Marcar como terminada'; }
+  var s=g('hStatus'),h=g('mainHeader');
+  if(s){ if(isTerminada){s.textContent='✅ Terminada';s.className='h-status done';if(h)h.style.background='var(--green-dark)';}
+         else{s.textContent='⏳ Pendiente';s.className='h-status pend';if(h)h.style.background='var(--red)';} }
 }
-function isOk(v){if(v===null||v===undefined||v==='')return null;var s=String(v).toLowerCase().trim();if(['pagado','hecho','done','1'].indexOf(s)!==-1)return true;if(['pendiente','0','false','no'].indexOf(s)!==-1)return false;return null;}
+window.toggleTerminada=function(){ setTerminada(!isTerminada); };
 
-var _tt;
-function toast(msg,type){var el=g('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);}
-
-window.togCard=function(id){
-  var body=g('body-'+id),arr=g('arr-'+id);if(!body)return;
-  var open=body.classList.contains('collapsed');
-  body.classList.toggle('collapsed',!open);
-  if(arr)arr.style.transform=open?'rotate(180deg)':'';
-};
-window.tog=function(id){var w=g(id);if(w)w.classList.toggle('open');};
-
-window.chkTog=function(cbId,rowId){
-  var cb=g(cbId);if(!cb||cb.disabled)return;
-  cb.checked=!cb.checked;syncChk(cbId,rowId);
-};
-function syncChk(cbId,rowId){
-  var cb=g(cbId),row=g(rowId),circ=g('circ'+cbId.replace('cb',''));
-  if(!cb||!row)return;
-  row.classList.toggle('on',cb.checked);
-  if(circ)circ.textContent=cb.checked?'✓':'';
-}
-function setCb(cbId,rowId,val){var cb=g(cbId);if(cb)cb.checked=val;syncChk(cbId,rowId);}
-
-function setColState(wrapId,stId,villaSolicita,done){
-  var w=g(wrapId),st=g(stId);if(!w||!st)return;
-  w.classList.remove('st-done','st-pend','st-na');
-  if(done){w.classList.add('st-done');st.textContent='✓ Terminado';}
-  else{w.classList.add('st-pend');st.textContent='Pendiente';}
-}
-function setVr(id,active,label){
-  var el=g(id);if(!el)return;
-  var villa=String(fB('Property_Title')||'Esta villa');
-  if(active){
-    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#d4edda;color:#155724;border:1.5px solid #c3e6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
-      '<span style="font-size:16px">✅</span>'+
-      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
-      'Se solicita <strong>'+label+'</strong> en el checkin online de esta villa</span></span>';
-  } else {
-    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#f8d7da;color:#721c24;border:1.5px solid #f5c6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
-      '<span style="font-size:16px">❌</span>'+
-      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
-      'Esta villa <strong>NO</strong> requiere '+label+' en el checkin online</span></span>';
-  }
-}
-
-window.updateEcoStatus=function(){
-  var eco=g('fEcotasaCobrada').value;
-  setColState('colEcotasa','stEcotasa',true,eco==='1');
+window.toggleMasOpt=function(){
+  var p=g('masOptPanel'),b=g('masOptBtn'); if(!p||!b)return;
+  var open=p.classList.contains('open');
+  p.classList.toggle('open',!open);
+  b.textContent=open?'▾ Más opciones':'▴ Menos opciones';
 };
 
-window.updateUpBadge=function(n){
-  var eur=(g('fUp'+n+'EUR')||{}).value||'';
-  var cob=window.__upCobrado&&window.__upCobrado[n];
-  var st=g('stUp'+n);if(!st)return;
-  if(!eur.trim()){st.style.display='none';return;}
-  st.style.display='';
-  if(cob===1){st.textContent='✓ Cobrado';st.style.background='var(--green)';st.style.color='#fff';}
-  else{st.textContent='Pendiente';st.style.background='var(--red)';st.style.color='#fff';}
-};
-
-window.selectDepOpt=function(id){
-  selDepOpt=parseInt(id);
-  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
-  renderDepositPanel();
-};
-
-function renderDepositPanel(){
-  var cont=g('depPanel');if(!cont)return;
-  var opts=window.__depOptions||[];
-  var current=selDepOpt;
-  if(!opts.length){cont.innerHTML='<p style="color:var(--gray-3);font-size:11px;padding:8px">Cargando opciones…</p>';return;}
-  var curOpt=opts.filter(function(o){return parseInt(o.deposit_options_ID)===current;})[0];
-  var html='';
-  if(curOpt){
-    html+='<div style="background:var(--blue);color:#fff;border-radius:10px;padding:12px 14px">';
-    html+='<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Opción seleccionada actualmente</div>';
-    html+='<div style="font-weight:700;font-size:14px;line-height:1.3">'+curOpt.Option_description+'</div>';
-    html+='<div style="font-size:10px;opacity:.75;margin-top:3px;font-family:Montserrat,sans-serif">Código: <b>'+curOpt.Option_name+'</b> · ID: '+curOpt.deposit_options_ID+'</div>';
-    html+='</div>';
-  } else {
-    html+='<div style="background:var(--gray-2);border-radius:10px;padding:10px 14px"><div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-4)">Sin opción seleccionada</div></div>';
-  }
-  html+='<div style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;margin-top:2px">';
-  html+='<div style="background:var(--gray-1);padding:7px 12px;border-bottom:1px solid var(--gray-2)"><span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">Todas las opciones disponibles</span></div>';
-  opts.forEach(function(o,i){
-    var id=parseInt(o.deposit_options_ID);var sel=(id===current);
-    var bg=sel?'var(--blue-light)':'#fff';var bl=sel?'border-left:4px solid var(--blue)':'border-left:4px solid transparent';
-    var last=(i===opts.length-1)?'':'border-bottom:1px solid var(--gray-2)';
-    html+='<div style="'+bl+';'+last+';background:'+bg+';padding:10px 14px;display:flex;align-items:center;gap:10px">';
-    html+='<span style="font-size:15px;color:'+(sel?'var(--blue)':'var(--gray-3)')+';flex-shrink:0;width:16px;text-align:center">'+(sel?'●':'○')+'</span>';
-    html+='<div style="flex:1"><div style="font-size:12px;font-weight:'+(sel?'700':'400')+';color:'+(sel?'var(--blue)':'var(--gray-5)')+'">'+o.Option_description+'</div>';
-    html+='<div style="font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif;margin-top:1px">ID: '+id+' · <b>'+o.Option_name+'</b></div></div>';
-    if(sel) html+='<span style="background:var(--blue);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:8px;flex-shrink:0">ACTUAL</span>';
-    html+='</div>';
-  });
-  html+='</div>';
-  cont.innerHTML=html;
-}
-
-/* ── FIX v28/v29: ecoVal lee fEcotasaCobrada (select) y devuelve INTEGER
-   para guardar en TaBookings2021_Ecotasa_cobrada (DataType INTEGER,
-   lookup Ta_Pagado_Pendiente: 1=Pagado, 0=Pendiente, null=sin valor) ── */
-function ecoVal(){
-  var eco=g('fEcotasaCobrada').value;
-  if(eco==='1')return 1;
-  if(eco==='0')return 0;
-  return null;
-}
-
-/* ══ CARGA DE DATOS ══ */
-function setSelectVal(id,val){
-  var sel=g(id);if(!sel||val===''||val===null||val===undefined)return;
-  for(var i=0;i<sel.options.length;i++){if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;}}
-}
-
-function loadTfnOpts(){
-  return fetch(Auth.url(WORKER+'?action=data&table=Ta_numero_tfn_a_usar&limit=50'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];var sel=g('fPhoneCual');
-      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.Id_que_numerousar||'');opt.textContent=String(t.Descripcion||opt.value);sel.appendChild(opt);});
-    }).catch(function(){});
-}
-
-function loadYesNo(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaViXYesNo&limit=10'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];var sel=g('fSeWaver');sel.innerHTML='';
-      if(!rows.length){sel.innerHTML='<option value="0">No</option><option value="1">Sí</option>';return;}
-      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.TableID!==undefined?t.TableID:'');opt.textContent=String(t.TableName||opt.value);sel.appendChild(opt);});
-    }).catch(function(){g('fSeWaver').innerHTML='<option value="0">No</option><option value="1">Sí</option>';});
-}
-
-function loadDepositOptions(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaSecurityDepositOptions&limit=20'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      window.__depOptions=(json.Result||json.result||[]).sort(function(a,b){return parseInt(a.deposit_options_ID||0)-parseInt(b.deposit_options_ID||0);});
-      renderDepositPanel();
-    }).catch(function(){window.__depOptions=[];});
-}
-
-/* ── FIX v28/v29: loadMultiunits solo almacena datos en window.__mu.
-   NO toca el select. El select se puebla en populateMultiunitSelect()
-   filtrado por villaid de la reserva. ── */
-function loadMultiunits(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      window.__mu=json.Result||json.result||[];
-    }).catch(function(){window.__mu=[];});
-}
-
-/* ── FIX v28/v29: puebla fMultiunit SOLO con los multiunits de la villa
-   de esta reserva, usando TaVillas_villaid del bookingData ── */
-function populateMultiunitSelect(){
-  var sel=g('fMultiunit');if(!sel)return;
-  sel.innerHTML='<option value="">— Sin cambio —</option>';
-  var rows=window.__mu||[];
-  /* FIX v29: Caspio filtra TaMultiunits por ListingID_pms = TaBookings2021_VillaID_FSnumber
-     (campo cascade del XML de la datapage villamanager) */
-  var villaFsId=String(fB('VillaID_FSnumber')||fB('TaBookings2021_VillaID_FSnumber')||'').trim();
-  var filtered=villaFsId
-    ? rows.filter(function(m){
-        var mv=String(m.ListingID_pms||m.listingID_pms||m.listingid_pms||'').trim();
-        return mv===villaFsId;
-      })
-    : rows; /* fallback: mostrar todos si no hay VillaID_FSnumber */
-  filtered.forEach(function(m){
-    var opt=document.createElement('option');
-    opt.value=String(m.multiunitID||'');
-    opt.textContent=String(m.descripcion||m.Descripcion||opt.value);
-    sel.appendChild(opt);
-  });
-  console.log('[Multiunits] VillaID_FSnumber='+villaFsId+' total='+rows.length+' filtrados='+filtered.length);
-}
-
-function loadTiposPension(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaTipo_pension&limit=100'))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];var sel=g('fTipoPension');
-      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.PensionID||t.pensionID||'');opt.textContent=String(t.Type_name||t.type_name||opt.value);sel.appendChild(opt);});
-    }).catch(function(){});
-}
-
-/* ── FIX v28/v29: loadBooking ya NO llama a populateForm().
-   populateForm() se llama desde Promise.all.then() cuando
-   todos los datos (incluidos los multiunits) están disponibles. ── */
-function loadBooking(){
-  var where="TaBookings2021_FS_confirmation_code='"+confCode+"'";
-  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=1';
-  return fetch(Auth.url(url))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      var rows=json.Result||json.result||[];
-      if(!rows.length) throw new Error('Reserva no encontrada: '+confCode);
-      bookingData=rows[0];
-      villaData=bookingData;
-    });
-  /* populateForm() se llama en Promise.all.then() */
-}
-
-function fB(k){
-  if(!bookingData)return'';
-  var v=bookingData[k];if(v!==undefined&&v!==null)return v;
-  v=bookingData['TaBookings2021_'+k];if(v!==undefined&&v!==null)return v;
-  return'';
-}
-function fV(k){
-  if(!villaData)return'';
-  var v=villaData['TaVillas_'+k];if(v!==undefined&&v!==null)return v;
-  v=villaData[k];if(v!==undefined&&v!==null)return v;
-  return'';
-}
-
-function populateForm(){
-  /* Header */
-  g('hVilla').textContent=String(fB('Property_Title')||confCode);
-  g('hMeta').textContent='Reserva: '+confCode+(fB('Guest_Full_Name')?' · '+fB('Guest_Full_Name'):'');
-  g('hStatus').textContent=String(fB('Status_name_formula')||fB('Status')||confCode);
-
-  /* Datos ecotasa */
-  var eg=g('ecoGuestName'),en=g('ecoNights'),ec=g('ecoChildren');
-  var ecf=g('ecoChildrenForm'),ea=g('ecoAdults'),eaf=g('ecoAdultsForm');
-  var ef=g('ecoFinal'),eag=g('ecoAges');
-  if(eg)eg.textContent=String(fB('Guest_Full_Name')||'—');
-  if(en)en.textContent=String(fB('Nights')||'—');
-  if(ec)ec.textContent=String(fB('Children')||'—');
-  if(ecf)ecf.textContent=String(fB('Guest_children_nr_form')||'—');
-  if(ea)ea.textContent=String(fB('Adults')||'—');
-  if(eaf)eaf.textContent=String(fB('Guest_adults_nr_form')||'—');
-  var ecoFinalVal=fB('Ecotasa_final')||'';
-  if(ef)ef.textContent=ecoFinalVal?'€'+ecoFinalVal:'—';
-  if(eag)eag.textContent=String(fB('Guest_ages_form')||'—');
-  if(g('fAdultosCorregir'))g('fAdultosCorregir').value=fB('Adults')||'';
-
-  /* Notas */
-  g('fCleaningNotes').value=String(fB('CleaningNotes')||'');
-  g('fSecurityNotes').value=String(fB('Security_deposit_notes_comentar')||'');
-  g('fKeyholderNotes').value=String(fB('keyholderNotes')||'');
-  setSelectVal('fEarlyCheckin',String(fB('Checkin_earlycheckin')||''));
-
-  /* Teléfonos */
-  g('fPhone1').value=String(fB('Guest_phonenumber')||'');
-  g('fPhone2').value=String(fB('Segundo_Telefono')||'');
-  setSelectVal('fPhoneCual',String(fB('Guest_phonenumber_cual_usar')||''));
-
-  /* ── FIX v28/v29: poblar select multiunit filtrado por villaid ── */
-  populateMultiunitSelect();
-  var muid=String(fB('PMSmultiunitID')||'');
-  g('muCode').textContent=muid||'—';
-  var muNm='Sin multiunit';
-  if(muid&&window.__mu){var f=(window.__mu||[]).filter(function(m){return String(m.multiunitID)===muid;})[0];if(f)muNm=String(f.descripcion||f.Descripcion||muid);}
-  g('muName').textContent=muNm==='Sin multiunit'?'—':muNm;
-  g('muSubtitle').textContent=muNm;
-  setSelectVal('fTipoPension',String(fB('Tipo_pensionID')||''));
-
-  /* Arrival Form */
-  var aV=isTruthy(fV('Checkin_arrivalform')),aD=isTruthy(fB('Arrivalform_done'));
-  setVr('vrArrival',aV,'Arrival Form');setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
-
-  /* Resumen Arrival Form */
-  (function(){
-    function val(k){return String(fB(k)||'').trim();}
-    function af(id,v){var el=document.getElementById(id);if(el)el.textContent=v||'—';}
-    var rows=[
-      ['Adultos',val('Adults'),val('Guest_adults_nr_form')],
-      ['Niños',val('Children'),val('Guest_children_nr_form')],
-      ['Nombre',val('Guest_Full_Name'),val('Fiscal_guest_name')],
-      ['Apellido',val('Guest_Surename'),val('Fiscal_guest_surename')||val('Fiscal_guest_surname')],
-      ['Teléfono',val('Guest_phonenumber'),val('Segundo_Telefono')],
-      ['Email',val('Guest_email')||val('Email'),val('Segundo_email')],
-      ['Noches',val('Nights'),''],
-    ];
-    var tbody=document.getElementById('af_cmpBody');
-    if(tbody){tbody.innerHTML=rows.map(function(r){
-      var lbl=r[0],ha=r[1],fm=r[2];var status='';var rowBg='';
-      if(!ha&&!fm)return'';
-      if(!fm){status='<span style="color:var(--gray-3)">—</span>';}
-      else if(!ha){status='<span style="color:#4060cc">ℹ️</span>';}
-      else if(ha.toLowerCase()===fm.toLowerCase()){status='<span style="color:var(--green)">✅</span>';}
-      else{status='<span style="color:var(--orange)">⚠️</span>';rowBg='background:var(--orange-light)';}
-      return'<tr style="border-bottom:1px solid var(--gray-2);'+rowBg+'">'+
-        '<td style="padding:6px 8px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase;white-space:nowrap">'+lbl+'</td>'+
-        '<td style="padding:6px 8px;color:var(--gray-5)">'+(ha||'<span style="color:var(--gray-3)">—</span>')+'</td>'+
-        '<td style="padding:6px 8px;color:var(--gray-5)">'+(fm||'<span style="color:var(--gray-3)">—</span>')+'</td>'+
-        '<td style="padding:6px 8px;text-align:center">'+status+'</td></tr>';
-    }).join('');}
-    af('af_ages',val('Guest_ages_form'));
-    af('af_childAges',val('Guest_children_babies_ages_form'));
-    af('af_arrival',val('Arrival_Time_to_Menorca'));
-    af('af_departure',val('Departure_Time_to_Menorca'));
-    af('af_checkinTime',val('Checkin_time'));
-    af('af_checkoutTime',val('Checkout_time'));
-    af('af_dni',val('Fiscal_guest_DNI_passport'));
-    af('af_city',val('Fiscal_guest_city'));
-    af('af_country',val('Fiscal_guest_Country'));
-    af('af_address',val('Fiscal_guest_address'));
-    var info=val('Guest_info');
-    if(info){var el=document.getElementById('af_info');if(el)el.textContent=info;var wr=document.getElementById('af_infoWrap');if(wr)wr.style.display='block';}
-    var camas=val('TaVillas_Reorganizar_camas')||val('Reorganizar_camas');
-    if(camas){var el=document.getElementById('af_camas');if(el)el.textContent=camas;var wr=document.getElementById('af_camasWrap');if(wr)wr.style.display='block';}
-    var summary=document.getElementById('arrFormSummary');if(summary)summary.style.display='block';
-  })();
-
-  /* Policía */
-  var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
-  setVr('vrPolicia',pV,'Registro de Policía');setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
-
-  /* ── FIX v28/v29: Ecotasa_cobrada es INTEGER. Se usa fEcotasaCobrada (select).
-     NO se usa cbEcotasaCobrada (no existe en el HTML). ── */
-  var eV=isTruthy(fV('Checkin_ecotasa'));
-  var eCob=String(fB('Ecotasa_cobrada')||'');
-  setVr('vrEcotasa',eV,'Ecotasa');
-  setSelectVal('fEcotasaCobrada',eCob);
-  setColState('colEcotasa','stEcotasa',eV,eCob==='1');
-  var ecoManual=fB('Ecotasa_entrada_manualmente')||'';
-  if(g('fEcotasaManual'))g('fEcotasaManual').value=ecoManual;
-  var ecoComent=fB('Ecotasa_comentarios')||'';
-  if(g('fEcotasaComentarios'))g('fEcotasaComentarios').value=ecoComent;
-  if(g('fAdultosCorregir'))g('fAdultosCorregir').value=fB('Guest_adults_nr_form')||fB('Adults')||'';
-
-  /* Depósito */
-  var dV=isTruthy(fV('Checkin_deposito')),dD=isTruthy(fB('Security_deposit_terminado'));
-  setVr('vrDeposito',dV,'Depósito de Seguridad');
-  setCb('cbDepTerm','rowDepTerm',dD);
-  setColState('colDeposito','stDeposito',dV,dD);
-  g('fDepEUR').value=String(fB('Security_deposit_EUR')||'');
-  g('fWavEUR').value=String(fB('Deposit_waver_EUR')||'');
-  g('fGastoT').value=String(fB('Gasto_tarjeta_deposito_seguridad')||'');
-  setSelectVal('fSeWaver',String(parseInt(fB('Se_permite_waver')||0)));
-  g('fIBAN').value=String(fB('Numero_cuenta_bancaria_guest')||'');
-  g('fBIC').value=String(fB('Numero_swift_bic_bancario_guest')||'');
-  g('fWaverText').value=String(fB('Deposit_waver_text')||'');
-  selDepOpt=parseInt(fB('Security_deposit_options')||0);
-  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
-  renderDepositPanel();
-
-  /* Cobros extras */
-  window.__upCobrado={};
-  g('fUp1Text').value=String(fB('Upselling1_text')||'');g('fUp1EUR').value=String(fB('Upselling1_EUR')||'');window.__upCobrado[1]=parseInt(fB('Upselling1_cobrado')||0);
-  g('fUp2Text').value=String(fB('Upselling2_text')||'');g('fUp2EUR').value=String(fB('Upselling2_EUR')||'');window.__upCobrado[2]=parseInt(fB('Upselling2_cobrado')||0);
-  g('fUp3Text').value=String(fB('Upselling3_text')||'');g('fUp3EUR').value=String(fB('Upselling3_EUR')||'');window.__upCobrado[3]=parseInt(fB('Upselling3_cobrado')||0);
-  updateUpBadge(1);updateUpBadge(2);updateUpBadge(3);
-
-  /* Link cobros */
-  var lk='https://c1abn932.caspio.com/dp/353f70008194047f5b8b4cdc8970?FS_confirmation_code='+encodeURIComponent(confCode);
-  var lEl=g('linkCobros');if(lEl){lEl.href=lk;lEl.textContent=lk;}
-
-  /* Link policía */
-  buildPoliceUrl();
-}
-
-function toYMD(s){if(!s)return'';var d=String(s).replace(/[T ].*/,'').split('-');if(d.length===3)return d[0]+d[1]+d[2];return String(s).replace(/-/g,'');}
-function buildPoliceUrl(){
-  var org=fB('TaVillas_Link_Registrodepolicia')||fB('Link_Registrodepolicia')||'';
-  var wrap=g('policeUrlWrap');if(!wrap)return;
-  wrap.style.display='block';
-  var reserv=confCode||'';
-  var checkin=toYMD(fB('Checkin')||fB('TaBookings2021_Checkin')||'');
-  var checkout=toYMD(fB('Checkout')||fB('TaBookings2021_Checkout')||'');
-  var created=toYMD(fB('Cretated_At')||fB('TaBookings2021_Cretated_At')||fB('Created_At')||'');
-  var aform=String(fB('Guest_adults_nr_form')||'').trim();
-  var cform=String(fB('Guest_children_nr_form')||'').trim();
-  var total=aform?((parseInt(aform)||0)+(parseInt(cform)||0)):((parseInt(fB('Adults')||0))+(parseInt(fB('Children')||0)));
-  var fiscNm=String(fB('Fiscal_guest_name')||'').trim();
-  var firstName=(fiscNm&&fiscNm!==' ')?fiscNm:String(fB('Guest_Full_Name')||'');
-  var lastName=(fiscNm&&fiscNm!==' ')?String(fB('Fiscal_guest_surename')||''):String(fB('Guest_Surename')||'');
-  var ph2=String(fB('Segundo_Telefono')||'').trim();
-  var ph=ph2?ph2:String(fB('Guest_phonenumber')||'');
-  ph=ph.replace(/\+/g,'00').replace(/\s/g,'');
-  var base='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96';
-  var url=base+'/organization/'+encodeURIComponent(org)+'/reservation/'+encodeURIComponent(reserv)+
-    '?checkInDate='+checkin+'&checkOutDate='+checkout+'&contractDate='+created+
-    '&number='+total+'&firstName='+encodeURIComponent(firstName)+
-    '&lastName1='+encodeURIComponent(lastName)+'&phone='+encodeURIComponent(ph);
-  var el=g('policeUrl');if(el){el.href=url;el.textContent=url;}
-}
-
-/* ══ GUARDAR ══
-   FIX v28/v29:
-   - Eliminado Ecotasa_cobrada_select (campo inexistente en Caspio)
-   - Ecotasa_cobrada usa ecoVal() → integer (1=Pagado, 0=Pendiente, null)
-*/
-window.guardar=function(){
-  if(isSaving)return;
-  if(!validarImportes())return;
-  isSaving=true;var btn=g('btnSave');btn.disabled=true;btn.textContent='Guardando…';
-  var newMUID=g('fMultiunit').value;
-  var record={
-    CleaningNotes:g('fCleaningNotes').value.trim(),
-    Security_deposit_notes_comentar:g('fSecurityNotes').value.trim(),
-    keyholderNotes:g('fKeyholderNotes').value.trim(),
-    Checkin_earlycheckin:g('fEarlyCheckin').value||null,
-    Segundo_Telefono:g('fPhone2').value.trim(),
-    Guest_phonenumber_cual_usar:g('fPhoneCual').value||null,
-    Tipo_pensionID:g('fTipoPension').value||null,
-    Arrivalform_done:g('cbArrDone').checked?1:0,
-    Registro_policia_done:g('cbPolDone').checked?1:0,
-    Security_deposit_terminado:g('cbDepTerm').checked?1:0,
-    /* FIX: Ecotasa_cobrada es INTEGER del lookup Ta_Pagado_Pendiente.
-       ecoVal() convierte el select a 1/0/null. NO existe Ecotasa_cobrada_select. */
-    Ecotasa_cobrada:ecoVal(),
-    Ecotasa_entrada_manualmente:g('fEcotasaManual').value||null,
-    Ecotasa_comentarios:g('fEcotasaComentarios').value.trim()||null,
-    Guest_adults_nr_form:g('fAdultosCorregir')?g('fAdultosCorregir').value||null:null,
-    Security_deposit_EUR:g('fDepEUR').value||null,
-    Deposit_waver_EUR:g('fWavEUR').value||null,
-    Gasto_tarjeta_deposito_seguridad:g('fGastoT').value||null,
-    Se_permite_waver:parseInt(g('fSeWaver').value||0),
-    Security_deposit_options:parseInt(g('fDepOpt').value||0),
-    Numero_cuenta_bancaria_guest:g('fIBAN').value.trim()||null,
-    Numero_swift_bic_bancario_guest:g('fBIC').value.trim()||null,
-    Deposit_waver_text:g('fWaverText').value.trim()||null,
-    Upselling1_text:g('fUp1Text').value.trim()||null,
-    Upselling1_EUR:g('fUp1EUR').value||null,
-    Upselling2_text:g('fUp2Text').value.trim()||null,
-    Upselling2_EUR:g('fUp2EUR').value||null,
-    Upselling3_text:g('fUp3Text').value.trim()||null,
-    Upselling3_EUR:g('fUp3EUR').value||null,
-  };
-  if(newMUID)record['PMSmultiunitID']=parseInt(newMUID)||newMUID;
-  var where="FS_confirmation_code='"+confCode+"'";
-  fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT'),
-    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
-  .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});})
-  .then(function(){
-    toast('✅ Guardado','ok');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
-    setTimeout(function(){history.back();},1200);
-  })
-  .catch(function(err){
-    toast('❌ '+err.message,'err');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
-  });
-};
-
-window.chkImporte=function(el){
-  if(!el)return;
-  if(el.value.indexOf(',')!==-1){el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';toast('⚠️ Usa punto (.) no coma (,) como decimal. Ej: 33.50','err');}
-  else{el.style.borderColor='';el.style.boxShadow='';}
-};
-
-function validarImportes(){
-  var campos=['fDepEUR','fWavEUR','fGastoT','fUp1EUR','fUp2EUR','fUp3EUR'];
-  for(var i=0;i<campos.length;i++){
-    var el=g(campos[i]);
-    if(el&&el.value.indexOf(',')!==-1){
-      el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';
-      el.scrollIntoView({behavior:'smooth',block:'center'});
-      toast('⚠️ Importe con coma detectado. Usa punto (.) como decimal. Ej: 33.50','err');
-      el.focus();return false;
-    }
-  }
-  return true;
-}
-
-window.copiarLink=function(){
-  var lnk=g('linkCobros');if(!lnk)return;
-  navigator.clipboard.writeText(lnk.href).then(function(){toast('✅ Enlace copiado','ok');}).catch(function(){toast('❌ No se pudo copiar','err');});
-};
-
-function showErr(msg){
-  g('loadOverlay').style.display='none';g('mainContent').style.display='';
-  g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p style="color:var(--red);font-weight:600">'+msg+'</p></div>';
-}
-
-/* ══ INIT ══
-   FIX v28/v29: populateForm() se llama en Promise.all.then() para garantizar
-   que loadBooking() Y loadMultiunits() han terminado antes de renderizar.
-*/
+// ── INIT ──
 document.addEventListener('DOMContentLoaded',function(){
-  if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
-  Promise.all([
-    loadBooking(),
-    loadTfnOpts(),
-    loadMultiunits(),
-    loadTiposPension(),
-    loadYesNo(),
-    loadDepositOptions()
-  ]).then(function(){
-    populateForm();           /* ahora sí, con todos los datos disponibles */
-    g('loadOverlay').style.display='none';
-    g('mainContent').style.display='';
-    g('saveBar').style.display='flex';
-  }).catch(function(e){
-    showErr(e.message||'Error cargando datos');
-  });
+  myUserName=Auth.name?Auth.name():'';
+  if(!taskId){ showErr('Falta el parámetro taskid en la URL.'); return; }
+  buildGallery('before'); buildGallery('after');
+  initMic();
+  g('btnCerrar').addEventListener('click',function(){ submitForm(true); });
+  g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
+  g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
+  Promise.all([loadUsers(),loadTask(),loadVillas()])
+    .then(function(){
+      populateForm();
+      initVillaSearch();
+      g('stLoad').style.display='none';
+      g('formWrap').style.display='flex';
+      g('saveBar').style.display='flex';
+      if(window._qlInit){_qlInit('fDesc','Detalles de la tarea…');_qlInit('fSolucion','Describe brevemente la solución…');}
+    })
+    .catch(function(e){ showErr(e.message||'Error cargando tarea'); });
 });
 
+function showErr(msg){ g('stLoad').style.display='none'; g('stErr').style.display='block'; if(g('errMsg'))g('errMsg').innerHTML=msg; }
+
+// ── Carga tarea + villa ──
+function loadTask(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(PK+'='+taskId)+'&limit=1'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      if(!rows.length) throw new Error('Tarea no encontrada (taskid='+taskId+')');
+      taskData=rows[0];
+      var vid=taskData.villaid;
+      if(vid&&parseInt(vid)>0){
+        return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid='+parseInt(vid)+'&limit=1'))
+          .then(function(r){ return r.json(); })
+          .then(function(j){ var v=(j.Result||j.result||[])[0]; if(v)taskData._villaName=v.Name_villa_para_inquilinos||v.Name||''; })
+          .catch(function(){});
+      }
+    });
+}
+
+// ── Cargar usuarios ──
+function loadUsers(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var users=json.Result||json.result||[];
+      var active=users.filter(function(u){ var s=u['User_Status']; return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1; });
+      g('fAsignado').innerHTML=active.map(function(u){ return '<option value="'+u.UserID+'">'+u.Name+'</option>'; }).join('');
+    });
+}
+
+// ── Cargar villas ──
+function loadVillas(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      allVillas=rows.map(function(v){ return {id:String(v.villaid||''),name:v.Name_villa_para_inquilinos||v.Name||''}; }).filter(function(v){ return v.id&&v.name; });
+    }).catch(function(){});
+}
+
+// ── Popular formulario ──
+function populateForm(){
+  if(!taskData)return;
+  var t=taskData, nombre=t[F.nombre]||'', villa=t._villaName||'';
+  // Título: "Tarea Nr. 66712" en header y en card
+  // Header: nombre grande, nr+villa pequeño
+  g('hTitle').textContent=nombre||'Tarea Nr. '+taskId;
+  var metaParts=['Nr. '+taskId]; if(villa) metaParts.unshift('📍 '+villa);
+  var hm=g('hMeta'); if(hm) hm.textContent=metaParts.join('  ·  ');
+  var tct=g('tareaCardTitle'); if(tct) tct.textContent='Tarea Nr. '+taskId;
+  // Campos
+  g('fNombre').value=nombre;
+  g('fDesc').value=t[F.descripcion]||''; /* richLoad se llama desde _initQuill */
+  g('fNotas').value=t[F.notas]||'';
+  g('fSolucion').value=t[F.solucion]||'';
+  var rf=t[F.fecha]||t.Data_to_be_done||'';
+  g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
+  setSelectVal('fAsignado',String(t[F.asignado]||''));
+  setTerminada(isTruthy(t[F.terminada]));
+  // Villa en campo siempre visible (v28)
+  selectedVillaId=String(t.villaid||'');
+  if(window._setVillaConfirmed){
+    window._setVillaConfirmed(selectedVillaId, villa);
+  } else {
+    var vs=g('fVillaSearch'); if(vs) vs.value=villa;
+    var cl=g('villaCurrentLabel'); if(cl) cl.textContent=villa?'Villa actual: '+villa:'';
+  }
+  // Fotos: índice fijo → orden garantizado
+  BEFORE_FIELDS.forEach(function(field,idx){ if(t[field]){ beforePhotos[idx].url=t[field]; } });
+  AFTER_FIELDS.forEach(function(field,idx){ if(t[field]){ afterPhotos[idx].url=t[field]; } });
+  renderGallery('before'); renderGallery('after');
+}
+
+function setSelectVal(id,val){ var sel=g(id); if(!sel)return; for(var i=0;i<sel.options.length;i++){ if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;} } }
+function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof v==='boolean')return v; if(typeof v==='number')return v!==0; return!['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase()); }
+
+// ── Villa search (v28 fix) ──
+function initVillaSearch(){
+  var inp=g('fVillaSearch'),drop=g('villaDropdown'); if(!inp||!drop)return;
+  // Mover dropdown al body para evitar que overflow:hidden del card lo corte
+  document.body.appendChild(drop);
+
+  /* Nombre de la villa confirmada (seteado al seleccionar del dropdown o al cargar la tarea) */
+  var confirmedName='';
+
+  /* Actualizar el badge de estado */
+  function setStatus(ok, msg){
+    var cl=g('villaCurrentLabel'); if(!cl)return;
+    cl.textContent=msg;
+    cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
+  }
+
+  inp.addEventListener('input',function(){
+    var q=inp.value.trim().toLowerCase();
+    /* v28 FIX: al escribir, invalidar la selección actual hasta que se elija del dropdown */
+    selectedVillaId='';
+    confirmedName='';
+    setStatus(null,'');
+    drop.innerHTML=''; drop.style.display='none';
+    if(!q||q.length<2)return;
+    var matches=allVillas.filter(function(v){ return v.name.toLowerCase().indexOf(q)!==-1; }).slice(0,12);
+    if(!matches.length)return;
+    drop.innerHTML=matches.map(function(v){
+      var safe=v.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      return '<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
+    }).join('');
+    drop.querySelectorAll('.villa-opt').forEach(function(opt){
+      opt.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        /* Selección confirmada */
+        selectedVillaId=opt.dataset.id;
+        confirmedName=opt.dataset.name;
+        inp.value=confirmedName;
+        drop.style.display='none';
+        setStatus(true,'✓ Villa seleccionada');
+        var hm2=g('hMeta'); if(hm2)hm2.textContent='📍 '+confirmedName+'  ·  Nr. '+taskId;
+      });
+    });
+    // Posicionar fixed
+    var rect=inp.getBoundingClientRect();
+    drop.style.top=(rect.bottom+4)+'px';
+    drop.style.left=rect.left+'px';
+    drop.style.width=rect.width+'px';
+    drop.style.display='block';
+  });
+
+  inp.addEventListener('blur',function(){
+    setTimeout(function(){
+      drop.style.display='none';
+      /* v28 FIX: si el usuario escribió texto pero NO seleccionó del dropdown,
+         restaurar el input al nombre de la villa confirmada (o vaciar si no hay ninguna) */
+      if(!selectedVillaId){
+        if(confirmedName){
+          /* Tenía una villa, restaurar */
+          inp.value=confirmedName;
+          setStatus(true,'✓ Villa seleccionada');
+        } else {
+          /* No había villa seleccionada, limpiar el texto libre */
+          if(inp.value.trim()){
+            inp.value='';
+            setStatus(false,'⚠ Escribe y selecciona una villa de la lista');
+          }
+        }
+      }
+    },200);
+  });
+
+  /* Permitir asignar la villa confirmada desde fuera (al cargar la tarea) */
+  window._setVillaConfirmed=function(id,name){
+    selectedVillaId=id;
+    confirmedName=name;
+    if(inp)inp.value=name;
+    setStatus(name?true:null, name?'Villa actual: '+name:'');
+  };
+
+  // Reposicionar si el usuario hace scroll mientras está abierto
+  window.addEventListener('scroll',function(){ if(drop.style.display==='block'){ var r=inp.getBoundingClientRect(); drop.style.top=(r.bottom+4)+'px'; drop.style.left=r.left+'px'; } },true);
+}
+
+// ── FOTOS: galería con slots fijos (orden garantizado) ──
+function buildGallery(type){
+  var galId=type==='before'?'beforeGallery':'afterGallery';
+  var store=type==='before'?beforePhotos:afterPhotos;
+  renderGallery(type); // se llama vacía al init, y luego de nuevo en populateForm
+}
+
+function renderGallery(type){
+  var galId=type==='before'?'beforeGallery':'afterGallery';
+  var store=type==='before'?beforePhotos:afterPhotos;
+  var gal=g(galId); if(!gal)return;
+  gal.innerHTML='';
+
+  store.forEach(function(p,idx){
+    var displayUrl=p.preview||(p.deleted?'':p.url);
+    if(displayUrl){
+      // Slot CON foto
+      var thumb=document.createElement('div'); thumb.className='photo-thumb'+(p.file?' is-new':'');
+      var img=document.createElement('img'); img.alt='';
+      img.onerror=function(){ store[idx].url=''; store[idx].preview=''; renderGallery(type); };
+      img.src=displayUrl; thumb.appendChild(img);
+      // Badge número de slot
+      var numBadge=document.createElement('span'); numBadge.className='pt-num'; numBadge.textContent=idx+1; thumb.appendChild(numBadge);
+      // Badge NUEVA
+      var nb=document.createElement('span'); nb.className='pt-new'; nb.textContent='NUEVA'; thumb.appendChild(nb);
+      // Botón eliminar
+      var del=document.createElement('button'); del.type='button'; del.className='pt-del'; del.textContent='✕ Quitar';
+      (function(i){ del.onclick=function(e){ e.stopPropagation(); store[i]={file:null,url:'',deleted:true,preview:''}; renderGallery(type); checkBadge(); }; })(idx);
+      thumb.appendChild(del);
+      // Lightbox
+      (function(url){ thumb.onclick=function(e){ if(!e.target.classList.contains('pt-del')) openLightbox(url); }; })(displayUrl);
+      gal.appendChild(thumb);
+    } else {
+      // Slot VACÍO — con sus propios inputs para respetar el índice
+      var empty=document.createElement('div'); empty.className='photo-empty-slot';
+      var numLbl=document.createElement('span'); numLbl.className='pes-num'; numLbl.textContent=''+(idx+1); empty.appendChild(numLbl);
+      var btnsDiv=document.createElement('div'); btnsDiv.className='pes-btns';
+      // Botón cámara
+      var btnCam=document.createElement('button'); btnCam.type='button'; btnCam.className='pes-btn'; btnCam.textContent='📷'; btnCam.title='Hacer foto';
+      // Botón archivo
+      var btnFile=document.createElement('button'); btnFile.type='button'; btnFile.className='pes-btn'; btnFile.textContent='📂'; btnFile.title='Subir archivo';
+      // Inputs
+      var inpCam=document.createElement('input'); inpCam.type='file'; inpCam.accept='image/*'; inpCam.setAttribute('capture','environment'); inpCam.style.display='none';
+      var inpFile=document.createElement('input'); inpFile.type='file'; inpFile.accept='image/*'; inpFile.style.display='none';
+      (function(i,s){
+        inpCam.onchange=function(e){ if(e.target.files&&e.target.files[0]){ s[i].file=e.target.files[0]; s[i].deleted=false; var r=new FileReader(); r.onload=function(ev){ s[i].preview=ev.target.result; renderGallery(type); checkBadge(); }; r.readAsDataURL(s[i].file); } };
+        inpFile.onchange=function(e){ if(e.target.files&&e.target.files[0]){ s[i].file=e.target.files[0]; s[i].deleted=false; var r=new FileReader(); r.onload=function(ev){ s[i].preview=ev.target.result; renderGallery(type); checkBadge(); }; r.readAsDataURL(s[i].file); } };
+        btnCam.onclick=function(e){ e.stopPropagation(); inpCam.value=''; inpCam.click(); };
+        btnFile.onclick=function(e){ e.stopPropagation(); inpFile.value=''; inpFile.click(); };
+      })(idx,store);
+      btnsDiv.appendChild(btnCam); btnsDiv.appendChild(btnFile);
+      empty.appendChild(btnsDiv); empty.appendChild(inpCam); empty.appendChild(inpFile);
+      gal.appendChild(empty);
+    }
+  });
+}
+
+function checkBadge(){
+  var hasNew=beforePhotos.concat(afterPhotos).some(function(p){ return!!p.file; });
+  var b=g('newPhotosBadge'); if(b)b.style.display=hasNew?'':'none';
+}
+
+// ── Mic ──
+function initMic(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR)return;
+  var rec=new SR(); rec.lang='es-ES'; rec.continuous=false; rec.interimResults=false;
+  var aB=null,aF=null,isR=false;
+  function startRec(b,f){ if(isR){rec.stop();return;} aB=b;aF=f;isR=true;b.classList.add('rec');try{rec.start();}catch(e){stopRec();} }
+  function stopRec(){ isR=false; if(aB)aB.classList.remove('rec'); aB=null;aF=null; }
+  rec.onresult=function(e){ var t=e.results[0][0].transcript; if(aF)aF.value=(aF.value?aF.value+' ':'')+t; };
+  rec.onend=stopRec; rec.onerror=function(){ stopRec(); toast('Error de micrófono','err'); };
+  [['micNombre','fNombre'],['micDesc','fDesc'],['micNotas','fNotas'],['micSolucion','fSolucion']].forEach(function(p){
+    var b=g(p[0]),f=g(p[1]); if(!b||!f)return;
+    b.classList.remove('hidden');
+    b.addEventListener('click',function(){ startRec(b,f); });
+  });
+}
+
+window.goBack=function(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); },200); };
+
+// ── Subir foto (mantiene orden: idx = número de slot) ──
+function uploadPhoto(type,idx){
+  var store=type==='before'?beforePhotos:afterPhotos, p=store[idx];
+  if(!p.file) return Promise.resolve(p.deleted?'':p.url);
+  var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear());
+  var ext=(p.file.name.split('.').pop()||'jpg').toLowerCase();
+  var safe=(myUserName||'user').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  var fname='fotos-tareas/'+year+'_'+(type==='before'?'before':'after')+'_'+taskId+'_'+safe+'_'+(idx+1)+'.'+ext;
+  var fd=new FormData(); fd.append('file',p.file,fname); fd.append('filename',fname);
+  return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ return j.url||j.publicUrl||p.url; })
+    .catch(function(){ return p.url; });
+}
+
+function setBusy(on){
+  isSaving=on;
+  ['btnCerrar','btnSoloGuardar','btnSaveBar'].forEach(function(id){ var b=g(id); if(b)b.disabled=on; });
+  var sb=g('btnSaveBar'); if(sb)sb.disabled=on;
+  var sbl=g('saveBarLabel'); if(sbl)sbl.textContent=on?'Guardando…':'💾 Guardar cambios';
+  var sc=g('spinCerrar'); if(sc){ sc.style.display=on?'inline-block':'none'; sc.style.animation=on?'spin .6s linear infinite':'none'; }
+}
+
+function submitForm(markDone){
+  if(isSaving)return;
+  var nombre=g('fNombre').value.trim();
+  g('fNombre').classList.remove('err');
+  if(!nombre){ g('fNombre').classList.add('err'); g('fNombre').scrollIntoView({behavior:'smooth',block:'center'}); toast('⚠️ El nombre es obligatorio','err'); return; }
+  setBusy(true);
+  if(markDone) setTerminada(true);
+
+  // ORDEN CORRECTO: primero todos los before (0-4), luego todos los after (0-4)
+  var uploads=[];
+  for(var i=0;i<5;i++)(function(idx){ uploads.push(uploadPhoto('before',idx)); })(i);
+  for(var i=0;i<5;i++)(function(idx){ uploads.push(uploadPhoto('after',idx));  })(i);
+
+  Promise.allSettled(uploads).then(function(results){
+    // results[0-4] = before slots 0-4
+    // results[5-9] = after slots 0-4
+    var beforeUrls=results.slice(0,5).map(function(r){ return r.status==='fulfilled'?r.value:''; });
+    var afterUrls =results.slice(5,10).map(function(r){ return r.status==='fulfilled'?r.value:''; });
+    var record={};
+    record[F.nombre]     =nombre;
+    record[F.descripcion]=(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim();
+    record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
+    record[F.asignado]   =g('fAsignado').value||'';
+    record[F.terminada]  =isTerminada;
+    record[F.notas]      =g('fNotas').value.trim();
+    record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
+    if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
+    BEFORE_FIELDS.forEach(function(f,i){ record[f]=beforeUrls[i]||''; });
+    AFTER_FIELDS.forEach(function(f,i){ record[f]=afterUrls[i]||''; });
+    return fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+  })
+  .then(function(r){ if(!r.ok)return r.json().then(function(e){ throw new Error(e.Message||e.error||'HTTP '+r.status); }); return r.json(); })
+  .then(function(j){ if(j.error||j.Message)throw new Error(j.error||j.Message); onDone(); })
+  .catch(function(err){ setBusy(false); toast('❌ '+err.message,'err'); console.error('[EditTask]',err); });
+}
+
+function onDone(){
+  setBusy(false);
+  g('formWrap').style.display='none'; g('saveBar').style.display='none';
+  g('successCard').style.display='block'; g('successBox').style.display='block';
+  toast('¡Tarea actualizada!','ok');
+  setTimeout(function(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); },400); },1800);
+}
+
+})();
+
+/* ════ Rich editor con Quill (fuera del IIFE principal) ════ */
+(function() {
+  var _q = {};
+
+  function toPlain(html) {
+    if (!html) return '';
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    var lines = [];
+    d.childNodes.forEach(function(n) {
+      if (n.nodeName === 'UL') {
+        var chk = n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li) {
+          var t = (li.innerText || li.textContent || '').trim();
+          if (chk === 'true') lines.push('[x] ' + t);
+          else if (chk === 'false') lines.push('[ ] ' + t);
+          else lines.push('\u2022 ' + t);
+        });
+      } else {
+        var t = (n.innerText || n.textContent || '').replace(/\n/g, ' ').trim();
+        if (t) lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+
+  function toHtml(text) {
+    if (!text) return '';
+    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) return text;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    return text.split('\n').map(function(line) {
+      if (/^\[x\] /.test(line)) return '<ul data-checked="true"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\[ \] /.test(line)) return '<ul data-checked="false"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\u2022 /.test(line)) return '<ul><li>' + esc(line.slice(2)) + '</li></ul>';
+      return '<p>' + esc(line) + '</p>';
+    }).join('');
+  }
+
+  window._qlInit = function(fId, ph) {
+    var ta = document.getElementById(fId);
+    var wrap = document.getElementById(fId + '_ql');
+    if (!ta || !wrap || !window.Quill) return;
+    var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
+    _q[fId] = q;
+    if (ta.value) q.root.innerHTML = toHtml(ta.value);
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    ta.style.display = 'none';
+  };
+
+  window._qlGet = function(fId) {
+    return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
+  };
+
+  window.qFmt = function(fId, type) {
+    var q = _q[fId]; if (!q) return; q.focus();
+    var f = q.getFormat();
+    if (type === 'bullet') q.format('list', f.list === 'bullet' ? false : 'bullet');
+    else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
+  };
 })();
 </script>
 </body>
