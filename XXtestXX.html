@@ -2,15 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- ocupacion.html v02 — 12/05/2026
-       Vista calendario multilisting:
-       · Cada villa = una fila con timeline horizontal
-       · Barras de reserva coloreadas por estado
-       · Badge de estado por villa: LIBRE / SALE / ENTRA / OCUPADA
-       · Click en barra → panel lateral con detalles
-       · Filtro Villa Manager idéntico a entradas-equipo
-  -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,707 +11,269 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v02 — 3Villas</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <title>Nueva Tarea v15 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
-      --green:#1e9e4e;--green-light:#e6f7ee;
-      --orange:#e07b00;--orange-light:#fff4e0;
-      --blue:#1967d2;--blue-light:#e8f0fe;
-      --purple:#7b1fa2;--purple-light:#f3e5f5;
-      --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;
-      --gray-4:#7a8194;--gray-5:#2d3142;
-      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
-      --shadow-md:0 4px 14px rgba(0,0,0,.11);
-      --shadow-lg:0 8px 28px rgba(0,0,0,.14);
-      --r:10px;
-    }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
-
-    /* ══ HEADER ══ */
-    header{
-      background:var(--red);color:#fff;
-      padding:10px 16px;position:sticky;top:0;z-index:400;
-      box-shadow:0 2px 12px rgba(0,0,0,.25);
-      display:flex;align-items:center;gap:10px;
-    }
-    .h-left{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:32px;height:32px;border-radius:8px;text-decoration:none;font-size:18px;flex-shrink:0}
-    .h-title{font-family:Montserrat,sans-serif;font-size:clamp(13px,3.5vw,17px);font-weight:900;text-transform:uppercase;letter-spacing:.5px;flex:1}
-    .h-stats{display:flex;gap:6px;margin-left:auto;flex-shrink:0;flex-wrap:wrap}
-    .h-stat{background:rgba(255,255,255,.15);border-radius:8px;padding:3px 9px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;display:flex;gap:4px;align-items:center}
-    .h-stat strong{font-size:14px;font-weight:900}
-    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
-    .h-close:hover{background:rgba(255,255,255,.32)}
-
-    /* ══ FILTROS ══ */
-    #filterBar{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 16px;position:sticky;z-index:300;box-shadow:var(--shadow-sm)}
-    .filter-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
-    .f-group{display:flex;flex-direction:column;gap:4px}
-    .f-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
-    .f-inp,.f-date{border:1.5px solid var(--gray-2);border-radius:8px;padding:7px 10px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;transition:border-color .15s}
-    .f-inp:focus,.f-date:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
-    .f-date{width:138px}
-    /* Manager button */
-    .f-mgr{display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer;min-width:150px;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b0b8c8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
-    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
-    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
-    .manager-item:hover{background:var(--gray-1)}
-    .manager-item input[type=checkbox]{accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0}
-    .manager-item label{cursor:pointer;flex:1}
-    .mgr-footer{display:flex;gap:6px;padding:7px 10px;border-top:1px solid var(--gray-2)}
-    .mgr-foot-btn{flex:1;border:1.5px solid var(--gray-2);background:#fff;border-radius:6px;padding:4px 8px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer;color:var(--gray-4);transition:all .15s}
-    .mgr-foot-btn:hover{border-color:var(--red);color:var(--red)}
-    /* Botón buscar */
-    .btn-buscar{background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:5px}
-    .btn-buscar:hover{background:var(--red-dark)}
-
-    /* ══ CONTENEDOR CALENDARIO ══ */
-    #calWrap{max-width:100%;padding:12px 16px}
-    #calScroll{overflow-x:auto;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm)}
-
-    /* ── Cabecera de días ── */
-    .cal-head{display:flex;border-bottom:2px solid var(--gray-2);background:#fff;position:sticky;top:0;z-index:10}
-    .ch-villa{flex-shrink:0;width:var(--col-villa);padding:8px 14px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);border-right:2px solid var(--gray-2)}
-    .ch-days{flex:1;display:flex;min-width:0}
-    .ch-day{flex:1;min-width:0;text-align:center;padding:5px 2px;border-right:1px solid var(--gray-2);font-family:Montserrat,sans-serif;cursor:default}
-    .ch-day:last-child{border-right:none}
-    .ch-day-num{font-size:12px;font-weight:900;color:var(--gray-5);display:block}
-    .ch-day-nam{font-size:9px;font-weight:700;color:var(--gray-4);text-transform:uppercase;display:block}
-    .ch-day.today .ch-day-num{color:var(--red)}
-    .ch-day.today .ch-day-nam{color:var(--red)}
-    .ch-day.today{background:var(--red-light)}
-
-    /* ── Fila de villa ── */
-    .vrow{display:flex;border-bottom:1px solid var(--gray-2);background:#fff;transition:background .1s;min-height:52px}
-    .vrow:hover{background:#fafbfd}
-    .vrow:last-child{border-bottom:none}
-    /* Columna izquierda: nombre + badge */
-    .vrow-info{flex-shrink:0;width:var(--col-villa);padding:8px 14px;border-right:2px solid var(--gray-2);display:flex;flex-direction:column;justify-content:center;gap:3px}
-    .vrow-name{font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-5);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .vrow-badge{display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:2px 7px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;letter-spacing:.3px;align-self:flex-start}
-    .vb-libre{background:var(--green-light);color:var(--green)}
-    .vb-ocupada{background:var(--red-light);color:var(--red)}
-    .vb-entra{background:var(--blue-light);color:var(--blue)}
-    .vb-sale{background:var(--orange-light);color:var(--orange)}
-
-    /* Columna derecha: timeline */
-    .vrow-tl{flex:1;position:relative;min-height:52px;min-width:0}
-    /* Líneas de días en el fondo */
-    .day-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--gray-2);pointer-events:none}
-    .day-grid-today{background:rgba(200,16,46,.15)}
-    /* Barra de reserva */
-    .bk-bar{
-      position:absolute;top:6px;height:38px;
-      border-radius:6px;cursor:pointer;
-      display:flex;align-items:center;padding:0 8px;
-      overflow:hidden;transition:filter .15s,transform .1s;
-      z-index:2;
-    }
-    .bk-bar:hover{filter:brightness(.93);transform:scaleY(1.05)}
-    .bk-bar.st-ocupada{background:#f8d7da;border-left:3px solid var(--red)}
-    .bk-bar.st-entra{background:#dbeafe;border-left:3px solid var(--blue)}
-    .bk-bar.st-sale{background:#fff3cd;border-left:3px solid var(--orange)}
-    .bk-bar.st-intra{background:#f0e7ff;border-left:3px solid var(--purple)}/* ocupa solo dentro del periodo */
-    .bk-bar-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gray-5)}
-    .bk-bar-dates{font-size:8px;color:var(--gray-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    /* "libre" strip */
-    .libre-strip{position:absolute;top:50%;transform:translateY(-50%);height:2px;background:var(--gray-2);border-radius:1px;pointer-events:none;z-index:1}
-
-    /* ══ PANEL DETALLE (slide-in) ══ */
-    #detailPanel{position:fixed;inset:0;z-index:800;display:none;flex-direction:column}
-    #detailPanel.open{display:flex}
-    #detailBg{position:absolute;inset:0;background:rgba(0,0,0,.4)}
-    #detailCard{position:relative;z-index:1;background:#fff;width:min(500px,100vw);height:100%;margin-left:auto;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.2);animation:slideIn .22s ease}
-    @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
-    .dp-hdr{background:var(--red);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
-    .dp-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;cursor:pointer;line-height:1}
-    .dp-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;text-transform:uppercase;flex:1;line-height:1.2}
-    .dp-code{background:rgba(255,255,255,.2);border-radius:6px;padding:3px 9px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;flex-shrink:0}
-    #detailBody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-    .dp-sec{background:var(--gray-1);border-radius:8px;overflow:hidden}
-    .dp-sec-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);padding:7px 12px;background:var(--gray-2)}
-    .dp-row{display:flex;gap:8px;padding:9px 12px;border-bottom:1px solid var(--gray-2);align-items:flex-start}
-    .dp-row:last-child{border-bottom:none}
-    .dp-ico{font-size:15px;flex-shrink:0;width:20px;text-align:center}
-    .dp-val{flex:1}
-    .dp-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:2px}
-    .dp-txt{font-size:13px;font-weight:500;color:var(--gray-5);word-break:break-word}
-    .dp-txt a{color:var(--blue);text-decoration:none}
-    .dp-actions{display:flex;gap:6px;flex-wrap:wrap}
-    .dp-act{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;border:none;transition:opacity .15s;flex:1;justify-content:center}
-    .dp-act:hover{opacity:.85}
-    .dp-act.red{background:var(--red-light);color:var(--red-dark)}
-    .dp-act.blue{background:var(--blue-light);color:var(--blue)}
-    .dp-act.green{background:var(--green-light);color:var(--green)}
-    .dp-act.gray{background:var(--gray-2);color:var(--gray-5)}
-    .bdg-sm{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800}
-    .b-ok{background:var(--green-light);color:var(--green)}
-    .b-no{background:var(--red-light);color:var(--red)}
-    .b-na{background:var(--gray-2);color:var(--gray-4)}
-
-    /* ══ LOADING / EMPTY ══ */
-    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
-    .spinner{width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:2px;text-transform:uppercase}
+    .user-pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
+    main{padding:20px 16px 40px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm)}
+    .card-head{padding:12px 18px;border-bottom:2px solid var(--gray-2);display:flex;align-items:center;gap:10px}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5);flex:1}
+    .card-head .ico{font-size:18px}
+    .badge-def{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;background:var(--gray-2);color:var(--gray-4);padding:2px 8px;border-radius:10px;text-transform:uppercase}
+    .card-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .lbl .req{color:var(--red)}
+    .input-wrap{display:flex;gap:6px;align-items:stretch}
+    input,select,textarea{border:1.5px solid var(--gray-2);border-radius:8px;padding:10px 12px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    input.err{border-color:var(--red)!important;background:var(--red-light)}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    textarea{resize:vertical;min-height:72px;line-height:1.5}
+    .mic-btn{flex-shrink:0;width:42px;border:1.5px solid var(--gray-2);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .15s;color:var(--gray-4)}
+    .mic-btn:hover{border-color:var(--red);color:var(--red)}
+    .mic-btn.recording{border-color:var(--red);background:var(--red-light);animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,16,46,.3)}50%{box-shadow:0 0 0 6px rgba(200,16,46,0)}}
+    .mic-btn.hidden{display:none}
+    .villa-dd{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:var(--shadow-lg);display:none}
+    .villa-opt{padding:9px 14px;cursor:pointer;font-size:13px;color:var(--gray-5);border-bottom:1px solid var(--gray-2)}
+    .villa-opt:last-child{border-bottom:none}
+    .villa-opt:hover{background:var(--red-light);color:var(--red)}
+    .villa-match{font-weight:800}
+    .res-pill{display:inline-flex;align-items:center;gap:6px;background:var(--red-light);color:var(--red);padding:6px 12px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700}
+    .defaults-note{font-size:12px;color:var(--gray-4);background:var(--gray-1);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gray-3);line-height:1.5}
+    .defaults-note strong{color:var(--gray-5);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;display:block;margin-bottom:3px}
+    .photos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media(max-width:400px){.photos-grid{grid-template-columns:repeat(2,1fr)}}
+    .photo-slot{position:relative;border-radius:10px;overflow:hidden;transition:all .2s}
+    .photo-slot.empty{background:var(--gray-1);border:2px dashed var(--gray-3);display:flex;align-items:center;justify-content:center;gap:5px;height:90px}
+    .photo-slot.empty:hover{border-color:var(--red);background:var(--red-light)}
+    .ps-btns{display:flex;gap:5px}
+    .ps-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:8px;padding:7px 11px;font-size:18px;cursor:pointer;line-height:1;transition:all .15s}
+    .ps-btn:hover{border-color:var(--red);background:var(--red-light)}
+    .ps-num{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-3)}
+    .s-ico{font-size:26px;opacity:.35;pointer-events:none}
+    .s-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-4);text-transform:uppercase;pointer-events:none}
+    .photo-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .del-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;display:none;align-items:center;justify-content:center;z-index:2;line-height:1}
+    .photo-slot.has-img .del-btn{display:flex}
+    .photo-slot.has-img .s-ico,.photo-slot.has-img .s-lbl{display:none}
+    .photo-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .up-ov{position:absolute;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center}
+    .up-ov.show{display:flex}
+    .up-spin{width:24px;height:24px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .6s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .sp-txt{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-4)}
-    .empty-msg{text-align:center;padding:60px 20px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-size:14px;font-weight:700}
-
-    /* ══ TOAST ══ */
-    #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);opacity:0;background:var(--gray-5);color:#fff;padding:9px 18px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;transition:all .3s;z-index:9999;pointer-events:none}
-    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-    @media(max-width:600px){
-      .h-stats{display:none}
-      #calWrap{padding:8px}
-    }
+    .btn-submit{background:var(--red);color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;width:100%;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:10px}
+    .btn-submit:hover{background:var(--red-dark)}
+    .btn-submit:disabled{background:var(--gray-3);cursor:not-allowed}
+    .spin-sm{width:18px;height:18px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none;flex-shrink:0}
+    .btn-submit.loading .spin-sm{display:block}
+    #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-md);transition:transform .3s;z-index:9998;max-width:92vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0)}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+    #successBox{display:none;text-align:center;padding:36px 20px}
+    #successBox .big{font-size:52px;margin-bottom:10px}
+    #successBox h3{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px}
+    #successBox p{font-size:13px;color:var(--gray-4);margin-bottom:4px}
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}}
+  
+    .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .re-row .lbl{margin:0}
+    .re-btn{border:1px solid var(--gray-3);border-radius:6px;background:var(--gray-1);padding:2px 9px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.6;transition:all .12s}
+    .re-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .ql-wrap{flex:1}
+    .ql-container.ql-snow{border:1.5px solid var(--gray-2);border-radius:8px;font-size:14px;transition:border-color .15s,box-shadow .15s}
+    .ql-container.ql-snow:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .ql-editor{min-height:72px;padding:10px 12px;line-height:1.5;color:var(--gray-5);font-size:14px;font-family:'Open Sans',sans-serif}
+    .ql-editor.ql-blank::before{color:var(--gray-3);font-style:normal}
+    .ql-editor ul>li::before{color:var(--red)}
+    .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
+    .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
   </style>
   <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </head>
 <body>
-<script>Auth.require('entradas');</script>
-<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt" id="loadTxt">Cargando datos…</div></div>
-<div id="toast"></div>
-<input type="hidden" id="mgrName">
-
-<!-- ══ HEADER ══ -->
+<script>Auth.require('tareas');</script>
 <header>
-  <a href="index.html" class="h-left">☰</a>
-  <span class="h-title">📅 Ocupación</span>
-  <div class="h-stats">
-    <div class="h-stat">Total <strong id="sTot">0</strong></div>
-    <div class="h-stat" style="color:#fff"><span style="background:var(--green);border-radius:4px;padding:1px 5px;font-size:11px;font-weight:900" id="sLibre">0</span> libres</div>
-    <div class="h-stat"><span style="background:rgba(255,255,255,.3);border-radius:4px;padding:1px 5px;font-size:11px;font-weight:900" id="sOcup">0</span> ocupadas</div>
-    <div class="h-stat"><span style="background:var(--blue-light);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:11px;font-weight:900" id="sEntra">0</span> entran</div>
-    <div class="h-stat"><span style="background:var(--orange-light);color:var(--orange);border-radius:4px;padding:1px 5px;font-size:11px;font-weight:900" id="sSale">0</span> salen</div>
-  </div>
-  <button class="h-close" onclick="history.back()">✕</button>
+  <div class="h-title">Nueva Tarea</div>
+  <div class="user-pill">👤 <span id="hUserName"></span></div>
 </header>
-
-<!-- ══ FILTROS ══ -->
-<div id="filterBar">
-  <div class="filter-row">
-    <div class="f-group">
-      <span class="f-label">Villa Manager</span>
-      <button id="fManagerBtn" class="f-inp f-mgr" onclick="toggleManagerPanel(event)">
-        <span id="fManagerLabel">Cargando…</span>
-      </button>
-      <div id="managerPanel" class="manager-panel" style="display:none">
-        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-          <input type="text" id="managerSearch" class="f-inp" placeholder="Buscar…" oninput="filterManagerList()" style="width:100%;padding:6px 10px;font-size:12px">
-        </div>
-        <div id="managerList" class="manager-list"></div>
-        <div class="mgr-footer">
-          <button onclick="selectAllManagers()" class="mgr-foot-btn">Todos</button>
-          <button onclick="clearManagers()" class="mgr-foot-btn" style="color:var(--red)">Ninguno</button>
-        </div>
+<div class="villa-dd" id="villaDd"></div>
+<div id="toast"></div>
+<main>
+  <div class="card" id="resCard" style="display:none">
+    <div class="card-head"><span class="ico">📋</span><h2>Reserva vinculada</h2></div>
+    <div class="card-body">
+      <div id="resPill" class="res-pill"><span class="res-ico">🏷️</span><span id="resLabel">—</span></div>
+      <p style="font-size:11px;color:var(--gray-4);margin-top:4px">Esta tarea quedará vinculada a la reserva indicada.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="ico">✏️</span><h2>¿Qué hay que hacer?</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="lbl">Nombre de la tarea <span class="req">*</span></label>
+        <div class="input-wrap"><input type="text" id="fNombre" autocomplete="off" placeholder="Nombre de la tarea..."><button class="mic-btn hidden" id="micNombre" type="button" title="Dictar">🎤</button></div>
+      </div>
+      <div class="field">
+        <div class="re-row"><label class="lbl">Descripción</label><button type="button" class="re-btn" onclick="qFmt('fDesc','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fDesc','check')">☐ Check</button></div>
+        <div class="input-wrap"><div class="ql-wrap"><div id="fDesc_ql"></div></div><button class="mic-btn hidden" id="micDesc" type="button" title="Dictar">🎤</button></div>
+        <textarea id="fDesc" style="display:none"></textarea>
       </div>
     </div>
-    <div class="f-group">
-      <span class="f-label">Desde</span>
-      <input type="date" id="fDesde" class="f-date" onchange="doSearch()">
-    </div>
-    <div class="f-group">
-      <span class="f-label">Hasta</span>
-      <input type="date" id="fHasta" class="f-date" onchange="doSearch()">
-    </div>
-    <div class="f-group">
-      <span class="f-label">Villa</span>
-      <input type="text" id="fVilla" class="f-inp" placeholder="Nombre villa…" style="width:140px" oninput="scheduleSearch(400)">
-    </div>
-    <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
   </div>
-</div>
-
-<!-- ══ CALENDARIO ══ -->
-<div id="calWrap">
-  <div id="emptyMsg" class="empty-msg" style="display:none">
-    <div style="font-size:40px;margin-bottom:12px">🏖️</div>
-    Sin propiedades para el período seleccionado
+  <div class="card">
+    <div class="card-head"><span class="ico">📸</span><h2>Fotos <span style="font-weight:400;opacity:.5;font-size:11px">(opcional, hasta 5)</span></h2></div>
+    <div class="card-body"><div class="photos-grid" id="photosGrid"></div></div>
   </div>
-  <div id="calScroll" style="display:none">
-    <div id="calHead" class="cal-head"></div>
-    <div id="calBody"></div>
-  </div>
-</div>
-
-<!-- ══ PANEL DETALLE ══ -->
-<div id="detailPanel" onclick="if(event.target===this||event.target.id==='detailBg')closeDetail()">
-  <div id="detailBg"></div>
-  <div id="detailCard">
-    <div class="dp-hdr">
-      <button class="dp-back" onclick="closeDetail()">←</button>
-      <div class="dp-title" id="dpVilla">—</div>
-      <div class="dp-code" id="dpCode"></div>
+  <div class="card">
+    <div class="card-head"><span class="ico">⚙️</span><h2>Valores por defecto</h2><span class="badge-def">pre-rellenados</span></div>
+    <div class="card-body">
+      <div class="defaults-note"><strong>Cámbialo solo si es necesario</strong>Estos campos se rellenan automáticamente.</div>
+      <div class="field"><label class="lbl">Fecha a realizar <span class="req">*</span></label><input type="date" id="fFecha"></div>
+      <div class="field"><label class="lbl">Asignado a</label><select id="fAsignado"><option value="">Cargando...</option></select></div>
+      <div class="field-row">
+        <div class="field"><label class="lbl">Tipo de tarea</label>
+          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Keyholder">Keyholder</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
+        </div>
+        <div class="field"><label class="lbl">Villa</label><input type="text" id="fVillaSearch" autocomplete="off" placeholder="Buscar villa..."><input type="hidden" id="fVilla"></div>
+      </div>
     </div>
-    <div id="detailBody"></div>
   </div>
-</div>
-
+  <div class="card">
+    <div class="card-body" id="btnWrap"><button class="btn-submit" id="btnSubmit" type="button"><div class="spin-sm"></div><span>✓ Crear tarea</span></button></div>
+    <div id="successBox"><div class="big">✅</div><h3>¡Tarea creada!</h3><p>Volviendo atrás...</p></div>
+  </div>
+</main>
 <script>
-(function(){
-'use strict';
-
-/* ════ CONFIG ════ */
-var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
-var U={id:'UserID',name:'Name',email:'Email'};
-var F={
-  code:'TaBookings2021_FS_confirmation_code',
-  villaId:'TaVillas_villaid',
-  villaName:'TaVillas_Name_villa_para_inquilinos',
-  checkIn:'TaBookings2021_Checkin',checkOut:'TaBookings2021_Checkout',
-  nights:'TaBookings2021_Nights',
-  adults:'TaBookings2021_Adults',children:'TaBookings2021_Children',
-  guestName:'TaBookings2021_Guest_Full_Name',
-  guestSur:'TaBookings2021_Guest_Surename',
-  statusFormula:'TaBookings2021_Status_name_formula',
-  guestPhone:'TaBookings2021_Guest_phonenumber',
-  guestEmail:'TaBookings2021_Guest_email',
-  villaManager:'TaVillas_KeyHolder_person',
-  limpieza:'TaBookings2021_LimpiezaTerminada',
-  wp:'TaBookings2021_Welcomepackentregado',
-  cierre:'TaBookings2021_Checkoutcontrolado',
-  arrivalForm:'TaBookings2021_Arrivalform_done',
-  cleaner:'TaVillas_Cleanning_team',
-  googleMaps:'TaVillas_Googlemaps_link',
-  keybox:'TaVillas_Keybox_code',
-  multiunitId:'TaBookings2021_PMSmultiunitID',
-  bookingStatus:'TaBookings2021_BookingStatus',
-  portal:'TaBookings2021_Portal_Name',
-  hostawayLink:'TaBookings2021_Reservationlink',
-  notasVM:'TaBookings2021_keyholderNotes',
-  notasLimp:'TaBookings2021_CleaningNotes',
-};
-/* Ancho columna villa en el calendario */
-var COL_VILLA='180px';
-document.documentElement.style.setProperty('--col-villa', COL_VILLA);
-
-/* ════ ESTADO ════ */
-var allUsersMap=new Map(), managersMap=new Map(), allManagersList=[];
-var selectedManagers=new Set(), multiunitsMap=new Map();
-var masterVillas=new Map(); /* villaId → {id,name,manager,multiId} */
-var _searchTimer=null;
-var _currentBookings=[]; /* todos los bookings cargados para el periodo */
-
-/* ════ UTILIDADES ════ */
-function $(id){return document.getElementById(id);}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-var _tt;
-function toast(msg){var el=$('toast');el.textContent=msg;el.className='show';clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},2500);}
-function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function toDate(s){if(!s)return null;var d=new Date((s.split('T')[0])+'T12:00:00');return isNaN(d)?null:d;}
-function dateStr(d){if(!d)return'';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function fmtD(s){if(!s)return'—';var d=toDate(s);return d?d.getDate()+'/'+(d.getMonth()+1):'—';}
-function fmtFull(s){if(!s)return'—';var d=toDate(s);if(!d)return s;return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();}
-function daysBetween(a,b){return Math.round((toDate(b)-toDate(a))/(864e5));}
-function isOk(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='boolean')return v;if(typeof v==='number')return v!==0;var s=String(v).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s)?true:['0','no','false','off'].includes(s)?false:null;}
-function getMgrName(id){if(!id)return'Sin asignar';var s=String(id).trim();return allUsersMap.get(s)||managersMap.get(s)||s;}
-function guestDisplayName(r){
-  var sf=(r[F.statusFormula]||'').trim();
-  var gn=r[F.guestName]||'';
-  var sur=(r[F.guestSur]||'').trim();
-  return sf==='Reserva'?(gn+(sur?' '+sur:'')).trim():(sf||gn)||'Reserva';
-}
-function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
-
-/* ════ MANAGER PANEL ════ */
-function renderManagerList(f){
-  var list=$('managerList');if(!list)return;
-  var q=(f||'').toLowerCase();
-  var items=q?allManagersList.filter(function(m){return m.name.toLowerCase().includes(q);}):allManagersList;
-  list.innerHTML=items.map(function(m){
-    return'<div class="manager-item" onclick="toggleManager(\''+m.id+'\')"><input type="checkbox" id="mc_'+m.id+'" '+(selectedManagers.has(m.id)?'checked':'')+'><label for="mc_'+m.id+'">'+esc(m.name)+'</label></div>';
-  }).join('');
-}
-window.filterManagerList=function(){renderManagerList(($('managerSearch')||{}).value||'');};
-window.toggleManager=function(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);};
-window.selectAllManagers=function(){allManagersList.forEach(function(m){selectedManagers.add(m.id);});renderManagerList();updateManagerBtn();};
-window.clearManagers=function(){selectedManagers.clear();renderManagerList();updateManagerBtn();};
-function updateManagerBtn(){
-  var lbl=$('fManagerLabel');if(!lbl)return;
-  if(!selectedManagers.size)lbl.textContent='Todos';
-  else if(selectedManagers.size===1){var id=[...selectedManagers][0];lbl.textContent=allUsersMap.get(id)||id;}
-  else lbl.textContent=selectedManagers.size+' managers';
-}
-window.toggleManagerPanel=function(e){
-  e&&e.stopPropagation();
-  var panel=$('managerPanel'),btn=$('fManagerBtn');if(!panel||!btn)return;
-  if(panel.style.display!=='none'){panel.style.display='none';return;}
-  var rect=btn.getBoundingClientRect();
-  panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=Math.max(220,rect.width)+'px';
-  panel.style.display='flex';renderManagerList();
-  if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}
-};
-document.addEventListener('click',function(e){
-  var p=$('managerPanel'),b=$('fManagerBtn');
-  if(p&&p.style.display!=='none'&&b&&!b.contains(e.target)&&!p.contains(e.target))p.style.display='none';
-});
-window.addEventListener('scroll',function(e){
-  var p=$('managerPanel');if(!p||p.style.display==='none')return;
-  if(p.contains(e.target))return;p.style.display='none';
-},true);
-
-/* ════ STATUS LOGIC ════
-   Para un periodo [D, H] y un booking con check-in CI y check-out CO:
-   - LIBRE:   CO <= D-1  OR  CI > H  (sin solapamiento)
-   - SALE:    CI < D AND CO === D  (sale el primer día del filtro)
-   - ENTRA:   CI dentro de [D,H] AND CO > H  (entra pero no sale en el periodo)
-             EXCEPTO si también hay un booking que lo hace OCUPADA
-   - OCUPADA: cualquier otro solapamiento
-   El status de una villa = peor de todos sus bookings (OCUPADA > ENTRA > SALE > LIBRE)
-*/
-function bookingStatus(ciStr, coStr, desdeStr, hastaStr){
-  var ci=toDate(ciStr), co=toDate(coStr);
-  var D=toDate(desdeStr), H=toDate(hastaStr);
-  if(!ci||!co||!D||!H) return 'libre';
-  /* Sin solapamiento */
-  if(co<=D||ci>H) return 'libre';
-  /* SALE: sale justo el primer día del filtro */
-  if(dateStr(co)===desdeStr && ci<D) return 'sale';
-  /* ENTRA: llega dentro del periodo y se va después */
-  if(ci>=D && ci<=H && co>H) return 'entra';
-  /* OCUPADA: cualquier otra situación con solapamiento */
-  return 'ocupada';
-}
-
-var STATUS_PRIORITY={libre:0,sale:1,entra:2,ocupada:3};
-function villaStatus(bookings, desdeStr, hastaStr){
-  var best='libre';
-  bookings.forEach(function(b){
-    var s=bookingStatus(b[F.checkIn]||'',b[F.checkOut]||'',desdeStr,hastaStr);
-    if(STATUS_PRIORITY[s]>STATUS_PRIORITY[best]) best=s;
+(function () {
+  'use strict';
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  var PHOTO_FIELDS = ['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+  var MAX_PHOT=5,photos=[],allVillas=[],myUserName='',myUserId='';
+  var urlParams=new URLSearchParams(window.location.search);
+  var paramIdReserva=(urlParams.get('Idreserva')||'').trim();
+  var paramVillaId=(urlParams.get('villa_id')||'').trim();
+  var paramVillaName=(urlParams.get('villa_name')||'').trim();
+  for(var _i=0;_i<MAX_PHOT;_i++)photos.push({file:null});
+  function g(id){return document.getElementById(id);}
+  function pad(n){return String(n).padStart(2,'0');}
+  function todayDate(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  var toastT;
+  function toast(msg,type){var el=g('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(toastT);toastT=setTimeout(function(){el.className='';},4000);}
+  document.addEventListener('DOMContentLoaded',function(){
+    myUserName=Auth.name?Auth.name():'';
+    var uEl=g('hUserName');if(uEl)uEl.textContent=myUserName.split(' ')[0];
+    g('fFecha').value=todayDate();
+    if(paramIdReserva){var rc=g('resCard');if(rc)rc.style.display='block';var rl=g('resLabel');if(rl)rl.textContent='Reserva: '+paramIdReserva+(paramVillaName?' — '+paramVillaName:'');}
+    // Villa pre-fill se hace en loadVillas() una vez cargadas todas las villas
+    buildGrid();initVillaSearch();initMic();
+    if(window._qlInit)_qlInit('fDesc','Detalles opcionales…');
+    g('btnSubmit').addEventListener('click',submitForm);
+    loadUsers();loadVillas();
   });
-  return best;
-}
+  function loadUsers(){fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(function(r){return r.json();}).then(function(json){var users=json.Result||json.result||[];var myEmail=Auth.email?Auth.email():'';var active=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';});active.forEach(function(u){if(String(u.Email||'').toLowerCase()===myEmail.toLowerCase())myUserId=String(u.UserID);});var sel=g('fAsignado');sel.innerHTML=active.map(function(u){var isSel=String(u.UserID)===myUserId?' selected':'';return'<option value="'+u.UserID+'"'+isSel+'>'+u.Name+'</option>';}).join('');}).catch(function(){g('fAsignado').innerHTML='<option value="">Error</option>';});}
+  function loadVillas(){fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500')).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];allVillas=rows.map(function(v){return{id:String(v.villaid),name:v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid};}).sort(function(a,b){return a.name.localeCompare(b.name);});if(paramVillaId){
+    // Buscar nombre de la villa por ID (más robusto que pasarlo en la URL)
+    var found=allVillas.filter(function(v){return v.id===String(paramVillaId);})[0];
+    if(found){g('fVillaSearch').value=found.name;g('fVilla').value=found.id;}
+  }else{
+    for(var i=0;i<allVillas.length;i++){var nl=allVillas[i].name.toLowerCase();if(nl.indexOf('3villas')!==-1||nl.indexOf('tarea interna')!==-1){g('fVillaSearch').value=allVillas[i].name;g('fVilla').value=allVillas[i].id;break;}}
+  }}).catch(function(){});}
+  function initVillaSearch(){var inp=g('fVillaSearch'),dd=g('villaDd');inp.addEventListener('input',function(){var q=inp.value.trim();g('fVilla').value='';if(!q){dd.style.display='none';return;}renderVillaDD(q);});inp.addEventListener('focus',function(){if(inp.value.trim())renderVillaDD(inp.value.trim());});document.addEventListener('click',function(e){if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});window.addEventListener('scroll',function(){repositionDD();},true);window.addEventListener('resize',function(){if(dd.style.display!=='none')repositionDD();});}
+  function repositionDD(){var inp=g('fVillaSearch'),dd=g('villaDd'),rect=inp.getBoundingClientRect();dd.style.top=(rect.bottom+2)+'px';dd.style.left=rect.left+'px';dd.style.width=rect.width+'px';}
+  function renderVillaDD(q){var dd=g('villaDd'),ql=q.toLowerCase(),res=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);if(!res.length){dd.style.display='none';return;}dd.innerHTML=res.map(function(v){var idx=v.name.toLowerCase().indexOf(ql),hi=v.name.slice(0,idx)+'<span class="villa-match">'+v.name.slice(idx,idx+q.length)+'</span>'+v.name.slice(idx+q.length);return'<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,"&quot;")+'">'+hi+'</div>';}).join('');dd.querySelectorAll('.villa-opt').forEach(function(opt){opt.addEventListener('mousedown',function(e){e.preventDefault();g('fVillaSearch').value=opt.dataset.name;g('fVilla').value=opt.dataset.id;dd.style.display='none';});});repositionDD();dd.style.display='block';}
+  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
+  function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
+  function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();inpCam.value='';inpCam.click();});btnFile.addEventListener('click',function(e){e.stopPropagation();inpFile.value='';inpFile.click();});btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
+  function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
+  function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
+  function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
+  function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
+  function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;urls.forEach(function(url,i){if(url)record[PHOTO_FIELDS[i]]=url;});return fetch(Auth.url(WORKER+'?action=save&table=TaTasks'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});return r.json();}).then(function(json){if(json.error||json.Message)throw new Error(json.error||json.Message);if(json.RecordsAffected===0)throw new Error('Caspio no creó el registro.');done(btn);}).catch(function(err){btn.disabled=false;btn.classList.remove('loading');toast('❌ '+err.message,'err');console.error('[NuevaTarea]',err);});}
+  function done(btn){btn.disabled=false;btn.classList.remove('loading');g('btnWrap').style.display='none';g('successBox').style.display='block';toast('¡Tarea creada!','ok');setTimeout(function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},300);},1800);}
+})();
 
-/* ════ CARGA DE DATOS ════ */
-async function loadManagers(){
-  var btn=$('fManagerBtn');if(btn){btn.disabled=true;$('fManagerLabel').textContent='Cargando…';}
-  try{
-    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'));
-    var json=await res.json();var users=json.Result||json.result||[];
-    users.forEach(function(u){allUsersMap.set(String(u[U.id]||''),String(u[U.name]||''));});
-    var myEmail=Auth.email?Auth.email():'';
-    var myUser=users.find(function(u){return String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase();});
-    var myKH=myUser?String(myUser['Keyholder_por_defecto']||'').trim():'';
-    if(myUser&&$('mgrName'))$('mgrName').value=myUser[U.name]||Auth.name()||'';
-    var mgrs=users.filter(function(u){
-      var s=u['User_Status'];
-      return(s===true||s===1||s===-1||/^(yes|s[íi]|true)$/i.test(String(s||'')))&&String(u['Keyholder_por_defecto']||'').trim();
-    });
-    mgrs.forEach(function(u){managersMap.set(String(u[U.id]||''),String(u[U.name]||''));});
-    allManagersList=mgrs.map(function(u){return{id:String(u[U.id]||''),name:String(u[U.name]||'')};});
-    selectedManagers.clear();if(myKH)selectedManagers.add(myKH);
-    renderManagerList();updateManagerBtn();if(btn)btn.disabled=false;
-  }catch(e){if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}console.error(e);}
-}
+/* ════ Rich editor Quill ════ */
+(function() {
+  var _q = {};
 
-async function loadMultiunits(){
-  try{
-    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'));
-    var json=await res.json();
-    (json.Result||json.result||[]).forEach(function(r){
-      var id=String(r['multiunitID']||r['MultiunitID']||'').trim();
-      var n=String(r['descripcion']||r['name']||id).trim();
-      if(id){multiunitsMap.set(id,n);multiunitsMap.set('name_'+id,n);}
-    });
-  }catch(e){}
-}
-
-async function loadMasterVillas(){
-  /* Cargar todas las villas con al menos 1 reserva este año */
-  var year=new Date().getFullYear();
-  var where="TaBookings2021_Checkin>='"+year+"-01-01T00:00:00' AND TaBookings2021_Checkin<='"+year+"-12-31T23:59:59' AND TaBookings2021_BookingStatus<>'cancelled'";
-  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=500';
-  try{
-    var res=await fetch(Auth.url(url));var json=await res.json();
-    (json.Result||json.result||[]).forEach(function(r){
-      var vid=String(r[F.villaId]||'').trim();
-      if(vid&&!masterVillas.has(vid)){
-        masterVillas.set(vid,{id:vid,name:r[F.villaName]||'Villa',manager:String(r[F.villaManager]||'').trim(),multiId:String(r[F.multiunitId]||'').trim()});
+  function toPlain(html) {
+    if (!html) return '';
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    var lines = [];
+    d.childNodes.forEach(function(n) {
+      if (n.nodeName === 'UL') {
+        var chk = n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li) {
+          var t = (li.innerText || li.textContent || '').trim();
+          if (chk === 'true') lines.push('[x] ' + t);
+          else if (chk === 'false') lines.push('[ ] ' + t);
+          else lines.push('\u2022 ' + t);
+        });
+      } else {
+        var t = (n.innerText || n.textContent || '').replace(/\n/g, ' ').trim();
+        if (t) lines.push(t);
       }
     });
-    $('sTot').textContent=masterVillas.size;
-  }catch(e){console.warn('masterVillas error:',e);}
-}
-
-/* ════ BÚSQUEDA Y RENDER ════ */
-window.doSearch=doSearch;
-function doSearch(){
-  clearTimeout(_searchTimer);
-  var desde=($('fDesde')||{}).value||todayStr();
-  var hasta=($('fHasta')||{}).value||desde;
-  if(hasta<desde)hasta=desde;
-  var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
-
-  /* Total de días: max 90 para performance del calendario */
-  var totalDays=daysBetween(desde,hasta)+1;
-  if(totalDays>90){toast('⚠️ Máximo 90 días en el calendario. Reduce el rango.');hasta=dateStr(new Date(toDate(desde).getTime()+(89)*864e5));totalDays=90;if($('fHasta'))$('fHasta').value=hasta;}
-
-  var parts=["TaBookings2021_BookingStatus<>'cancelled'"];
-  /* Solapamiento: check-in <= hasta AND check-out >= desde */
-  parts.push("TaBookings2021_Checkin<='"+hasta+"T23:59:59'");
-  parts.push("TaBookings2021_Checkout>='"+desde+"T00:00:00'");
-  if(selectedManagers.size>0){
-    var ids=[...selectedManagers].map(function(id){return"'"+id+"'";}).join(',');
-    parts.push(selectedManagers.size===1?"TaVillas_KeyHolder_person='"+[...selectedManagers][0]+"'":"TaVillas_KeyHolder_person IN ("+ids+")");
-  }
-  if(villaFilt) parts.push("TaVillas_Name_villa_para_inquilinos LIKE '%"+villaFilt.replace(/'/g,"''")+"%'");
-
-  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(parts.join(' AND '))+'&limit=500&orderby=TaVillas_Name_villa_para_inquilinos ASC';
-
-  $('loadOverlay').style.display='flex';$('loadTxt').textContent='Cargando ocupación…';
-  $('calScroll').style.display='none';$('emptyMsg').style.display='none';
-
-  fetch(Auth.url(url))
-    .then(function(r){return r.json();})
-    .then(function(json){
-      _currentBookings=json.Result||json.result||[];
-      renderCalendar(_currentBookings, desde, hasta, totalDays);
-    })
-    .catch(function(e){toast('❌ '+e.message);$('emptyMsg').style.display='';})
-    .finally(function(){$('loadOverlay').style.display='none';});
-}
-
-/* ════ RENDER CALENDARIO ════ */
-function renderCalendar(bookings, desde, hasta, totalDays){
-  /* Agrupar por villa */
-  var byVilla={};
-  bookings.forEach(function(r){
-    var vid=String(r[F.villaId]||'').trim();
-    if(!vid)return;
-    if(!byVilla[vid]){byVilla[vid]={id:vid,name:r[F.villaName]||'Villa',manager:String(r[F.villaManager]||'').trim(),bookings:[]};}
-    byVilla[vid].bookings.push(r);
-  });
-
-  /* Para villas del master que no aparecen en el periodo (LIBRE) */
-  masterVillas.forEach(function(v,vid){
-    if(!byVilla[vid]){
-      /* Verificar filtros de manager y villa */
-      var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
-      if(villaFilt&&!v.name.toLowerCase().includes(villaFilt))return;
-      if(selectedManagers.size>0&&!selectedManagers.has(v.manager))return;
-      byVilla[vid]={id:vid,name:v.name,manager:v.manager,bookings:[]};
-    }
-  });
-
-  var villas=Object.values(byVilla).sort(function(a,b){return a.name.localeCompare(b.name,'es');});
-
-  if(!villas.length){$('emptyMsg').style.display='';$('calScroll').style.display='none';return;}
-
-  /* Estadísticas */
-  var cLibre=0,cOcup=0,cEntra=0,cSale=0;
-  villas.forEach(function(v){
-    var s=villaStatus(v.bookings,desde,hasta);
-    if(s==='libre')cLibre++;else if(s==='ocupada')cOcup++;else if(s==='entra')cEntra++;else cSale++;
-  });
-  $('sTot').textContent=masterVillas.size||villas.length;
-  $('sLibre').textContent=cLibre;$('sOcup').textContent=cOcup;$('sEntra').textContent=cEntra;$('sSale').textContent=cSale;
-
-  /* ── Construir cabecera de días ── */
-  var head=$('calHead');var body=$('calBody');
-  head.innerHTML='';body.innerHTML='';
-
-  /* Determinar cuántos días mostrar en la cabecera */
-  var today=todayStr();
-  var headHtml='<div class="ch-villa">Villa</div><div class="ch-days">';
-  for(var d=0;d<totalDays;d++){
-    var dayD=new Date(toDate(desde).getTime()+d*864e5);
-    var dayStr2=dateStr(dayD);
-    var isToday=dayStr2===today;
-    var dayNam=dayD.toLocaleDateString('es-ES',{weekday:'short'}).replace('.','');
-    var showLabel=totalDays<=31||(totalDays<=60&&d%2===0)||(d===0||d===totalDays-1||d%7===0);
-    headHtml+='<div class="ch-day'+(isToday?' today':'')+'">'+
-      (showLabel?'<span class="ch-day-num">'+dayD.getDate()+'</span><span class="ch-day-nam">'+dayNam+'</span>':'<span class="ch-day-num" style="font-size:9px">·</span>')+
-    '</div>';
-  }
-  headHtml+='</div>';
-  head.innerHTML=headHtml;
-
-  /* ── Construir filas de villas ── */
-  villas.forEach(function(v){
-    var s=villaStatus(v.bookings,desde,hasta);
-    var badgeClass={libre:'vb-libre',ocupada:'vb-ocupada',entra:'vb-entra',sale:'vb-sale'}[s]||'vb-libre';
-    var badgeTxt={libre:'LIBRE',ocupada:'OCUPADA',entra:'⬇ ENTRA',sale:'⬆ SALE'}[s]||'LIBRE';
-    var muName=v.bookings.length&&String(v.bookings[0][F.multiunitId]||'').trim()
-      ?(multiunitsMap.get('name_'+v.bookings[0][F.multiunitId])||''):'';
-    var displayName=v.name+(muName?'<br><span style="font-size:9px;color:var(--gray-4);font-weight:600">'+muName+'</span>':'');
-
-    var row=document.createElement('div');
-    row.className='vrow';
-    row.innerHTML=
-      '<div class="vrow-info" title="'+esc(v.name)+'">'
-        +'<div class="vrow-name">'+displayName+'</div>'
-        +'<div class="vrow-badge '+badgeClass+'">'+badgeTxt+'</div>'
-      +'</div>'
-      +'<div class="vrow-tl" id="tl_'+v.id+'"></div>';
-    body.appendChild(row);
-
-    /* Renderizar timeline */
-    buildTimeline(row.querySelector('.vrow-tl'), v.bookings, desde, totalDays, today);
-  });
-
-  $('calScroll').style.display='';
-}
-
-/* ── Construir las barras del timeline ── */
-function buildTimeline(container, bookings, desde, totalDays, today){
-  var D=toDate(desde);
-
-  /* Líneas de días de fondo */
-  for(var d=0;d<totalDays;d++){
-    var dayD=new Date(D.getTime()+d*864e5);
-    var isToday=dateStr(dayD)===today;
-    var line=document.createElement('div');
-    line.className='day-grid-line'+(isToday?' day-grid-today':'');
-    line.style.left=(d/totalDays*100)+'%';
-    container.appendChild(line);
+    return lines.join('\n');
   }
 
-  /* Si no hay bookings → strip libre */
-  if(!bookings.length){
-    var ls=document.createElement('div');
-    ls.className='libre-strip';ls.style.left='2%';ls.style.width='96%';
-    container.appendChild(ls);
-    return;
+  function toHtml(text) {
+    if (!text) return '';
+    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) return text;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    return text.split('\n').map(function(line) {
+      if (/^\[x\] /.test(line)) return '<ul data-checked="true"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\[ \] /.test(line)) return '<ul data-checked="false"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\u2022 /.test(line)) return '<ul><li>' + esc(line.slice(2)) + '</li></ul>';
+      return '<p>' + esc(line) + '</p>';
+    }).join('');
   }
 
-  /* Pintar cada booking */
-  bookings.forEach(function(r){
-    var ciStr=(r[F.checkIn]||'').split('T')[0];
-    var coStr=(r[F.checkOut]||'').split('T')[0];
-    var desde2=dateStr(D); /* alias */
-    var hasta2=dateStr(new Date(D.getTime()+(totalDays-1)*864e5));
-    var s=bookingStatus(ciStr,coStr,desde2,hasta2);
-    if(s==='libre')return;
+  window._qlInit = function(fId, ph) {
+    var ta = document.getElementById(fId);
+    var wrap = document.getElementById(fId + '_ql');
+    if (!ta || !wrap || !window.Quill) return;
+    var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
+    _q[fId] = q;
+    if (ta.value) q.root.innerHTML = toHtml(ta.value);
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    ta.style.display = 'none';
+  };
 
-    /* Calcular posición: en el eje del tiempo visible */
-    var ci=toDate(ciStr),co=toDate(coStr);
-    var visStart=Math.max(0,(ci-D)/864e5);
-    var visEnd=Math.min(totalDays,(co-D)/864e5);
-    if(visEnd<=visStart)return;
-    var leftPct=visStart/totalDays*100;
-    var widthPct=(visEnd-visStart)/totalDays*100;
+  window._qlGet = function(fId) {
+    return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
+  };
 
-    var barClass={ocupada:'st-ocupada',entra:'st-entra',sale:'st-sale',intra:'st-intra'}[s]||'st-ocupada';
-
-    var guest=guestDisplayName(r);
-    var nights=r[F.nights]||daysBetween(ciStr,coStr);
-    var bar=document.createElement('div');
-    bar.className='bk-bar '+barClass;
-    bar.style.left=leftPct+'%';
-    bar.style.width='calc('+widthPct+'% - 2px)';
-    bar.title=guest+' · '+fmtD(ciStr)+' → '+fmtD(coStr);
-    bar.innerHTML=
-      '<div style="min-width:0"><div class="bk-bar-label">'+esc(guest)+'</div>'
-      +(widthPct>12?'<div class="bk-bar-dates">'+fmtD(ciStr)+' → '+fmtD(coStr)+' ('+nights+'n)</div>':'')
-      +'</div>';
-    bar.onclick=(function(rec){return function(e){e.stopPropagation();openDetail(rec);};})(r);
-    container.appendChild(bar);
-  });
-}
-
-/* ════ PANEL DETALLE ════ */
-function openDetail(r){
-  var villa=r[F.villaName]||'Villa';
-  var code=r[F.code]||'';
-  var muId=String(r[F.multiunitId]||'').trim();
-  var muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
-  var fullVilla=muName?villa+' / '+muName:villa;
-  var guest=guestDisplayName(r);
-  var ad=r[F.adults]||'',ch=r[F.children]||'';
-  var ci=(r[F.checkIn]||'').split('T')[0];
-  var co=(r[F.checkOut]||'').split('T')[0];
-  var nights=r[F.nights]||daysBetween(ci,co);
-  var ph=r[F.guestPhone]||'',em=r[F.guestEmail]||'';
-  var vmId=String(r[F.villaManager]||'').trim();
-  var vmName=getMgrName(vmId);
-  var portal=r[F.portal]||'';
-  var maps=r[F.googleMaps]||'';
-  var kb=r[F.keybox]||'';
-  var urlWP='task-wp.html?Idreserva='+code+'&Tasktype_booking=20&code='+code;
-  var urlLimp='task-limpieza.html?Idreserva='+code+'&Tasktype_booking=10&code='+code;
-  var urlHA=r[F.hostawayLink]||'https://dashboard.hostaway.com/reservations/'+code;
-  var urlCI='https://c1abn432.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code='+code;
-  var urlNotas='notas-villamanager.html?TaBookings2021_FS_confirmation_code='+encodeURIComponent(code);
-  var villaId=String(r[F.villaId]||'');
-
-  $('dpVilla').textContent=fullVilla;
-  $('dpCode').textContent='#'+code;
-
-  function bdg(raw){var ok=isOk(raw);var cls=ok===true?'b-ok':ok===false?'b-no':'b-na';var ico=ok===true?'✓':ok===false?'✗':'·';return'<span class="bdg-sm '+cls+'">'+ico+'</span>';}
-
-  var html='';
-  /* Acciones rápidas */
-  html+='<div class="dp-actions">';
-  if(ph) html+='<a class="dp-act green" href="tel:'+esc(ph)+'">📞 Llamar</a>';
-  if(ph) html+='<a class="dp-act green" href="https://wa.me/'+esc(ph.replace(/\D/g,''))+'" target="_blank">💬 WhatsApp</a>';
-  if(em) html+='<a class="dp-act blue" href="mailto:'+esc(em)+'">✉️ Email</a>';
-  html+='</div>';
-
-  /* Fechas */
-  html+='<div class="dp-sec"><div class="dp-sec-title">Reserva</div>';
-  html+='<div class="dp-row"><span class="dp-ico">📅</span><div class="dp-val"><div class="dp-lbl">Check-in → Check-out</div><div class="dp-txt">'+fmtFull(ci)+' → '+fmtFull(co)+' ('+nights+'n)</div></div></div>';
-  html+='<div class="dp-row"><span class="dp-ico">👥</span><div class="dp-val"><div class="dp-lbl">Huéspedes</div><div class="dp-txt">'+esc(guest)+(ad?' · '+ad+' adultos':'')+(ch?' · '+ch+' niños':'')+'</div></div></div>';
-  if(portal) html+='<div class="dp-row"><span class="dp-ico">🌐</span><div class="dp-val"><div class="dp-lbl">Canal</div><div class="dp-txt">'+esc(portal)+'</div></div></div>';
-  html+='</div>';
-
-  /* Estado */
-  html+='<div class="dp-sec"><div class="dp-sec-title">Estado</div>';
-  html+='<div class="dp-row"><span class="dp-ico"></span><div class="dp-val" style="display:flex;gap:6px;flex-wrap:wrap">';
-  html+=bdg(r[F.limpieza])+' Limpieza &nbsp;';
-  html+=bdg(r[F.wp])+' WelcomePack &nbsp;';
-  html+=bdg(r[F.cierre])+' Cierre &nbsp;';
-  html+=bdg(r[F.arrivalForm])+' Arrival form';
-  html+='</div></div></div>';
-
-  /* Equipo */
-  html+='<div class="dp-sec"><div class="dp-sec-title">Equipo</div>';
-  if(vmName) html+='<div class="dp-row"><span class="dp-ico">🏠</span><div class="dp-val"><div class="dp-lbl">Villa Manager</div><div class="dp-txt">'+esc(vmName)+'</div></div></div>';
-  if(maps) html+='<div class="dp-row"><span class="dp-ico">📍</span><div class="dp-val"><div class="dp-lbl">Ubicación</div><div class="dp-txt"><a href="'+esc(maps)+'" target="_blank">Ver en Maps ↗</a></div></div></div>';
-  if(kb)   html+='<div class="dp-row"><span class="dp-ico">🔑</span><div class="dp-val"><div class="dp-lbl">Keybox</div><div class="dp-txt" style="font-family:monospace;font-size:17px;font-weight:800">'+esc(kb)+'</div></div></div>';
-  html+='</div>';
-
-  /* Acciones */
-  html+='<div class="dp-sec"><div class="dp-sec-title">Acciones</div>';
-  html+='<div class="dp-row"><span class="dp-ico"></span><div class="dp-val"><div class="dp-actions" style="flex-wrap:wrap">';
-  html+='<a class="dp-act red" href="'+urlWP+'" onclick="openPop(this.href);return false;">📦 WelcomePack</a>';
-  html+='<a class="dp-act gray" href="'+urlLimp+'" onclick="openPop(this.href);return false;">🧹 Limpieza</a>';
-  html+='<a class="dp-act blue" href="'+urlCI+'" onclick="openPop(this.href,900,900);return false;">🔗 Check-in online</a>';
-  html+='<a class="dp-act gray" href="'+urlHA+'" onclick="openPop(this.href);return false;">🏠 Hostaway</a>';
-  html+='<a class="dp-act gray" href="'+urlNotas+'" target="_blank">📝 Notas VM</a>';
-  if(villaId) html+='<a class="dp-act green" href="villa.html?villa_id='+encodeURIComponent(villaId)+'" target="_blank">🏡 Info Villa</a>';
-  html+='</div></div></div>';
-  html+='</div>';
-
-  $('detailBody').innerHTML=html;
-  $('detailPanel').classList.add('open');
-  document.body.style.overflow='hidden';
-  $('detailBody').scrollTop=0;
-}
-window.closeDetail=function(){$('detailPanel').classList.remove('open');document.body.style.overflow='';};
-window.openPop=function(url,w,h){window.open(url,'_pop','width='+(w||480)+',height='+(h||700)+',resizable=yes,scrollbars=yes');};
-
-/* ════ INIT ════ */
-document.addEventListener('DOMContentLoaded',async function(){
-  function fixFilterTop(){var hdr=document.querySelector('header'),fb=$('filterBar');if(hdr&&fb)fb.style.top=hdr.offsetHeight+'px';}
-  window.addEventListener('resize',fixFilterTop);
-
-  if($('fDesde'))$('fDesde').value=todayStr();
-  if($('fHasta'))$('fHasta').value=todayStr();
-
-  $('loadTxt').textContent='Cargando managers y villas…';
-  await Promise.allSettled([loadManagers(), loadMultiunits(), loadMasterVillas()]);
-  fixFilterTop();
-  doSearch();
-});
-window.addEventListener('pageshow',function(e){if(e.persisted)doSearch();});
-
+  window.qFmt = function(fId, type) {
+    var q = _q[fId]; if (!q) return; q.focus();
+    var f = q.getFormat();
+    if (type === 'bullet') q.format('list', f.list === 'bullet' ? false : 'bullet');
+    else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
+  };
 })();
 </script>
 </body>
