@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- task-limpieza.html v01 — 12/05/2026 -->
+  <!-- task-limpieza.html v02 — 12/05/2026 -->
   <!--
   ╔══════════════════════════════════════════════════════════════════╗
   ║  task-limpieza.html — Formulario de tarea de Limpieza (tipo 10) ║
@@ -52,7 +52,7 @@
       });
     }
   </script>
-  <title>Limpieza — 3Villas v01</title>
+  <title>Limpieza — 3Villas v02</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -339,6 +339,57 @@ const TASK_NAME  = 'Limpieza';
 /* Parámetros de la URL */
 const params     = new URLSearchParams(location.search);
 const idReserva  = params.get('Idreserva') || params.get('idreserva') || '';
+
+/* ══ FIX: Persistencia de estado en sessionStorage (evita pérdida al abrir cámara iOS) ══ */
+const _STATE_KEY  = `limpieza_state_${idReserva}`;
+const _MAX_AGE_MS = 300000;
+
+function saveState() {
+  try {
+    const _el = id => document.getElementById(id);
+    sessionStorage.setItem(_STATE_KEY, JSON.stringify({
+      ts: Date.now(),
+      swVent: _el('swVentanas')?.checked||false,
+      swAire: _el('swAires')?.checked||false,
+      swBas:  _el('swBasura')?.checked||false,
+      swDone: _el('swDone')?.checked||false,
+      swInc:  _el('swIncidencias')?.checked||false,
+      txtInc: _el('txtIncidencia')?.value||'',
+      txtInt: _el('txtInterno')?.value||''
+    }));
+  } catch(e) {}
+}
+
+function restoreStateIfRecent() {
+  try {
+    const _raw = sessionStorage.getItem(_STATE_KEY);
+    if (!_raw) return;
+    const _s = JSON.parse(_raw);
+    if (Date.now() - _s.ts > _MAX_AGE_MS) return;
+    const _el = id => document.getElementById(id);
+    if(_el('swVentanas')) _el('swVentanas').checked = !!_s.swVent;
+    if(_el('swAires'))    _el('swAires').checked    = !!_s.swAire;
+    if(_el('swBasura'))   _el('swBasura').checked   = !!_s.swBas;
+    if(_el('swDone'))     _el('swDone').checked     = !!_s.swDone;
+    if(_el('swIncidencias')) _el('swIncidencias').checked = !!_s.swInc;
+    const _tInc = _el('txtIncidencia'); if(_tInc && _s.txtInc) _tInc.value = _s.txtInc;
+    const _tInt = _el('txtInterno');    if(_tInt && _s.txtInt) _tInt.value = _s.txtInt;
+    if(typeof onIncidenciasChange==='function') onIncidenciasChange();
+  } catch(e) {}
+}
+
+function clearState() {
+  try { sessionStorage.removeItem(_STATE_KEY); } catch(e) {}
+}
+
+/* Restaurar al volver de la cámara */
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') restoreStateIfRecent();
+});
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) restoreStateIfRecent();
+});
+
 const code       = params.get('code') || '';
 
 /* ════════════════════════════════════════════════════════════════
@@ -372,6 +423,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   try {
     await Promise.allSettled([loadBooking(), loadTask(), loadUserRole()]);
+    restoreStateIfRecent(); /* FIX v02: restaurar estado si hay uno reciente */
+    /* Auto-guardar en cambios */
+    ['swVentanas','swAires','swBasura','swDone','swIncidencias'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.addEventListener('change', saveState);
+    });
+    ['txtIncidencia','txtInterno'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.addEventListener('input', saveState);
+    });
     hide('loadOverlay');
     show('mainContent');
   } catch(e) {
@@ -453,6 +512,7 @@ async function loadUserRole() {
    FOTOS — helpers
    ════════════════════════════════════════════════════════════════ */
 function triggerInput(idx, type) {
+  saveState(); /* FIX v02: guardar antes de abrir cámara/galería */
   $(type === 'cam' ? `camInput${idx}` : `fileInput${idx}`).click();
 }
 
@@ -616,6 +676,7 @@ async function guardar() {
     if (!saveRes.ok) throw new Error(await saveRes.text());
 
     /* 7. Éxito */
+    clearState(); /* FIX v02 */
     toast('✓ Guardado correctamente', 'success');
     btn.style.background = 'var(--green)';
     lbl.textContent = '✓ GUARDADO';
