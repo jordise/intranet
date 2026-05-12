@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- ocupacion.html v02 — 12/05/2026
+  <!-- ocupacion.html v03 — 12/05/2026
        Vista calendario multilisting:
        · Cada villa = una fila con timeline horizontal
        · Barras de reserva coloreadas por estado
@@ -19,7 +19,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v02 — 3Villas</title>
+  <title>Ocupación v03 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -53,30 +53,46 @@
     .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
     .h-close:hover{background:rgba(255,255,255,.32)}
 
-    /* ══ FILTROS ══ */
-    #filterBar{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 16px;position:sticky;z-index:300;box-shadow:var(--shadow-sm)}
-    .filter-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
-    .f-group{display:flex;flex-direction:column;gap:4px}
-    .f-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
-    .f-inp,.f-date{border:1.5px solid var(--gray-2);border-radius:8px;padding:7px 10px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;transition:border-color .15s}
-    .f-inp:focus,.f-date:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
-    .f-date{width:138px}
-    /* Manager button */
-    .f-mgr{display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer;min-width:150px;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b0b8c8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+    /* ══ FILTROS — igual entradas-equipo ══ */
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;z-index:300;box-shadow:var(--shadow-sm)}
+    .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px}
+    #chips{flex:1;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-width:0}
+    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
+    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+    .btn-mas{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border:1.5px dashed var(--gray-3);border-radius:7px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+    .btn-mas:hover{border-color:var(--red);color:var(--red)}
+    .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .btn-mas .arr{transition:transform .2s}
+    .btn-mas.on .arr{transform:rotate(180deg)}
+    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s;flex-shrink:0}
+    .btn-clear:hover{color:var(--red)}
+    #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
+    #masFiltros.open{max-height:400px}
+    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 6px}
+    .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .filter-row:last-child{margin-bottom:0}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
+    .f-group.narrow{flex:0 0 145px}
+    .f-group.wide{flex:2;min-width:200px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
     .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
     .manager-list{overflow-y:auto;flex:1;padding:4px 0}
     .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
     .manager-item:hover{background:var(--gray-1)}
-    .manager-item input[type=checkbox]{accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
     .manager-item label{cursor:pointer;flex:1}
-    .mgr-footer{display:flex;gap:6px;padding:7px 10px;border-top:1px solid var(--gray-2)}
-    .mgr-foot-btn{flex:1;border:1.5px solid var(--gray-2);background:#fff;border-radius:6px;padding:4px 8px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer;color:var(--gray-4);transition:all .15s}
-    .mgr-foot-btn:hover{border-color:var(--red);color:var(--red)}
-    /* Botón buscar */
-    .btn-buscar{background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:5px}
-    .btn-buscar:hover{background:var(--red-dark)}
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    .stat{display:flex;align-items:baseline;gap:5px}
+    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
 
     /* ══ CONTENEDOR CALENDARIO ══ */
     #calWrap{max-width:100%;padding:12px 16px}
@@ -200,39 +216,94 @@
   <button class="h-close" onclick="history.back()">✕</button>
 </header>
 
-<!-- ══ FILTROS ══ -->
-<div id="filterBar">
-  <div class="filter-row">
-    <div class="f-group">
-      <span class="f-label">Villa Manager</span>
-      <button id="fManagerBtn" class="f-inp f-mgr" onclick="toggleManagerPanel(event)">
-        <span id="fManagerLabel">Cargando…</span>
-      </button>
-      <div id="managerPanel" class="manager-panel" style="display:none">
-        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-          <input type="text" id="managerSearch" class="f-inp" placeholder="Buscar…" oninput="filterManagerList()" style="width:100%;padding:6px 10px;font-size:12px">
+<!-- ══ FILTROS — mismo diseño que entradas-equipo ══ -->
+<div id="filterPanel">
+  <div class="main-bar" style="flex-wrap:wrap;gap:8px;align-items:flex-end;padding-bottom:10px">
+    <div class="pill-group">
+      <span class="pill-label">Ocupación</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tOcAll"   onclick="setOcupFilter('all')">Todas</button>
+        <button class="pill-opt"    id="tOcDisp"  onclick="setOcupFilter('disp')">Disponibles</button>
+        <button class="pill-opt"    id="tOcOcup"  onclick="setOcupFilter('ocup')">Ocupadas</button>
+      </div>
+    </div>
+    <div class="pill-group">
+      <span class="pill-label">WelcomePack</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
+        <button class="pill-opt"    id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+      <span>Filtros</span><span class="arr">▾</span>
+    </button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
+  </div>
+  <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0"></div>
+  <div id="masFiltros">
+    <div class="mas-inner">
+      <div class="filter-row">
+        <div class="f-group wide" style="position:relative">
+          <label class="f-label">Villa Manager</label>
+          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span id="fManagerLabel">Cargando...</span>
+            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+          </button>
+          <div id="managerPanel" class="manager-panel" style="display:none">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+              <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+            </div>
+            <div id="managerList" class="manager-list"></div>
+            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+              <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+              <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            </div>
+          </div>
         </div>
-        <div id="managerList" class="manager-list"></div>
-        <div class="mgr-footer">
-          <button onclick="selectAllManagers()" class="mgr-foot-btn">Todos</button>
-          <button onclick="clearManagers()" class="mgr-foot-btn" style="color:var(--red)">Ninguno</button>
+        <!-- Botón WelcomePacks -->
+        <div class="f-group" style="flex:0 0 auto">
+          <label class="f-label" style="visibility:hidden">_</label>
+          <a href="pedir-wellcomepacks.html"
+             style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;
+                    background:var(--red);color:#fff;border-radius:7px;text-decoration:none;
+                    font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;
+                    letter-spacing:.3px;white-space:nowrap;transition:background .15s"
+             onmouseover="this.style.background='var(--red-dark)'"
+             onmouseout="this.style.background='var(--red)'">📦 WelcomePacks</a>
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Desde</label>
+          <input type="date" id="fDesde" class="f-input" onchange="doSearch()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Hasta</label>
+          <input type="date" id="fHasta" class="f-input" onchange="doSearch()">
+        </div>
+      </div>
+      <div class="filter-row" style="margin-bottom:0">
+        <div class="f-group narrow">
+          <label class="f-label">Código reserva</label>
+          <input type="text" id="fCodigo" class="f-input" placeholder="ej. j5oQcmp4FQ" oninput="scheduleSearch(400)">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Villa</label>
+          <input type="text" id="fVilla" class="f-input" placeholder="ej. Binichic" oninput="scheduleSearch(400)">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Inquilino</label>
+          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped" oninput="scheduleSearch(400)">
         </div>
       </div>
     </div>
-    <div class="f-group">
-      <span class="f-label">Desde</span>
-      <input type="date" id="fDesde" class="f-date" onchange="doSearch()">
-    </div>
-    <div class="f-group">
-      <span class="f-label">Hasta</span>
-      <input type="date" id="fHasta" class="f-date" onchange="doSearch()">
-    </div>
-    <div class="f-group">
-      <span class="f-label">Villa</span>
-      <input type="text" id="fVilla" class="f-inp" placeholder="Nombre villa…" style="width:140px" oninput="scheduleSearch(400)">
-    </div>
-    <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
   </div>
+</div>
+<div id="statsBar">
+  <div class="stat"><strong id="sStatTot">0</strong> villas</div>
+  <div class="stat"><strong id="sStatLibre" style="color:var(--green)">0</strong> libres</div>
+  <div class="stat"><strong id="sStatOcup" style="color:var(--red)">0</strong> ocupadas</div>
+  <div class="stat"><strong id="sStatEntra" style="color:var(--blue)">0</strong> entran</div>
+  <div class="stat"><strong id="sStatSale" style="color:var(--orange)">0</strong> salen</div>
 </div>
 
 <!-- ══ CALENDARIO ══ -->
@@ -263,6 +334,41 @@
 <script>
 (function(){
 'use strict';
+
+/* ════ FILTROS (igual entradas-equipo) ════ */
+var toggleMode='all', fWelcomePack='all', fOcupFilter='all';
+var _searchTimer=null;
+function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
+function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
+function setOcupFilter(mode){fOcupFilter=mode;['tOcAll','tOcDisp','tOcOcup'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tOcAll'?mode==='all':id==='tOcDisp'?mode==='disp':mode==='ocup');});scheduleSearch();}
+function toggleMas(){$('btnMas').classList.toggle('on');$('masFiltros').classList.toggle('open');}
+function renderChips(){
+  var chips=[];
+  if(selectedManagers.size>0){var names=[...selectedManagers].map(function(id){return allUsersMap.get(id)||id;}).join(', ');chips.push({label:'Manager: '+names,clear:function(){clearManagers();}});}
+  var desde=($('fDesde')||{}).value||'';var hasta=($('fHasta')||{}).value||'';
+  if(desde)chips.push({label:'Desde: '+desde,clear:function(){if($('fDesde'))$('fDesde').value='';}});
+  if(hasta)chips.push({label:'Hasta: '+hasta,clear:function(){if($('fHasta'))$('fHasta').value='';}});
+  var cod=(($('fCodigo')||{}).value||'').trim();if(cod)chips.push({label:'Reserva: '+cod,clear:function(){if($('fCodigo'))$('fCodigo').value='';}});
+  var villa=(($('fVilla')||{}).value||'').trim();if(villa)chips.push({label:'Villa: '+villa,clear:function(){if($('fVilla'))$('fVilla').value='';}});
+  var inq=(($('fInquilino')||{}).value||'').trim();if(inq)chips.push({label:'Inquilino: '+inq,clear:function(){if($('fInquilino'))$('fInquilino').value='';}});
+  if(fOcupFilter!=='all')chips.push({label:fOcupFilter==='ocup'?'Solo Ocupadas':'Solo Disponibles',clear:function(){setOcupFilter('all');}});
+  if(fWelcomePack!=='all')chips.push({label:'WP Pendiente',clear:function(){setWPFilter('all');}});
+  window.__chOcup=chips;
+  var wrap=$('chips');if(wrap)wrap.innerHTML=chips.map(function(c,i){return'<span class="chip-filter">'+c.label+' <button onclick="window.__chOcup['+i+'].clear();renderChips();doSearch()">✕</button></span>';}).join('');
+}
+function clearAll(){
+  clearManagers();
+  if($('fDesde'))$('fDesde').value=todayStr();
+  if($('fHasta'))$('fHasta').value=todayStr();
+  /* Ajustar top del filterpanel según header */
+  function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
+  window.addEventListener('resize',fixFilterTop);fixFilterTop();
+  if($('fCodigo'))$('fCodigo').value='';
+  if($('fVilla'))$('fVilla').value='';
+  if($('fInquilino'))$('fInquilino').value='';
+  setWPFilter('all');setOcupFilter('all');
+  renderChips();doSearch();
+}
 
 /* ════ CONFIG ════ */
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
@@ -454,6 +560,7 @@ function doSearch(){
   var desde=($('fDesde')||{}).value||todayStr();
   var hasta=($('fHasta')||{}).value||desde;
   if(hasta<desde)hasta=desde;
+  renderChips();
   var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
 
   /* Total de días: max 90 para performance del calendario */
@@ -469,6 +576,10 @@ function doSearch(){
     parts.push(selectedManagers.size===1?"TaVillas_KeyHolder_person='"+[...selectedManagers][0]+"'":"TaVillas_KeyHolder_person IN ("+ids+")");
   }
   if(villaFilt) parts.push("TaVillas_Name_villa_para_inquilinos LIKE '%"+villaFilt.replace(/'/g,"''")+"%'");
+  var codFilt=(($('fCodigo')||{}).value||'').trim();
+  if(codFilt)parts.push("TaBookings2021_FS_confirmation_code LIKE '%"+codFilt.replace(/'/g,"''")+"%'");
+  var inqFilt=(($('fInquilino')||{}).value||'').trim();
+  if(inqFilt)parts.push("TaBookings2021_Guest_Full_Name LIKE '%"+inqFilt.replace(/'/g,"''")+"%'");
 
   var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(parts.join(' AND '))+'&limit=500&orderby=TaVillas_Name_villa_para_inquilinos ASC';
 
@@ -500,7 +611,8 @@ function renderCalendar(bookings, desde, hasta, totalDays){
   masterVillas.forEach(function(v,vid){
     if(!byVilla[vid]){
       /* Verificar filtros de manager y villa */
-      var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
+      renderChips();
+  var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
       if(villaFilt&&!v.name.toLowerCase().includes(villaFilt))return;
       if(selectedManagers.size>0&&!selectedManagers.has(v.manager))return;
       byVilla[vid]={id:vid,name:v.name,manager:v.manager,bookings:[]};
@@ -517,8 +629,16 @@ function renderCalendar(bookings, desde, hasta, totalDays){
     var s=villaStatus(v.bookings,desde,hasta);
     if(s==='libre')cLibre++;else if(s==='ocupada')cOcup++;else if(s==='entra')cEntra++;else cSale++;
   });
-  $('sTot').textContent=masterVillas.size||villas.length;
+  var _tot=masterVillas.size||villas.length;
+  $('sTot').textContent=_tot;
   $('sLibre').textContent=cLibre;$('sOcup').textContent=cOcup;$('sEntra').textContent=cEntra;$('sSale').textContent=cSale;
+  /* También statsBar */
+  var _sb=$('statsBar');if(_sb)_sb.style.display='flex';
+  if($('sStatTot'))$('sStatTot').textContent=villas.length;
+  if($('sStatLibre'))$('sStatLibre').textContent=cLibre;
+  if($('sStatOcup'))$('sStatOcup').textContent=cOcup;
+  if($('sStatEntra'))$('sStatEntra').textContent=cEntra;
+  if($('sStatSale'))$('sStatSale').textContent=cSale;
 
   /* ── Construir cabecera de días ── */
   var head=$('calHead');var body=$('calBody');
@@ -711,6 +831,9 @@ document.addEventListener('DOMContentLoaded',async function(){
 
   if($('fDesde'))$('fDesde').value=todayStr();
   if($('fHasta'))$('fHasta').value=todayStr();
+  /* Ajustar top del filterpanel según header */
+  function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
+  window.addEventListener('resize',fixFilterTop);fixFilterTop();
 
   $('loadTxt').textContent='Cargando managers y villas…';
   await Promise.allSettled([loadManagers(), loadMultiunits(), loadMasterVillas()]);
