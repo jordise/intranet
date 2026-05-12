@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- wellcomepacks.html v05 — 12/05/2026
+  <!-- wellcomepacks.html v06 — 12/05/2026
        v03: sin pills WP · desglose por canal/source en cada celda
             + Gran Total con misma info · cantos redondos · diseño ligero
             + tooltip explicativo de los días
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePacks v05 — 3Villas</title>
+  <title>WelcomePacks v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -285,6 +285,16 @@
     .oth-row{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:10px}
     .oth-src{color:var(--gray-4);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75px}
     .oth-n{font-family:Montserrat,sans-serif;font-weight:800;font-size:11px;color:var(--gray-5)}
+
+    /* Botón toggle desglose */
+    .oth-toggle{
+      background:none;border:none;cursor:pointer;padding:0;margin-top:3px;
+      font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
+      color:var(--gray-3);letter-spacing:.3px;text-transform:uppercase;
+      transition:color .15s;display:block;
+    }
+    .oth-toggle:hover,.oth-toggle.open{color:var(--blue)}
+    .oth-toggle.open::first-letter{content:'▾'}
   </style>
   <script src="auth.js"></script>
 </head>
@@ -361,6 +371,17 @@
     </div>
 
     <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
+    <button onclick="downloadPDF()" id="btnPDF"
+      title="Descargar PDF"
+      style="display:none;align-items:center;gap:5px;padding:9px 14px;
+             border:1.5px solid var(--gray-2);border-radius:var(--r-sm);
+             background:#fff;color:var(--gray-4);cursor:pointer;
+             font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+             transition:all .15s"
+      onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+      onmouseout="this.style.borderColor='var(--gray-2)';this.style.color='var(--gray-4)'">
+      ⬇ PDF
+    </button>
   </div>
 </div>
 
@@ -391,20 +412,7 @@
   </div>
   <div class="pivot-card" id="pivotCard" style="display:none">
     <table class="pt" id="pivotTable">
-      <thead>
-        <tr class="th-top">
-          <th>Villa Manager</th>
-          <th class="th-group" colspan="3">TipoWellcomepack</th>
-          <th class="th-total">Total</th>
-        </tr>
-        <tr class="th-sub">
-          <th>—</th>
-          <th>🏢 Tipo Apartamento</th>
-          <th>🏡 Tipo Villa</th>
-          <th>❓ Sin tipo</th>
-          <th>—</th>
-        </tr>
-      </thead>
+      <thead id="ptHead"></thead>
       <tbody id="ptBody"></tbody>
       <tfoot id="ptFoot"></tfoot>
     </table>
@@ -571,7 +579,9 @@ function numCellHtml(recs, colorDDir, colorOth){
   html+='<div class="nb-sep"></div>';
   html+='<div class="nb-row"><span class="nb-num '+colorOth+'">'+sp.oth.length+'</span><span class="nb-lbl">Otras</span></div>';
   if(sp.oth.length&&Object.keys(sp.othMap).length){
-    html+='<div class="oth-detail">';
+    var uid='od_'+Math.random().toString(36).slice(2,7);
+    html+='<button class="oth-toggle" onclick="var d=document.getElementById(this.dataset.t);d.style.display=d.style.display===\'none\'?\'flex\':\'none\';this.classList.toggle(\'open\')" data-t="'+uid+'">▸ detalle</button>';
+    html+='<div class="oth-detail" id="'+uid+'" style="display:none">';
     Object.entries(sp.othMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
       html+='<div class="oth-row"><span class="oth-src">'+esc(e[0])+'</span><span class="oth-n">'+e[1]+'</span></div>';
     });
@@ -609,10 +619,29 @@ function renderPivot(rows){
   $('pivotCard').style.display=grandTotal?'':'none';
   $('emptyMsg').style.display=grandTotal?'none':'';
   var _sr=$('statsRow');if(_sr)_sr.style.display=grandTotal?'flex':'none';
+  var _pdf=$('btnPDF');if(_pdf)_pdf.style.display=grandTotal?'flex':'none';
   var _st=$('sinTipoStat');if(_st)_st.style.display=allPend.length?'flex':'none';
 
-  var tbody=$('ptBody'), tfoot=$('ptFoot');
-  tbody.innerHTML=''; tfoot.innerHTML='';
+  var hasSinTipo=allPend.length>0;
+  var colSpan=hasSinTipo?3:2;
+  var tbody=$('ptBody'),tfoot=$('ptFoot'),thead=$('ptHead');
+  tbody.innerHTML='';tfoot.innerHTML='';
+  /* Reconstruir thead con colspan correcto */
+  if(thead){
+    thead.innerHTML=
+      '<tr class="th-top">'
+      +'<th style="text-align:left;width:22%">Villa Manager</th>'
+      +'<th colspan="'+colSpan+'" style="text-align:center;background:var(--red);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px;border-left:1px solid rgba(255,255,255,.18)">TipoWellcomepack</th>'
+      +'<th style="text-align:center;background:var(--red);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px;border-left:1px solid rgba(255,255,255,.18);width:14%">Total</th>'
+      +'</tr>'
+      +'<tr class="th-sub">'
+      +'<th style="text-align:left">—</th>'
+      +'<th>🏢 Tipo Apartamento</th>'
+      +'<th>🏡 Tipo Villa</th>'
+      +(hasSinTipo?'<th>❓ Sin tipo</th>':'')
+      +'<th>—</th>'
+      +'</tr>';
+  }
   if(!grandTotal)return;
 
   mgrs.forEach(function(m){
@@ -629,7 +658,7 @@ function renderPivot(rows){
       '<td><div class="td-mgr"><span class="td-mgr-arr">›</span><span class="td-mgr-name">'+esc(m.name)+'</span></div></td>'
       +'<td class="num-cell">'+numCellHtml(m.apto)+'</td>'
       +'<td class="num-cell">'+numCellHtml(m.villa)+'</td>'
-      +'<td class="num-cell col-sintipo">'+numCellHtml(m.pend)+'</td>'
+      +(hasSinTipo?'<td class="num-cell">'+numCellHtml(m.pend)+'</td>':'')
       +'<td class="num-cell">'+numCellHtml(m.apto.concat(m.villa).concat(m.pend))+'</td>';
     tbody.appendChild(tr);
 
@@ -639,17 +668,15 @@ function renderPivot(rows){
     detTr.className='det-row';
     detTr.style.display=isExp?'':'none';
     var detTd=document.createElement('td');
-    detTd.colSpan=5;
+    detTd.colSpan=hasSinTipo?5:4;
     detTd.appendChild(buildDetail(m));
     detTr.appendChild(detTd);
     tbody.appendChild(detTr);
   });
 
   /* Gran total */
-  var hasSinTipo=allPend.length>0;
-  var sinTipoFootCell=hasSinTipo?'<td class="num-cell col-sintipo">'+numCellHtml(allPend)+'</td>':'';
+  var sinTipoFootCell=hasSinTipo?'<td class="num-cell">'+numCellHtml(allPend)+'</td>':'';
   /* Mostrar/ocultar col Sin tipo */
-  document.querySelectorAll('.col-sintipo').forEach(function(el){el.style.display=hasSinTipo?'':'none';});
   tfoot.innerHTML=
     '<tr>'
     +'<td><div class="tfoot-label">Gran Total</div></td>'
@@ -759,6 +786,66 @@ async function loadMultiunits(){
     });
   }catch(e){}
 }
+
+/* ════ PDF DOWNLOAD ════ */
+window.downloadPDF=function(){
+  var desde=($('fDesde')||{}).value||'';
+  var dias=parseInt(($('fDays')||{}).value||'6')||6;
+  var hasta=addDays(desde,dias);
+  var fechaTxt=desde+' → '+hasta;
+
+  /* Clonar tabla actual */
+  var table=$('pivotTable');
+  if(!table)return;
+  var tableHTML=table.outerHTML;
+
+  /* Abrir ventana de impresión */
+  var win=window.open('','_blank','width=900,height=700');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
+    '<title>Solicitud WelcomePacks — '+hasta+'</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">'+
+    '<style>'+
+      '*{box-sizing:border-box;margin:0;padding:0}'+
+      'body{font-family:Open Sans,sans-serif;color:#2d3142;padding:32px 40px;background:#fff}'+
+      '.hdr{text-align:center;margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #C8102E}'+
+      '.logo{font-family:Montserrat,sans-serif;font-size:26px;font-weight:900;margin-bottom:8px}'+
+      '.logo span:first-child{color:#C8102E}'+
+      '.title{font-family:Montserrat,sans-serif;font-size:22px;font-weight:900;color:#C8102E;margin-bottom:4px}'+
+      '.fecha{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#7a8194}'+
+      'table{width:100%;border-collapse:collapse;font-size:12px}'+
+      'thead tr.th-top th{background:#C8102E;color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px}'+
+      'thead tr.th-sub th{background:#fef0f2;color:#9e0c24;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:6px 12px;border-bottom:1.5px solid #fce8eb}'+
+      'tbody tr{border-bottom:1px solid #eaecef}'+
+      'tbody td,tfoot td{padding:8px 12px;vertical-align:top}'+
+      '.td-mgr .mgr-arr{display:none}'+
+      '.mgr-name{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800}'+
+      '.nb-num{font-family:Montserrat,sans-serif;font-size:18px;font-weight:900;line-height:1}'+
+      '.nb-num.c-villa{color:#1e9e4e}.nb-num.c-apto{color:#1967d2}.nb-num.c-grand{color:#C8102E}'+
+      '.nb-lbl{font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;text-transform:uppercase;color:#7a8194}'+
+      '.nb-sep{height:1px;background:#eaecef;margin:3px 0}'+
+      '.nb-row{display:flex;align-items:baseline;gap:5px;margin-bottom:1px}'+
+      '.type-block{display:flex;flex-direction:column;gap:1px}'+
+      '.oth-toggle{display:none}'+  /* ocultar botón toggle en PDF */
+      '.oth-detail{display:flex!important;flex-direction:column;gap:1px;margin-top:3px;padding-top:3px;border-top:1px dashed #eaecef}'+
+      '.oth-row{display:flex;justify-content:space-between;font-size:9px}'+
+      '.oth-src{color:#7a8194}.oth-n{font-weight:800;font-size:10px}'+
+      '.det-row{display:none!important}'+  /* ocultar detalles de reservas en PDF */
+      '.num-empty{color:#c8cdd8;font-size:16px;text-align:center}'+
+      '.tfoot-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:900;color:#C8102E}'+
+      'tfoot tr{border-top:2px solid #C8102E}'+
+      'tfoot td{padding:8px 12px;vertical-align:top}'+
+      '@media print{body{padding:20px 24px}.hdr{margin-bottom:20px}}'+
+    '</style></head><body>'+
+    '<div class="hdr">'+
+      '<div class="logo"><span>&lt;3</span><span>villas</span></div>'+
+      '<div class="title">Solicitud WelcomePacks</div>'+
+      '<div class="fecha">Check-in: '+fechaTxt+'</div>'+
+    '</div>'+
+    tableHTML+
+  '</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},600);
+};
 
 document.addEventListener('DOMContentLoaded',async function(){
   function fixTop(){var hdr=document.querySelector('header'),fb=$('filterBar');if(hdr&&fb)fb.style.top=hdr.offsetHeight+'px';}
