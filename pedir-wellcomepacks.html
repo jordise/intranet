@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- wellcomepacks.html v06 — 12/05/2026
+  <!-- wellcomepacks.html v07 — 12/05/2026
        v03: sin pills WP · desglose por canal/source en cada celda
             + Gran Total con misma info · cantos redondos · diseño ligero
             + tooltip explicativo de los días
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePacks v06 — 3Villas</title>
+  <title>WelcomePacks v07 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -295,6 +295,18 @@
     }
     .oth-toggle:hover,.oth-toggle.open{color:var(--blue)}
     .oth-toggle.open::first-letter{content:'▾'}
+
+    /* ── v07: popup canal ── */
+    .num-info-btn{background:none;border:none;cursor:pointer;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--gray-3);padding:0;margin-top:2px;display:inline-block;transition:color .15s;letter-spacing:.2px}
+    .num-info-btn:hover{color:var(--blue)}
+    .ch-popup{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--gray-2);border-radius:var(--r-sm);box-shadow:var(--shadow-md);padding:10px 14px;min-width:170px;max-width:240px;animation:popIn .15s ease}
+    @keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+    .ch-popup-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);margin-bottom:7px}
+    .ch-popup-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--gray-1);font-size:12px;gap:12px}
+    .ch-popup-row:last-child{border-bottom:none}
+    .ch-popup-src{color:var(--gray-5);font-weight:500}
+    .ch-popup-n{font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:var(--gray-5)}
+    @media print{.num-info-btn,.ch-popup{display:none!important}}
   </style>
   <script src="auth.js"></script>
 </head>
@@ -370,7 +382,10 @@
       <span class="days-help" data-tip="Por defecto muestra una semana: desde la fecha indicada hasta ese día + 6 días. Puedes cambiar la fecha de inicio o el número de días para ampliar o ajustar el rango a tu necesidad.">?</span>
     </div>
 
-    <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
+    <button class="btn-buscar" onclick="doSearch()" title="Buscar">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="19" y2="19"/></svg>
+      Buscar
+    </button>
     <button onclick="downloadPDF()" id="btnPDF"
       title="Descargar PDF"
       style="display:none;align-items:center;gap:5px;padding:9px 14px;
@@ -511,12 +526,35 @@ window.addEventListener('scroll',function(e){
 },true);
 
 /* ════════ BÚSQUEDA ════════ */
+/* ════ CARGAR TaTipoWellcomepack ════ */
+async function loadTipoWP(){
+  try{
+    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaTipoWellcomepack&limit=100'));
+    var json=await res.json();
+    (json.Result||json.result||[]).forEach(function(r){
+      var id=String(r['TipoWellcomepack_ID']||r['tipoWellcomepack_ID']||'').trim();
+      var nm=String(r['NombreWellcomepack']||r['nombreWellcomepack']||'').trim();
+      if(id&&nm) tipoWPMap[id]=nm;
+    });
+  }catch(e){console.warn('TaTipoWellcomepack:',e);}
+}
+
+/* Resolver tipo WP a nombre */
+function getTipoName(r){
+  var id=String(r['TaVillas_TipoWellcomepack']||'').trim();
+  if(id&&tipoWPMap[id]) return tipoWPMap[id];
+  /* Fallback: multiunit → Apartamento, villa → Villa */
+  var mu=String(r['TaBookings2021_PMSmultiunitID']||'').trim();
+  return mu?'Tipo Apartamento':'Tipo Villa';
+}
+
 window.doSearch=doSearch;
 function doSearch(){
   var desde=($('fDesde')||{}).value||todayStr();
   var dias=Math.max(0,parseInt(($('fDays')||{}).value||'6')||0);
   var hasta=addDays(desde,dias);
   var parts=["TaBookings2021_BookingStatus<>'cancelled'"];
+  /* v07: solo ENTRADAS — reservas cuyo CHECK-IN cae dentro del periodo */
   parts.push("TaBookings2021_Checkin>='"+desde+"T00:00:00'");
   parts.push("TaBookings2021_Checkin<='"+hasta+"T23:59:59'");
   if(selectedManagers.size>0){
@@ -570,22 +608,51 @@ function splitDirOth(recs){
 }
 
 /* ── HTML celda: 2 números grandes (Directas / Otras) + desglose ── */
+/* ── Popup de desglose por canal (se oculta en PDF) ── */
+function buildPopupData(sp){
+  var rows=[];
+  if(sp.dir.length)rows.push({src:'Directa',n:sp.dir.length});
+  Object.entries(sp.othMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+    rows.push({src:e[0],n:e[1]});
+  });
+  return rows;
+}
+function openChanPopup(btn, rows){
+  /* Cerrar cualquier popup abierto */
+  closeAllPopups();
+  var rect=btn.getBoundingClientRect();
+  var pop=document.createElement('div');
+  pop.className='ch-popup';
+  pop.id='chPop';
+  pop.innerHTML='<div class="ch-popup-title">Desglose por canal</div>'
+    +rows.map(function(r){return'<div class="ch-popup-row"><span class="ch-popup-src">'+esc(r.src)+'</span><span class="ch-popup-n">'+r.n+'</span></div>';}).join('');
+  document.body.appendChild(pop);
+  /* Posicionar bajo el botón */
+  var top=rect.bottom+6;var left=rect.left;
+  if(left+200>window.innerWidth)left=window.innerWidth-210;
+  pop.style.top=top+'px';pop.style.left=left+'px';
+  /* Cerrar al click fuera */
+  setTimeout(function(){
+    document.addEventListener('click',closeAllPopups,{once:true});
+  },0);
+}
+function closeAllPopups(){var p=document.getElementById('chPop');if(p)p.remove();}
+
 function numCellHtml(recs, colorDDir, colorOth){
   if(!recs||!recs.length)return'<div class="num-total c-empty">—</div>';
   var sp=splitDirOth(recs);
   colorDDir=colorDDir||'c-villa'; colorOth=colorOth||'c-apto';
+  var popRows=buildPopupData(sp);
+  /* Guardar datos del popup en variable global temporal con ID único */
+  var popId='pd'+Math.random().toString(36).slice(2,9);
+  window[popId]=popRows;
   var html='<div class="type-block">';
   html+='<div class="nb-row"><span class="nb-num '+colorDDir+'">'+sp.dir.length+'</span><span class="nb-lbl">Directas</span></div>';
   html+='<div class="nb-sep"></div>';
   html+='<div class="nb-row"><span class="nb-num '+colorOth+'">'+sp.oth.length+'</span><span class="nb-lbl">Otras</span></div>';
-  if(sp.oth.length&&Object.keys(sp.othMap).length){
-    var uid='od_'+Math.random().toString(36).slice(2,7);
-    html+='<button class="oth-toggle" onclick="var d=document.getElementById(this.dataset.t);d.style.display=d.style.display===\'none\'?\'flex\':\'none\';this.classList.toggle(\'open\')" data-t="'+uid+'">▸ detalle</button>';
-    html+='<div class="oth-detail" id="'+uid+'" style="display:none">';
-    Object.entries(sp.othMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
-      html+='<div class="oth-row"><span class="oth-src">'+esc(e[0])+'</span><span class="oth-n">'+e[1]+'</span></div>';
-    });
-    html+='</div>';
+  /* Botón ℹ popup (oculto en print via @media print) */
+  if(popRows.length){
+    html+='<button class="num-info-btn" data-pid="'+popId+'" onclick="openChanPopup(this,window[this.dataset.pid]);event.stopPropagation()" title="Ver desglose">ℹ︎ ver canales</button>';
   }
   html+='</div>';
   return html;
@@ -598,23 +665,40 @@ function renderSourceList(map, total, colorClass){
 function renderPivot(rows){
   /* Agrupar por manager */
   var byMgr={};
+  /* v07: columnas dinámicas por TipoWellcomepack */
+  var tipoColsOrder=[]; /* nombres únicos de tipos, ordenados */
   rows.forEach(function(r){
     var mgrId=String(r['TaVillas_KeyHolder_person']||'').trim()||'__sin__';
-    if(!byMgr[mgrId]){byMgr[mgrId]={id:mgrId,name:getMgrName(mgrId),apto:[],villa:[],pend:[]};}
-    byMgr[mgrId][getTipo(r)].push(r);
+    var tipo=getTipo(r);
+    if(!byMgr[mgrId]){byMgr[mgrId]={id:mgrId,name:getMgrName(mgrId),tipos:{}};}
+    if(!byMgr[mgrId].tipos[tipo])byMgr[mgrId].tipos[tipo]=[];
+    byMgr[mgrId].tipos[tipo].push(r);
+    if(!tipoColsOrder.includes(tipo))tipoColsOrder.push(tipo);
   });
+  /* Ordenar columnas: primero las del mapa, luego el resto */
+  var sortedTipos=Object.values(tipoWPMap).filter(function(n){return tipoColsOrder.includes(n);});
+  tipoColsOrder.forEach(function(t){if(!sortedTipos.includes(t))sortedTipos.push(t);});
+  tipoColsOrder=sortedTipos;
+
   var mgrs=Object.values(byMgr).sort(function(a,b){return a.name.localeCompare(b.name,'es');});
 
-  /* Totales globales */
-  var allApto=[],allVilla=[],allPend=[];
-  mgrs.forEach(function(m){allApto=allApto.concat(m.apto);allVilla=allVilla.concat(m.villa);allPend=allPend.concat(m.pend);});
-  var grandTotal=allApto.length+allVilla.length+allPend.length;
+  /* Totales globales por tipo */
+  var allByTipo={};
+  tipoColsOrder.forEach(function(t){allByTipo[t]=[];});
+  mgrs.forEach(function(m){
+    tipoColsOrder.forEach(function(t){
+      if(m.tipos[t])allByTipo[t]=allByTipo[t].concat(m.tipos[t]);
+    });
+  });
+  var grandTotal=Object.values(allByTipo).reduce(function(s,a){return s+a.length;},0);
 
   /* Stats header */
   $('sTot').textContent=grandTotal;
-  $('sApto').textContent=allApto.length;
-  $('sVilla').textContent=allVilla.length;
-  $('sOtros').textContent=allPend.length;
+  /* Stats: primer y segundo tipo o fallback */
+  var _tipoVals=tipoColsOrder.map(function(t){return(allByTipo[t]||[]).length;});
+  $('sApto').textContent=_tipoVals[0]||0;
+  $('sVilla').textContent=_tipoVals[1]||0;
+  $('sOtros').textContent=_tipoVals[2]||0;
 
   $('pivotCard').style.display=grandTotal?'':'none';
   $('emptyMsg').style.display=grandTotal?'none':'';
@@ -668,7 +752,7 @@ function renderPivot(rows){
     detTr.className='det-row';
     detTr.style.display=isExp?'':'none';
     var detTd=document.createElement('td');
-    detTd.colSpan=hasSinTipo?5:4;
+    detTd.colSpan=tipoColsOrder.length+2;
     detTd.appendChild(buildDetail(m));
     detTr.appendChild(detTd);
     tbody.appendChild(detTr);
@@ -679,11 +763,9 @@ function renderPivot(rows){
   /* Mostrar/ocultar col Sin tipo */
   tfoot.innerHTML=
     '<tr>'
-    +'<td><div class="tfoot-label">Gran Total</div></td>'
-    +'<td class="num-cell">'+numCellHtml(allApto)+'</td>'
-    +'<td class="num-cell">'+numCellHtml(allVilla)+'</td>'
-    +sinTipoFootCell
-    +'<td class="num-cell">'+numCellHtml(allApto.concat(allVilla).concat(allPend))+'</td>'
+    +'<td><tfoot-label class="tfoot-label">Gran Total</tfoot-label></td>'
+    +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(allByTipo[t]||[])+'</td>';}).join('')
+    +'<td class="num-cell">'+numCellHtml(_allGrandRecs)+'</td>'
     +'</tr>';
 }
 
@@ -851,7 +933,7 @@ document.addEventListener('DOMContentLoaded',async function(){
   function fixTop(){var hdr=document.querySelector('header'),fb=$('filterBar');if(hdr&&fb)fb.style.top=hdr.offsetHeight+'px';}
   window.addEventListener('resize',fixTop);
   if($('fDesde'))$('fDesde').value=todayStr();
-  await Promise.allSettled([loadManagers(),loadMultiunits()]);
+  await Promise.allSettled([loadManagers(),loadMultiunits(),loadTipoWP()]);
   fixTop();
   doSearch();
 });
