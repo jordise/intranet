@@ -15,7 +15,7 @@
 var NAV_MENU = [
 
   { label: 'Entradas',   url: 'entradas.html',  icon: '🚪' },
-   { label: 'Entradas equipo',   url: 'entradas-equipo.html',  icon: '🚪' },
+  { label: 'Contactos',   url: 'contacto.html',  icon: '🚪' },
   { label: 'Tareas',   url: 'tareas.html',  icon: '🚪' },
  
 
