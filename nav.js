@@ -17,6 +17,7 @@ var NAV_MENU = [
   { label: 'Entradas',   url: 'entradas.html',  icon: '🚪' },
   { label: 'Contactos',   url: 'contacto.html',  icon: '🚪' },
   { label: 'Tareas',   url: 'tareas.html',  icon: '🚪' },
+  { label: 'Listado ocupacion (en pruebas)',   url: 'listado-ocupacion.html',  icon: '🚪' },
  
 
   {
