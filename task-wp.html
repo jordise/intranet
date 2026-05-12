@@ -20,7 +20,12 @@
       });
     }
   </script>
-  <title>WelcomePack — 3Villas</title>
+  <title>WelcomePack v05 — 3Villas</title>
+  <!-- task-wp.html v05 — 12/05/2026
+       v04: Fix pérdida de datos al subir foto (sessionStorage)
+       v05: Foto obligatoria con indicador visual
+            Botón "✅ Todo OK" → marca todo como hecho y guarda (requiere foto)
+  -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -66,6 +71,16 @@
     textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
     textarea::placeholder{color:var(--gray-3)}
     .save-wrap{padding:6px 0 20px}
+    /* ── v05: foto obligatoria ── */
+    .photo-required-badge{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;text-transform:uppercase;letter-spacing:.4px}
+    .photo-slot.slot-error{border-color:var(--red)!important;border-style:solid!important;animation:shake-slot .4s}
+    @keyframes shake-slot{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    /* ── v05: botón Todo OK ── */
+    .btn-todo-ok{width:100%;height:60px;background:linear-gradient(135deg,#1967d2,#1251b0);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;letter-spacing:.3px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;box-shadow:0 4px 16px rgba(25,103,210,.4);margin-bottom:10px}
+    .btn-todo-ok:active{transform:scale(.98);opacity:.9}
+    .btn-todo-ok:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
+    .btn-todo-ok .spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    .save-label-sub{font-size:10px;opacity:.7;display:block;font-weight:600;margin-top:1px}
     .btn-save{width:100%;height:54px;background:var(--green);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;box-shadow:0 4px 14px rgba(30,158,78,.35)}
     .btn-save:active{background:#17834a;transform:scale(.98)}
     .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
@@ -110,13 +125,16 @@
     </label>
   </div>
   <div class="card">
-    <div class="card-title">📷 Foto Wellcomepack</div>
+    <div class="card-title">
+      📷 Foto Wellcomepack
+      <span class="photo-required-badge">⚠ Obligatoria</span>
+    </div>
     <div class="photo-wrap">
       <div class="photo-slot empty" id="photoSlot">
         <span class="ps-num">1</span>
         <div class="ps-btns">
-          <button class="ps-btn" onclick="event.stopPropagation();document.getElementById('cameraInput').value='';document.getElementById('cameraInput').click()" title="Hacer foto">📷</button>
-          <button class="ps-btn" onclick="event.stopPropagation();document.getElementById('fileInput').value='';document.getElementById('fileInput').click()" title="Subir archivo">📂</button>
+          <button class="ps-btn" onclick="event.stopPropagation();openCamera()" title="Hacer foto">📷</button>
+          <button class="ps-btn" onclick="event.stopPropagation();openGallery()" title="Subir archivo">📂</button>
         </div>
         <img id="photoPreview" alt="Foto WelcomePack" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
         <button class="pt-del" id="photoRemove" onclick="removePhoto(event)" style="display:none">✕</button>
@@ -141,9 +159,18 @@
     </div>
   </div>
   <div class="save-wrap">
+    <!-- v05: Botón TODO OK — marca todos los toggles como OK y guarda (requiere foto) -->
+    <button class="btn-todo-ok" id="btnTodoOk" onclick="guardarTodoOk()">
+      <div class="spinner" id="spinnerTodoOk"></div>
+      <div>
+        <span>✅ Todo OK — Guardar</span>
+        <span class="save-label-sub">Marca agua, wifi y entrega como ✓</span>
+      </div>
+    </button>
+    <!-- Botón guardar normal -->
     <button class="btn-save" id="btnSave" onclick="guardar()">
       <div class="spinner" id="saveSpinner"></div>
-      <span id="saveLabel">✓ GUARDAR</span>
+      <span id="saveLabel">💾 Guardar</span>
     </button>
   </div>
 </main>
@@ -160,10 +187,84 @@ const TASK_CONFIG = {
 };
 const cfg = TASK_CONFIG[taskType] || TASK_CONFIG['20'];
 let selectedPhoto = null, photoBase64 = null;
+
+/* ══ FIX v04: PERSISTENCIA DE ESTADO EN sessionStorage ══
+   Problema: en iOS, al abrir cámara o galería el browser navega fuera
+   de la página. Al volver, el JS se reinicia y los valores introducidos
+   en los toggles y textarea se pierden.
+   Solución: guardar estado antes de abrir picker, restaurar al volver.
+*/
+const STATE_KEY = 'wp_state_' + idReserva + '_' + taskType;
+const MAX_STATE_AGE_MS = 5 * 60 * 1000; /* 5 minutos */
+
+function saveState(){
+  const elAgua = document.getElementById('swAgua');
+  const elWifi = document.getElementById('swWifi');
+  const elDone = document.getElementById('swDone');
+  const elTxt  = document.getElementById('txtComentarios');
+  if(!elAgua) return; /* formulario aún no renderizado */
+  try{
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({
+      ts:   Date.now(),
+      agua: elAgua.checked,
+      wifi: elWifi.checked,
+      done: elDone.checked,
+      txt:  elTxt ? elTxt.value : ''
+    }));
+  }catch(e){}
+}
+
+function restoreStateIfRecent(){
+  try{
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    /* Solo restaurar si el estado fue guardado hace menos de 5 minutos */
+    if(Date.now() - s.ts > MAX_STATE_AGE_MS) return;
+    $sw('swAgua', s.agua);
+    $sw('swWifi', s.wifi);
+    $sw('swDone', s.done);
+    const t = document.getElementById('txtComentarios');
+    if(t) t.value = s.txt || '';
+    onSwDoneChange();
+  }catch(e){}
+}
+
+function clearState(){
+  try{ sessionStorage.removeItem(STATE_KEY); }catch(e){}
+}
+
+/* Restaurar cuando la página vuelve a ser visible (usuario regresa de la cámara) */
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible') restoreStateIfRecent();
+});
+/* Restaurar si iOS usa bfcache (page persisted) */
+window.addEventListener('pageshow', function(e){
+  if(e.persisted) restoreStateIfRecent();
+});
+
+/* Auto-guardar al cargar (listeners se configuran en initAutoSave) */
+function initAutoSave(){
+  ['swAgua','swWifi','swDone'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', saveState);
+  });
+  const txt = document.getElementById('txtComentarios');
+  if(txt) txt.addEventListener('input', saveState);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('hTaskBadge').textContent = cfg.badge;
   if (!idReserva) { showError('Faltan parámetros en la URL.<br>Usa el botón desde Entradas y Salidas.'); return; }
-  try { await Promise.allSettled([loadBooking(), loadTask()]); hide('loadOverlay'); show('mainContent'); }
+  try {
+    await Promise.allSettled([loadBooking(), loadTask()]);
+    /* FIX v04: después de cargar datos de API, aplicar sessionStorage si hay estado reciente
+       (el usuario ya había llenado campos antes de abrir la cámara) */
+    restoreStateIfRecent();
+    /* Activar auto-guardado en cambios posteriores */
+    initAutoSave();
+    hide('loadOverlay'); show('mainContent');
+  }
   catch(e) { showError('Error al cargar: ' + e.message); }
 });
 async function loadBooking() {
@@ -195,14 +296,16 @@ function $sw(id, val) { const el=document.getElementById(id); if(!el)return; if(
 function sw(id) { return document.getElementById(id)?.checked||false; }
 function hide(id) { const el=document.getElementById(id); if(el)el.style.display='none'; }
 function show(id) { const el=document.getElementById(id); if(el)el.style.display=''; }
-function openCamera() { document.getElementById('cameraInput').click(); }
-function openGallery() { document.getElementById('fileInput').click(); }
+/* FIX v04: guardar estado ANTES de abrir picker para que iOS no pierda los datos */
+function openCamera() { saveState(); document.getElementById('cameraInput').value=''; document.getElementById('cameraInput').click(); }
+function openGallery() { saveState(); document.getElementById('fileInput').value=''; document.getElementById('fileInput').click(); }
 function handlePhotoAreaClick() { if(!selectedPhoto)openGallery(); }
 function handlePhoto(input) {
   const file=input.files[0]; if(!file)return; selectedPhoto=file;
   const reader=new FileReader();
-  reader.onload=e=>{photoBase64=e.target.result;showPhotoPreview(photoBase64);markWPDone();};
-  reader.readAsDataURL(file); input.value='';
+  reader.onload=e=>{photoBase64=e.target.result;showPhotoPreview(photoBase64);markWPDone();saveState();};
+  reader.readAsDataURL(file);
+  /* No limpiar input.value aquí: el vaciado ya lo hacen los botones antes del click */
 }
 function onSwDoneChange() {
   const el=document.getElementById('swDone'),card=document.getElementById('cardWPDone'),hint=document.getElementById('wpDoneHint');
@@ -224,12 +327,45 @@ function removePhoto(e) {
   img.src='';img.style.display='none';btn.style.display='none';
   slot.classList.remove('has-img');slot.classList.add('empty');
   document.getElementById('cameraInput').value='';document.getElementById('fileInput').value='';
+  saveState();
 }
-async function guardar() {
-  const existingPhoto=document.getElementById('photoPreview').style.display==='block';
-  if(!selectedPhoto&&!existingPhoto){toast('⚠️ La foto es obligatoria','error');document.querySelector('.photo-wrap').scrollIntoView({behavior:'smooth',block:'center'});const area=document.getElementById('photoSlot');area.style.borderColor='var(--red)';area.style.borderStyle='solid';setTimeout(()=>{area.style.borderColor='var(--gray-3)';area.style.borderStyle='dashed';},2000);return;}
+/* ── v05: Validación visual de foto obligatoria ── */
+function fotoPresente(){
+  return document.getElementById('photoPreview').style.display === 'block';
+}
+function fotoError(){
+  const area = document.getElementById('photoSlot');
+  area.classList.add('slot-error');
+  area.scrollIntoView({behavior:'smooth', block:'center'});
+  setTimeout(() => area.classList.remove('slot-error'), 1500);
+  toast('⚠️ La foto es obligatoria — sube o haz una foto primero','error');
+}
+
+/* ── v05: Todo OK — marca todos los toggles y guarda ── */
+async function guardarTodoOk(){
+  if(!fotoPresente()){ fotoError(); return; }
+  /* Marcar todo como hecho */
+  document.getElementById('swAgua').checked = true;
+  document.getElementById('swWifi').checked = true;
+  document.getElementById('swDone').checked = true;
+  onSwDoneChange();
+  saveState();
+  /* Deshabilitar ambos botones mientras guarda */
+  const btnOk = document.getElementById('btnTodoOk');
+  const spOk  = document.getElementById('spinnerTodoOk');
+  btnOk.disabled = true;
+  spOk.style.display = 'block';
+  await guardar(true /* calledFromTodoOk */);
+  btnOk.disabled = false;
+  spOk.style.display = 'none';
+}
+
+async function guardar(fromTodoOk) {
+  if(!fotoPresente()){ fotoError(); return; }
   const btn=document.getElementById('btnSave'),lbl=document.getElementById('saveLabel'),sp=document.getElementById('saveSpinner');
-  btn.disabled=true;lbl.textContent='Guardando...';sp.style.display='block';
+  const btnOk=document.getElementById('btnTodoOk');
+  btn.disabled=true; if(btnOk)btnOk.disabled=true;
+  lbl.textContent='Guardando...';sp.style.display='block';
   try {
     const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:sw('swDone'),Limpieza_filtrolavaplatos:sw('swAgua'),Limpieza_salyabrillan_lavaplatos:sw('swWifi')?'Y':'',Taskdescription:document.getElementById('txtComentarios').value.trim(),Taskname:'WelcomePack'};
     if(selectedPhoto&&photoBase64){try{const uploadRes=await uploadPhoto(selectedPhoto,idReserva,taskType);if(uploadRes&&uploadRes.url){data['Picture_cloudfare1']=uploadRes.url;}}catch(eUp){console.warn('Photo upload skipped:',eUp.message);}}
@@ -242,9 +378,17 @@ async function guardar() {
     const saveRes=await fetch(saveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     if(!saveRes.ok){const err=await saveRes.text();throw new Error(err);}
     try{const wpDone=sw('swDone');const bkWhere=`FS_confirmation_code='${idReserva}'`;const bkSaveUrl=Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);await fetch(bkSaveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Welcomepackentregado:wpDone})});}catch(eBk){console.warn('No se pudo actualizar TaBookings2021:',eBk.message);}
-    toast('✓ Guardado correctamente','success');btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
+    /* FIX v04: limpiar estado guardado tras guardar con éxito */
+    clearState();
+    toast('✓ Guardado correctamente','success');
+    btn.disabled=false; lbl.textContent='✓ GUARDADO'; btn.style.background='var(--green)';
     setTimeout(()=>window.close(),800);
-  }catch(e){console.error('Save error:',e);toast('Error al guardar: '+e.message,'error');btn.disabled=false;lbl.textContent='✓ GUARDAR';sp.style.display='none';}
+  }catch(e){
+    console.error('Save error:',e);
+    toast('Error al guardar: '+e.message,'error');
+    btn.disabled=false; lbl.textContent='💾 Guardar'; sp.style.display='none';
+    if(btnOk)btnOk.disabled=false;
+  }
 }
 async function uploadPhoto(file,idRes,taskType){const fd=new FormData();fd.append('file',file,file.name||'foto.jpg');fd.append('idreserva',idRes);fd.append('tasktype',taskType);fd.append('year',new Date().getFullYear());const res=await fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error||'Upload failed');return data;}
 let toastTimer;
