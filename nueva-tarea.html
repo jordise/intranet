@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v16 — 3Villas</title>
+  <title>Nueva Tarea v17 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -155,7 +155,7 @@
       <div class="field"><label class="lbl">Asignado a</label><select id="fAsignado"><option value="">Cargando...</option></select></div>
       <div class="field-row">
         <div class="field"><label class="lbl">Tipo de tarea</label>
-          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Keyholder">Keyholder</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
+          <select id="fTipoTarea"><option value="Villamanager">Villamanager</option><option value="Limpieza">Limpieza</option><option value="Villamanager">Villamanager</option><option value="Dpto Comercial">Dpto Comercial</option><option value="Tarea interna" selected>Tarea interna</option><option value="Mantenimiento">Mantenimiento</option><option value="Otro">Otro</option></select>
         </div>
         <div class="field"><label class="lbl">Villa</label><input type="text" id="fVillaSearch" autocomplete="off" placeholder="Buscar villa..."><input type="hidden" id="fVilla"></div>
       </div>
@@ -185,7 +185,8 @@ function saveState() {
       asignado: document.getElementById('fAsignado')?.value||'',
       tipo:     document.getElementById('fTipoTarea')?.value||'',
       villa:    document.getElementById('fVilla')?.value||'',
-      villaName:document.getElementById('fVillaSearch')?.value||''
+      villaName:document.getElementById('fVillaSearch')?.value||'',
+      desc:     (window._qlGet?window._qlGet('fDesc'):(document.getElementById('fDesc')||{}).value)||''
     }));
   } catch(e) {}
 }
@@ -204,7 +205,17 @@ function restoreStateIfRecent() {
     if(nEl('fVillaSearch')&&_s.villaName) nEl('fVillaSearch').value=_s.villaName;
     if(nEl('fAsignado')&&_s.asignado){for(let i=0;i<nEl('fAsignado').options.length;i++){if(nEl('fAsignado').options[i].value===_s.asignado){nEl('fAsignado').selectedIndex=i;break;}}}
     if(nEl('fTipoTarea')&&_s.tipo){for(let i=0;i<nEl('fTipoTarea').options.length;i++){if(nEl('fTipoTarea').options[i].value===_s.tipo){nEl('fTipoTarea').selectedIndex=i;break;}}}
-    
+    /* Restaurar descripción al editor Quill o al textarea */
+    if(_s.desc){
+      var _ta=nEl('fDesc');if(_ta)_ta.value=_s.desc;
+      /* Si Quill ya está init, actualizar el editor visible */
+      setTimeout(function(){
+        if(window._qlGet&&window._q&&window._q['fDesc']){
+          window._q['fDesc'].root.innerHTML=_s.desc.replace(/
+/g,'<br>');
+        }
+      },300);
+    }
   } catch(e) {}
 }
 
@@ -261,7 +272,25 @@ window.addEventListener('pageshow', function(e) {
   function initVillaSearch(){var inp=g('fVillaSearch'),dd=g('villaDd');inp.addEventListener('input',function(){var q=inp.value.trim();g('fVilla').value='';if(!q){dd.style.display='none';return;}renderVillaDD(q);});inp.addEventListener('focus',function(){if(inp.value.trim())renderVillaDD(inp.value.trim());});document.addEventListener('click',function(e){if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});window.addEventListener('scroll',function(){repositionDD();},true);window.addEventListener('resize',function(){if(dd.style.display!=='none')repositionDD();});}
   function repositionDD(){var inp=g('fVillaSearch'),dd=g('villaDd'),rect=inp.getBoundingClientRect();dd.style.top=(rect.bottom+2)+'px';dd.style.left=rect.left+'px';dd.style.width=rect.width+'px';}
   function renderVillaDD(q){var dd=g('villaDd'),ql=q.toLowerCase(),res=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);if(!res.length){dd.style.display='none';return;}dd.innerHTML=res.map(function(v){var idx=v.name.toLowerCase().indexOf(ql),hi=v.name.slice(0,idx)+'<span class="villa-match">'+v.name.slice(idx,idx+q.length)+'</span>'+v.name.slice(idx+q.length);return'<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,"&quot;")+'">'+hi+'</div>';}).join('');dd.querySelectorAll('.villa-opt').forEach(function(opt){opt.addEventListener('mousedown',function(e){e.preventDefault();g('fVillaSearch').value=opt.dataset.name;g('fVilla').value=opt.dataset.id;dd.style.display='none';});});repositionDD();dd.style.display='block';}
-  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
+  function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,activeIsDesc=false,isRec=false;
+    function startRec(btn,field,isDesc){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;activeIsDesc=isDesc;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}
+    function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;activeIsDesc=false;}
+    rec.onresult=function(e){
+      var t=e.results[0][0].transcript;
+      if(activeIsDesc){
+        /* Escribir en el editor Quill si está disponible */
+        if(window._q&&window._q['fDesc']){
+          var q=window._q['fDesc'];var sel=q.getSelection(true)||{index:q.getLength()-1,length:0};
+          var prefix=sel.index>0?' ':'';q.insertText(sel.index,prefix+t,'user');
+        }else if(activeField){activeField.value=(activeField.value?activeField.value+' ':'')+t;}
+      }else if(activeField){activeField.value=(activeField.value?activeField.value+' ':'')+t;}
+    };
+    rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};
+    /* Mic nombre: escribe en el input de texto */
+    var btnN=g('micNombre');if(btnN){btnN.classList.remove('hidden');btnN.addEventListener('click',function(){startRec(btnN,g('fNombre'),false);});}
+    /* Mic descripción: escribe en Quill */
+    var btnD=g('micDesc');if(btnD){btnD.classList.remove('hidden');btnD.addEventListener('click',function(){startRec(btnD,g('fDesc'),true);});}
+  }
   function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
   function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();saveState();inpCam.value='';inpCam.click();}); /* FIX v16 */btnFile.addEventListener('click',function(e){e.stopPropagation();saveState();inpFile.value='';inpFile.click();}); /* FIX v16 */btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
   function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
@@ -317,7 +346,7 @@ window.addEventListener('pageshow', function(e) {
     var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
     _q[fId] = q;
     if (ta.value) q.root.innerHTML = toHtml(ta.value);
-    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); if(window.saveState)saveState(); });
     ta.style.display = 'none';
   };
 
