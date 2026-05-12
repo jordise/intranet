@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- wellcomepacks.html v09 — 12/05/2026
+  <!-- wellcomepacks.html v10 — 12/05/2026
        v03: sin pills WP · desglose por canal/source en cada celda
             + Gran Total con misma info · cantos redondos · diseño ligero
             + tooltip explicativo de los días
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePacks v09 — 3Villas</title>
+  <title>WelcomePacks v10 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -274,13 +274,15 @@
     /* v08: celda compacta una línea */
     .num-empty{color:var(--gray-3);font-size:13px;font-family:Montserrat,sans-serif;font-weight:700}
     .cell-line{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-    .cell-dir{font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:var(--green)}
-    .cell-dir strong{font-weight:900;font-size:11px}
-    .cell-oth{font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:var(--blue)}
-    .cell-oth strong{font-weight:900;font-size:11px}
+    .cell-dir{font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:var(--green);letter-spacing:.2px}
+    .cell-dir strong{font-weight:900;font-size:13px}
+    .cell-oth{font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:.2px}
+    /* Otras como link/botón — color azul, cursor pointer */
+    button.cell-oth{background:none;border:none;padding:0;cursor:pointer;color:var(--blue);display:inline-flex;align-items:baseline;gap:2px}
+    button.cell-oth:hover{opacity:.75}
+    button.cell-oth strong{font-weight:900;font-size:13px;color:var(--blue)}
     .cell-dot{color:var(--gray-3);font-size:11px}
-    .cell-pop-btn{background:none;border:1px solid var(--gray-2);border-radius:4px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);padding:1px 6px;transition:all .15s;white-space:nowrap}
-    .cell-pop-btn:hover{border-color:var(--blue);color:var(--blue)}
+    /* cell-pop-btn eliminado en v10 — Otras es el botón */
     /* v09: modal estilo entradas */
     #bkModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
     #bkModal.open{display:flex}
@@ -307,11 +309,12 @@
     .bk-act{display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;border:none;transition:opacity .15s}
     .bk-act:hover{opacity:.85}
     .bk-act.red{background:var(--red-light);color:var(--red-dark)}.bk-act.blue{background:var(--blue-light);color:var(--blue)}.bk-act.green{background:var(--green-light);color:var(--green)}.bk-act.gray{background:var(--gray-2);color:var(--gray-5)}
-    /* Canal popup rows */
-    .ch-popup-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--gray-2);font-size:13px}
+    /* Canal popup rows — estilo ficha wellcomepacks */
+    .ch-popup-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--gray-1);font-size:12px;transition:background .1s}
+    .ch-popup-row:hover{background:var(--gray-0)}
     .ch-popup-row:last-child{border-bottom:none}
-    .ch-popup-src{color:var(--gray-5);font-weight:600}
-    .ch-popup-n{font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:var(--gray-5)}
+    .ch-popup-src{color:var(--gray-4);font-weight:600;font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    .ch-popup-n{font-family:Montserrat,sans-serif;font-weight:900;font-size:20px;color:var(--gray-5)}
 
     /* Botón toggle desglose */
     .oth-toggle{
@@ -682,21 +685,21 @@ function buildPopupData(sp){
 }
 /* openChanPopup → openChanModal en v09 */
 
-/* v09: celda compacta una línea — colores originales verde/azul */
-function numCellHtml(recs){
+/* v10: "Otras" ES el botón — label más pequeño, número más grande */
+function numCellHtml(recs, tipoNombre){
   if(!recs||!recs.length)return'<div class="num-empty">—</div>';
   var sp=splitDirOth(recs);
-  /* Guardar datos para popup */
   var popId='pd'+Math.random().toString(36).slice(2,9);
-  window[popId]=recs; /* array de bookings completos para el modal */
+  window[popId]=recs;
+  var tn=tipoNombre||'este tipo';
   var html='<div class="cell-line">';
+  /* Directas: solo texto + número (no clickable) */
   html+='<span class="cell-dir">Directas&nbsp;<strong>'+sp.dir.length+'</strong></span>';
   html+='<span class="cell-dot">·</span>';
-  html+='<span class="cell-oth">Otras&nbsp;<strong>'+sp.oth.length+'</strong></span>';
-  /* Botón "ver reservas" inline, abre modal de canales */
-  html+='<button class="cell-pop-btn" data-pid="'+popId+'" '
-       +'onclick="openChanModal(this,window[this.dataset.pid]);event.stopPropagation()">'
-       +'ver reservas</button>';
+  /* Otras: la PALABRA OTRAS es el botón que abre el modal */
+  html+='<button class="cell-oth" data-pid="'+popId+'" data-tipo="'+esc(tn)+'" '
+       +'onclick="openChanModal(this,window[this.dataset.pid],this.dataset.tipo);event.stopPropagation()" '
+       +'title="Ver desglose por canal">Otras&nbsp;<strong>'+sp.oth.length+'</strong></button>';
   html+='</div>';
   return html;
 }
@@ -782,8 +785,8 @@ function renderPivot(rows){
     tr.onclick=(function(mid){return function(){toggleRow(mid);};})(m.id);
     tr.innerHTML=
       '<td><div class="td-mgr"><span class="td-mgr-arr">›</span><span class="td-mgr-name">'+esc(m.name)+'</span></div></td>'
-      +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(m.tipos[t]||[])+'</td>';}).join('')
-      +'<td class="num-cell">'+numCellHtml(mAllRecs)+'</td>';
+      +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(m.tipos[t]||[],t)+'</td>';}).join('')
+      +'<td class="num-cell">'+numCellHtml(mAllRecs,'Total')+'</td>';
     tbody.appendChild(tr);
 
     /* Fila detalle expandible */
@@ -804,8 +807,8 @@ function renderPivot(rows){
   tfoot.innerHTML=
     '<tr>'
     +'<td><span class="tfoot-label">Gran Total</span></td>'
-    +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(allByTipo[t]||[])+'</td>';}).join('')
-    +'<td class="num-cell">'+numCellHtml(_allGrandRecs)+'</td>'
+    +tipoColsOrder.map(function(t){return'<td class="num-cell">'+numCellHtml(allByTipo[t]||[],t)+'</td>';}).join('')
+    +'<td class="num-cell">'+numCellHtml(_allGrandRecs,'Total')+'</td>'
     +'</tr>';
 }
 
@@ -969,25 +972,37 @@ function openBkPanel(r){
 }
 
 /* ════ MODAL CANALES (mismo estilo) ════ */
-window.openChanModal=function(btn,recs){
+window.openChanModal=function(btn,recs,tipoNombre){
   var sp=splitDirOth(recs);
-  $('bkMHdr').style.background='var(--gray-5)';
+  tipoNombre=tipoNombre||'este tipo';
+  /* Estilo tipo ficha wellcomepacks: borde superior rojo */
+  $('bkMHdr').style.background='var(--red)';
   $('bkMBadge').textContent='📊 Canales';
   $('bkMCode').textContent=recs.length+' reservas';
   $('bkMTitle').textContent='Reservas por canal';
-  $('bkMSub').textContent='Desglose de '+recs.length+' entradas en este tipo';
+  $('bkMSub').textContent='Desglose de '+recs.length+' entradas en '+tipoNombre;
 
   var html='';
   /* Directas */
   if(sp.dir.length){
-    html+='<div class="ch-popup-row"><span class="ch-popup-src" style="color:var(--green)">✔ Directas</span><span class="ch-popup-n" style="color:var(--green)">'+sp.dir.length+'</span></div>';
+    html+='<div class="ch-popup-row">'
+      +'<span class="ch-popup-src" style="color:var(--green)">Directas</span>'
+      +'<span class="ch-popup-n" style="color:var(--green)">'+sp.dir.length+'</span>'
+      +'</div>';
+  }
+  /* Separador visual si hay directas y otras */
+  if(sp.dir.length&&Object.keys(sp.othMap).length){
+    html+='<div style="height:1px;background:var(--gray-2);margin:0 16px"></div>';
   }
   /* Otras por canal */
   Object.entries(sp.othMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
-    html+='<div class="ch-popup-row"><span class="ch-popup-src">'+esc(e[0])+'</span><span class="ch-popup-n">'+e[1]+'</span></div>';
+    html+='<div class="ch-popup-row">'
+      +'<span class="ch-popup-src">'+esc(e[0])+'</span>'
+      +'<span class="ch-popup-n">'+e[1]+'</span>'
+      +'</div>';
   });
   if(!sp.dir.length&&!Object.keys(sp.othMap).length){
-    html+='<div style="padding:16px;text-align:center;color:var(--gray-4);font-size:13px">Sin datos de canal</div>';
+    html+='<div style="padding:24px;text-align:center;color:var(--gray-4);font-size:12px;font-family:Montserrat,sans-serif">Sin datos de canal</div>';
   }
   $('bkMBody').innerHTML=html;
   $('bkModal').classList.add('open');$('bkModal').style.display='flex';
