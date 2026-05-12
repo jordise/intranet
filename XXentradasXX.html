@@ -2,7 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <link rel="manifest" href="manifest.json">
+  <!-- entradas-equipo.html v20 — 12/05/2026 -->
+  <!-- FIX v20: Duplicados en vista semanal — una reserva con check-in Y check-out
+       en la misma semana aparecía dos veces en el mismo día. Causa: renderWeekly
+       filtraba con (ci===ds || co===ds) sobre _allRecs que ya tiene dos entradas
+       (una como 'entrada' y otra como 'salida') compartiendo el mismo objeto r.
+       Solución: filtrar por tipo — entrada solo en su día de check-in,
+       salida solo en su día de check-out. -->
+  <!-- ══ PWA ══ -->
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +27,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas v16 — 3Villas</title>
+  <title>Entradas Equipo v20 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -149,8 +157,6 @@
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
-
-    /* ── Tareas pendientes de villa (dentro de la card) ── */
     .villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
     .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
     .vt-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(224,123,0,.12);font-size:12px}
@@ -158,11 +164,8 @@
     .vt-name{flex:1;color:var(--gray-5);font-weight:500;line-height:1.3}
     .vt-edit-btn{display:inline-flex;align-items:center;gap:3px;background:var(--orange);color:#fff;border:none;border-radius:20px;padding:3px 10px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;flex-shrink:0;transition:filter .15s}
     .vt-edit-btn:hover{filter:brightness(.88)}
-
     .c-notes-outer{padding:8px 14px 2px;border-top:1px solid var(--gray-2)}
     .c-notes-outer .note{margin-bottom:6px}
-
-    /* ── Panel tareas pendientes (barra naranja) ── */
     #pendTasksBar{background:#fff8f0;border-bottom:2px solid #ffe5c0;padding:0}
     .pt-header{display:flex;align-items:center;gap:10px;padding:8px 22px;cursor:pointer;user-select:none}
     .pt-header:hover{background:#fff4e6}
@@ -185,38 +188,56 @@
     .pt-tc-date.overdue{color:var(--red)}
     .pt-tc-date.today{color:var(--orange)}
     .pt-tc-arr{font-size:16px;color:var(--orange);flex-shrink:0;transition:transform .2s}
-
-    /* ── Estilos de Calendario / Vista Semanal ── */
-    #calendarView { display:none; flex-direction:column; gap:16px; }
-    .cal-nav { display:flex; justify-content:space-between; align-items:center; background:#fff; padding:12px 20px; border-radius:10px; box-shadow:var(--shadow-sm); }
-    .cal-btn { background:var(--red-light); color:var(--red); border:none; border-radius:5px; font-size:24px; padding:0 16px; cursor:pointer; font-weight:bold; transition:0.2s;}
-    .cal-btn:hover { background:var(--red); color:#fff; }
-    .cal-title { font-family:'Montserrat',sans-serif; font-weight:800; font-size:16px; color:var(--gray-5); text-transform:uppercase; }
-    .cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:10px; overflow-x:auto; padding-bottom:10px; }
-    .cal-col { background:#fff; border-radius:8px; display:flex; flex-direction:column; box-shadow:var(--shadow-sm); border:1px solid var(--gray-2); min-width:140px;}
-    .cal-col-head { background:var(--gray-2); padding:8px; text-align:center; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:800; text-transform:uppercase; border-radius:8px 8px 0 0; }
-    .cal-col-head.today { background:var(--red-light); color:var(--red); }
-    .cal-col-body { padding:8px; display:flex; flex-direction:column; gap:8px; flex:1; min-height:80px; }
-    
-    .mini-card { background:var(--gray-1); border:1px solid var(--gray-2); border-radius:6px; padding:8px; display:flex; flex-direction:column; gap:6px; }
-    .mini-card.mc-ent { border-left:3px solid var(--green); }
-    .mini-card.mc-sal { border-left:3px solid var(--orange); }
-    .mc-title { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:800; color:var(--gray-5); line-height:1.2; word-break:break-word; }
-    .mc-tipo { font-size:9px; font-weight:bold; text-transform:uppercase; color:var(--gray-4); }
-    .mc-dots { display:flex; gap:4px; align-items:center; }
-    .mc-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-    .dot-g { background:var(--green); }
-    .dot-r { background:var(--red); }
-    .dot-gr { background:var(--gray-3); }
-    .mc-btn { background:var(--gray-3); color:#fff; border:none; padding:4px 0; font-size:10px; border-radius:4px; cursor:pointer; font-weight:bold; text-transform:uppercase; margin-top:2px; transition:0.2s;}
-    .mc-btn:hover { background:var(--gray-4); }
-
-    /* ── Pop-up Modal ── */
-    #cardModalWrap { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center; padding:20px; overflow-y:auto; }
-    #cardModalWrap.open { display:flex; }
-    #cardModalInner { background:#fff; border-radius:var(--r); max-width:440px; width:100%; max-height:90vh; overflow-y:auto; position:relative; box-shadow:var(--shadow-lg); }
-    .modal-close { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:28px; height:28px; font-size:14px; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center; transition:0.2s; }
-    .modal-close:hover { background:rgba(0,0,0,0.8); }
+    #weekNav{display:none;align-items:center;justify-content:center;gap:20px;padding:10px 0 8px}
+    #weekNav.active{display:flex}
+    .wk-arrow{background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;transition:all .15s;flex-shrink:0;font-size:18px;font-weight:900;line-height:1}
+    .wk-arrow:hover{border-color:var(--red);color:var(--red);background:#fff8f8}
+    #wkRangeLabel{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:#333;text-transform:uppercase;min-width:190px;text-align:center}
+    #weekGrid{display:none;grid-template-columns:repeat(7,minmax(130px,1fr));gap:10px;padding:4px 14px 24px;overflow-x:auto}
+    #weekGrid.active{display:grid}
+    .wk-col{min-width:130px;border-radius:14px;border:1.5px solid #e8e8e8;background:#fff;display:flex;flex-direction:column;gap:6px;padding:0 0 8px}
+    .wk-col.today{border-color:var(--red);border-width:2px}
+    .wk-col-head{padding:10px 10px 8px;text-align:center;border-bottom:1.5px solid #f0f0f0;background:#fff;border-radius:12px 12px 0 0}
+    .wk-col.today .wk-col-head{border-bottom-color:var(--red)}
+    .wk-col-day{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999}
+    .wk-col.today .wk-col-day{color:var(--red)}
+    .wk-col-date{font-size:15px;font-weight:900;color:#222;margin-top:2px}
+    .wk-col.today .wk-col-date{color:var(--red)}
+    .wk-cards-wrap{display:flex;flex-direction:column;gap:6px;padding:0 7px}
+    .wk-empty{padding:18px 8px;font-size:10px;color:#bbb;text-align:center}
+    .wk-card{background:#fff;border-radius:10px;border:1.5px solid #e8e8e8;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+    .wk-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1);border-color:#ccc}
+    .wk-card.ent{border-left:4px solid var(--red)}
+    .wk-card.sal{border-left:4px solid #1565c0}
+    .wk-card-inner{padding:8px 10px 8px 8px}
+    .wk-pill-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+    .wk-pill{font-family:Montserrat,sans-serif;font-size:7px;font-weight:900;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;color:#fff}
+    .wk-pill.ent{background:var(--red)}
+    .wk-pill.sal{background:#1565c0}
+    .wk-villa{font-size:11px;font-weight:700;color:#222;line-height:1.35;word-break:break-word}
+    .wk-dots{display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap}
+    .wk-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .wk-dot.ok{background:#22c55e}
+    .wk-dot.ko{background:#ef4444}
+    .wk-dot-lbl{font-size:8px;color:#aaa;font-family:Montserrat,sans-serif;font-weight:600}
+    .wk-cierre-btn{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;border:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;cursor:default;text-transform:uppercase;letter-spacing:.3px}
+    .wk-cierre-btn.ok{background:#dcfce7;color:#166534}
+    .wk-cierre-btn.ko{background:#fee2e2;color:#991b1b}
+    #wkModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
+    #wkModal.open{display:flex}
+    #wkModalInner{max-width:440px;width:100%;position:relative;margin:auto}
+    #wkModalInner .card{margin:0;border-radius:14px;overflow:hidden}
+    .wk-modal-close{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;z-index:10;font-weight:900;backdrop-filter:blur(4px);transition:background .15s}
+    .wk-modal-close:hover{background:rgba(0,0,0,.7)}
+    .wk-row{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+    .wk-status{display:inline-flex;align-items:center;justify-content:center;width:22px;height:20px;border-radius:5px;border:none;font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0;text-decoration:none;line-height:1;transition:opacity .15s}
+    .wk-status:hover{opacity:.75}
+    .wk-status.ok{background:#dcfce7;color:#166534}
+    .wk-status.ko{background:#fee2e2;color:#991b1b}
+    .wk-villa2{font-size:11px;font-weight:700;color:#222;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+    #btnCalendar{background:#fff;border:2px solid #ddd;border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .2s;flex-shrink:0}
+    #btnCalendar.active{background:#fff5f5;border-color:var(--red);border-width:2.5px;box-shadow:0 0 0 2px rgba(200,16,46,.15)}
+    #btnCalendar:hover{border-color:#aaa;background:#fafafa}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -260,7 +281,7 @@
       </div>
     </div>
     <div style="flex:1"></div>
-    <button id="btnCalendar" class="btn-mas" onclick="toggleCalendar()" style="color:var(--red);border-color:var(--red);">📅 Calendario</button>
+    <button id="btnCalendar" onclick="toggleCalendarView()" title="Vista semanal / Lista">📅</button>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
@@ -348,19 +369,18 @@
     <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
     <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
   </div>
-  
-  <div id="calendarView"></div>
-  
+  <div id="weekNav">
+    <button class="wk-arrow" onclick="changeWeek(-1)" title="Semana anterior">&#8592;</button>
+    <span id="wkRangeLabel">—</span>
+    <button class="wk-arrow" onclick="changeWeek(1)" title="Semana siguiente">&#8594;</button>
+  </div>
+  <div id="weekGrid"></div>
   <div id="grid"></div>
 </main>
 
 <div id="dbWrap">
   <button id="dbBtn" onclick="document.getElementById('dbBox').classList.toggle('open')">🐛</button>
   <div id="dbBox">Sin datos aún.</div>
-</div>
-
-<div id="cardModalWrap" onclick="if(event.target===this) closeMiniModal()">
-  <div id="cardModalInner"></div>
 </div>
 
 <script>
@@ -409,10 +429,6 @@ let toggleMode='all',_searchId=0,fWelcomePack='all',tipoFilter='both';
 let managersMap=new Map(),allUsersMap=new Map(),currentUserId='';
 let selectedManagers=new Set(),allManagersList=[];
 let contactsMap=new Map(),multiunitsMap=new Map();
-
-let isCalendarView = false;
-window._lastRows = [];
-
 const $=id=>document.getElementById(id);
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T00:00:00');return isNaN(d)?s:d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}
@@ -427,140 +443,24 @@ function useArrival(cual){if(cual===null||cual===undefined)return false;const s=
 function isActiveUser(u){const s=String(u['User_Status']||'').trim().toLowerCase();return['active','activo','1','yes','sí','si','true','enabled'].includes(s);}
 function getManagerName(){return($('mgrName')||{value:''}).value||Auth.name()||'Villa Manager';}
 
-// ════════════════ CALENDARIO LOGIC ════════════════
-function getMonday(d) {
-  d = new Date(d);
-  var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1);
-  return new Date(d.setDate(diff));
-}
-function toggleCalendar() {
-  isCalendarView = !isCalendarView;
-  $('btnCalendar').classList.toggle('on', isCalendarView);
-  if(isCalendarView) {
-    let baseDateStr = $('fDesde').value || todayStr();
-    let mon = getMonday(baseDateStr);
-    let sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-    $('fDesde').value = mon.toISOString().split('T')[0];
-    if($('fHasta')) { $('fHasta').min = $('fDesde').value; $('fHasta').value = sun.toISOString().split('T')[0]; }
-    scheduleSearch();
-  } else {
-    $('calendarView').style.display = 'none';
-    $('grid').style.display = 'grid';
-  }
-}
-function shiftWeek(dir) {
-  let mon = new Date($('fDesde').value || todayStr());
-  mon.setDate(mon.getDate() + (dir * 7));
-  let sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-  $('fDesde').value = mon.toISOString().split('T')[0];
-  if($('fHasta')) { $('fHasta').min = $('fDesde').value; $('fHasta').value = sun.toISOString().split('T')[0]; }
-  scheduleSearch();
-}
-function openMiniModal(idx) {
-  if(!window._lastRows || !window._lastRows[idx]) return;
-  let rObj = window._lastRows[idx];
-  let cardHTML = buildCard(rObj.r, rObj.type);
-  $('cardModalInner').innerHTML = '<button class="modal-close" onclick="closeMiniModal()">✕</button>';
-  $('cardModalInner').appendChild(cardHTML);
-  $('cardModalWrap').classList.add('open');
-}
-function closeMiniModal() {
-  $('cardModalWrap').classList.remove('open');
-}
-
-function renderCalendarDOM(rows) {
-  let v = $('calendarView');
-  let mon = new Date($('fDesde').value);
-  let sun = new Date($('fHasta').value);
-  let dateTitle = `${('0'+mon.getDate()).slice(-2)}/${('0'+(mon.getMonth()+1)).slice(-2)} — ${('0'+sun.getDate()).slice(-2)}/${('0'+(sun.getMonth()+1)).slice(-2)}/${sun.getFullYear()}`;
-  
-  let html = `<div class="cal-nav">
-      <button class="cal-btn" onclick="shiftWeek(-1)">❮</button>
-      <div class="cal-title">${dateTitle}</div>
-      <button class="cal-btn" onclick="shiftWeek(1)">❯</button>
-  </div>
-  <div class="cal-grid">`;
-  
-  let curD = new Date(mon);
-  let dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  for(let i=0; i<7; i++) {
-      let dStr = curD.toISOString().split('T')[0];
-      let todayCls = dStr === todayStr() ? 'today' : '';
-      let dayName = dayNames[curD.getDay()];
-      html += `<div class="cal-col">
-          <div class="cal-col-head ${todayCls}">${dayName} ${curD.getDate()}</div>
-          <div class="cal-col-body" id="cal-day-${dStr}"></div>
-      </div>`;
-      curD.setDate(curD.getDate() + 1);
-  }
-  html += `</div>`;
-  v.innerHTML = html;
-
-  rows.forEach((row, idx) => {
-      let dateStr = row.type === 'entrada' ? g(row.r,'checkIn') : g(row.r,'checkOut');
-      if(!dateStr) return;
-      dateStr = dateStr.split('T')[0];
-      let col = $('cal-day-' + dateStr);
-      if(col) {
-          col.appendChild(buildMiniCard(row, idx));
-      }
-  });
-}
-
-function buildMiniCard(row, idx) {
-  let isEnt = row.type === 'entrada';
-  let _muId = String(g(row.r,'pmsmultiunitId') || '').trim();
-  let _muName = _muId ? (multiunitsMap.get('name_'+_muId) || '') : '';
-  let vName = g(row.r,'villaName') || g(row.r,'reservationId') || 'Sin nombre';
-  if(_muName) vName += ' / ' + _muName;
-  
-  let div = document.createElement('div');
-  div.className = `mini-card ${isEnt ? 'mc-ent' : 'mc-sal'}`;
-  
-  let topHtml = `<div class="mc-tipo">${isEnt ? '↓ Entrada' : '↑ Salida'}</div>
-                 <div class="mc-title">${vName}</div>`;
-                 
-  let dotsHtml = `<div class="mc-dots">`;
-  if (isEnt) {
-      let lim = isOk(g(row.r,'limpieza'));
-      let wp = isOk(g(row.r,'wellcomePack'));
-      dotsHtml += `<span class="mc-dot ${lim === true ? 'dot-g' : (lim === false ? 'dot-r' : 'dot-gr')}" title="Limpieza"></span>`;
-      dotsHtml += `<span class="mc-dot ${wp === true ? 'dot-g' : (wp === false ? 'dot-r' : 'dot-gr')}" title="Welcome Pack"></span>`;
-  } else {
-      let cie = isOk(g(row.r,'cierre'));
-      dotsHtml += `<span class="mc-dot ${cie === true ? 'dot-g' : (cie === false ? 'dot-r' : 'dot-gr')}" title="Cierre"></span>`;
-  }
-  dotsHtml += `</div>`;
-  
-  div.innerHTML = topHtml + dotsHtml + `<button class="mc-btn" onclick="openMiniModal(${idx})">Ver Info</button>`;
-  return div;
-}
-
-
-// ════════════════ ABRIR EDITAR-TAREA (popup centrado) ════════════════
-function abrirNuevaTareaVilla() {
-  var w=520, h=820, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
+// ════════════════ POPUPS ════════════════
+function abrirNuevaTareaVilla(){
+  var w=520,h=820,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);
   var features='width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no';
   var popup=window.open('about:blank','nuevatarea',features);
-  if(!popup) return;
+  if(!popup)return;
   popup.document.write('<p style="font-family:sans-serif;padding:40px;text-align:center;color:#888">Cargando villa…</p>');
   fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid=164&limit=1'))
-    .then(function(r){ return r.json(); })
-    .then(function(json){
-      var v=(json.Result||json.result||[])[0];
-      var name=v?(v.Name_villa_para_inquilinos||v.Name||''):'';
-      popup.location.href='nueva-tarea.html?villa_id=164&villa_name='+encodeURIComponent(name);
-    })
-    .catch(function(){
-      popup.location.href='nueva-tarea.html?villa_id=164';
-    });
+    .then(function(r){return r.json();})
+    .then(function(json){var v=(json.Result||json.result||[])[0];var name=v?(v.Name_villa_para_inquilinos||v.Name||''):'';popup.location.href='nueva-tarea.html?villa_id=164&villa_name='+encodeURIComponent(name);})
+    .catch(function(){popup.location.href='nueva-tarea.html?villa_id=164';});
 }
 
-function openEditTask(taskId, reserva) {
-  if (!taskId) { alert('Sin ID de tarea'); return; }
-  let params = 'taskid=' + encodeURIComponent(taskId);
-  if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
-  const url = 'editar-tarea.html?' + params;
+function openEditTask(taskId,reserva){
+  if(!taskId){alert('Sin ID de tarea');return;}
+  let params='taskid='+encodeURIComponent(taskId);
+  if(reserva)params+='&Idreserva='+encodeURIComponent(reserva);
+  const url='editar-tarea.html?'+params;
   const w=520,h=820,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);
   const popup=window.open(url,'editartarea',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);
   if(popup){const t=setInterval(()=>{if(popup.closed){clearInterval(t);doSearch();}},600);}
@@ -583,7 +483,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     clearTimeout(_searchTimer);doSearch();
   }catch(err){$('dbBox').textContent='INIT ERROR: '+err.message;console.error(err);}
 });
-function updateSub(){} 
+function updateSub(){}
 
 // ════════════════ LOAD DATA ════════════════
 async function loadManagers(){
@@ -650,7 +550,6 @@ async function doSearch(){
   const mySearchId=++_searchId;updateSub();renderChips();
   try{const state={managers:[...selectedManagers],desde:($('fDesde')||{}).value||'',hasta:($('fHasta')||{}).value||'',codigo:($('fCodigo')||{}).value||'',villa:($('fVilla')||{}).value||'',inquilino:($('fInquilino')||{}).value||'',toggle:toggleMode,wpFilter:fWelcomePack,tipoFilter};localStorage.setItem('3v_eys_filters',JSON.stringify(state));saveToURL();}catch(e){}
   if($('grid')){$('grid').style.display='none';$('grid').innerHTML='';}
-  if($('calendarView')){$('calendarView').style.display='none';}
   if($('stInit'))$('stInit').style.display='none';if($('stLoad'))$('stLoad').style.display='block';if($('stErr'))$('stErr').style.display='none';if($('statsBar'))$('statsBar').style.display='none';if($('hCount'))$('hCount').textContent='';
   const where=buildWhere();
   const url=`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&orderBy=${encodeURIComponent(F.villaName)}&limit=500`;
@@ -672,14 +571,8 @@ function restoreFromURL(){const p=new URLSearchParams(location.search);const fil
 // ════════════════ RENDER CARDS ════════════════
 function renderCards(records){
   if($('stLoad'))$('stLoad').style.display='none';
-  
-  if(!records.length){
-    if($('grid')) {
-      $('grid').style.display='grid';
-      $('grid').innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay entradas ni salidas para los filtros seleccionados.</p></div>';
-    }
-    return;
-  }
+  const grid=$('grid');if(!grid)return;grid.style.display='grid';
+  if(!records.length){grid.innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay entradas ni salidas para los filtros seleccionados.</p></div>';return;}
   const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||desde;
   const desdeTs=desde?new Date(desde+'T00:00:00').getTime():0;
   const hastaTs=hasta?new Date(hasta+'T23:59:59').getTime():Infinity;
@@ -703,29 +596,14 @@ function renderCards(records){
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
   const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
   loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
-  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{ if(_sid===_searchId) updateVillaTasksInDOM(); }).catch(e=>console.warn('Villa tasks:',e.message));}
+  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{if(_sid===_searchId)updateVillaTasksInDOM();}).catch(e=>console.warn('Villa tasks:',e.message));}
   if($('hCount'))$('hCount').textContent=rows.length;
-  
-  window._lastRows = rows;
-  
-  if (isCalendarView) {
-      if($('grid')) $('grid').style.display = 'none';
-      if($('calendarView')) {
-        $('calendarView').style.display = 'flex';
-        renderCalendarDOM(rows);
-      }
-      return;
-  } else {
-      if($('calendarView')) $('calendarView').style.display = 'none';
-      if($('grid')) {
-        $('grid').style.display = 'grid';
-        $('grid').innerHTML = '';
-        rows.forEach(row=>$('grid').appendChild(buildCard(row.r,row.type)));
-      }
-  }
+  _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
+  if(_calMode){grid.style.display='none';renderWeekly();return;}
+  grid.style.display='grid';
+  rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));
 }
 
-// ════════════════ POPUPS ════════════════
 function openTaskPopup(url){const w=480,h=750,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);window.open(url,'taskpopup',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);}
 function popup(url,w,h){if(!url)return false;w=w||1000;h=h||800;window.open(url,'','resizable=no,status=no,location=no,toolbar=no,menubar=no,fullscreen=no,scrollbars=no,dependent=no,width='+w+',left=80,height='+h+',top=80');return false;}
 function parseTimeMin(timeStr){if(!timeStr)return 9999;const clean=String(timeStr).trim();const m=clean.match(/^(\d{1,2})[:h](\d{2})/);if(m)return parseInt(m[1])*60+parseInt(m[2]);return 9999;}
@@ -737,87 +615,52 @@ async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
-  const toLoad = unique.length > 40 ? unique.slice(0, 40) : unique;
-  toLoad.forEach(id => { villaPendingMap[String(id)] = []; });
-  const BATCH = 15;
-  const isDoneCheck = d => d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
-  for(let i = 0; i < toLoad.length; i += BATCH){
-    const batch = toLoad.slice(i, i + BATCH);
-    const where = batch.length === 1 ? 'villaid=' + batch[0] : '(' + batch.map(id => 'villaid=' + id).join(' OR ') + ')';
+  const toLoad=unique.length>40?unique.slice(0,40):unique;
+  toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
+  const BATCH=15;
+  const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
+  for(let i=0;i<toLoad.length;i+=BATCH){
+    const batch=toLoad.slice(i,i+BATCH);
+    const where=batch.length===1?'villaid='+batch[0]:'('+batch.map(id=>'villaid='+id).join(' OR ')+')';
     try{
-      const url = Auth.url(WORKER + '?action=data&table=TaTasks&where=' + encodeURIComponent(where) + '&limit=500');
-      const res  = await fetch(url);
-      const json = await res.json();
-      const tasks = json.Result || json.result || [];
+      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+      const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
       for(const t of tasks){
-        const vid = String(parseInt(t.villaid)||0);
-        if(villaPendingMap[vid] === undefined) continue;
-        if(!isDoneCheck(t.Tarea_terminada) && Number(t.Tasktype) !== 20){
-          villaPendingMap[vid].push({
-            type      : t.Tasktype_booking,
-            name      : t.Taskname || '',
-            taskid    : t.taskid || '',
-            reserva   : t.Idreserva || t.idreserva || '',
-            assignedId: String(t.UserID_asigned_alfanum || ''),
-            dueDate   : t.Data_to_be_done || t.Data_to_be_done_fixed || '',
-          });
+        const vid=String(parseInt(t.villaid)||0);
+        if(villaPendingMap[vid]===undefined)continue;
+        if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
+          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done||t.Data_to_be_done_fixed||''});
         }
       }
-    }catch(e){}
+    }catch(e){console.warn('[VillaTasks] Error:',e.message);}
   }
 }
-
 function updateVillaTasksInDOM(){
-  const grids = document.querySelectorAll('#grid, #cardModalInner');
-  grids.forEach(_grid => {
-    if(!_grid)return;
-    _grid.querySelectorAll('.card[data-villaid]').forEach(cardEl=>{
-      const vKey=cardEl.getAttribute('data-villaid');
-      const coStr=cardEl.getAttribute('data-checkout')||'';
-      const _limit=coStr?new Date(coStr+'T23:59:59'):null;
-      const allTasks=villaPendingMap[vKey]||[];
-      const tasks=allTasks.filter(t=>{
-        if(!t.dueDate||!_limit)return true;
-        const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');
-        return isNaN(d)||d<=_limit;
-      });
-      const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
-      if(!tasks.length)return;
-      const div=document.createElement('div');div.className='villa-tasks';
-      div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
-        tasks.map(t=>{
-          const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';
-          const firstName=assignedName?assignedName.split(' ')[0]:'';
-          return `<div class="vt-row">
-            <span class="vt-name">${t.name||'(sin nombre)'}</span>
-            ${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''}
-            ${t.taskid
-              ? `<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`
-              : `<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`
-            }
-          </div>`;
-        }).join('');
-      cardEl.appendChild(div);
-    });
+  const _grid=$('grid');if(!_grid)return;
+  _grid.querySelectorAll('[data-villaid]').forEach(cardEl=>{
+    const vKey=cardEl.getAttribute('data-villaid');
+    const coStr=cardEl.getAttribute('data-checkout')||'';
+    const _limit=coStr?new Date(coStr+'T23:59:59'):null;
+    const allTasks=villaPendingMap[vKey]||[];
+    const tasks=allTasks.filter(t=>{if(!t.dueDate||!_limit)return true;const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');return isNaN(d)||d<=_limit;});
+    const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
+    if(!tasks.length)return;
+    const div=document.createElement('div');div.className='villa-tasks';
+    div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
+      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';return`<div class="vt-row"><span class="vt-name">${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
+    cardEl.appendChild(div);
   });
 }
 
-// ════════════════ PENDING TASKS (stats bar) ════════════════
+// ════════════════ PENDING TASKS (panel) ════════════════
 async function loadPendingTasks(managerIds){
   const ids=[...new Set([...(currentUserId?[currentUserId]:[]),...(managerIds||[])])];
   if(!ids.length)return;
   const orParts=ids.map(id=>`UserID_asigned_alfanum='${id}'`).join(' OR ');
   const where=`(${orParts})`;
-  try{
-    const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
-    const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
-    const count=tasks.filter(t=>!t.Tarea_terminada).length;
-  }catch(e){}
+  try{const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);const res=await fetch(url);const json=await res.json();}catch(e){}
 }
-
-// ════════════════ PANEL TAREAS PENDIENTES ════════════════
 function togglePendTasks(){const body=$('ptBody');const arr=$('ptArr');if(!body)return;const isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);if(arr)arr.classList.toggle('open',!isOpen);}
-
 async function loadPendingTasksPanel(){
   const myIds=window.__myUserAllIds||(currentUserId?[currentUserId]:[]);
   const ids=[...new Set([...myIds,...selectedManagers])];
@@ -832,103 +675,38 @@ async function loadPendingTasksPanel(){
     else{where=`Tarea_terminada<>true`;}
     const url=Auth.url(`${CFG.workerUrl}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);
     const res=await fetch(url);const json=await res.json();const rawTasks=json.Result||json.result||[];
-
     const villaIds=[...new Set(rawTasks.map(t=>t.villaid).filter(Boolean))];
     const villaNameMap={};
-    if(villaIds.length){
-      try{
-        const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:villaIds.map(id=>`villaid=${id}`).join(' OR ');
-        const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));
-        const vJson=await vRes.json();
-        (vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});
-      }catch(e){}
-    }
-
-    const tasks=rawTasks.filter(t=>{
-      const done=t.Tarea_terminada;
-      return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');
-    });
-
+    if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:villaIds.map(id=>`villaid=${id}`).join(' OR ');const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
+    const tasks=rawTasks.filter(t=>{const done=t.Tarea_terminada;return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');});
     tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';const db=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';return da<db?-1:da>db?1:0;});
-
     const _today=new Date();_today.setHours(0,0,0,0);
-    const tasksPast=tasks.filter(t=>{
-      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(!rd)return true;
-      return new Date(rd.split('T')[0]+'T00:00:00')<=_today;
-    });
-    const tasksFuture=tasks.filter(t=>{
-      const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-      if(!rd)return false;
-      return new Date(rd.split('T')[0]+'T00:00:00')>_today;
-    });
-    
+    const tasksPast=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return true;return new Date(rd.split('T')[0]+'T00:00:00')<=_today;});
+    const tasksFuture=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return false;return new Date(rd.split('T')[0]+'T00:00:00')>_today;});
     if($('ptCount'))$('ptCount').textContent=tasksPast.length;
     if($('ptLoading'))$('ptLoading').style.display='none';
-
     if(!tasks.length){if($('ptEmpty')){$('ptEmpty').textContent='No hay tareas pendientes ✓';$('ptEmpty').style.display='block';}return;}
-
-    const ptList=$('ptList');
-    if(!ptList)return;
+    const ptList=$('ptList');if(!ptList)return;
     let html='';
     if(tasksPast.length){
       html+=tasksPast.map(t=>{
-        const vid=t.villaid||'';
-        const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');
-        const taskName=(t.Taskname||'(sin descripción)').slice(0,70);
-        const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-        let dateStr='',dateCls='pt-tc-date';
-        if(rawDate){
-          const d=new Date(rawDate.split('T')[0]+'T00:00:00');
-          const diff=Math.round((d-_today)/86400000);
-          if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}
-          else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}
-          else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
-        }
-        const tid=t.taskid||'';
-        const res=t.Idreserva||t.idreserva||'';
-        return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
-          <div class="pt-tc-villa">${villaName}</div>
-          <div class="pt-tc-name">${taskName}</div>
-          ${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}
-          <div class="pt-tc-arr">›</div>
-        </div>`;
+        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';let dateStr='',dateCls='pt-tc-date';
+        if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
-    } else {
-      html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';
-    }
+    } else {html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
     if(tasksFuture.length){
       const futureCardsHtml=tasksFuture.map(t=>{
-        const vid=t.villaid||'';
-        const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');
-        const taskName=(t.Taskname||'(sin descripción)').slice(0,70);
-        const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';
-        let dateStr='';
-        if(rawDate){
-          const d=new Date(rawDate.split('T')[0]+'T00:00:00');
-          const diff=Math.round((d-_today)/86400000);
-          if(diff===1)dateStr='Mañana';
-          else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');
-        }
-        const tid=t.taskid||'';
-        const res=t.Idreserva||t.idreserva||'';
-        return `<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}">
-          <div class="pt-tc-villa">${villaName}</div>
-          <div class="pt-tc-name">${taskName}</div>
-          ${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}
-          <div class="pt-tc-arr">›</div>
-        </div>`;
+        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';let dateStr='';
+        if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
-      html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)">
-        <span style="font-size:14px;flex-shrink:0">🗓️</span>
-        <div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div>
-        <div class="pt-tc-arr" style="transition:transform .2s">›</div>
-      </div>
-      <div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
+      html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)"><span style="font-size:14px;flex-shrink:0">🗓️</span><div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div><div class="pt-tc-arr" style="transition:transform .2s">›</div></div><div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
     }
-    ptList.innerHTML=html;
-    ptList.style.display='block';
-  }catch(e){if($('ptLoading'))$('ptLoading').textContent='Error al cargar tareas';}
+    ptList.innerHTML=html;ptList.style.display='block';
+  }catch(e){console.warn('[Tasks] Error:',e.message);if($('ptLoading'))$('ptLoading').textContent='Error al cargar tareas';}
 }
 
 // ════════════════ SVG ICONS ════════════════
@@ -972,32 +750,25 @@ function buildCard(r,type){
   const waUrlMsg=phoneClean?`https://wa.me/${phoneClean}?text=${waMsg}`:'';
   const waUrlSimple=phoneClean?`https://wa.me/${phoneClean}`:'';
   const paxTxt=[ad&&`${ad}A`,ch&&`${ch}N`].filter(Boolean).join(' · ');
-
-  const urlLimpieza=`http://c1abn932.caspio.com/dp/353f70000ad4eac80ca64b2d82fa?Idreserva=${code}&Tasktype_booking=10`;
+  const urlLimpieza=`task-limpieza.html?Idreserva=${code}&Tasktype_booking=10&code=${code}`;
   const urlWP=`task-wp.html?Idreserva=${code}&Tasktype_booking=20&code=${code}`;
   const urlCierre=`https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
   const urlCiOnline=`https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
   const urlEcFix=`https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
   const urlNotas=`notas-villamanager.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
   const urlAddTask=`nueva-tarea.html?Idreserva=${encodeURIComponent(code)}&villa_id=${encodeURIComponent(villaId)}&villa_name=${encodeURIComponent(vl)}`;
-  const urlVerTask=`https://c1abn932.caspio.com/dp/353f7000a9b40a819b13448fa83b?Tatasks_idreserva=${code}&cbResetParam=1`;
   const urlResNotas=`notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
-  const urlExtras=`https://c1abn432.caspio.com/dp/353f70003378521e747a43748f75?TaBookings2021_FS_confirmation_code=${code}`;
   const urlHostaway=g(r,'hostawayLink')||`https://dashboard.hostaway.com/reservations/${code}`;
-
   let html='';const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
-
   const headClass=isSalida?'c-head salida':'c-head';
   const tipoBadge=isSalida?'<span class="tipo-badge tipo-salida">↑ SALIDA</span><br>':'<span class="tipo-badge tipo-entrada">↓ ENTRADA</span><br>';
   html+=`<div class="${headClass}"><div><div class="villa-name">${tipoBadge}${vl}</div>`;
   if(paxTxt||n||portal)html+=`<div class="villa-sub">${[paxTxt&&paxTxt+' pax',n&&n+'n',portal].filter(Boolean).join(' · ')}</div>`;
   html+='</div>';if(code)html+=`<div class="res-id">#${code}</div>`;html+='</div>';
-
   html+='<div class="c-status">';
-  if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);}
+  if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);}
   else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);}
   html+='</div>';
-
   if(code){
     const ecEUR=g(r,'ecotasaFinal');const ecCom=g(r,'ecotasaComment');const depNotes=g(r,'depositNotes');
     const ecRaw=g(r,'ecotasaCobrada');const ecOk=isOk(ecRaw);
@@ -1012,7 +783,6 @@ function buildCard(r,type){
     if(ecCom)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if(depNotes)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
   }
-
   html+='<div class="c-body" style="padding-bottom:8px">';
   html+='<div class="dates-grid">';
   html+=`<div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>`;
@@ -1022,16 +792,11 @@ function buildCard(r,type){
   if(!isSalida){if(cht)html+=`<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${cht}</span></div></div>`;if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`;}
   if(isSalida){const cot=g(r,'checkoutTime');const dm=g(r,'departureMenorca');if(cot)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida villa</span><span class="ival">${cot}</span></div></div>`;else if(cht)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida</span><span class="ival">${cht}</span></div></div>`;if(dm)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${dm}</span></div></div>`;else if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;}
   html+='</div>';
-
   if(nl||ni){html+='<div class="c-notes-outer">';if(nl)html+=`<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;if(ni)html+=`<div class="note note-w"><div class="nl">📌 Notas keyholder</div>${ni}</div>`;html+='</div>';}
-
   html+=`<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
   html+=`<div class="c-body-wrap" id="${cardId}">`;
-
   if(cleanerName||vmName){html+='<div class="c-staff">';if(cleanerName)html+=`<div class="staff-row">🧹 <strong>${cleanerName}</strong> — Limpieza</div>`;if(vmName)html+=`<div class="staff-row">🏠 <strong>${vmName}</strong> — Villa Manager</div>`;html+='</div>';}
-
   if(mp||kbCode){html+='<div class="c-links">';if(mp)html+=`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;if(kbCode)html+=`<span class="lnk lnk-k">🔑 ${kbCode}</span>`;html+='</div>';}
-
   html+='<div class="c-body"><hr class="dv">';
   html+=`<div class="gname">${gn||'—'}</div>`;
   html+='<div class="gmeta">';
@@ -1039,7 +804,6 @@ function buildCard(r,type){
   html+='</div>';
   if(ph||ph2){html+='<div class="phones-row">';if(ph)html+=`<div class="ph-line ${!useArr?'active':''}"><span class="ph-tag">Host</span>${!useArr?'✓ ':''}<a href="tel:${ph}" style="color:inherit;text-decoration:none">${ph}</a></div>`;if(ph2)html+=`<div class="ph-line ${useArr?'active arr':''}"><span class="ph-tag">Arrival</span>${useArr?'✓ ':''}<a href="tel:${ph2}" style="color:inherit;text-decoration:none">${ph2}</a></div>`;html+='</div>';}
   html+='</div>';
-
   if(!isSalida&&(activePhone||em)){html+='<div class="c-foot">';if(vCardUrl)html+=`<a class="icon-btn" href="${vCardUrl}" target="_blank">${SVG_CONTACT}<span class="btn-label">Contacto</span></a>`;if(waUrlMsg)html+=`<a class="icon-btn" href="${waUrlMsg}" target="_blank">${SVG_WA}<span class="wa-badge">1</span><span class="btn-label">${useArr?'Arrival':'Host'}</span></a>`;if(waUrlSimple)html+=`<a class="icon-btn" href="${waUrlSimple}" target="_blank">${SVG_WA}<span class="btn-label">WA simple</span></a>`;html+='</div>';}
   if(isSalida&&phoneClean){
     const msgHappy=encodeURIComponent(buildWACheckoutMsg(r,mgrName,true));const msgNoFb=encodeURIComponent(buildWACheckoutMsg(r,mgrName,false));
@@ -1051,11 +815,10 @@ function buildCard(r,type){
     html+=`<a class="icon-btn" href="https://wa.me/${phoneClean}?text=${msgNoFb}" target="_blank">${SVG_SAD}${SVG_WA_SM}<span class="btn-label">Sin reseña</span></a>`;
     html+='</div>';
   }
-
   if(code){
     html+='<div class="c-actions">';
     const notasLabel=vmName?`📝 Notas ${vmName.split(' ')[0]}`:'📝 Notas / Aparto';
-    html+=`<a class="act-chip ac-nota" href="${urlNotas}" >${notasLabel}</a>`;
+    html+=`<a class="act-chip ac-nota" href="${urlNotas}">${notasLabel}</a>`;
     html+=`<a class="act-chip ac-task" href="${urlAddTask}" onclick="openTaskPopup('${urlAddTask}');return false;">➕ Nueva tarea</a>`;
     html+=`<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}">✏️ Equipo Reservas</a>`;
     html+=`<a class="act-chip ac-host" href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 Hostaway PMS</a>`;
@@ -1064,13 +827,135 @@ function buildCard(r,type){
     const extras=[{text:g(r,'extra1Text'),eur:g(r,'extra1EUR'),paid:g(r,'extra1Cobrado')},{text:g(r,'extra2Text'),eur:g(r,'extra2EUR'),paid:g(r,'extra2Cobrado')},{text:g(r,'extra3Text'),eur:g(r,'extra3EUR'),paid:g(r,'extra3Cobrado')}].filter(e=>e.text);
     if(extras.length){html+='<div class="extras-panel"><div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px">EXTRAS</div>';extras.forEach(e=>{const paid=Number(e.paid)>0||e.paid===true||String(e.paid)==='1';html+=`<div class="extra-item"><div class="extra-dot ${paid?'paid':'unpaid'}">${paid?'✓':'·'}</div><span style="flex:1">${e.text}</span>${e.eur?`<span class="extra-eur">${e.eur} €</span>`:''}</div>`;});html+='</div>';}
   }
-
   html+='</div>';
   el.setAttribute('data-villaid',String(parseInt(villaId)||0));
   el.setAttribute('data-checkout',(co||'').split('T')[0]);
   el.innerHTML=html;
   return el;
 }
+
+/* ════════════ VISTA SEMANAL ════════════ */
+var _calMode=false,_weekOff=0,_allRecs=[];
+
+function _weekDays(off){
+  var t=new Date(),day=t.getDay(),d=new Date(t);
+  d.setDate(t.getDate()-(day===0?6:day-1)+off*7);
+  return Array.from({length:7},function(_,i){var x=new Date(d);x.setDate(d.getDate()+i);return x;});
+}
+function _ds(d){return d.toISOString().split('T')[0];}
+function _isDone(v){return v===true||v===1||v===-1||String(v).toLowerCase()==='yes'||String(v).toLowerCase()==='si'||String(v).toLowerCase()==='true';}
+function _syncDates(){
+  var days=_weekDays(_weekOff);
+  var fd=$('fDesde'),fh=$('fHasta');
+  if(fd)fd.value=_ds(days[0]);
+  if(fh)fh.value=_ds(days[6]);
+}
+function toggleCalendarView(){
+  _calMode=!_calMode;
+  var btn=$('btnCalendar');if(btn)btn.classList.toggle('active',_calMode);
+  var wg=$('weekGrid');if(wg)wg.classList.toggle('active',_calMode);
+  var wn=$('weekNav');if(wn)wn.classList.toggle('active',_calMode);
+  if(_calMode){_syncDates();doSearch();}else doSearch();
+}
+function changeWeek(dir){_weekOff+=dir;_syncDates();doSearch();}
+
+function _openModal(id){
+  var rec=_allRecs.find(function(x){return x._wid===id;});
+  if(!rec)return;
+  var mi=$('wkModalInner');if(!mi)return;
+  mi.innerHTML='';
+  var closeBtn=document.createElement('button');
+  closeBtn.className='wk-modal-close';closeBtn.textContent='\u2715';closeBtn.onclick=_closeModal;
+  mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type));
+  $('wkModal').classList.add('open');document.body.style.overflow='hidden';
+}
+function _closeModal(){$('wkModal').classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')_closeModal();});
+
+function renderWeekly(){
+  var days=_weekDays(_weekOff);
+  var lbl=$('wkRangeLabel');
+  if(lbl){var o={day:'numeric',month:'short'};lbl.textContent=days[0].toLocaleDateString('es-ES',o)+' \u2013 '+days[6].toLocaleDateString('es-ES',o);}
+  var wg=$('weekGrid');if(!wg)return;
+  wg.innerHTML='';
+  var today=todayStr();
+
+  days.forEach(function(day){
+    var ds=_ds(day);
+    var isToday=ds===today;
+    var dayName=day.toLocaleDateString('es-ES',{weekday:'short'});
+    var dayDate=day.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+
+    /* ─────────────────────────────────────────────────────────────────
+       FIX v20 — ANTI-DUPLICADOS EN VISTA SEMANAL
+       ─────────────────────────────────────────────────────────────────
+       _allRecs puede tener la misma reserva dos veces:
+         • una entrada  → se muestra SOLO en el día de check-in (ci)
+         • una salida   → se muestra SOLO en el día de check-out (co)
+       Antes el filtro era (ci===ds || co===ds), que hacía que ambas
+       entradas pasaran el filtro para el día del check-in porque
+       comparten el mismo objeto r (mismo ci y co).
+       Ahora filtramos por tipo: entrada→ci, salida→co.
+    ───────────────────────────────────────────────────────────────── */
+    var recs=_allRecs.filter(function(rec){
+      var ci=(rec.r[F.checkIn]||'').split('T')[0];
+      var co=(rec.r[F.checkOut]||'').split('T')[0];
+      if(rec.type==='entrada') return ci===ds;
+      if(rec.type==='salida')  return co===ds;
+      return ci===ds; // fallback por si type es inesperado
+    });
+
+    var col=document.createElement('div');col.className='wk-col'+(isToday?' today':'');
+    var head=document.createElement('div');head.className='wk-col-head';
+    head.innerHTML='<div class="wk-col-day">'+dayName+'</div><div class="wk-col-date">'+dayDate+'</div>';
+    col.appendChild(head);
+    var wrap=document.createElement('div');wrap.className='wk-cards-wrap';
+
+    if(!recs.length){
+      var empty=document.createElement('div');empty.className='wk-empty';empty.textContent='\u2014';
+      wrap.appendChild(empty);
+    } else {
+      recs.forEach(function(rec){
+        var r=rec.r,type=rec.type,id=rec._wid;
+        var isSal=type==='salida';
+        var villa=g(r,'villaName')||'\u2014';
+        var code=g(r,'confirmCode')||'';
+        var limpOk=_isDone(g(r,'limpieza'));
+        var wpOk  =_isDone(g(r,'wellcomePack'));
+        var cierOk=_isDone(g(r,'cierre'));
+        var uLimp='task-limpieza.html?Idreserva='+code+'&Tasktype_booking=10&code='+code;
+        var uWP  ='task-wp.html?Idreserva='+code+'&Tasktype_booking=20&code='+code;
+        var uCier='https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva='+code+'&Tasktype_booking=30';
+
+        function statusBtn(ok,url){
+          return '<a class="wk-status '+(ok?'ok':'ko')+'" href="'+url+'" '
+            +'onclick="openTaskPopup(\''+url+'\');return false;" '
+            +'title="'+(ok?'Hecho':'Pendiente')+'" target="_blank">'
+            +(ok?'\u2713':'\u2715')+'</a>';
+        }
+
+        var card=document.createElement('div');
+        card.className='wk-card '+(isSal?'sal':'ent');
+        card.onclick=function(e){if(!e.target.classList.contains('wk-status'))_openModal(id);};
+
+        var pills='<span class="wk-pill '+(isSal?'sal':'ent')+'">'+(isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
+        var btns=isSal?statusBtn(cierOk,uCier):statusBtn(limpOk,uLimp)+statusBtn(wpOk,uWP);
+
+        card.innerHTML='<div class="wk-card-inner">'+
+          '<div class="wk-row">'+pills+btns+'</div>'+
+          '<div class="wk-villa2" title="'+villa+'">'+villa+'</div>'+
+        '</div>';
+        wrap.appendChild(card);
+      });
+    }
+    col.appendChild(wrap);wg.appendChild(col);
+  });
+}
 </script>
+
+<!-- Modal semanal -->
+<div id="wkModal" onclick="if(event.target===this)_closeModal()">
+  <div id="wkModalInner"></div>
+</div>
 </body>
 </html>
