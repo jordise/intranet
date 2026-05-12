@@ -2,218 +2,731 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/3villas-manuals/sw.js')
+        .then(r => console.log('SW registrado:', r.scope))
+        .catch(e => console.warn('SW error:', e));
+    });
+  }
+</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ocupación Villas — 3Villas</title>
+  <title>Ocupación Equipo — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
-    header{background:var(--gray-5);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28)}
-    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:1px;text-transform:uppercase}
-    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700}
-    
-    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 12px;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
-    .main-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
-    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-4)}
-    .f-input{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px}
-    
-    #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px;padding:20px}
-    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden;border-left:6px solid var(--gray-3);transition:transform 0.2s}
-    .card.ocupada{border-left-color:var(--red)}
-    .c-head{padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start}
-    .villa-name{font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;text-transform:uppercase}
-    .villa-status{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;margin-bottom:4px;color:#fff;font-weight:800}
-    
-    .c-body{padding:12px 14px;border-top:1px solid var(--gray-2)}
-    .dates-grid{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:10px}
-    .date-box{background:var(--gray-1);border-radius:7px;padding:6px 10px}
-    .date-box .lbl{font-size:9px;font-weight:700;color:var(--gray-4);display:block}
-    .date-box .val{font-size:13px;font-weight:800;color:var(--gray-5)}
-    
-    .guest-info{font-size:13px;color:var(--gray-5);font-weight:600;margin-top:5px}
-    .c-actions{padding:10px 14px;background:var(--gray-1);border-top:1px solid var(--gray-2);display:flex;gap:8px}
-    .act-chip{padding:5px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;font-family:'Montserrat'}
-    
-    .state-box{text-align:center;padding:100px 20px;color:var(--gray-4)}
-    .spinner{display:inline-block;width:30px;height:30px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    header{background:var(--red);color:#fff;padding:10px 16px;min-height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.28);gap:10px;flex-wrap:nowrap}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,20px);font-weight:900;letter-spacing:clamp(1px,0.5vw,3px);text-transform:uppercase;white-space:nowrap}
+    .h-sub{font-size:clamp(10px,2.5vw,12px);opacity:.75;margin-top:1px;white-space:nowrap}
+    .logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:background .15s;white-space:nowrap;flex-shrink:0}
+    .logout-btn:hover{background:rgba(255,255,255,.3)}
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 22px 0;position:sticky;top:54px;z-index:200;box-shadow:var(--shadow-sm)}
+    .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px}
+    #chips{flex:1;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-width:0}
+    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
+    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+    .btn-mas{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border:1.5px dashed var(--gray-3);border-radius:7px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+    .btn-mas:hover{border-color:var(--red);color:var(--red)}
+    .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .btn-mas .arr{transition:transform .2s}
+    .btn-mas.on .arr{transform:rotate(180deg)}
+    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s;flex-shrink:0}
+    .btn-clear:hover{color:var(--red)}
+    #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
+    #masFiltros.open{max-height:400px}
+    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 6px}
+    .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .filter-row:last-child{margin-bottom:0}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
+    .f-group.narrow{flex:0 0 145px}
+    .f-group.wide{flex:2;min-width:200px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .f-select:disabled{background-color:var(--gray-1);color:var(--gray-4)}
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
+    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
+    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
+    .manager-item:hover{background:var(--gray-1)}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .manager-item label{cursor:pointer;flex:1}
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    .stat{display:flex;align-items:baseline;gap:5px}
+    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
+    main{padding:18px 22px;max-width:1300px;margin:0 auto}
+    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
+    .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
     @keyframes spin{to{transform:rotate(360deg)}}
+    #grid{display:none;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .2s}
+    .card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
     
-    @media(max-width:600px){#grid{grid-template-columns:1fr}}
+    .villa-name{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+    .res-id{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+    .c-status{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--gray-2);flex-wrap:wrap}
+    .bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
+    .b-ok{background:var(--green-light);color:var(--green)}.b-no{background:var(--red-light);color:var(--red)}.b-na{background:var(--gray-2);color:var(--gray-4)}
+    .c-staff{display:flex;flex-direction:column;gap:0;border-bottom:1px solid var(--gray-2)}
+    .staff-row{display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:12px;color:var(--gray-4);background:var(--gray-1)}
+    .staff-row:not(:last-child){border-bottom:1px solid var(--gray-2)}
+    .staff-row strong{color:var(--gray-5)}
+    .c-links{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--gray-2);flex-wrap:wrap;align-items:center}
+    .lnk{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-decoration:none;transition:filter .15s;cursor:pointer;border:none}
+    .lnk:hover{filter:brightness(.9)}
+    .lnk-m{background:#e8f0fe;color:#1967d2}.lnk-k{background:var(--gray-2);color:var(--gray-5);font-size:12px;font-weight:800}
+    .c-body{padding:12px 14px;flex:1}
+    .irow{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:13px}
+    .iico{width:18px;text-align:center;flex-shrink:0;margin-top:1px}
+    .ilbl{font-size:10px;font-family:'Montserrat',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);display:block;margin-bottom:1px}
+    .ival{color:var(--gray-5);font-weight:500}
+    .note{padding:8px 10px;border-left:3px solid var(--gray-3);background:var(--gray-1);border-radius:0 6px 6px 0;margin-bottom:8px;font-size:12px}
+    .note-w{border-left-color:var(--orange);background:var(--orange-light)}
+    .note .nl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:3px}
+    .note-w .nl{color:var(--orange)}
+    hr.dv{border:none;border-top:1px solid var(--gray-2);margin:10px 0}
+    .gname{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:6px}
+    .gmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .ppill{display:inline-flex;align-items:center;gap:3px;background:var(--gray-2);padding:2px 8px;border-radius:10px;font-size:12px;color:var(--gray-4)}
+    .pax-detail{margin:6px 0 4px;display:flex;flex-direction:column;gap:3px}
+    .pax-row{font-size:12px;color:var(--gray-5);line-height:1.4}
+    .pax-row .pax-lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--gray-4);margin-right:3px}
+    .pax-row .pax-ages{color:var(--gray-4);font-size:11px}
+    .pax-row .pax-reserva{color:var(--gray-3);font-size:10px;font-style:italic}
+    .booking-comment{font-size:11px;color:var(--gray-4);margin-top:5px;padding:5px 8px;background:var(--gray-1);border-radius:7px;line-height:1.4;border-left:2px solid var(--gray-3)}
+    .spill{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;padding:2px 9px;border-radius:10px}
+    .st-new{background:#fff3cd;color:#7c5e00}.st-conf{background:var(--green-light);color:var(--green)}.st-cancel{background:var(--red-light);color:var(--red)}
+    .phones-row{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+    .ph-line{font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--gray-4)}
+    .ph-line.active{color:var(--gray-5)}
+    .ph-line .ph-tag{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;padding:1px 5px;border-radius:3px;margin-right:4px;background:var(--gray-2);color:var(--gray-4)}
+    .ph-line.active .ph-tag{background:#e8f0fe;color:#1967d2}
+    .ph-line.active.arr .ph-tag{background:#ede7f6;color:#5e35b1}
+    .c-foot{padding:9px 14px;background:#fff;border-top:1px solid var(--gray-2);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .icon-btn{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;position:relative;flex-shrink:0;cursor:pointer;border:none;background:none;padding:0}
+    .icon-btn svg{width:40px;height:40px}
+    .icon-btn .btn-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--gray-4)}
+    .wa-badge{position:absolute;top:-4px;right:-4px;background:#FF2B2B;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;justify-content:center;align-items:center;font-size:12px;font-weight:bold;border:2px solid #fff}
+    .extras-panel{padding:8px 14px;border-top:1px solid var(--gray-2);background:#fafbff}
+    .extra-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;color:var(--gray-5)}
+    .extra-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900}
+    .extra-dot.paid{background:var(--green-light);color:var(--green)}
+    .extra-dot.unpaid{background:var(--red-light);color:var(--red)}
+    .extra-eur{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;color:var(--gray-5)}
+    
+    .c-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);border-top:1px solid var(--gray-2);background:#fff;transition:background .15s;user-select:none}
+    .c-toggle:hover{background:var(--gray-1);color:var(--gray-5)}
+    .c-toggle-arr{transition:transform .2s;font-size:12px}
+    .c-toggle.open .c-toggle-arr{transform:rotate(180deg)}
+    .c-body-wrap{display:none}
+    .c-actions{padding:8px 14px;background:var(--gray-1);border-top:1px solid var(--gray-2);display:flex;gap:6px;flex-wrap:wrap}
+    .act-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-decoration:none;letter-spacing:.3px;transition:filter .15s;cursor:pointer;border:none}
+    .act-chip:hover{filter:brightness(.9)}
+    .ac-nota{background:#fff3cd;color:#7c5e00}.ac-task{background:#e8f0fe;color:#1967d2}.ac-vtask{background:#e6f7ee;color:#1e9e4e}.ac-host{background:var(--gray-2);color:var(--gray-5)}
+    .tipo-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-bottom:4px}
+    .empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--gray-4)}
+    .empty .big{font-size:50px;margin-bottom:12px}
+    .empty h3{font-family:'Montserrat',sans-serif;font-size:17px;color:var(--gray-5);margin-bottom:6px}
+    
+    @media(max-width:700px){#grid{grid-template-columns:1fr}.f-group.narrow{flex:1}}
   </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
 </head>
 <body>
+<input type="hidden" id="mgrName">
+<script>Auth.require('entradas');</script>
 
 <header>
-  <div class="h-title">🏠 MONITOR DE OCUPACIÓN</div>
-  <div class="logout-btn"><span id="hUserName">Cargando...</span></div>
+  <div>
+    <div class="h-title" id="hTitle"><span id="hCount" style="letter-spacing:0"></span> OCUPACIÓN</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logout-btn" style="cursor:default">👤 <span id="hUserName"></span></div>
+  </div>
 </header>
 
 <div id="filterPanel">
-  <div class="main-bar">
-    <div class="f-group">
-      <label class="f-label">Desde (Ocupado el...)</label>
-      <input type="date" id="fDesde" class="f-input" onchange="doSearch()">
+  <div class="main-bar" style="flex-wrap:wrap;gap:8px;align-items:flex-end;padding-bottom:10px">
+    <div class="pill-group">
+      <span class="pill-label">Ocupación</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tOc_all" onclick="setOcupacionFilter('all')">Todas</button>
+        <button class="pill-opt" id="tOc_disp" onclick="setOcupacionFilter('disp')">Disponibles</button>
+        <button class="pill-opt" id="tOc_ocup" onclick="setOcupacionFilter('ocup')">Ocupadas</button>
+      </div>
     </div>
-    <div class="f-group">
-      <label class="f-label">Hasta (Y el...)</label>
-      <input type="date" id="fHasta" class="f-input" onchange="doSearch()">
+    <div class="pill-group" style="display:none"> <span class="pill-label">Mostrar</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tTipo_both" onclick="setTipoFilter('both')">Todo</button>
+        <button class="pill-opt" id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
+        <button class="pill-opt" id="tTipo_salida" onclick="setTipoFilter('salida')">Salidas</button>
+      </div>
     </div>
-    <div class="f-group" style="flex:2">
-      <label class="f-label">Filtrar por Villa</label>
-      <input type="text" id="fVilla" class="f-input" placeholder="Nombre de la villa..." oninput="doSearch()">
+    <div class="pill-group">
+      <span class="pill-label">WelcomePack</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tWPall" onclick="setWPFilter('all')">Todos</button>
+        <button class="pill-opt" id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+      </div>
     </div>
-    <button onclick="clearFilters()" style="padding:10px; border:none; background:none; cursor:pointer">✕ Limpiar</button>
+    <div class="pill-group">
+      <span class="pill-label">Check-in online</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="tAll" onclick="setToggle('all')">Todos</button>
+        <button class="pill-opt" id="tPend" onclick="setToggle('pend')">Pendiente</button>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+      <span>Filtros</span><span class="arr">▾</span>
+    </button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
+  </div>
+  <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0"></div>
+  
+  <div id="masFiltros">
+    <div class="mas-inner">
+      <div class="filter-row">
+        <div class="f-group wide" style="position:relative">
+          <label class="f-label">Villa Manager</label>
+          <button id="fManagerBtn" class="f-select" onclick="toggleManagerPanel(event)" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span id="fManagerLabel">Cargando...</span>
+            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+          </button>
+          <div id="managerPanel" class="manager-panel" style="display:none">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+              <input type="text" id="managerSearch" class="f-input" placeholder="Buscar manager..." oninput="filterManagerList()" style="height:30px;font-size:12px">
+            </div>
+            <div id="managerList" class="manager-list"></div>
+            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+              <button onclick="selectAllManagers()" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+              <button onclick="clearManagers()" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            </div>
+          </div>
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Desde</label>
+          <input type="date" id="fDesde" class="f-input" onchange="onDesdeChange()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Hasta</label>
+          <input type="date" id="fHasta" class="f-input" onchange="scheduleSearch()">
+        </div>
+      </div>
+      <div class="filter-row" style="margin-bottom:0">
+        <div class="f-group narrow">
+          <label class="f-label">Código reserva</label>
+          <input type="text" id="fCodigo" class="f-input" placeholder="ej. j5oQcmp4FQ" oninput="scheduleSearch(400)">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Villa</label>
+          <input type="text" id="fVilla" class="f-input" placeholder="ej. Binichic" oninput="scheduleSearch(400)">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Inquilino</label>
+          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped" oninput="scheduleSearch(400)">
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
+<div id="statsBar">
+  <div class="stat"><strong id="sDisp" style="color:var(--green)">0</strong> libres</div>
+  <div class="stat"><strong id="sOcup" style="color:var(--red)">0</strong> ocupadas</div>
+  <div class="stat"><strong id="sTot">0</strong> total año</div>
+</div>
+
 <main>
+  <div id="stInit" class="state-box">
+    <div style="font-size:42px;margin-bottom:12px">🔍</div>
+    <p style="font-family:Montserrat,sans-serif;font-weight:700;font-size:15px">Calculando catálogo de villas y reservas...</p>
+  </div>
   <div id="stLoad" class="state-box" style="display:none">
-    <div class="spinner"></div><p>Consultando disponibilidad...</p>
+    <div class="spinner"></div><p>Cargando disponibilidad...</p>
+  </div>
+  <div id="stErr" class="state-box" style="display:none">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
   </div>
   <div id="grid"></div>
 </main>
 
-<script src="auth.js"></script>
 <script>
+// ════════════════ CONFIGURACIÓN ════════════════
 const CFG = {
-  workerUrl: 'https://caspio-proxy.jordi-89b.workers.dev',
-  viewName: 'Vi_villas_and_bookings2021'
+  workerUrl      : 'https://caspio-proxy.jordi-89b.workers.dev',
+  viewName       : 'Vi_villas_and_bookings2021',
+  usersTable     : 'TaUsers',
+  contactsTable  : 'TaContacts',
+  multiunitsTable: 'TaMultiunits',
 };
-
+const U = { id:'UserID', name:'Name', email:'Email' };
 const F = {
-  reservationId: 'TaBookings2021_BookingID',
-  confirmCode: 'TaBookings2021_FS_confirmation_code',
-  villaName: 'TaVillas_Name_villa_para_inquilinos',
-  checkIn: 'TaBookings2021_Checkin',
-  checkOut: 'TaBookings2021_Checkout',
-  status: 'TaBookings2021_BookingStatus',
-  guestName: 'TaBookings2021_Guest_Full_Name',
-  villaId: 'TaVillas_villaid'
+  reservationId:'TaBookings2021_BookingID',confirmCode:'TaBookings2021_FS_confirmation_code',
+  villaName:'TaVillas_Name_villa_para_inquilinos',nights:'TaBookings2021_Nights',
+  checkIn:'TaBookings2021_Checkin',checkOut:'TaBookings2021_Checkout',
+  checkinTime:'TaBookings2021_Checkin_time',checkinDay:'TaBookings2021_Checkin_day',
+  checkinMonth:'TaBookings2021_Checkin_month',checkinYear:'TaBookings2021_Checin_year',
+  checkoutDay:'TaBookings2021_Checkout_day',checkoutMonth:'TaBookings2021_Checkout_month',
+  adults:'TaBookings2021_Adults',children:'TaBookings2021_Children',
+  status:'TaBookings2021_BookingStatus',guestName:'TaBookings2021_Guest_Full_Name',
+  fiscalName:'TaBookings2021_Fiscal_guest_name',guestPhone:'TaBookings2021_Guest_phonenumber',
+  phoneArrival:'TaBookings2021_Segundo_Telefono',phoneCual:'TaBookings2021_Guest_phonenumber_cual_usar',
+  guestEmail:'TaBookings2021_Guest_email',villaManager:'TaVillas_KeyHolder_person',
+  keyholderUserId:'TaVillas_KeyHolder_person',limpieza:'TaBookings2021_LimpiezaTerminada',
+  wellcomePack:'TaBookings2021_Welcomepackentregado',cierre:'TaBookings2021_Checkoutcontrolado',
+  cleaner:'TaVillas_Cleanning_team',cleaningNotes:'TaBookings2021_CleaningNotes',
+  notasIrene:'TaBookings2021_keyholderNotes',arrivalMenorca:'TaBookings2021_Arrival_Time_to_Menorca',
+  checkoutTime:'TaBookings2021_Checkout_time',departureMenorca:'TaBookings2021_Departure_time_from_Menorca',
+  googleMaps:'TaVillas_Googlemaps_link',keyboxCode:'TaVillas_Keybox_code',
+  pmsmultiunitId:'TaBookings2021_PMSmultiunitID',villaId:'TaVillas_villaid',
+  hostawayLink:'TaBookings2021_Reservationlink',portalName:'TaBookings2021_Portal_Name',
+  arrivalFormDone:'TaBookings2021_Arrivalform_done',ecotasaCobrada:'TaBookings2021_Ecotasa_cobrada',
+  ecotasaFinal:'TaBookings2021_Ecotasa_final',ecotasaComment:'TaBookings2021_Ecotasa_comentarios',
+  policeDone:'TaBookings2021_Registro_policia_done',depositDone:'TaBookings2021_Security_deposit_terminado',
+  depositNotes:'TaBookings2021_Security_deposit_notes_comentar',
+  extra1Text:'TaBookings2021_Upselling1_text',extra1EUR:'TaBookings2021_Upselling1_EUR',extra1Cobrado:'TaBookings2021_Upselling1_cobrado',
+  extra2Text:'TaBookings2021_Upselling2_text',extra2EUR:'TaBookings2021_Upselling2_EUR',extra2Cobrado:'TaBookings2021_Upselling2_cobrado',
+  extra3Text:'TaBookings2021_Upselling3_text',extra3EUR:'TaBookings2021_Upselling3_EUR',extra3Cobrado:'TaBookings2021_Upselling3_cobrado',
+  checkinPend:'TaBookings2021_checkinonline_todo_terminado',
+  guestSurename:'TaBookings2021_Guest_Surename',
+  statusNameFormula:'TaBookings2021_Status_name_formula',
+  guestAges:'TaBookings2021_Ages',
+  guestAdultsNr:   'TaBookings2021_Guest_adults_nr_form',
+  guestAgesForm:   'TaBookings2021_Guest_ages_form',
+  guestChildrenNr: 'TaBookings2021_Guest_children_nr_form',
+  guestChildrenAges:'TaBookings2021_Guest_children_babies_ages_form',
+  bookingComments: 'TaBookings2021_BookingComments',
 };
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
-const $ = id => document.getElementById(id);
-const todayStr = () => new Date().toISOString().split('T')[0];
-const fmtDate = s => {
-    if(!s) return '—';
-    const d = new Date(s.includes('T') ? s : s + 'T00:00:00');
-    return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'});
-};
+// ════════════════ ESTADO GLOBAL ════════════════
+let toggleMode='all', _searchId=0, fWelcomePack='all', tipoFilter='both', fOcupacion='all';
+let managersMap=new Map(), allUsersMap=new Map(), currentUserId='';
+let selectedManagers=new Set(), allManagersList=[];
+let contactsMap=new Map(), multiunitsMap=new Map();
+let masterVillasMap=new Map(); // Total de villas del año en curso
 
-// Inicialización
-window.addEventListener('DOMContentLoaded', () => {
-    Auth.require('entradas'); // Reutiliza el permiso de entradas
-    $('hUserName').textContent = Auth.name() || 'Usuario';
-    $('fDesde').value = todayStr();
-    $('fHasta').value = todayStr();
+const $=id=>document.getElementById(id);
+function todayStr(){return new Date().toISOString().split('T')[0];}
+function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T00:00:00');return isNaN(d)?s:d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function fmtShort(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T00:00:00');if(isNaN(d))return s;return d.getDate()+'/'+(d.getMonth()+1);}
+function nightsN(a,b){if(!a||!b)return null;return Math.round((new Date(b)-new Date(a))/86400000);}
+function g(r,key){return r[F[key]]??'';}
+function isOk(val){if(val===null||val===undefined)return null;if(typeof val==='boolean')return val;if(typeof val==='number'){if(val===0)return false;if(val===-1)return true;return val>0;}const s=String(val).trim().toLowerCase();if(!s)return null;return!['0','x','no','false','pendiente','n/a','na','null','none','–','-'].includes(s);}
+function stClass(s){const x=(s||'').toLowerCase();if(x==='cancelled'||x.includes('cancel'))return'st-cancel';if(x==='confirmed'||x.includes('confirm'))return'st-conf';return'st-new';}
+function cleanPhone(ph){return(ph||'').replace(/\s/g,'').replace(/^\+/,'');}
+function isSpanish(ph){const c=cleanPhone(ph);return c.startsWith('34')||ph.startsWith('+34')||ph.startsWith('0034');}
+function useArrival(cual){if(cual===null||cual===undefined)return false;const s=String(cual).trim();if(s===''||s==='1')return false;return true;}
+function isActiveUser(u){const s=String(u['User_Status']||'').trim().toLowerCase();return['active','activo','1','yes','sí','si','true','enabled'].includes(s);}
+function getManagerName(){return($('mgrName')||{value:''}).value||Auth.name()||'Villa Manager';}
+
+// ════════════════ POPUPS ════════════════
+function popup(url,w,h){if(!url)return false;w=w||1000;h=h||800;window.open(url,'','resizable=no,status=no,location=no,toolbar=no,menubar=no,fullscreen=no,scrollbars=no,dependent=no,width='+w+',left=80,height='+h+',top=80');return false;}
+function openTaskPopup(url){const w=480,h=750,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);window.open(url,'taskpopup',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);}
+
+// ════════════════ INIT ════════════════
+window.addEventListener('DOMContentLoaded',async()=>{
+  try{
+    if($('fDesde'))$('fDesde').value=todayStr();
+    if($('fHasta'))$('fHasta').value=todayStr();
+    
+    // Carga paralela de Datos base
+    await Promise.allSettled([loadTotalVillas(), loadManagers(), loadContacts(), loadMultiunits()]);
+    
+    setOcupacionFilter('all');
     doSearch();
+  }catch(err){console.error(err);}
 });
 
-function clearFilters() {
-    $('fDesde').value = todayStr();
-    $('fHasta').value = todayStr();
-    $('fVilla').value = '';
-    doSearch();
-}
-
-async function doSearch() {
-    const grid = $('grid');
-    const loader = $('stLoad');
-    
-    grid.style.display = 'none';
-    loader.style.display = 'block';
-
-    const desde = $('fDesde').value || todayStr();
-    const hasta = $('fHasta').value || desde;
-    const villa = $('fVilla').value.trim();
-
-    // LÓGICA DE OCUPACIÓN: La reserva empieza antes de que acabe el filtro 
-    // Y termina después de que empiece el filtro.
-    let where = `${F.status}<>'cancelled' AND ${F.checkIn} < '${hasta}T23:59:59' AND ${F.checkOut} > '${desde}T00:00:00'`;
-    
-    if (villa) {
-        where += ` AND ${F.villaName} LIKE '%${villa}%'`;
-    }
-
+// Búsqueda del total de casas ocupadas alguna vez durante este año (1 Ene - 31 Dic)
+async function loadTotalVillas() {
+    const year = new Date().getFullYear();
+    const where = `${F.checkIn} >= '${year}-01-01T00:00:00' AND ${F.checkIn} <= '${year}-12-31T23:59:59'`;
+    const url = `${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&limit=500`;
     try {
-        const url = `${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&orderBy=${F.villaName}`;
         const res = await fetch(Auth.url(url));
         const json = await res.json();
-        const records = json.Result || [];
-
-        renderOccupancy(records);
-    } catch (err) {
-        grid.innerHTML = `<p style="padding:20px; color:red">Error: ${err.message}</p>`;
-        grid.style.display = 'block';
-    } finally {
-        loader.style.display = 'none';
-    }
+        const recs = json.Result || json.result || [];
+        recs.forEach(r => {
+            const vId = String(r[F.villaId] || '').trim();
+            if (vId && !masterVillasMap.has(vId)) {
+                masterVillasMap.set(vId, {
+                    id: vId,
+                    name: r[F.villaName] || 'Villa ' + vId,
+                    manager: String(r[F.keyholderUserId] || '').trim(),
+                    multiId: String(r['TaBookings2021_PMSmultiunitID'] || '').trim()
+                });
+            }
+        });
+    } catch(e) { console.warn("Error cargando catálogo de villas:", e); }
 }
 
-function renderOccupancy(records) {
-    const grid = $('grid');
-    grid.innerHTML = '';
-    grid.style.display = 'grid';
+async function loadManagers(){
+  const btn=$('fManagerBtn');
+  if(btn){btn.disabled=true;$('fManagerLabel').textContent='Cargando...';}
+  try{
+    const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.usersTable}&limit=200`));
+    const json=await res.json();const users=json.Result||json.result||[];
+    users.forEach(u=>allUsersMap.set(String(u[U.id]||''),String(u[U.name]||'')));
+    const myEmail=Auth.email?Auth.email():'';
+    const myUser=users.find(u=>String(u[U.email]||'').toLowerCase()===myEmail.toLowerCase());
+    if(myUser){if($('mgrName'))$('mgrName').value=myUser[U.name]||Auth.name()||'';}
+    const managers=users.filter(u=>isActiveUser(u)&&String(u['Keyholder_por_defecto']||'').trim()!=='');
+    managers.forEach(u=>managersMap.set(String(u[U.id]||''),String(u[U.name]||'')));
+    allManagersList=managers.map(u=>({id:String(u[U.id]||''),name:String(u[U.name]||'')}));
+    renderManagerList();updateManagerBtn();if(btn)btn.disabled=false;
+  }catch(e){if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}}
+}
 
-    if (records.length === 0) {
-        grid.innerHTML = `
-            <div style="grid-column:1/-1; text-align:center; padding:100px">
-                <div style="font-size:50px">✅</div>
-                <h3 style="font-family:Montserrat">Todo disponible</h3>
-                <p style="color:var(--gray-4)">No hay reservas registradas para estas fechas.</p>
-            </div>`;
-        return;
-    }
+function renderManagerList(filter=''){const list=$('managerList');if(!list)return;const q=filter.toLowerCase();const filtered=q?allManagersList.filter(m=>m.name.toLowerCase().includes(q)):allManagersList;list.innerHTML=filtered.map(m=>`<div class="manager-item" onclick="toggleManager('${m.id}')"><input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''}><label for="mc_${m.id}">${m.name}</label></div>`).join('');}
+function filterManagerList(){const q=($('managerSearch')||{}).value||'';renderManagerList(q);}
+function toggleManager(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);}
+function selectAllManagers(){allManagersList.forEach(m=>selectedManagers.add(m.id));renderManagerList();updateManagerBtn();}
+function clearManagers(){selectedManagers.clear();renderManagerList();updateManagerBtn();}
+function updateManagerBtn(){const lbl=$('fManagerLabel');if(!lbl)return;if(selectedManagers.size===0)lbl.textContent='Todos';else if(selectedManagers.size===1){const id=[...selectedManagers][0];lbl.textContent=allUsersMap.get(id)||id;}else lbl.textContent=`${selectedManagers.size} managers seleccionados`;}
+function toggleManagerPanel(e){e&&e.stopPropagation();const panel=$('managerPanel');const btn=$('fManagerBtn');if(!panel||!btn)return;if(panel.style.display!=='none'){panel.style.display='none';return;}const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';panel.style.display='flex';renderManagerList();if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}}
+function closeManagerPanel(){const panel=$('managerPanel');if(panel)panel.style.display='none';}
+document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))panel.style.display='none';});
 
-    // Agrupar para evitar duplicados de villa si hay varias reservas en el rango
-    const villasVistas = new Set();
+async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null)contactsMap.set(String(r.ContactID),r.Name||'');if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
+async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);}});}catch(e){}}
+function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=contactsMap.get(String(rawVal));return byId||String(rawVal);}
 
-    records.forEach(r => {
-        const vId = r[F.villaId];
-        if (villasVistas.has(vId)) return; 
-        villasVistas.add(vId);
+// ════════════════ UI CONTROLS ════════════════
+function toggleMas(){$('btnMas').classList.toggle('on');$('masFiltros').classList.toggle('open');const nowOpen=$('masFiltros').classList.contains('open');if(!nowOpen)scheduleSearch(300);}
+function onDesdeChange(){const desde=($('fDesde')||{}).value||'';const hastaEl=$('fHasta');if(hastaEl){hastaEl.min=desde;if(hastaEl.value&&hastaEl.value<desde)hastaEl.value=desde;}scheduleSearch();}
+function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');});scheduleSearch();}
+function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
+function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
+function setOcupacionFilter(mode){fOcupacion=mode;['tOc_all','tOc_disp','tOc_ocup'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tOc_'+mode);});scheduleSearch();}
 
-        const card = document.createElement('div');
-        card.className = 'card ocupada';
+function clearAll(){clearManagers();if($('fDesde'))$('fDesde').value=todayStr();if($('fHasta'))$('fHasta').value=todayStr();if($('fCodigo'))$('fCodigo').value='';if($('fVilla'))$('fVilla').value='';if($('fInquilino'))$('fInquilino').value='';setOcupacionFilter('all');setToggle('all');setWPFilter('all');renderChips();doSearch();}
+
+// ════════════════ LÓGICA DE SOLAPAMIENTO ════════════════
+function buildWhere(){
+  const parts=[`${F.status}<>'cancelled'`];
+  const desde=($('fDesde')||{}).value||todayStr();
+  const hasta=($('fHasta')||{}).value||desde;
+  const codigo=(($('fCodigo')||{}).value||'').trim();
+  const villa=(($('fVilla')||{}).value||'').trim();
+  const inquilino=(($('fInquilino')||{}).value||'').trim();
+  
+  if(selectedManagers.size>0){const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');parts.push(selectedManagers.size===1?`${F.villaManager}='${[...selectedManagers][0]}'`:`${F.villaManager} IN (${ids})`);}
+  
+  // SOLAPAMIENTO: CheckIn <= FiltroHasta Y CheckOut >= FiltroDesde
+  parts.push(`${F.checkIn}<='${hasta}T23:59:59'`);
+  parts.push(`${F.checkOut}>='${desde}T00:00:00'`);
+  
+  if(codigo)parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);
+  if(villa)parts.push(`${F.villaName} LIKE '%${villa}%'`);
+  if(inquilino)parts.push(`${F.guestName} LIKE '%${inquilino}%'`);
+  
+  return parts.join(' AND ');
+}
+
+// ════════════════ CHIPS ════════════════
+function renderChips(){
+  const chipsData=[];
+  const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inq=(($('fInquilino')||{}).value||'').trim();
+  if(selectedManagers.size>0){const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');chipsData.push({label:`Manager: ${names}`,clear:()=>{clearManagers();}});}
+  if(desde)chipsData.push({label:`Desde: ${fmtDate(desde)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});
+  if(hasta)chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});
+  if(codigo)chipsData.push({label:`Reserva: ${codigo}`,clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});
+  if(villa)chipsData.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});
+  if(inq)chipsData.push({label:`Inquilino: ${inq}`,clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});
+  if(fOcupacion!=='all')chipsData.push({label:fOcupacion==='ocup'?'Solo Ocupadas':'Solo Disponibles',clear:()=>setOcupacionFilter('all')});
+  window.__ch=chipsData;
+  const wrap=$('chips');if(wrap)wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');
+}
+
+// ════════════════ SEARCH ════════════════
+let _searchTimer=null;
+function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
+async function doSearch(){
+  const mySearchId=++_searchId; renderChips();
+  if($('grid')){$('grid').style.display='none';$('grid').innerHTML='';}
+  if($('stInit'))$('stInit').style.display='none';if($('stLoad'))$('stLoad').style.display='block';if($('stErr'))$('stErr').style.display='none';if($('statsBar'))$('statsBar').style.display='none';
+  
+  const where=buildWhere();
+  const url=`${CFG.workerUrl}?action=view&view=${encodeURIComponent(CFG.viewName)}&where=${encodeURIComponent(where)}&orderBy=${encodeURIComponent(F.villaName)}&limit=500`;
+  
+  try{
+    const res=await fetch(Auth.url(url)); if(mySearchId!==_searchId)return;
+    const json=await res.json(); if(json.error)throw new Error(json.error);
+    const rawRecords=json.Result||json.result||[];
+    
+    // Filtrado de reservas duplicadas u otras condiciones especiales
+    const _seen=new Set();
+    const ocupadas=rawRecords.filter(r=>{
+        const wpOk=isOk(g(r,'wellcomePack'));
+        const ciRaw=g(r,'checkinPend');const ciIsPending=Number(ciRaw)===3;
+        if(fWelcomePack==='pending'&&wpOk===true) return false;
+        if(toggleMode==='pend'&&!ciIsPending) return false;
         
-        const ci = r[F.checkIn];
-        const co = r[F.checkOut];
-        const vn = r[F.villaName] || 'Villa sin nombre';
-        const guest = r[F.guestName] || 'Huésped desconocido';
-        const code = r[F.confirmCode];
-
-        card.innerHTML = `
-            <div class="c-head">
-                <div>
-                    <span class="villa-status" style="background:var(--red)">OCUPADA</span>
-                    <div class="villa-name">${vn}</div>
-                </div>
-                <div style="font-size:10px; font-weight:700; color:var(--gray-3)">#${code}</div>
-            </div>
-            <div class="c-body">
-                <div class="dates-grid">
-                    <div class="date-box">
-                        <span class="lbl">Check-in</span>
-                        <span class="val">${fmtDate(ci)}</span>
-                    </div>
-                    <div style="color:var(--gray-3)">➔</div>
-                    <div class="date-box">
-                        <span class="lbl">Check-out</span>
-                        <span class="val">${fmtDate(co)}</span>
-                    </div>
-                </div>
-                <div class="guest-info">👤 ${guest}</div>
-            </div>
-            <div class="c-actions">
-                <a href="villa.html?villa_id=${vId}" class="act-chip" style="background:var(--green-light); color:var(--green)">FICHA VILLA</a>
-                <a href="https://dashboard.hostaway.com/reservations/${code}" target="_blank" class="act-chip" style="background:var(--gray-2); color:var(--gray-5)">VER PMS</a>
-            </div>
-        `;
-        grid.appendChild(card);
+        const key=r[F.confirmCode]||r[F.reservationId]||'';
+        if(!key||_seen.has(key))return!key?true:false;
+        _seen.add(key); return true;
     });
+    
+    renderCards(ocupadas);
+  }catch(err){
+    if(mySearchId!==_searchId)return;
+    if($('stLoad'))$('stLoad').style.display='none';if($('stErr'))$('stErr').style.display='block';if($('errMsg'))$('errMsg').textContent=err.message;
+  }
+}
+
+// ════════════════ RENDER CARDS (DISP / OCUP) ════════════════
+function renderCards(ocupadasArr){
+  if($('stLoad'))$('stLoad').style.display='none';
+  const grid=$('grid');if(!grid)return;grid.style.display='grid';
+  
+  const villasOcupadasId = new Set();
+  const filasRender = [];
+
+  // Agregar ocupadas
+  ocupadasArr.forEach(r => {
+      villasOcupadasId.add(String(r[F.villaId]).trim());
+      if (fOcupacion === 'all' || fOcupacion === 'ocup') {
+          filasRender.push({ r: r, type: 'ocupada' });
+      }
+  });
+
+  // Agregar disponibles verificando todos los filtros aplicables
+  if (fOcupacion === 'all' || fOcupacion === 'disp') {
+      for (const [vId, vData] of masterVillasMap.entries()) {
+          if (!villasOcupadasId.has(vId)) {
+              let pasaFiltro = true;
+              if (selectedManagers.size > 0 && !selectedManagers.has(vData.manager)) pasaFiltro = false;
+              const fVilla = ($('fVilla') || {}).value.trim().toLowerCase();
+              if (fVilla && !vData.name.toLowerCase().includes(fVilla)) pasaFiltro = false;
+              const fInq = ($('fInquilino') || {}).value.trim().toLowerCase();
+              if (fInq) pasaFiltro = false; // Las casas libres no tienen inquilino
+
+              if (pasaFiltro) {
+                  const fakeR = {};
+                  fakeR[F.villaId] = vId;
+                  fakeR[F.villaName] = vData.name;
+                  fakeR[F.keyholderUserId] = vData.manager;
+                  fakeR['TaBookings2021_PMSmultiunitID'] = vData.multiId;
+                  filasRender.push({ r: fakeR, type: 'disponible' });
+              }
+          }
+      }
+  }
+
+  // Ordenar: Disponibles arriba, luego alfabéticamente
+  filasRender.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'disponible' ? -1 : 1;
+      const nameA = g(a.r, 'villaName').toLowerCase();
+      const nameB = g(b.r, 'villaName').toLowerCase();
+      return nameA.localeCompare(nameB);
+  });
+
+  // Actualizar Stats
+  const dispCount = filasRender.filter(x => x.type === 'disponible').length;
+  const ocupCount = filasRender.filter(x => x.type === 'ocupada').length;
+  const totalCat = masterVillasMap.size; // Total según consulta 1Ene-31Dic
+  
+  if ($('sDisp')) $('sDisp').textContent = dispCount;
+  if ($('sOcup')) $('sOcup').textContent = ocupCount;
+  if ($('sTot')) $('sTot').textContent = totalCat;
+  if ($('hCount')) $('hCount').textContent = filasRender.length;
+  if ($('statsBar')) $('statsBar').style.display = 'flex';
+
+  if (!filasRender.length) {
+      grid.innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay propiedades para los filtros seleccionados.</p></div>';
+      return;
+  }
+
+  filasRender.forEach(row => {
+      grid.appendChild(buildCard(row.r, row.type));
+  });
+}
+
+function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)return;const btn=document.querySelector('.c-toggle[data-toggle="'+id+'"]');const isOpen=wrap.style.display==='block';wrap.style.display=isOpen?'none':'block';if(btn){btn.classList.toggle('open',!isOpen);const lbl=btn.querySelector('.c-toggle-label');if(lbl)lbl.textContent=isOpen?'Ocultar':'Ver detalles';}}
+
+// SVG original Icons
+const SVG_CONTACT=`<svg height="40" viewBox="0 0 120 120" width="40"><circle cx="60" cy="60" fill="#3B6FD8" r="60"/><circle cx="60" cy="44" fill="#FFF" r="18"/><path d="M30 92c0-16 20-24 30-24s30 8 30 24" fill="#FFF"/></svg>`;
+const SVG_WA=`<svg height="40" viewBox="0 0 120 120" width="40"><circle cx="60" cy="60" fill="#25D366" r="60"/><path d="M60 28c-17.7 0-32 13.5-32 30.1 0 6.2 2 12 5.5 16.9L30 92l17.6-4.7c4.2 2.3 9.1 3.6 14.4 3.6 17.7 0 32-13.5 32-30.1S77.7 28 60 28z" fill="#FFF"/><path d="M72.6 66.4c-.7-.3-4.1-2-4.7-2.2-.6-.2-1-.3-1.4.3-.4.6-1.6 2.2-2 2.6-.4.4-.7.4-1.4.2-3.8-1.5-6.9-4.2-9-7.4-.5-.7 0-1.1.4-1.5.3-.3.7-.8 1-1.2.3-.4.4-.7.6-1.1.2-.4.1-.8 0-1.1-.1-.3-1.4-3.5-2-4.8-.6-1.3-1.2-1.1-1.6-1.1h-1.4c-.5 0-1.1.2-1.7.8-.6.6-2.2 2.1-2.2 5.2s2.2 6.1 2.5 6.5c.3.4 4.4 6.8 10.7 9.6 1.5.6 2.6 1 3.5 1.3 1.5.5 2.9.4 4 .2 1.2-.2 3.6-1.5 4.1-3 .5-1.5.5-2.8.4-3-.1-.3-.6-.4-1.3-.7z" fill="#25D366"/></svg>`;
+
+function buildWAMsg(r,mgrName){const guestName=g(r,'fiscalName')||g(r,'guestName');const code=g(r,'confirmCode');const link=`https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;const cual=g(r,'phoneCual');const activePhone=useArrival(cual)?g(r,'phoneArrival'):g(r,'guestPhone');if(isSpanish(activePhone)){return`Hola ${guestName},\n\nSoy ${mgrName} de <3Villas y seré su Villa Manager durante su estancia en Menorca.\n\n🔑 Dejen siempre la llave en el keybox al salir.\n\n📆 CHECK-IN A LAS 16:00. Early check-in: +34 659 93 34 34.\nDetalles de su villa: ${link}\n\n¡Hasta pronto!\n${mgrName} ☺️`;}return`Hello ${guestName},\n\nI am ${mgrName} from <3Villas, your Villa Manager in Minorca.\n\n🔑 Please leave the key in the keybox when you go out.\n\n📆 CHECK-IN AT 16:00. Early check-in: +34 659 93 34 34.\nYour villa details: ${link}\n\nSee you soon!\n${mgrName} ☺️`;}
+function buildVCardUrl(r,phoneClean){const villaG=r['TaVillas_Name_villa_para_inquilinos']||g(r,'villaName');return`https://intranetvcard.jordi-89b.workers.dev/?nombre=${g(r,'checkinYear')}-${g(r,'checkinMonth')}-${g(r,'checkinDay')}a=${g(r,'checkoutMonth')}-${g(r,'checkoutDay')}&apellido=${encodeURIComponent(villaG+' '+g(r,'guestName'))}&tel=%2B${phoneClean}&email=${encodeURIComponent(g(r,'guestEmail'))}&empresa=Inquilino&nota=${encodeURIComponent('Reserva nro '+g(r,'confirmCode'))}&codigo=${encodeURIComponent(g(r,'confirmCode'))}`;}
+
+function mkBadge(label,raw,url,extra,newTab){const ok=isOk(raw);const cls=ok===null?'b-na':ok?'b-ok':'b-no';const ico=ok===null?'·':ok?'✓':'✗';const inner=`${ico} ${label}${extra||''}`;if(url&&newTab)return`<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;if(url)return`<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;return`<span class="bdg ${cls}">${inner}</span>`;}
+
+// ════════════════ BUILD CARD (COMPACTA) ════════════════
+function buildCard(r, type){
+  const el = document.createElement('div');
+  el.className = 'card';
+  
+  const ci=g(r,'checkIn'),co=g(r,'checkOut');
+  const code=g(r,'confirmCode'),villaId=r[F.villaId]||'';
+  const muId=String(g(r,'pmsmultiunitId')||'').trim();
+  const _muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
+  const _vlBase=g(r,'villaName')||'Villa sin nombre';
+  const vl=_muName?_vlBase+' / '+_muName:_vlBase;
+  const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
+
+  let html = '';
+  
+  if (type === 'disponible') {
+      html += `
+      <div style="padding:12px 14px; border-left: 6px solid var(--green)">
+         <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:6px">
+            <div><span class="tipo-badge" style="background:var(--green); color:#fff; margin:0">DISPONIBLE</span></div>
+         </div>
+         <div class="villa-name" style="color:var(--gray-5)">${vl}</div>
+      </div>`;
+      
+      // Añadimos solo los botones básicos de Info a la libre
+      html += `<div class="c-actions" style="border-top:1px solid var(--gray-2); padding:8px 14px; background:var(--gray-1)">`;
+      if(villaId) html += `<a class="act-chip" style="background:#e6f7ee;color:#1e9e4e" href="villa.html?villa_id=${encodeURIComponent(villaId)}">🏡 Info Villa</a>`;
+      html += `</div>`;
+      
+  } else {
+      // Tarjeta OCUPADA (Formato estricto solicitado)
+      html += `
+      <div style="padding:12px 14px; border-left: 6px solid var(--red)">
+         <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:6px">
+            <div><span class="tipo-badge" style="background:var(--red); color:#fff; margin:0">OCUPADA</span></div>
+            <div class="res-id">#${code}</div>
+         </div>
+         <div class="villa-name" style="color:var(--gray-5)">${vl}</div>
+         <div class="dates-grid" style="margin-bottom:0; margin-top:12px; display:grid; grid-template-columns: 1fr auto 1fr; gap:8px; align-items:center;">
+            <div class="date-box" style="padding:6px 10px"><span class="lbl">Check-in</span><span class="val">${fmtShort(ci)}</span></div>
+            <div style="color:var(--gray-3); font-weight:900; font-size:16px; text-align:center">➔</div>
+            <div class="date-box" style="padding:6px 10px"><span class="lbl">Check-out</span><span class="val">${fmtShort(co)}</span></div>
+         </div>
+      </div>`;
+      
+      // Botón Toggle
+      html += `<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
+      
+      // DESPLEGABLE CON TODO EL RESTO DE INFO
+      html += `<div class="c-body-wrap" id="${cardId}">`;
+      
+      // Status Limpieza, WP, Cierre
+      const urlLimpieza=`task-limpieza.html?Idreserva=${code}&Tasktype_booking=10&code=${code}`;
+      const urlWP=`task-wp.html?Idreserva=${code}&Tasktype_booking=20&code=${code}`;
+      const urlCierre=`https://c1abn932.caspio.com/dp/353f70001524a7e12ac54a758120?Idreserva=${code}&Tasktype_booking=30`;
+      
+      html+='<div class="c-status" style="border-top:1px solid var(--gray-2)">';
+      html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);
+      html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);
+      html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);
+      html+='</div>';
+
+      // Ecotasa, Policía...
+      const ecEUR=g(r,'ecotasaFinal');const ecCom=g(r,'ecotasaComment');const depNotes=g(r,'depositNotes');
+      const ecRaw=g(r,'ecotasaCobrada');const ecOk=isOk(ecRaw);
+      const ecCls=ecOk===null?'b-na':ecOk?'b-ok':'b-no';const ecIco=ecOk===null?'·':ecOk?'✓':'✗';
+      const ecEURfmt=ecEUR?parseFloat(ecEUR).toFixed(2)+' €':'';
+      const urlEcFix=`https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
+      const ecExtra=`${ecEURfmt?' — <strong>'+ecEURfmt+'</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:#1967d2;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;text-decoration:none;margin-left:4px">✎</a>`;
+      
+      html+='<div class="c-status" style="flex-wrap:wrap">';
+      html+=mkBadge('Arrival form',g(r,'arrivalFormDone'));
+      html+=`<span class="bdg ${ecCls}" style="gap:3px">${ecIco} Ecotasa${ecExtra}</span>`;
+      html+=mkBadge('Policía',g(r,'policeDone'));html+=mkBadge('Depósito',g(r,'depositDone'));
+      html+='</div>';
+      
+      if(ecCom)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-bottom:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
+      if(depNotes)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-bottom:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
+
+      // Nombres
+      const vmId=r[F.keyholderUserId]||'';
+      const vmName=vmId?(allUsersMap.get(String(vmId))||managersMap.get(String(vmId))||''):'';
+      const cleanerName=getCleanerName(r[F.cleaner]);
+      const mp=g(r,'googleMaps'); const muKb=muId?(multiunitsMap.get(muId)||''):''; const kbCode=muKb||g(r,'keyboxCode');
+      
+      if(cleanerName||vmName){
+        html+='<div class="c-staff">';
+        if(cleanerName) html+=`<div class="staff-row">🧹 <strong>${cleanerName}</strong> — Limpieza</div>`;
+        if(vmName) html+=`<div class="staff-row">🏠 <strong>${vmName}</strong> — Villa Manager</div>`;
+        html+='</div>';
+      }
+      if(mp||kbCode){html+='<div class="c-links">';if(mp)html+=`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;if(kbCode)html+=`<span class="lnk lnk-k">🔑 ${kbCode}</span>`;html+='</div>';}
+
+      // Guest info
+      const st=g(r,'status');
+      const _rawGuestName = g(r,'guestName')||'';
+      const _statusFormula = (r['TaBookings2021_Status_name_formula']||'').trim();
+      const gn = _statusFormula==='Reserva'? _rawGuestName : (_statusFormula||_rawGuestName);
+      
+      html+='<div class="c-body"><div class="gname">'+(gn||'—')+'</div>';
+      if(st)html+=`<div class="gmeta"><span class="spill ${stClass(st)}">${st}</span></div>`;
+
+      const ad=g(r,'adults'), ch=g(r,'children');
+      const _bookingComments=(r['TaBookings2021_BookingComments']||'').toString().trim();
+      if(ad||ch){
+          html += '<div class="pax-detail">';
+          if(ad) html += `<div class="pax-row"><span class="pax-lbl">👤 Adultos:</span>${ad}</div>`;
+          if(ch) html += `<div class="pax-row"><span class="pax-lbl">👶 Niños:</span>${ch}</div>`;
+          html += '</div>';
+      }
+      if(_bookingComments) html += `<div class="booking-comment">💬 ${_bookingComments}</div>`;
+
+      const ph=g(r,'guestPhone'), ph2=g(r,'phoneArrival'), cual=g(r,'phoneCual'), useArr=useArrival(cual);
+      const activePhone=useArr?ph2:ph; const phoneClean=cleanPhone(activePhone);
+      
+      if(ph||ph2){html+='<div class="phones-row">';if(ph)html+=`<div class="ph-line ${!useArr?'active':''}"><span class="ph-tag">Host</span>${!useArr?'✓ ':''}<a href="tel:${ph}" style="color:inherit;text-decoration:none">${ph}</a></div>`;if(ph2)html+=`<div class="ph-line ${useArr?'active arr':''}"><span class="ph-tag">Arrival</span>${useArr?'✓ ':''}<a href="tel:${ph2}" style="color:inherit;text-decoration:none">${ph2}</a></div>`;html+='</div>';}
+      html+='</div>'; // Fin c-body
+      
+      // WhatsApps
+      const mgrName=getManagerName();
+      const em=g(r,'guestEmail');
+      const vCardUrl=phoneClean?buildVCardUrl(r,phoneClean):'';
+      const waMsg=phoneClean?encodeURIComponent(buildWAMsg(r,mgrName)):'';
+      const waUrlMsg=phoneClean?`https://wa.me/${phoneClean}?text=${waMsg}`:'';
+      const waUrlSimple=phoneClean?`https://wa.me/${phoneClean}`:'';
+
+      if(activePhone||em){html+='<div class="c-foot">';if(vCardUrl)html+=`<a class="icon-btn" href="${vCardUrl}" target="_blank">${SVG_CONTACT}<span class="btn-label">Contacto</span></a>`;if(waUrlMsg)html+=`<a class="icon-btn" href="${waUrlMsg}" target="_blank">${SVG_WA}<span class="wa-badge">1</span><span class="btn-label">${useArr?'Arrival':'Host'}</span></a>`;if(waUrlSimple)html+=`<a class="icon-btn" href="${waUrlSimple}" target="_blank">${SVG_WA}<span class="btn-label">WA simple</span></a>`;html+='</div>';}
+
+      // Extras y Acciones
+      const urlNotas=`notas-villamanager.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
+      const urlAddTask=`nueva-tarea.html?Idreserva=${encodeURIComponent(code)}&villa_id=${encodeURIComponent(villaId)}&villa_name=${encodeURIComponent(vl)}`;
+      const urlResNotas=`notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
+      const urlHostaway=g(r,'hostawayLink')||`https://dashboard.hostaway.com/reservations/${code}`;
+      const urlCiOnline=`https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
+      
+      html+='<div class="c-actions">';
+      const notasLabel=vmName?`📝 Notas ${vmName.split(' ')[0]}`:'📝 Notas / Aparto';
+      html+=`<a class="act-chip ac-nota" href="${urlNotas}">${notasLabel}</a>`;
+      html+=`<a class="act-chip ac-task" href="${urlAddTask}" onclick="openTaskPopup('${urlAddTask}');return false;">➕ Tarea</a>`;
+      html+=`<a class="act-chip" style="background:#fce8eb;color:#C8102E" href="${urlResNotas}">✏️ Equipo R.</a>`;
+      html+=`<a class="act-chip ac-host" href="${urlHostaway}" onclick="return popup('${urlHostaway}')">🏠 PMS</a>`;
+      html+=`<a class="act-chip" style="background:#e8f0fe;color:#1967d2" href="${urlCiOnline}" onclick="return popup('${urlCiOnline}',900,900)">🔗 Checkin on.</a>`;
+      if(villaId)html+=`<a class="act-chip" style="background:#e6f7ee;color:#1e9e4e" href="villa.html?villa_id=${encodeURIComponent(villaId)}">🏡 Info Villa</a>`;
+      html+='</div>';
+      
+      const extras=[{text:g(r,'extra1Text'),eur:g(r,'extra1EUR'),paid:g(r,'extra1Cobrado')},{text:g(r,'extra2Text'),eur:g(r,'extra2EUR'),paid:g(r,'extra2Cobrado')},{text:g(r,'extra3Text'),eur:g(r,'extra3EUR'),paid:g(r,'extra3Cobrado')}].filter(e=>e.text);
+      if(extras.length){html+='<div class="extras-panel"><div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px">EXTRAS</div>';extras.forEach(e=>{const paid=Number(e.paid)>0||e.paid===true||String(e.paid)==='1';html+=`<div class="extra-item"><div class="extra-dot ${paid?'paid':'unpaid'}">${paid?'✓':'·'}</div><span style="flex:1">${e.text}</span>${e.eur?`<span class="extra-eur">${e.eur} €</span>`:''}</div>`;});html+='</div>';}
+      
+      html += `</div>`; // Fin body wrap
+  }
+  
+  el.innerHTML = html;
+  return el;
 }
 </script>
-
 </body>
 </html>
