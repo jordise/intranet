@@ -38,6 +38,7 @@ var NAV_MENU = [
         { label: 'Roles',           url: 'permisos.html',                  icon: '📄' },
         { label: 'Test',   url: 'XXtestXX',  icon: '🚪' },
         { label: 'Test_menu',   url: 'XXmenuXX',  icon: '🚪' },
+      { label: 'Test_villa',   url: 'villa.html?villa_id=22',  icon: '🚪' }, 
     ]
   },
  { label: 'Login',   url: 'login.html',  icon: '' },
