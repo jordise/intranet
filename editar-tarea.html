@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v29 — 3Villas</title>
+  <title>Editar Tarea v30 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -116,6 +116,9 @@
     .villa-current{font-size:11px;color:var(--gray-4);margin-top:4px;font-family:'Montserrat',sans-serif;font-weight:600}
     .villa-current.ok{color:var(--green)}
     .villa-current.warn{color:var(--orange)}
+    /* v30: estado error en villa (texto libre sin seleccionar al guardar) */
+    .villa-current.err-save{color:var(--red);font-weight:800}
+    #fVillaSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
     .photo-divider{border:none;border-top:2px dashed rgba(224,123,0,.35);margin:4px 0}
     /* Save bar */
     .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
@@ -140,6 +143,7 @@
     #lightbox.open{display:flex}
     #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}.res-btns{grid-template-columns:1fr}.btn-cerrar{grid-column:auto}}
+    @keyframes shake-v{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
   
     .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
     .re-row .lbl{margin:0}
@@ -679,6 +683,30 @@ function submitForm(markDone){
   var nombre=g('fNombre').value.trim();
   g('fNombre').classList.remove('err');
   if(!nombre){ g('fNombre').classList.add('err'); g('fNombre').scrollIntoView({behavior:'smooth',block:'center'}); toast('⚠️ El nombre es obligatorio','err'); return; }
+
+  /* v30 FIX: validar campo villa
+     Caso problemático: el usuario escribió texto en fVillaSearch pero NO seleccionó
+     del dropdown → selectedVillaId está vacío pero el input tiene texto libre.
+     Esto puede ocurrir si el blur (200ms) aún no limpió el campo cuando se pulsó Guardar.
+     → Bloquear el guardado y señalar el campo con error */
+  var villaInp = g('fVillaSearch');
+  var villaText = villaInp ? villaInp.value.trim() : '';
+  if(villaText && !selectedVillaId){
+    /* Hay texto libre pero sin villa seleccionada → error */
+    if(villaInp){
+      villaInp.classList.add('villa-err');
+      /* Limpiar la clase error después de 1.5s para que el usuario pueda reintentar */
+      setTimeout(function(){ villaInp.classList.remove('villa-err'); }, 1500);
+      villaInp.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    var cl = g('villaCurrentLabel');
+    if(cl){ cl.textContent = '⚠ Selecciona una villa de la lista antes de guardar'; cl.className='villa-current err-save'; }
+    toast('⚠️ Selecciona una villa de la lista','err');
+    return; /* Bloquear el guardado */
+  }
+  /* Si el input de villa está vacío y no hay selección, simplemente no cambia la villa */
+  if(villaInp) villaInp.classList.remove('villa-err');
+
   setBusy(true);
   if(markDone) setTerminada(true);
 
