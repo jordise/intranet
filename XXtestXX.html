@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v28 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v28 — 12/05/2026 -->
+  <title>Notas Equipo Reservas v29 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v29 — 12/05/2026 -->
   <!--
-    FIX v28:
+    FIX v28/v29:
     1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
        (DataType INTEGER, lookup Ta_Pagado_Pendiente). Se elimina Ecotasa_cobrada_select
        del record de guardar y se usa ecoVal() directamente en Ecotasa_cobrada.
@@ -181,7 +181,7 @@
 </div>
 
 <!-- ══ 3. MULTIUNITS ══ -->
-<!-- FIX v28: el selector fMultiunit ahora solo muestra los multiunits
+<!-- FIX v28/v29: el selector fMultiunit ahora solo muestra los multiunits
      de la villa de esta reserva (filtrado por TaVillas_villaid) -->
 <div class="card">
   <div class="card-head" onclick="togCard('card-mu')"><span class="card-ico">🏠</span><h2 style="flex:1">Multiunits</h2><span class="card-arr" id="arr-card-mu">▾</span></div>
@@ -288,7 +288,7 @@
     </div>
 
     <!-- 4.3 Ecotasa -->
-    <!-- FIX v28: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
+    <!-- FIX v28/v29: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
          Se usa fEcotasaCobrada (select) y ecoVal() para guardar. -->
     <div class="col-wrap st-na" id="colEcotasa">
       <div class="col-head" onclick="tog('colEcotasa')">
@@ -593,7 +593,7 @@ function renderDepositPanel(){
   cont.innerHTML=html;
 }
 
-/* ── FIX v28: ecoVal lee fEcotasaCobrada (select) y devuelve INTEGER
+/* ── FIX v28/v29: ecoVal lee fEcotasaCobrada (select) y devuelve INTEGER
    para guardar en TaBookings2021_Ecotasa_cobrada (DataType INTEGER,
    lookup Ta_Pagado_Pendiente: 1=Pagado, 0=Pendiente, null=sin valor) ── */
 function ecoVal(){
@@ -637,7 +637,7 @@ function loadDepositOptions(){
     }).catch(function(){window.__depOptions=[];});
 }
 
-/* ── FIX v28: loadMultiunits solo almacena datos en window.__mu.
+/* ── FIX v28/v29: loadMultiunits solo almacena datos en window.__mu.
    NO toca el select. El select se puebla en populateMultiunitSelect()
    filtrado por villaid de la reserva. ── */
 function loadMultiunits(){
@@ -648,27 +648,28 @@ function loadMultiunits(){
     }).catch(function(){window.__mu=[];});
 }
 
-/* ── FIX v28: puebla fMultiunit SOLO con los multiunits de la villa
+/* ── FIX v28/v29: puebla fMultiunit SOLO con los multiunits de la villa
    de esta reserva, usando TaVillas_villaid del bookingData ── */
 function populateMultiunitSelect(){
   var sel=g('fMultiunit');if(!sel)return;
   sel.innerHTML='<option value="">— Sin cambio —</option>';
   var rows=window.__mu||[];
-  /* villaid de la reserva actual (viene de la vista Vi_villas_and_bookings2021) */
-  var villaId=String(fV('villaid')||fB('TaVillas_villaid')||'').trim();
-  var filtered=villaId
+  /* FIX v29: Caspio filtra TaMultiunits por ListingID_pms = TaBookings2021_VillaID_FSnumber
+     (campo cascade del XML de la datapage villamanager) */
+  var villaFsId=String(fB('VillaID_FSnumber')||fB('TaBookings2021_VillaID_FSnumber')||'').trim();
+  var filtered=villaFsId
     ? rows.filter(function(m){
-        var mv=String(m.villaid||m.VillaID||m.villaID||'').trim();
-        return mv===villaId;
+        var mv=String(m.ListingID_pms||m.listingID_pms||m.listingid_pms||'').trim();
+        return mv===villaFsId;
       })
-    : rows; /* si no hay villaid, mostrar todos como fallback */
+    : rows; /* fallback: mostrar todos si no hay VillaID_FSnumber */
   filtered.forEach(function(m){
     var opt=document.createElement('option');
     opt.value=String(m.multiunitID||'');
     opt.textContent=String(m.descripcion||m.Descripcion||opt.value);
     sel.appendChild(opt);
   });
-  console.log('[Multiunits] villaid='+villaId+' total='+rows.length+' filtrados='+filtered.length);
+  console.log('[Multiunits] VillaID_FSnumber='+villaFsId+' total='+rows.length+' filtrados='+filtered.length);
 }
 
 function loadTiposPension(){
@@ -680,7 +681,7 @@ function loadTiposPension(){
     }).catch(function(){});
 }
 
-/* ── FIX v28: loadBooking ya NO llama a populateForm().
+/* ── FIX v28/v29: loadBooking ya NO llama a populateForm().
    populateForm() se llama desde Promise.all.then() cuando
    todos los datos (incluidos los multiunits) están disponibles. ── */
 function loadBooking(){
@@ -742,7 +743,7 @@ function populateForm(){
   g('fPhone2').value=String(fB('Segundo_Telefono')||'');
   setSelectVal('fPhoneCual',String(fB('Guest_phonenumber_cual_usar')||''));
 
-  /* ── FIX v28: poblar select multiunit filtrado por villaid ── */
+  /* ── FIX v28/v29: poblar select multiunit filtrado por villaid ── */
   populateMultiunitSelect();
   var muid=String(fB('PMSmultiunitID')||'');
   g('muCode').textContent=muid||'—';
@@ -804,7 +805,7 @@ function populateForm(){
   var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
   setVr('vrPolicia',pV,'Registro de Policía');setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
 
-  /* ── FIX v28: Ecotasa_cobrada es INTEGER. Se usa fEcotasaCobrada (select).
+  /* ── FIX v28/v29: Ecotasa_cobrada es INTEGER. Se usa fEcotasaCobrada (select).
      NO se usa cbEcotasaCobrada (no existe en el HTML). ── */
   var eV=isTruthy(fV('Checkin_ecotasa'));
   var eCob=String(fB('Ecotasa_cobrada')||'');
@@ -875,7 +876,7 @@ function buildPoliceUrl(){
 }
 
 /* ══ GUARDAR ══
-   FIX v28:
+   FIX v28/v29:
    - Eliminado Ecotasa_cobrada_select (campo inexistente en Caspio)
    - Ecotasa_cobrada usa ecoVal() → integer (1=Pagado, 0=Pendiente, null)
 */
@@ -961,7 +962,7 @@ function showErr(msg){
 }
 
 /* ══ INIT ══
-   FIX v28: populateForm() se llama en Promise.all.then() para garantizar
+   FIX v28/v29: populateForm() se llama en Promise.all.then() para garantizar
    que loadBooking() Y loadMultiunits() han terminado antes de renderizar.
 */
 document.addEventListener('DOMContentLoaded',function(){
