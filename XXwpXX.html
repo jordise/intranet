@@ -20,13 +20,11 @@
       });
     }
   </script>
-  <title>WelcomePack v04 — 3Villas</title>
-  <!-- task-wp.html v04 — 12/05/2026
-       v04: Fix pérdida de datos al subir foto en iOS/móvil
-            · Guardar estado en sessionStorage antes de abrir cámara/galería
-            · Restaurar en visibilitychange + pageshow (bfcache)
-            · Auto-guardar en cada cambio de toggle y texto
-            · Limpiar sessionStorage tras guardar con éxito
+  <title>WelcomePack v05 — 3Villas</title>
+  <!-- task-wp.html v05 — 12/05/2026
+       v04: Fix pérdida de datos al subir foto (sessionStorage)
+       v05: Foto obligatoria con indicador visual
+            Botón "✅ Todo OK" → marca todo como hecho y guarda (requiere foto)
   -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -73,6 +71,16 @@
     textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
     textarea::placeholder{color:var(--gray-3)}
     .save-wrap{padding:6px 0 20px}
+    /* ── v05: foto obligatoria ── */
+    .photo-required-badge{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;text-transform:uppercase;letter-spacing:.4px}
+    .photo-slot.slot-error{border-color:var(--red)!important;border-style:solid!important;animation:shake-slot .4s}
+    @keyframes shake-slot{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    /* ── v05: botón Todo OK ── */
+    .btn-todo-ok{width:100%;height:60px;background:linear-gradient(135deg,#1967d2,#1251b0);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;letter-spacing:.3px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;box-shadow:0 4px 16px rgba(25,103,210,.4);margin-bottom:10px}
+    .btn-todo-ok:active{transform:scale(.98);opacity:.9}
+    .btn-todo-ok:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
+    .btn-todo-ok .spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    .save-label-sub{font-size:10px;opacity:.7;display:block;font-weight:600;margin-top:1px}
     .btn-save{width:100%;height:54px;background:var(--green);color:#fff;border:none;border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;box-shadow:0 4px 14px rgba(30,158,78,.35)}
     .btn-save:active{background:#17834a;transform:scale(.98)}
     .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
@@ -117,7 +125,10 @@
     </label>
   </div>
   <div class="card">
-    <div class="card-title">📷 Foto Wellcomepack</div>
+    <div class="card-title">
+      📷 Foto Wellcomepack
+      <span class="photo-required-badge">⚠ Obligatoria</span>
+    </div>
     <div class="photo-wrap">
       <div class="photo-slot empty" id="photoSlot">
         <span class="ps-num">1</span>
@@ -148,9 +159,18 @@
     </div>
   </div>
   <div class="save-wrap">
+    <!-- v05: Botón TODO OK — marca todos los toggles como OK y guarda (requiere foto) -->
+    <button class="btn-todo-ok" id="btnTodoOk" onclick="guardarTodoOk()">
+      <div class="spinner" id="spinnerTodoOk"></div>
+      <div>
+        <span>✅ Todo OK — Guardar</span>
+        <span class="save-label-sub">Marca agua, wifi y entrega como ✓</span>
+      </div>
+    </button>
+    <!-- Botón guardar normal -->
     <button class="btn-save" id="btnSave" onclick="guardar()">
       <div class="spinner" id="saveSpinner"></div>
-      <span id="saveLabel">✓ GUARDAR</span>
+      <span id="saveLabel">💾 Guardar</span>
     </button>
   </div>
 </main>
@@ -309,11 +329,43 @@ function removePhoto(e) {
   document.getElementById('cameraInput').value='';document.getElementById('fileInput').value='';
   saveState();
 }
-async function guardar() {
-  const existingPhoto=document.getElementById('photoPreview').style.display==='block';
-  if(!selectedPhoto&&!existingPhoto){toast('⚠️ La foto es obligatoria','error');document.querySelector('.photo-wrap').scrollIntoView({behavior:'smooth',block:'center'});const area=document.getElementById('photoSlot');area.style.borderColor='var(--red)';area.style.borderStyle='solid';setTimeout(()=>{area.style.borderColor='var(--gray-3)';area.style.borderStyle='dashed';},2000);return;}
+/* ── v05: Validación visual de foto obligatoria ── */
+function fotoPresente(){
+  return document.getElementById('photoPreview').style.display === 'block';
+}
+function fotoError(){
+  const area = document.getElementById('photoSlot');
+  area.classList.add('slot-error');
+  area.scrollIntoView({behavior:'smooth', block:'center'});
+  setTimeout(() => area.classList.remove('slot-error'), 1500);
+  toast('⚠️ La foto es obligatoria — sube o haz una foto primero','error');
+}
+
+/* ── v05: Todo OK — marca todos los toggles y guarda ── */
+async function guardarTodoOk(){
+  if(!fotoPresente()){ fotoError(); return; }
+  /* Marcar todo como hecho */
+  document.getElementById('swAgua').checked = true;
+  document.getElementById('swWifi').checked = true;
+  document.getElementById('swDone').checked = true;
+  onSwDoneChange();
+  saveState();
+  /* Deshabilitar ambos botones mientras guarda */
+  const btnOk = document.getElementById('btnTodoOk');
+  const spOk  = document.getElementById('spinnerTodoOk');
+  btnOk.disabled = true;
+  spOk.style.display = 'block';
+  await guardar(true /* calledFromTodoOk */);
+  btnOk.disabled = false;
+  spOk.style.display = 'none';
+}
+
+async function guardar(fromTodoOk) {
+  if(!fotoPresente()){ fotoError(); return; }
   const btn=document.getElementById('btnSave'),lbl=document.getElementById('saveLabel'),sp=document.getElementById('saveSpinner');
-  btn.disabled=true;lbl.textContent='Guardando...';sp.style.display='block';
+  const btnOk=document.getElementById('btnTodoOk');
+  btn.disabled=true; if(btnOk)btnOk.disabled=true;
+  lbl.textContent='Guardando...';sp.style.display='block';
   try {
     const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:sw('swDone'),Limpieza_filtrolavaplatos:sw('swAgua'),Limpieza_salyabrillan_lavaplatos:sw('swWifi')?'Y':'',Taskdescription:document.getElementById('txtComentarios').value.trim(),Taskname:'WelcomePack'};
     if(selectedPhoto&&photoBase64){try{const uploadRes=await uploadPhoto(selectedPhoto,idReserva,taskType);if(uploadRes&&uploadRes.url){data['Picture_cloudfare1']=uploadRes.url;}}catch(eUp){console.warn('Photo upload skipped:',eUp.message);}}
@@ -328,9 +380,15 @@ async function guardar() {
     try{const wpDone=sw('swDone');const bkWhere=`FS_confirmation_code='${idReserva}'`;const bkSaveUrl=Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);await fetch(bkSaveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Welcomepackentregado:wpDone})});}catch(eBk){console.warn('No se pudo actualizar TaBookings2021:',eBk.message);}
     /* FIX v04: limpiar estado guardado tras guardar con éxito */
     clearState();
-    toast('✓ Guardado correctamente','success');btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
+    toast('✓ Guardado correctamente','success');
+    btn.disabled=false; lbl.textContent='✓ GUARDADO'; btn.style.background='var(--green)';
     setTimeout(()=>window.close(),800);
-  }catch(e){console.error('Save error:',e);toast('Error al guardar: '+e.message,'error');btn.disabled=false;lbl.textContent='✓ GUARDAR';sp.style.display='none';}
+  }catch(e){
+    console.error('Save error:',e);
+    toast('Error al guardar: '+e.message,'error');
+    btn.disabled=false; lbl.textContent='💾 Guardar'; sp.style.display='none';
+    if(btnOk)btnOk.disabled=false;
+  }
 }
 async function uploadPhoto(file,idRes,taskType){const fd=new FormData();fd.append('file',file,file.name||'foto.jpg');fd.append('idreserva',idRes);fd.append('tasktype',taskType);fd.append('year',new Date().getFullYear());const res=await fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error||'Upload failed');return data;}
 let toastTimer;
