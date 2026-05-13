@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v30 — 3Villas</title>
+  <title>Editar Tarea v33 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -118,7 +118,7 @@
     .villa-current.warn{color:var(--orange)}
     /* v30: estado error en villa (texto libre sin seleccionar al guardar) */
     .villa-current.err-save{color:var(--red);font-weight:800}
-    #fVillaSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
+    #fVillaSearch.villa-err,#fAsignadoSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
     .photo-divider{border:none;border-top:2px dashed rgba(224,123,0,.35);margin:4px 0}
     /* Save bar */
     .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
@@ -233,7 +233,12 @@
         <div class="field-row">
           <div class="field">
             <label class="lbl">Asignado a</label>
-            <select id="fAsignado"><option value="">Cargando…</option></select>
+            <div class="villa-search-wrap">
+              <input type="text" id="fAsignadoSearch" placeholder="Buscar persona…" autocomplete="off">
+              <div class="villa-dropdown" id="usuarioDropdown"></div>
+            </div>
+            <div class="villa-current" id="usuarioCurrentLabel"></div>
+            <input type="hidden" id="fAsignado">
           </div>
           <div class="field">
             <label class="lbl">Fecha</label>
@@ -302,6 +307,7 @@ var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:fa
 
 var myUserName='',taskData=null,isSaving=false,isTerminada=false;
 var allVillas=[],selectedVillaId='';
+var allUsers=[],selectedUserId=''; /* v33 */
 var urlP=new URLSearchParams(window.location.search);
 var taskId=(urlP.get('taskid')||'').trim();
 
@@ -319,6 +325,7 @@ function saveState() {
       notas:    g2('fNotas')   ? g2('fNotas').value    : '',
       fecha:    g2('fFecha')   ? g2('fFecha').value    : '',
       asignado: g2('fAsignado')? g2('fAsignado').value : '',
+      asignadoName: g2('fAsignadoSearch')? g2('fAsignadoSearch').value : '',
       villaId:  typeof selectedVillaId!=='undefined' ? selectedVillaId : '',
       villaName:g2('fVillaSearch') ? g2('fVillaSearch').value : '',
       terminada:typeof isTerminada!=='undefined' ? isTerminada : false
@@ -336,9 +343,9 @@ function restoreStateIfRecent() {
     if(g2('fNombre')   && s.nombre)   g2('fNombre').value   = s.nombre;
     if(g2('fNotas')    && s.notas)    g2('fNotas').value    = s.notas;
     if(g2('fFecha')    && s.fecha)    g2('fFecha').value    = s.fecha;
-    if(g2('fAsignado') && s.asignado) {
-      var sel=g2('fAsignado');
-      for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===s.asignado){sel.selectedIndex=i;break;}}
+    if(s.asignado && window._setUsuarioConfirmed){
+      var _rU=allUsers.find(function(u){return u.id===s.asignado;});
+      window._setUsuarioConfirmed(s.asignado, s.asignadoName||(_rU?_rU.name:''));
     }
     if(s.villaId && typeof window._setVillaConfirmed==='function') window._setVillaConfirmed(s.villaId, s.villaName);
     if(typeof setTerminada==='function') setTerminada(!!s.terminada);
@@ -398,14 +405,16 @@ document.addEventListener('DOMContentLoaded',function(){
   g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
   Promise.all([loadUsers(),loadTask(),loadVillas()])
     .then(function(){
-      populateForm();
+      /* v33 FIX: init buscadores ANTES de populateForm para que
+         _setVillaConfirmed y _setUsuarioConfirmed existan cuando se llamen */
       initVillaSearch();
+      initUsuarioSearch();
+      populateForm();
       restoreStateIfRecent(); /* FIX v29 */
       /* Auto-guardar en cambios */
       ['fNombre','fNotas','fFecha'].forEach(function(id){
         var el=g(id); if(el) el.addEventListener('input', saveState);
       });
-      var selA=g('fAsignado'); if(selA) selA.addEventListener('change', saveState);
       g('stLoad').style.display='none';
       g('formWrap').style.display='flex';
       g('saveBar').style.display='flex';
@@ -441,7 +450,8 @@ function loadUsers(){
     .then(function(json){
       var users=json.Result||json.result||[];
       var active=users.filter(function(u){ var s=u['User_Status']; return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1; });
-      g('fAsignado').innerHTML=active.map(function(u){ return '<option value="'+u.UserID+'">'+u.Name+'</option>'; }).join('');
+      /* v33: array para buscador */
+      allUsers=active.map(function(u){ return {id:String(u.UserID||''),name:u.Name||''}; }).filter(function(u){ return u.id&&u.name; });
     });
 }
 
@@ -472,7 +482,12 @@ function populateForm(){
   g('fSolucion').value=t[F.solucion]||'';
   var rf=t[F.fecha]||t.Data_to_be_done||'';
   g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
-  setSelectVal('fAsignado',String(t[F.asignado]||''));
+  /* v33: asignado vía buscador */
+  var _aid=String(t[F.asignado]||'');
+  if(_aid&&window._setUsuarioConfirmed){
+    var _au=allUsers.find(function(u){return u.id===_aid;});
+    window._setUsuarioConfirmed(_aid, _au?_au.name:'');
+  }
   setTerminada(isTruthy(t[F.terminada]));
   // Villa en campo siempre visible (v28)
   selectedVillaId=String(t.villaid||'');
@@ -490,6 +505,68 @@ function populateForm(){
 
 function setSelectVal(id,val){ var sel=g(id); if(!sel)return; for(var i=0;i<sel.options.length;i++){ if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;} } }
 function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof v==='boolean')return v; if(typeof v==='number')return v!==0; return!['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase()); }
+
+
+// ── Usuario search (v33) ──
+function initUsuarioSearch(){
+  var inp=g('fAsignadoSearch'),drop=g('usuarioDropdown'),hidden=g('fAsignado');
+  if(!inp||!drop)return;
+  document.body.appendChild(drop);
+  var confirmedName='';
+
+  function setStatus(ok,msg){
+    var cl=g('usuarioCurrentLabel');if(!cl)return;
+    cl.textContent=msg;cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
+  }
+
+  inp.addEventListener('input',function(){
+    var q=inp.value.trim().toLowerCase();
+    selectedUserId='';if(hidden)hidden.value='';
+    confirmedName='';setStatus(null,'');
+    drop.innerHTML='';drop.style.display='none';
+    if(!q)return;
+    var matches=allUsers.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}).slice(0,12);
+    if(!matches.length)return;
+    drop.innerHTML=matches.map(function(u){
+      var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      var re=new RegExp('('+q.replace(/[.+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      return '<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
+    }).join('');
+    drop.querySelectorAll('.villa-opt').forEach(function(opt){
+      opt.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        selectedUserId=opt.dataset.id;confirmedName=opt.dataset.name;
+        if(hidden)hidden.value=selectedUserId;
+        inp.value=confirmedName;drop.style.display='none';
+        setStatus(true,'✓ Persona seleccionada');
+      });
+    });
+    var rect=inp.getBoundingClientRect();
+    drop.style.top=(rect.bottom+4)+'px';drop.style.left=rect.left+'px';drop.style.width=rect.width+'px';
+    drop.style.display='block';
+  });
+
+  inp.addEventListener('blur',function(){
+    setTimeout(function(){
+      drop.style.display='none';
+      if(!selectedUserId){
+        if(confirmedName){inp.value=confirmedName;setStatus(true,'✓ Persona seleccionada');}
+        else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Escribe y selecciona una persona de la lista');}
+      }
+    },200);
+  });
+
+  window._setUsuarioConfirmed=function(id,name){
+    selectedUserId=id;confirmedName=name;
+    if(hidden)hidden.value=id;
+    if(inp)inp.value=name;
+    setStatus(id?true:null,name?'✓ '+name:'');
+  };
+
+  window.addEventListener('scroll',function(){
+    if(drop.style.display==='block'){var r=inp.getBoundingClientRect();drop.style.top=(r.bottom+4)+'px';drop.style.left=r.left+'px';}
+  },true);
+}
 
 // ── Villa search (v28 fix) ──
 function initVillaSearch(){
@@ -707,6 +784,19 @@ function submitForm(markDone){
   /* Si el input de villa está vacío y no hay selección, simplemente no cambia la villa */
   if(villaInp) villaInp.classList.remove('villa-err');
 
+  /* v33: validar asignado — texto sin seleccionar persona */
+  var userInp=g('fAsignadoSearch');
+  if(userInp&&userInp.value.trim()&&!selectedUserId){
+    userInp.classList.add('villa-err');
+    setTimeout(function(){userInp.classList.remove('villa-err');},1500);
+    userInp.scrollIntoView({behavior:'smooth',block:'center'});
+    var ucl=g('usuarioCurrentLabel');
+    if(ucl){ucl.textContent='⚠ Selecciona una persona de la lista antes de guardar';ucl.className='villa-current err-save';}
+    toast('⚠️ Selecciona una persona de la lista','err');
+    return;
+  }
+  if(userInp)userInp.classList.remove('villa-err');
+
   setBusy(true);
   if(markDone) setTerminada(true);
 
@@ -724,7 +814,7 @@ function submitForm(markDone){
     record[F.nombre]     =nombre;
     record[F.descripcion]=(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim();
     record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
-    record[F.asignado]   =g('fAsignado').value||'';
+    record[F.asignado]   =selectedUserId||g('fAsignado').value||''; /* v33 */
     record[F.terminada]  =isTerminada;
     record[F.notas]      =g('fNotas').value.trim();
     record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
