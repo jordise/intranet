@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v32 — 3Villas</title>
+  <title>Editar Tarea v33 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -118,7 +118,7 @@
     .villa-current.warn{color:var(--orange)}
     /* v30: estado error en villa (texto libre sin seleccionar al guardar) */
     .villa-current.err-save{color:var(--red);font-weight:800}
-    #fVillaSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
+    #fVillaSearch.villa-err,#fAsignadoSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
     .photo-divider{border:none;border-top:2px dashed rgba(224,123,0,.35);margin:4px 0}
     /* Save bar */
     .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
@@ -238,7 +238,6 @@
               <div class="villa-dropdown" id="usuarioDropdown"></div>
             </div>
             <div class="villa-current" id="usuarioCurrentLabel"></div>
-            <!-- hidden: guarda el ID seleccionado -->
             <input type="hidden" id="fAsignado">
           </div>
           <div class="field">
@@ -308,7 +307,7 @@ var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:fa
 
 var myUserName='',taskData=null,isSaving=false,isTerminada=false;
 var allVillas=[],selectedVillaId='';
-var allUsers=[],selectedUserId='';
+var allUsers=[],selectedUserId=''; /* v33 */
 var urlP=new URLSearchParams(window.location.search);
 var taskId=(urlP.get('taskid')||'').trim();
 
@@ -345,8 +344,8 @@ function restoreStateIfRecent() {
     if(g2('fNotas')    && s.notas)    g2('fNotas').value    = s.notas;
     if(g2('fFecha')    && s.fecha)    g2('fFecha').value    = s.fecha;
     if(s.asignado && window._setUsuarioConfirmed){
-      var _rUser=allUsers.find(function(u){return u.id===s.asignado;});
-      window._setUsuarioConfirmed(s.asignado, s.asignadoName||(_rUser?_rUser.name:''));
+      var _rU=allUsers.find(function(u){return u.id===s.asignado;});
+      window._setUsuarioConfirmed(s.asignado, s.asignadoName||(_rU?_rU.name:''));
     }
     if(s.villaId && typeof window._setVillaConfirmed==='function') window._setVillaConfirmed(s.villaId, s.villaName);
     if(typeof setTerminada==='function') setTerminada(!!s.terminada);
@@ -408,13 +407,12 @@ document.addEventListener('DOMContentLoaded',function(){
     .then(function(){
       populateForm();
       initVillaSearch();
-      initUsuarioSearch(); /* v32 */
       restoreStateIfRecent(); /* FIX v29 */
       /* Auto-guardar en cambios */
       ['fNombre','fNotas','fFecha'].forEach(function(id){
         var el=g(id); if(el) el.addEventListener('input', saveState);
       });
-      var selA=g('fAsignado'); if(selA) selA.addEventListener('change', saveState);
+      initUsuarioSearch(); /* v33 */
       g('stLoad').style.display='none';
       g('formWrap').style.display='flex';
       g('saveBar').style.display='flex';
@@ -450,7 +448,7 @@ function loadUsers(){
     .then(function(json){
       var users=json.Result||json.result||[];
       var active=users.filter(function(u){ var s=u['User_Status']; return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1; });
-      /* v32: array para buscador (no select) */
+      /* v33: array para buscador */
       allUsers=active.map(function(u){ return {id:String(u.UserID||''),name:u.Name||''}; }).filter(function(u){ return u.id&&u.name; });
     });
 }
@@ -482,11 +480,11 @@ function populateForm(){
   g('fSolucion').value=t[F.solucion]||'';
   var rf=t[F.fecha]||t.Data_to_be_done||'';
   g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
-  /* v32: asignado via buscador */
-  var _asigId=String(t[F.asignado]||'');
-  if(_asigId&&window._setUsuarioConfirmed){
-    var _asigUser=allUsers.find(function(u){return u.id===_asigId;});
-    window._setUsuarioConfirmed(_asigId,_asigUser?_asigUser.name:'');
+  /* v33: asignado vía buscador */
+  var _aid=String(t[F.asignado]||'');
+  if(_aid&&window._setUsuarioConfirmed){
+    var _au=allUsers.find(function(u){return u.id===_aid;});
+    window._setUsuarioConfirmed(_aid, _au?_au.name:'');
   }
   setTerminada(isTruthy(t[F.terminada]));
   // Villa en campo siempre visible (v28)
@@ -507,7 +505,7 @@ function setSelectVal(id,val){ var sel=g(id); if(!sel)return; for(var i=0;i<sel.
 function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof v==='boolean')return v; if(typeof v==='number')return v!==0; return!['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase()); }
 
 
-// ── Usuario search (v32: igual que villa search) ──
+// ── Usuario search (v33) ──
 function initUsuarioSearch(){
   var inp=g('fAsignadoSearch'),drop=g('usuarioDropdown'),hidden=g('fAsignado');
   if(!inp||!drop)return;
@@ -516,8 +514,7 @@ function initUsuarioSearch(){
 
   function setStatus(ok,msg){
     var cl=g('usuarioCurrentLabel');if(!cl)return;
-    cl.textContent=msg;
-    cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
+    cl.textContent=msg;cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
   }
 
   inp.addEventListener('input',function(){
@@ -530,7 +527,7 @@ function initUsuarioSearch(){
     if(!matches.length)return;
     drop.innerHTML=matches.map(function(u){
       var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\]/g,'\$&')+')','gi');
+      var re=new RegExp('('+q.replace(/[.+?^${}()|[\]\\]/g,'\\$&')+')','gi');
       return '<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
     }).join('');
     drop.querySelectorAll('.villa-opt').forEach(function(opt){
@@ -552,7 +549,7 @@ function initUsuarioSearch(){
       drop.style.display='none';
       if(!selectedUserId){
         if(confirmedName){inp.value=confirmedName;setStatus(true,'✓ Persona seleccionada');}
-        else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Escribe y selecciona una persona');}
+        else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Escribe y selecciona una persona de la lista');}
       }
     },200);
   });
@@ -561,7 +558,7 @@ function initUsuarioSearch(){
     selectedUserId=id;confirmedName=name;
     if(hidden)hidden.value=id;
     if(inp)inp.value=name;
-    setStatus(name?true:null,name?'✓ '+name:'');
+    setStatus(id?true:null,name?'✓ '+name:'');
   };
 
   window.addEventListener('scroll',function(){
@@ -785,21 +782,18 @@ function submitForm(markDone){
   /* Si el input de villa está vacío y no hay selección, simplemente no cambia la villa */
   if(villaInp) villaInp.classList.remove('villa-err');
 
-  /* v32: validar campo asignado — texto libre sin seleccionar persona */
+  /* v33: validar asignado — texto sin seleccionar persona */
   var userInp=g('fAsignadoSearch');
-  var userText=userInp?userInp.value.trim():'';
-  if(userText&&!selectedUserId){
-    if(userInp){
-      userInp.classList.add('villa-err');
-      setTimeout(function(){userInp.classList.remove('villa-err');},1500);
-      userInp.scrollIntoView({behavior:'smooth',block:'center'});
-    }
+  if(userInp&&userInp.value.trim()&&!selectedUserId){
+    userInp.classList.add('villa-err');
+    setTimeout(function(){userInp.classList.remove('villa-err');},1500);
+    userInp.scrollIntoView({behavior:'smooth',block:'center'});
     var ucl=g('usuarioCurrentLabel');
     if(ucl){ucl.textContent='⚠ Selecciona una persona de la lista antes de guardar';ucl.className='villa-current err-save';}
     toast('⚠️ Selecciona una persona de la lista','err');
     return;
   }
-  if(userInp) userInp.classList.remove('villa-err');
+  if(userInp)userInp.classList.remove('villa-err');
 
   setBusy(true);
   if(markDone) setTerminada(true);
@@ -818,7 +812,7 @@ function submitForm(markDone){
     record[F.nombre]     =nombre;
     record[F.descripcion]=(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim();
     record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
-    record[F.asignado]   =selectedUserId||g('fAsignado').value||''; /* v32 */
+    record[F.asignado]   =selectedUserId||g('fAsignado').value||''; /* v33 */
     record[F.terminada]  =isTerminada;
     record[F.notas]      =g('fNotas').value.trim();
     record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
