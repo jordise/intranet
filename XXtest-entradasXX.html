@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v42 — 3Villas</title>
+  <title>Entradas Equipo v45 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -599,7 +599,7 @@ document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$(
 window.addEventListener('scroll',e=>{const panel=$('managerPanel');if(!panel||panel.style.display==='none')return;if(panel.contains(e.target))return;closeManagerPanel();},true);
 window.addEventListener('resize',()=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn){const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';}});
 async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null)contactsMap.set(String(r.ContactID),r.Name||'');if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
-async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);}});}catch(e){}}
+async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();const muShort=String(r['descripcion_corta']||r['Descripcion_corta']||'').trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);multiunitsMap.set('short_'+id,muShort);} /* v44 */});}catch(e){}}
 function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=contactsMap.get(String(rawVal));return byId||String(rawVal);}
 
 // ════════════════ UI CONTROLS ════════════════
@@ -783,7 +783,7 @@ function updateVillaTasksInDOM(){
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
     div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
-      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';return`<div class="vt-row"><span class="vt-name">${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}','${t.muId||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
+      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';const muShortVT=t.muId?(multiunitsMap.get('short_'+t.muId)||''):''; /* v44 */return`<div class="vt-row"><span class="vt-name">${muShortVT?`<span style="font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;color:var(--orange);margin-right:3px">${muShortVT} ·</span>`:''  }${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}','${t.muId||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
     cardEl.appendChild(div);
   });
 }
@@ -829,7 +829,8 @@ async function loadPendingTasksPanel(){
         const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='',dateCls='pt-tc-date';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
     } else {html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
     if(tasksFuture.length){
@@ -837,7 +838,8 @@ async function loadPendingTasksPanel(){
         const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
       html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)"><span style="font-size:14px;flex-shrink:0">🗓️</span><div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div><div class="pt-tc-arr" style="transition:transform .2s">›</div></div><div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
     }
