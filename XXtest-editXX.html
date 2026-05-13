@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v36 — 3Villas</title>
+  <title>Editar Tarea v38 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -167,6 +167,7 @@
 </head>
 <body>
 <script>Auth.require('tareas');</script>
+<div class="villa-dropdown" id="multiunitDrop"></div><!-- v38: multiunit dropdown -->
 <div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
 <div id="toast"></div>
 <header id="mainHeader" style="position:sticky;top:0">
@@ -245,8 +246,8 @@
             <div class="date-wrap"><input type="date" id="fFecha"></div>
           </div>
         </div>
-        <!-- v35: Villa + Multiunit en el mismo row -->
-        <div class="field-row" id="villaMuRow" style="grid-template-columns:1fr">
+        <!-- v38: Villa + Multiunit en el mismo row, igual que nueva-tarea -->
+        <div class="field-row" id="villaMuRow">
           <div class="field">
             <label class="lbl">Villa</label>
             <div class="villa-search-wrap">
@@ -255,13 +256,10 @@
             </div>
             <div class="villa-current" id="villaCurrentLabel"></div>
           </div>
-          <div class="field" id="multiunitField" style="display:none">
+          <div class="field" id="multiunitField">
             <label class="lbl">Multiunit / Unidad</label>
-            <div class="villa-search-wrap">
-              <input type="text" id="fMultiunitSearch" placeholder="Buscar unidad…" autocomplete="off">
-              <div class="villa-dropdown" id="multiunitDropdown"></div>
-            </div>
-            <div class="villa-current" id="multiunitCurrentLabel"></div>
+            <input type="text" id="fMultiunitSearch" autocomplete="off" placeholder="Selecciona primero una villa" disabled>
+            <div id="multiunitStatus" style="font-size:11px;margin-top:3px;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--gray-4)"></div>
             <input type="hidden" id="fMultiunit">
           </div>
         </div>
@@ -318,10 +316,13 @@ var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:fa
 
 var myUserName='',taskData=null,isSaving=false,isTerminada=false;
 var allVillas=[],selectedVillaId='';
-var allMultiunitsData=[],selectedMultiunitId=''; /* v35 */
 var allUsers=[],selectedUserId=''; /* v33 */
+var allMultiunits=[],selectedMultiunitId=''; /* v38 — igual que nueva-tarea */
+var selectedVillaId_='';  /* tracking para multiunit */
+var _villaIdField='';     /* campo detectado automáticamente */
 var urlP=new URLSearchParams(window.location.search);
 var taskId=(urlP.get('taskid')||'').trim();
+var paramMultiunitId=(urlP.get('multiunit_id')||'').trim(); /* v38 */
 
 /* ══ FIX v29: Persistencia de estado en sessionStorage (evita pérdida al abrir cámara iOS) ══ */
 const _MAX_AGE_MS = 300000; /* 5 minutos */
@@ -415,12 +416,13 @@ document.addEventListener('DOMContentLoaded',function(){
   g('btnCerrar').addEventListener('click',function(){ submitForm(true); });
   g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
   g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
-  Promise.all([loadUsers(),loadTask(),loadVillas()])
+  Promise.all([loadUsers(),loadTask(),loadVillas(),loadAllMultiunits()]) /* v38 */
     .then(function(){
-      /* v35: init buscadores ANTES de populateForm */
+      /* v33 FIX: init buscadores ANTES de populateForm para que
+         _setVillaConfirmed y _setUsuarioConfirmed existan cuando se llamen */
       initVillaSearch();
+      initMultiunitSearch(); /* v38 */
       initUsuarioSearch();
-      initMultiunitSearch();
       populateForm();
       restoreStateIfRecent(); /* FIX v29 */
       /* Auto-guardar en cambios */
@@ -467,19 +469,14 @@ function loadUsers(){
     });
 }
 
-// ── Cargar villas + multiunits ──
+// ── Cargar villas ──
 function loadVillas(){
-  return Promise.all([
-    fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
-      .then(function(r){return r.json();})
-      .then(function(json){var rows=json.Result||json.result||[];allVillas=rows.map(function(v){return{id:String(v.villaid||''),name:v.Name_villa_para_inquilinos||v.Name||''};}).filter(function(v){return v.id&&v.name;});})
-      .catch(function(){}),
-    /* v35: cargar TODOS los multiunits para filtrar client-side */
-    fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
-      .then(function(r){return r.json();})
-      .then(function(json){var rows=json.Result||json.result||[];allMultiunitsData=rows.map(function(m){var vid=String(m.VillaID_caspio||m.VillalDcaspio||m.VillaDcaspio||'').trim();return{id:String(m.multiunitID||'').trim(),name:m.descripcion||m.nombre_listing_manual||'',villaId:vid};}).filter(function(m){return m.id;});})
-      .catch(function(){})
-  ]);
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      allVillas=rows.map(function(v){ return {id:String(v.villaid||''),name:v.Name_villa_para_inquilinos||v.Name||''}; }).filter(function(v){ return v.id&&v.name; });
+    }).catch(function(){});
 }
 
 // ── Popular formulario ──
@@ -499,13 +496,6 @@ function populateForm(){
   g('fSolucion').value=t[F.solucion]||'';
   var rf=t[F.fecha]||t.Data_to_be_done||'';
   g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
-  /* v35: set multiunit */
-  var _muId=String(t.PMSmultiunitID||'').trim();
-  refreshMultiunitField(String(t.villaid||''));
-  if(_muId&&window._setMultiunitConfirmed){
-    var _mu=allMultiunitsData.find(function(m){return m.id===_muId;});
-    window._setMultiunitConfirmed(_muId,_mu?_mu.name:'Unidad '+_muId);
-  }
   /* v33: asignado vía buscador */
   var _aid=String(t[F.asignado]||'');
   if(_aid&&window._setUsuarioConfirmed){
@@ -515,6 +505,10 @@ function populateForm(){
   setTerminada(isTruthy(t[F.terminada]));
   // Villa en campo siempre visible (v28)
   selectedVillaId=String(t.villaid||'');
+  /* v38: set multiunit del task */
+  var _taskMuId=String(t.PMSmultiunitID||'').trim();
+  if(_taskMuId)paramMultiunitId=_taskMuId; /* usar el del task como pre-selección */
+  refreshMultiunits(selectedVillaId); /* activa/rellena el campo multiunit */
   if(window._setVillaConfirmed){
     window._setVillaConfirmed(selectedVillaId, villa);
   } else {
@@ -593,75 +587,123 @@ function initUsuarioSearch(){
 }
 
 
-// ── v35: Multiunit helpers ──
-function getMultiunitsForVilla(villaId){
-  return allMultiunitsData.filter(function(m){return m.villaId===String(villaId);});
+// ── Multiunit (v38 — igual que nueva-tarea v27) ──
+function loadAllMultiunits(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      if(!rows.length){console.warn('[Multiunit] Sin registros en TaMultiunits');return;}
+      var first=rows[0];
+      var candidates=['VillaID_caspio','VillaId_caspio','villaID_caspio','villaid_caspio',
+                      'VillalDcaspio','VillaDcaspio','VillaIDcaspio','VillaIdCaspio',
+                      'VillaId','villaid','VillaID','Villaid'];
+      _villaIdField='';
+      for(var ci=0;ci<candidates.length;ci++){
+        if(first[candidates[ci]]!==undefined){_villaIdField=candidates[ci];break;}
+      }
+      if(!_villaIdField){
+        var keys=Object.keys(first);
+        for(var ki=0;ki<keys.length;ki++){
+          if(keys[ki].toLowerCase().indexOf('villa')!==-1&&keys[ki].toLowerCase()!=='multiunitid'){
+            _villaIdField=keys[ki];break;
+          }
+        }
+      }
+      console.log('[Multiunit] Campo detectado:',_villaIdField,'valor:',first[_villaIdField]);
+      allMultiunits=rows.map(function(m){
+        var vid=String(m['VillaID_caspio']||m[_villaIdField]||'').trim();
+        return{id:String(m.multiunitID||m.MultiunitID||'').trim(),name:m.descripcion||m.Descripcion||m.nombre_listing_manual||'',villaId:vid};
+      }).filter(function(m){return m.id&&m.name;});
+      console.log('[Multiunit] Total procesados:',allMultiunits.length);
+    }).catch(function(e){console.error('[Multiunit] Error:',e);});
 }
-function refreshMultiunitField(villaId){
-  var mus=getMultiunitsForVilla(villaId);
-  var mf=g('multiunitField'),row=g('villaMuRow');
-  if(!mus.length){
-    if(mf)mf.style.display='none';
-    if(row)row.style.gridTemplateColumns='1fr';
-    selectedMultiunitId='';if(g('fMultiunit'))g('fMultiunit').value='';
-    if(g('fMultiunitSearch'))g('fMultiunitSearch').value='';
-    if(g('multiunitCurrentLabel'))g('multiunitCurrentLabel').textContent='';
-    return;
+
+function refreshMultiunits(villaId){
+  selectedMultiunitId='';selectedVillaId_=villaId||'';
+  var hidden=g('fMultiunit'),inp=g('fMultiunitSearch'),status=g('multiunitStatus');
+  if(hidden)hidden.value='';
+  if(inp)inp.value='';
+  if(status)status.textContent='';
+  var mus=allMultiunits.filter(function(m){return m.villaId===String(villaId);});
+  if(inp){
+    if(!villaId){inp.placeholder='Selecciona primero una villa';inp.disabled=true;}
+    else if(!mus.length){inp.placeholder='Esta villa no tiene unidades';inp.disabled=true;}
+    else{inp.placeholder='Buscar unidad...';inp.disabled=false;}
   }
-  if(mf)mf.style.display='block';
-  if(row)row.style.gridTemplateColumns='1fr 1fr';
-  /* Si el id confirmado ya no es de esta villa, limpiar */
-  if(selectedMultiunitId&&!mus.find(function(m){return m.id===selectedMultiunitId;})){
-    selectedMultiunitId='';if(g('fMultiunit'))g('fMultiunit').value='';
-    if(g('fMultiunitSearch'))g('fMultiunitSearch').value='';
-    if(g('multiunitCurrentLabel'))g('multiunitCurrentLabel').textContent='';
+  /* Pre-seleccionar si viene de URL */
+  if(mus.length&&paramMultiunitId){
+    var found=mus.find(function(m){return m.id===paramMultiunitId;});
+    if(found){
+      selectedMultiunitId=found.id;
+      if(hidden)hidden.value=found.id;
+      if(inp){inp.value=found.name;inp.disabled=false;}
+      if(status){status.textContent='✓ '+found.name;status.style.color='var(--green)';}
+      paramMultiunitId='';
+    }
   }
 }
 
 function initMultiunitSearch(){
-  var inp=g('fMultiunitSearch'),drop=g('multiunitDropdown'),hidden=g('fMultiunit');
-  if(!inp||!drop)return;
-  document.body.appendChild(drop);
+  var inp=g('fMultiunitSearch'),dd=g('multiunitDrop'),hidden=g('fMultiunit');
+  if(!inp||!dd)return;
+  document.body.appendChild(dd); /* mover al body como hace initVillaSearch */
   var confirmedName='';
-  function setStatus(ok,msg){var cl=g('multiunitCurrentLabel');if(!cl)return;cl.textContent=msg;cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');}
-  function buildDD(){
-    var q=inp.value.trim().toLowerCase();
-    var mus=getMultiunitsForVilla(selectedVillaId||'');
-    var matches=(q?mus.filter(function(m){return m.name.toLowerCase().indexOf(q)!==-1;}):mus).slice(0,12);
-    drop.innerHTML='';drop.style.display='none';
-    if(!matches.length)return;
-    drop.innerHTML=matches.map(function(m){
-      var safe=m.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      if(q){var re=new RegExp('('+q.replace(/[.+?^${}()|[\]\]/g,'\$&')+')','gi');safe=safe.replace(re,'<mark>$1</mark>');}
-      return'<div class="villa-opt" data-id="'+m.id+'" data-name="'+m.name.replace(/"/g,'&quot;')+'">'+safe+'</div>';
+
+  function reposDD(){
+    var rect=inp.getBoundingClientRect();
+    dd.style.top=(rect.bottom+4)+'px';dd.style.left=rect.left+'px';dd.style.width=rect.width+'px';
+  }
+  function setStatus(ok,msg){
+    var s=g('multiunitStatus');if(!s)return;
+    s.textContent=msg;s.style.color=ok===true?'var(--green)':ok===false?'var(--orange)':'var(--gray-4)';
+  }
+  function renderDD(q){
+    var ql=(q||'').toLowerCase();
+    var mus=allMultiunits.filter(function(m){return m.villaId===selectedVillaId_;});
+    var res=(q?mus.filter(function(m){return m.name.toLowerCase().indexOf(ql)!==-1;}):mus).slice(0,12);
+    dd.innerHTML='';dd.style.display='none';
+    if(!res.length)return;
+    dd.innerHTML=res.map(function(m){
+      var nm=m.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      if(q){var idx=nm.toLowerCase().indexOf(ql);if(idx!==-1)nm=nm.slice(0,idx)+'<mark>'+nm.slice(idx,idx+q.length)+'</mark>'+nm.slice(idx+q.length);}
+      return'<div class="villa-opt" data-id="'+m.id+'" data-name="'+m.name.replace(/"/g,'&quot;')+'">'+nm+'</div>';
     }).join('');
-    drop.querySelectorAll('.villa-opt').forEach(function(opt){
+    dd.querySelectorAll('.villa-opt').forEach(function(opt){
       opt.addEventListener('mousedown',function(e){
         e.preventDefault();
         selectedMultiunitId=opt.dataset.id;confirmedName=opt.dataset.name;
-        if(hidden)hidden.value=selectedMultiunitId;
-        inp.value=confirmedName;drop.style.display='none';
-        setStatus(true,'✓ '+confirmedName);
+        inp.value=confirmedName;if(hidden)hidden.value=selectedMultiunitId;
+        dd.style.display='none';setStatus(true,'✓ '+confirmedName);
       });
     });
-    var rect=inp.getBoundingClientRect();
-    drop.style.top=(rect.bottom+4)+'px';drop.style.left=rect.left+'px';drop.style.width=rect.width+'px';
-    drop.style.display='block';
+    reposDD();dd.style.display='block';
   }
-  inp.addEventListener('input',function(){selectedMultiunitId='';if(hidden)hidden.value='';confirmedName='';setStatus(null,'');buildDD();});
-  inp.addEventListener('focus',function(){buildDD();});
+
+  inp.addEventListener('input',function(){
+    selectedMultiunitId='';if(hidden)hidden.value='';confirmedName='';setStatus(null,'');
+    var q=inp.value.trim();
+    if(!q){dd.style.display='none';return;}
+    renderDD(q);
+  });
+  inp.addEventListener('focus',function(){
+    if(!selectedVillaId_)return;
+    if(inp.value.trim())renderDD(inp.value.trim());else renderDD('');
+  });
   inp.addEventListener('blur',function(){
     setTimeout(function(){
-      drop.style.display='none';
-      if(!selectedMultiunitId){if(confirmedName){inp.value=confirmedName;setStatus(true,'✓ '+confirmedName);}else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Escribe y selecciona una unidad');}}
+      dd.style.display='none';
+      if(!selectedMultiunitId){
+        if(confirmedName){inp.value=confirmedName;setStatus(true,'✓ '+confirmedName);}
+        else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Selecciona una unidad');}
+      }
     },200);
   });
-  window._setMultiunitConfirmed=function(id,name){
-    selectedMultiunitId=id;confirmedName=name;
-    if(hidden)hidden.value=id;if(inp)inp.value=name;
-    setStatus(id?true:null,name?'✓ '+name:'');
-  };
-  window.addEventListener('scroll',function(){if(drop.style.display==='block'){var r=inp.getBoundingClientRect();drop.style.top=(r.bottom+4)+'px';drop.style.left=r.left+'px';}},true);
+  document.addEventListener('click',function(e){
+    if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
+  });
+  window.addEventListener('scroll',function(){if(dd.style.display==='block')reposDD();},true);
+  window.addEventListener('resize',function(){if(dd.style.display==='block')reposDD();});
 }
 
 // ── Villa search (v28 fix) ──
@@ -704,7 +746,7 @@ function initVillaSearch(){
         inp.value=confirmedName;
         drop.style.display='none';
         setStatus(true,'✓ Villa seleccionada');
-        refreshMultiunitField(opt.dataset.id); /* v35 */
+        refreshMultiunits(opt.dataset.id); /* v38 */
         var hm2=g('hMeta'); if(hm2)hm2.textContent='📍 '+confirmedName+'  ·  Nr. '+taskId;
       });
     });
@@ -916,7 +958,7 @@ function submitForm(markDone){
     record[F.notas]      =g('fNotas').value.trim();
     record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
     if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
-    record['PMSmultiunitID']=selectedMultiunitId||''; /* v35 */
+    record['PMSmultiunitID']=selectedMultiunitId||''; /* v38 */
     BEFORE_FIELDS.forEach(function(f,i){ record[f]=beforeUrls[i]||''; });
     AFTER_FIELDS.forEach(function(f,i){ record[f]=afterUrls[i]||''; });
     return fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
