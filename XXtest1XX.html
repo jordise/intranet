@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v24 — 3Villas</title>
+  <title>Nueva Tarea v25 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -163,9 +163,9 @@
           <input type="text" id="fVillaSearch" autocomplete="off" placeholder="Buscar villa...">
           <input type="hidden" id="fVilla">
         </div>
-        <div class="field" id="multiunitField" style="display:none">
+        <div class="field" id="multiunitField">
           <label class="lbl">Multiunit / Unidad</label>
-          <input type="text" id="fMultiunitSearch" autocomplete="off" placeholder="Buscar unidad...">
+          <input type="text" id="fMultiunitSearch" autocomplete="off" placeholder="Selecciona primero una villa" disabled>
           <input type="hidden" id="fMultiunit">
         </div>
       </div>
@@ -203,7 +203,9 @@
     buildGrid();initVillaSearch();initMultiunitSearch();initMic(); /* v24 */
     if(window._qlInit)_qlInit('fDesc','Detalles opcionales…');
     g('btnSubmit').addEventListener('click',submitForm);
-    loadUsers();loadVillas();loadAllMultiunits(); /* v24 */
+    loadUsers();
+    /* v25: cargar multiunits primero, luego villas (para que refreshMultiunits funcione) */
+    loadAllMultiunits().then(function(){ loadVillas(); });
   });
   function loadUsers(){fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(function(r){return r.json();}).then(function(json){var users=json.Result||json.result||[];var myEmail=Auth.email?Auth.email():'';var active=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';});active.forEach(function(u){if(String(u.Email||'').toLowerCase()===myEmail.toLowerCase())myUserId=String(u.UserID);});var sel=g('fAsignado');sel.innerHTML=active.map(function(u){var isSel=String(u.UserID)===myUserId?' selected':'';return'<option value="'+u.UserID+'"'+isSel+'>'+u.Name+'</option>';}).join('');}).catch(function(){g('fAsignado').innerHTML='<option value="">Error</option>';});}
   function loadVillas(){fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500')).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];allVillas=rows.map(function(v){return{id:String(v.villaid),name:v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid};}).sort(function(a,b){return a.name.localeCompare(b.name);});if(paramVillaId){
@@ -218,8 +220,8 @@
   var selectedVillaId_=''; /* tracking villa seleccionada */
 
   function loadAllMultiunits(){
-    /* Carga todos los multiunits al inicio para filtrar client-side */
-    fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
+    /* v25: retorna Promise para que loadVillas espere */
+    return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
       .then(function(r){return r.json();})
       .then(function(json){
         var rows=json.Result||json.result||[];
@@ -239,19 +241,23 @@
 
   function refreshMultiunits(villaId){
     selectedMultiunitId='';
-    var hidden=g('fMultiunit'),inp=g('fMultiunitSearch'),mf=g('multiunitField');
+    var hidden=g('fMultiunit'),inp=g('fMultiunitSearch');
     if(hidden)hidden.value='';
     if(inp)inp.value='';
     var mus=allMultiunits.filter(function(m){return m.villaId===String(villaId);});
-    if(!mus.length){if(mf)mf.style.display='none';return;}
-    if(mf)mf.style.display='block';
+    if(inp){
+      if(!villaId)inp.placeholder='Selecciona primero una villa';
+      else if(!mus.length)inp.placeholder='Esta villa no tiene unidades';
+      else inp.placeholder='Buscar unidad...';
+      inp.disabled=(!villaId||!mus.length);
+    }
     /* Si viene de URL, pre-seleccionar */
-    if(paramMultiunitId){
+    if(mus.length&&paramMultiunitId){
       var found=mus.find(function(m){return m.id===paramMultiunitId;});
       if(found){
         selectedMultiunitId=found.id;
         if(hidden)hidden.value=found.id;
-        if(inp)inp.value=found.name;
+        if(inp){inp.value=found.name;inp.disabled=false;}
         paramMultiunitId='';
       }
     }
@@ -302,8 +308,9 @@
       renderDD(q);
     });
     inp.addEventListener('focus',function(){
+      if(!selectedVillaId_){return;} /* sin villa, no abrir */
       if(inp.value.trim())renderDD(inp.value.trim());
-      else if(selectedVillaId_)renderDD(''); /* mostrar todos al hacer clic */
+      else renderDD(''); /* mostrar todos al hacer clic */
     });
     inp.addEventListener('blur',function(){
       setTimeout(function(){
