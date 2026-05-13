@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- entradas-equipo.html v23 — 12/05/2026
+  <!-- entradas-equipo.html v29 — 12/05/2026
        v22: botón Info Villa + links contactos
        v23: fix URL villa-info.html → villa.html
   -->
@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v28 — 3Villas</title>
+  <title>Entradas Equipo v30 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -628,7 +628,7 @@ function renderCards(records){
   if($('sCnt'))$('sCnt').textContent=`${entradas} ent. / ${salidas} sal.`;
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
   const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
-  loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
+  resetVillaPendingMap();loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
   if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{if(_sid===_searchId)updateVillaTasksInDOM();}).catch(e=>console.warn('Villa tasks:',e.message));}
   if($('hCount'))$('hCount').textContent=rows.length;
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
@@ -637,18 +637,38 @@ function renderCards(records){
   rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));
 }
 
-function openTaskPopup(url){const w=480,h=750,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);window.open(url,'taskpopup',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);}
+function openTaskPopup(url){
+  const w=480,h=750,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);
+  const popup=window.open(url,'taskpopup',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);
+  /* v29: al cerrar el popup refrescar tareas de villa + panel lateral */
+  if(popup){
+    const _t=setInterval(()=>{
+      if(popup.closed){
+        clearInterval(_t);
+        /* Recargar solo tareas (sin volver a buscar reservas) */
+        const _vids=[...($('grid')||{querySelectorAll:()=>[]}).querySelectorAll('[data-villaid]')]
+          .map(el=>parseInt(el.getAttribute('data-villaid'))||0).filter(id=>id>0);
+        if(_vids.length){
+          loadVillaPendingTasks(_vids).then(()=>updateVillaTasksInDOM()).catch(()=>{});
+        }
+        loadPendingTasksPanel().catch(()=>{});
+      }
+    },600);
+  }
+}
 function popup(url,w,h){if(!url)return false;w=w||1000;h=h||800;window.open(url,'','resizable=no,status=no,location=no,toolbar=no,menubar=no,fullscreen=no,scrollbars=no,dependent=no,width='+w+',left=80,height='+h+',top=80');return false;}
 function parseTimeMin(timeStr){if(!timeStr)return 9999;const clean=String(timeStr).trim();const m=clean.match(/^(\d{1,2})[:h](\d{2})/);if(m)return parseInt(m[1])*60+parseInt(m[2]);return 9999;}
 function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)return;const btn=document.querySelector('.c-toggle[data-toggle="'+id+'"]');const isOpen=wrap.style.display==='block';wrap.style.display=isOpen?'none':'block';if(btn){btn.classList.toggle('open',!isOpen);const lbl=btn.querySelector('.c-toggle-label');if(lbl)lbl.textContent=isOpen?'Ver detalles':'Ocultar';}}
 
 // ════════════════ VILLA PENDING TASKS ════════════════
 const villaPendingMap={};
+/* v29: limpiar mapa completo antes de cada búsqueda nueva */
+function resetVillaPendingMap(){Object.keys(villaPendingMap).forEach(k=>delete villaPendingMap[k]);}
 async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
-  const toLoad=unique.length>40?unique.slice(0,40):unique;
+  const toLoad=unique.length>200?unique.slice(0,200):unique; /* v30: cap 40→200 */
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
   const BATCH=15;
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
@@ -669,8 +689,8 @@ async function loadVillaPendingTasks(villaIds){
   }
 }
 function updateVillaTasksInDOM(){
-  const _grid=$('grid');if(!_grid)return;
-  _grid.querySelectorAll('[data-villaid]').forEach(cardEl=>{
+  /* v30: busca en todo el doc (#grid, #wkModalInner, #weekGrid) */
+  document.querySelectorAll('[data-villaid]').forEach(cardEl=>{
     const vKey=cardEl.getAttribute('data-villaid');
     const coStr=cardEl.getAttribute('data-checkout')||'';
     const _limit=coStr?new Date(coStr+'T23:59:59'):null;
