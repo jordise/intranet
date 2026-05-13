@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v34 — 3Villas</title>
+  <title>Entradas Equipo v35 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -667,13 +667,18 @@ function renderCards(records){
   if($('sCnt'))$('sCnt').textContent=`${entradas} ent. / ${salidas} sal.`;
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
   const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
-  resetVillaPendingMap();loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
-  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{if(_sid===_searchId)updateVillaTasksInDOM();}).catch(e=>console.warn('Villa tasks:',e.message));}
+  resetVillaPendingMap();
   if($('hCount'))$('hCount').textContent=rows.length;
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
-  if(_calMode){grid.style.display='none';renderWeekly();return;}
-  grid.style.display='grid';
-  rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));
+  if(_calMode){grid.style.display='none';renderWeekly();}
+  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
+  /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
+  if(villaIds.length){
+    loadVillaPendingTasks(villaIds)
+      .then(()=>{updateVillaTasksInDOM();})
+      .catch(e=>console.warn('Villa tasks:',e.message));
+  }
+  loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
 }
 
 function openTaskPopup(url){
@@ -709,7 +714,7 @@ async function loadVillaPendingTasks(villaIds){
   if(!unique.length)return;
   const toLoad=unique.length>200?unique.slice(0,200):unique; /* v30: cap 40→200 */
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
-  const BATCH=15;
+  const BATCH=30; /* v35: de 15 a 30 — menos round-trips */
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
   for(let i=0;i<toLoad.length;i+=BATCH){
     const batch=toLoad.slice(i,i+BATCH);
@@ -726,6 +731,11 @@ async function loadVillaPendingTasks(villaIds){
       }
     }catch(e){console.warn('[VillaTasks] Error:',e.message);}
   }
+  /* v35: debug info */
+  const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
+  const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
+  const prev=$('dbBox').textContent||'';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+Object.keys(villaPendingMap).length+' villas';
 }
 function updateVillaTasksInDOM(){
   /* v30: busca en todo el doc (#grid, #wkModalInner, #weekGrid) */
