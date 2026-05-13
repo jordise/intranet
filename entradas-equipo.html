@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v30 — 3Villas</title>
+  <title>Entradas Equipo v33 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -166,6 +166,29 @@
     #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
     #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
     #dbBox.open{display:block}
+
+    /* v31 ── guest popup ── */
+    #guestModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9100;align-items:flex-start;justify-content:center;padding:18px 12px;overflow-y:auto}
+    #guestModal.open{display:flex}
+    .gm-box{max-width:420px;width:100%;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.22);margin:auto}
+    .gm-head{background:#1565c0;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+    .gm-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+    .gm-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:13px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .gm-close:hover{background:rgba(255,255,255,.4)}
+    .gm-row{display:grid;grid-template-columns:90px 1fr 1fr;gap:6px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--gray-2);font-size:12px}
+    .gm-row:last-child{border-bottom:none}
+    .gm-field{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4)}
+    .gm-col{display:flex;align-items:center;gap:5px}
+    .gm-val{color:var(--gray-5);font-weight:600;word-break:break-all;font-size:12px}
+    .gm-val.empty{color:var(--gray-3);font-style:italic;font-weight:400}
+    .gm-src{font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;text-transform:uppercase;padding:2px 5px;border-radius:3px;background:#e8f0fe;color:#1967d2;white-space:nowrap}
+    .gm-src.arr{background:#e6f7ee;color:#1e9e4e}
+    .gm-copy{background:none;border:1px solid var(--gray-2);color:var(--gray-4);border-radius:5px;width:22px;height:22px;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+    .gm-copy:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    /* v31 ── villa-name clickable ── */
+    a.villa-name{display:block;text-decoration:none;color:inherit;cursor:pointer;transition:opacity .15s}
+    a.villa-name:hover{opacity:.8}
+
     @media(max-width:700px){#grid{grid-template-columns:1fr}.dates-grid{grid-template-columns:1fr 1fr}.npill{display:none}.f-group.narrow{flex:1}}
     .villa-tasks{padding:10px 14px;background:#fff8f0;border-top:1px solid #ffe5c0}
     .vt-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin-bottom:6px}
@@ -403,6 +426,22 @@
   <div id="grid"></div>
 </main>
 
+<!-- Guest popup v31 -->
+<div id="guestModal" onclick="if(event.target===this)closeGuestModal()">
+  <div class="gm-box">
+    <div class="gm-head">
+      <span class="gm-title" id="gmName">—</span>
+      <button class="gm-close" onclick="closeGuestModal()">✕</button>
+    </div>
+    <div style="padding:4px 14px 4px;background:var(--gray-1);display:grid;grid-template-columns:90px 1fr 1fr;gap:6px">
+      <span></span>
+      <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:#1967d2;text-transform:uppercase;letter-spacing:.4px">Hostaway</span>
+      <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:#1e9e4e;text-transform:uppercase;letter-spacing:.4px">Arrival form</span>
+    </div>
+    <div id="gmRows"></div>
+  </div>
+</div>
+
 <div id="dbWrap">
   <button id="dbBtn" onclick="document.getElementById('dbBox').classList.toggle('open')">🐛</button>
   <div id="dbBox">Sin datos aún.</div>
@@ -429,7 +468,7 @@ const F = {
   status:'TaBookings2021_BookingStatus',guestName:'TaBookings2021_Guest_Full_Name',
   fiscalName:'TaBookings2021_Fiscal_guest_name',guestPhone:'TaBookings2021_Guest_phonenumber',
   phoneArrival:'TaBookings2021_Segundo_Telefono',phoneCual:'TaBookings2021_Guest_phonenumber_cual_usar',
-  guestEmail:'TaBookings2021_Guest_email',villaManager:'TaVillas_KeyHolder_person',
+  guestEmail:'TaBookings2021_Guest_email',secondEmail:'TaBookings2021_Segundo_email',villaManager:'TaVillas_KeyHolder_person',
   keyholderUserId:'TaVillas_KeyHolder_person',limpieza:'TaBookings2021_LimpiezaTerminada',
   wellcomePack:'TaBookings2021_Welcomepackentregado',cierre:'TaBookings2021_Checkoutcontrolado',
   cleaner:'TaVillas_Cleanning_team',cleaningNotes:'TaBookings2021_CleaningNotes',
@@ -552,7 +591,7 @@ function filterManagerList(){const q=($('managerSearch')||{}).value||'';renderMa
 function toggleManager(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);loadPendingTasksPanel().catch(()=>{});}
 function selectAllManagers(){allManagersList.forEach(m=>selectedManagers.add(m.id));renderManagerList();updateManagerBtn();}
 function clearManagers(){selectedManagers.clear();renderManagerList();updateManagerBtn();}
-function updateManagerBtn(){const lbl=$('fManagerLabel');if(!lbl)return;if(selectedManagers.size===0)lbl.textContent='Todos';else if(selectedManagers.size===1){const id=[...selectedManagers][0];lbl.textContent=allUsersMap.get(id)||id;}else lbl.textContent=`${selectedManagers.size} managers seleccionados`;}
+function updateManagerBtn(){const lbl=$('fManagerLabel');if(!lbl)return;if(selectedManagers.size===0)lbl.textContent='Todos';else if(selectedManagers.size===1){const id=[...selectedManagers][0];const nm=allUsersMap.get(id)||id;lbl.textContent=nm.length>25?nm.slice(0,23)+'…':nm;}else lbl.textContent=`${selectedManagers.size} managers`;}
 function toggleManagerPanel(e){e&&e.stopPropagation();const panel=$('managerPanel');const btn=$('fManagerBtn');if(!panel||!btn)return;if(panel.style.display!=='none'){panel.style.display='none';return;}const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';panel.style.display='flex';renderManagerList();if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}}
 function closeManagerPanel(){const panel=$('managerPanel');if(panel)panel.style.display='none';}
 document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))panel.style.display='none';});
@@ -771,6 +810,47 @@ function buildVCardUrl(r,phoneClean){const villaG=r['TaVillas_Name_villa_para_in
 function buildWACheckoutMsg(r,mgrName,withFeedback){const guestName=g(r,'fiscalName')||g(r,'guestName');const cual=g(r,'phoneCual');const activePhone=useArrival(cual)?g(r,'phoneArrival'):g(r,'guestPhone');const spanish=isSpanish(activePhone);if(spanish){const base=`¡Buenas tardes, ${guestName}!\n\nEn primer lugar, me gustaría despedirme y agradecerle su confianza en <3Villas.\n\nComo mañana es su salida, me gustaría repasar algunos puntos con usted:\n\n🔑 CHECK-OUT IS AT 10 AM. Por favor, deje las llaves dentro del cajetín para que el servicio de limpieza pueda entrar a tiempo.\n\n♻️ También le pedimos amablemente, si es posible, que retire la basura y la deposite en los CONTENEDORES PÚBLICOS.`;const feedback=`\n\n💬 Sus comentarios son extremadamente valiosos para ayudarnos a mejorar y permitir que otros huéspedes nos conozcan. Por ello, si tiene un momento y ha disfrutado de su estancia con nosotros, le agradeceríamos mucho que dejara una reseña en Google Reviews compartiendo su experiencia.\n📌 Le dejo el enlace a continuación:\nhttps://goo.su/oujTL`;const end=`\n\nMuchas gracias!\n\nEspero que hayan tenido una estancia agradable y esperamos verles pronto.\n\n¡Buen viaje de vuelta a casa!\n\nSaludos cordiales,\n${mgrName}`;return base+(withFeedback?feedback:'')+end;}const base=`Good afternoon, ${guestName}!\n\nFirst of all, I would like to say goodbye and thank you for trusting <3Villas.\n\nAs tomorrow is your departure, I would like to go over a few points with you:\n\n🔑 CHECK-OUT IS AT 10 AM. Please, leave the keys inside the keybox so that the cleaning service can enter on time.\n\n♻️ We also kindly ask you, if possible, to remove any rubbish and dispose of it in the PUBLIC CONTAINERS.`;const feedback=`\n\n💬 Your feedback is extremely valuable in helping us improve and allowing other guests to get to know us. Therefore, if you have a moment and have enjoyed your stay with us, we would greatly appreciate it if you could leave a review on Google Reviews sharing your experience.\n📌 I will leave the link below:\nhttps://goo.su/oujTL`;const end=`\n\nThank you very much!\n\nI hope you had a pleasant stay and we looking forward to seeing you soon.\n\nHave a good journey back home!\n\nBest regards,\n${mgrName}`;return base+(withFeedback?feedback:'')+end;}
 
 // ════════════════ BUILD CARD ════════════════
+
+/* ══ v31: Guest popup ══ */
+function copyToClipboard(text,btn){
+  navigator.clipboard.writeText(text).then(function(){
+    var orig=btn.textContent;btn.textContent='✓';btn.style.color='var(--green)';
+    setTimeout(function(){btn.textContent=orig;btn.style.color='';},1500);
+  }).catch(function(){});
+}
+window._guestData={};
+function openGuestModal(data){
+  window._guestData=data;
+  var $=id=>document.getElementById(id);
+  $('gmName').textContent=data.name||'—';
+  var rows=[
+    {label:'Teléfono', ha:data.ph1, af:data.ph2},
+    {label:'Email',    ha:data.em1, af:data.em2},
+  ];
+  $('gmRows').innerHTML=rows.map(function(row,ri){
+    function cell(val,src,srcClass){
+      if(!val)return'<div class="gm-col"><span class="gm-val empty">—</span></div>';
+      var btnId='gmc_'+ri+'_'+srcClass;
+      return'<div class="gm-col">'
+        +'<span class="gm-val">'+val+'</span>'
+        +'<button class="gm-copy" id="'+btnId+'" onclick="copyToClipboard('+JSON.stringify(val)+',this)" title="Copiar">⎘</button>'
+        +'</div>';
+    }
+    return'<div class="gm-row">'
+      +'<span class="gm-field">'+row.label+'</span>'
+      +cell(row.ha,'Hostaway','ha')
+      +cell(row.af,'Arrival','af')
+      +'</div>';
+  }).join('');
+  $('guestModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeGuestModal(){
+  document.getElementById('guestModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeGuestModal();});
+
 function mkBadge(label,raw,url,extra,newTab){const ok=isOk(raw);const cls=ok===null?'b-na':ok?'b-ok':'b-no';const ico=ok===null?'·':ok?'✓':'✗';const inner=`${ico} ${label}${extra||''}`;if(url&&newTab)return`<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;if(url)return`<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;return`<span class="bdg ${cls}">${inner}</span>`;}
 
 function buildCard(r,type){
@@ -828,12 +908,13 @@ function buildCard(r,type){
   let html='';const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
   const headClass=isSalida?'c-head salida':'c-head';
   const tipoBadge=isSalida?'<span class="tipo-badge tipo-salida">↑ SALIDA</span><br>':'<span class="tipo-badge tipo-entrada">↓ ENTRADA</span><br>';
-  html+=`<div class="${headClass}"><div><div class="villa-name">${tipoBadge}${vl}</div>`;
+  const _villaHref=villaId?`villa.html?villa_id=${encodeURIComponent(villaId)}`:'';
+  html+=`<div class="${headClass}"><div>${_villaHref?`<a class="villa-name" href="${_villaHref}">${tipoBadge}${vl}</a>`:`<div class="villa-name">${tipoBadge}${vl}</div>`}`;
   if(paxTxt||n||portal)html+=`<div class="villa-sub">${[paxTxt&&paxTxt+' pax',n&&n+'n',portal].filter(Boolean).join(' · ')}</div>`;
   html+='</div>';if(code)html+=`<div class="res-id">#${code}</div>`;html+='</div>';
   html+='<div class="c-status">';
-  if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);}
-  else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);}
+  if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
+  else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
   html+='</div>';
   if(code){
     const ecEUR=g(r,'ecotasaFinal');const ecCom=g(r,'ecotasaComment');const depNotes=g(r,'depositNotes');
@@ -880,7 +961,17 @@ function buildCard(r,type){
   }
   if(mp||kbCode){html+='<div class="c-links">';if(mp)html+=`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;if(kbCode)html+=`<span class="lnk lnk-k">🔑 ${kbCode}</span>`;html+='</div>';}
   html+='<div class="c-body"><hr class="dv">';
-  html+=`<div class="gname">${gn||'—'}</div>`;
+  /* v32: guest popup — campos idénticos a notas-equipo-reservas */
+  const _gd={
+    name:       gn||'',
+    nameHA:     g(r,'guestName')||'',          /* Guest_Full_Name   — Hostaway  */
+    nameAF:     g(r,'fiscalName')||'',          /* Fiscal_guest_name — Arrival   */
+    ph1:        g(r,'guestPhone')||'',          /* Guest_phonenumber — Hostaway  */
+    ph2:        g(r,'phoneArrival')||'',        /* Segundo_Telefono  — Arrival   */
+    em1:        g(r,'guestEmail')||'',          /* Guest_email       — Hostaway  */
+    em2:        g(r,'secondEmail')||'',         /* Segundo_email     — Arrival   */
+  };
+  html+=`<div class="gname" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="openGuestModal(${JSON.stringify(_gd).replace(/"/g,'&quot;')})" title="Ver contacto">${gn||'—'}</div>`;
   html+='<div class="gmeta">';
   if(st)html+=`<span class="spill ${stClass(st)}">${st}</span>`;
   html+='</div>';
@@ -1059,11 +1150,19 @@ function renderWeekly(){
         var pills='<span class="wk-pill '+(isSal?'sal':'ent')+'">'+(isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
         var btns=isSal?statusBtn(cierOk,uCier):statusBtn(limpOk,uLimp)+statusBtn(wpOk,uWP);
 
-        /* v28: diseño caja v23 — border-left + wk-card-inner */
+        /* v32: villa clicable + keybox en weekly card */
+        var _wkVillaId=r[F.villaId]?String(r[F.villaId]):'';
+        var _wkVillaHtml=_wkVillaId
+          ?'<a href="villa.html?villa_id='+encodeURIComponent(_wkVillaId)+'" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;font-weight:700;display:block;font-size:11px;line-height:1.3;word-break:break-word" title="'+fullVilla+'">'+fullVilla+'</a>'
+          :'<div class="wk-villa2" title="'+fullVilla+'">'+fullVilla+'</div>';
+        var _wkMuId=String(g(r,'pmsmultiunitId')||'').trim();
+        var _wkKb=(_wkMuId&&multiunitsMap.get(_wkMuId))||g(r,'keyboxCode')||'';
+        var _wkKbHtml=_wkKb?'<div style="margin-top:4px;font-size:9px;font-weight:800;font-family:Montserrat,sans-serif;color:var(--gray-4);letter-spacing:.3px">🔑 '+_wkKb+'</div>':'';
         card.innerHTML='<div class="wk-card-inner">'
           +'<div class="wk-row">'+pills+btns+'</div>'
-          +'<div class="wk-villa2" title="'+fullVilla+'">'+fullVilla+'</div>'
+          +_wkVillaHtml
           +(vmName2?'<div class="wk-vm" style="font-size:9px;color:var(--gray-4);margin-top:3px;font-family:Montserrat,sans-serif;font-weight:600">🏠 '+vmName2+'</div>':'')
+          +_wkKbHtml
           +'</div>';
         wrap.appendChild(card);
       });
