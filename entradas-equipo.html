@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v36 — 3Villas</title>
+  <title>Entradas Equipo v45 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -528,10 +528,11 @@ function abrirNuevaTareaVilla(){
     .catch(function(){popup.location.href='nueva-tarea.html?villa_id=164';});
 }
 
-function openEditTask(taskId,reserva){
+function openEditTask(taskId,reserva,muId){  /* v40: acepta muId */
   if(!taskId){alert('Sin ID de tarea');return;}
   let params='taskid='+encodeURIComponent(taskId);
   if(reserva)params+='&Idreserva='+encodeURIComponent(reserva);
+  if(muId)params+='&multiunit_id='+encodeURIComponent(muId); /* v40 */
   const url='editar-tarea.html?'+params;
   const w=520,h=820,left=Math.round((screen.width-w)/2),top=Math.round((screen.height-h)/2);
   const popup=window.open(url,'editartarea',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`);
@@ -598,7 +599,7 @@ document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$(
 window.addEventListener('scroll',e=>{const panel=$('managerPanel');if(!panel||panel.style.display==='none')return;if(panel.contains(e.target))return;closeManagerPanel();},true);
 window.addEventListener('resize',()=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn){const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';}});
 async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null)contactsMap.set(String(r.ContactID),r.Name||'');if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
-async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);}});}catch(e){}}
+async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();const muShort=String(r['descripcion_corta']||r['Descripcion_corta']||'').trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);multiunitsMap.set('short_'+id,muShort);} /* v44 */});}catch(e){}}
 function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=contactsMap.get(String(rawVal));return byId||String(rawVal);}
 
 // ════════════════ UI CONTROLS ════════════════
@@ -632,7 +633,16 @@ async function doSearch(){
     const _seen=new Set();
     const records=rawRecords.filter(r=>{const key=r[F.confirmCode]||r[F.reservationId]||'';if(!key||_seen.has(key))return!key?true:false;_seen.add(key);return true;});
     $('dbBox').textContent=`WHERE:\n${where}\n\nRegistros: ${records.length}\n\n${JSON.stringify(records[0]||{},null,2)}`;
-    renderCards(records);loadPendingTasksPanel().catch(e=>console.warn('[Tasks]',e.message));
+    /* v42: villaIds de rawRecords (antes de dedup) + mapa multiunit→villaid */
+    const _allVillaIds=[...new Set(rawRecords.map(r=>parseInt(r[F.villaId])||0).filter(id=>id>0))];
+    const _muVillaMap={}; /* {muId: villaid del booking} */
+    rawRecords.forEach(r=>{
+      const mu=String(r[F.pmsmultiunitId]||'').trim();
+      const vid=String(parseInt(r[F.villaId])||0);
+      if(mu&&vid!=='0')_muVillaMap[mu]=vid;
+    });
+    renderCards(records,_allVillaIds,_muVillaMap);
+    loadPendingTasksPanel().catch(e=>console.warn('[Tasks]',e.message));
   }catch(err){if(mySearchId!==_searchId)return;if($('stLoad'))$('stLoad').style.display='none';if($('stErr'))$('stErr').style.display='block';if($('errMsg'))$('errMsg').textContent=err.message;$('dbBox').textContent='Error doSearch:\n'+err.message;}
 }
 
@@ -641,7 +651,7 @@ function saveToURL(){const params=new URLSearchParams();const desde=($('fDesde')
 function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['desde','hasta','mgr','ci','wp','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('desde')&&$('fDesde'))$('fDesde').value=p.get('desde');if(p.has('hasta')&&$('fHasta'))$('fHasta').value=p.get('hasta');if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');if(p.has('tipo'))tipoFilter=p.get('tipo');return true;}
 
 // ════════════════ RENDER CARDS ════════════════
-function renderCards(records){
+function renderCards(records,_extVillaIds,_muVillaMap){
   if($('stLoad'))$('stLoad').style.display='none';
   const grid=$('grid');if(!grid)return;grid.style.display='grid';
   if(!records.length){grid.innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay entradas ni salidas para los filtros seleccionados.</p></div>';return;}
@@ -666,7 +676,8 @@ function renderCards(records){
   rows.forEach(row=>{if(row.type==='entrada')entradas++;else salidas++;paxT+=(parseInt(g(row.r,'adults'))||0)+(parseInt(g(row.r,'children'))||0);});
   if($('sCnt'))$('sCnt').textContent=`${entradas} ent. / ${salidas} sal.`;
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
-  const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
+  /* v42: usa villaIds de rawRecords (captura todos los IDs de multiunit) */
+  const villaIds=(_extVillaIds&&_extVillaIds.length>0)?_extVillaIds:[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
   resetVillaPendingMap();
   if($('hCount'))$('hCount').textContent=rows.length;
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
@@ -674,9 +685,9 @@ function renderCards(records){
   else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
-    loadVillaPendingTasks(villaIds)
+    loadVillaPendingTasks(villaIds,_muVillaMap||{})
       .then(()=>{updateVillaTasksInDOM();})
-      .catch(e=>console.warn('Villa tasks:',e.message));
+      .catch(e=>console.warn('Villa tasks:',e.message)); /* v42 */
   }
   loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
 }
@@ -708,7 +719,7 @@ function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)retu
 const villaPendingMap={};
 /* v29: limpiar mapa completo antes de cada búsqueda nueva */
 function resetVillaPendingMap(){Object.keys(villaPendingMap).forEach(k=>delete villaPendingMap[k]);}
-async function loadVillaPendingTasks(villaIds){
+async function loadVillaPendingTasks(villaIds,muVillaMap){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
@@ -725,11 +736,34 @@ async function loadVillaPendingTasks(villaIds){
         const key=String(parseInt(t.villaid)||0);
         if(villaPendingMap[key]===undefined)continue;
         if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||''});
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||'')}); /* v40 */
         }
       }
     }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
   }));
+  /* v42: TAMBIÉN query por PMSmultiunitID para tareas sin villaid */
+  const muIds=Object.keys(muVillaMap||{});
+  if(muIds.length){
+    await Promise.allSettled(muIds.map(async function(muId){
+      try{
+        const vid=String(muVillaMap[muId]||'0');
+        if(!villaPendingMap[vid]){villaPendingMap[vid]=[];}
+        const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent("PMSmultiunitID='"+muId+"'")+'&limit=500');
+        const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+        for(const t of tasks){
+          const isDone=isDoneCheck(t.Tarea_terminada);
+          if(isDone||Number(t.Tasktype)===20)continue;
+          /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
+          const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
+          if(!exists){
+            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||'')});
+          }
+        }
+        console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
+      }catch(e){console.warn('[VillaTasks] muId '+muId+':',e.message);}
+    }));
+  }
+
   /* debug */
   const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
   const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
@@ -749,7 +783,7 @@ function updateVillaTasksInDOM(){
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
     div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
-      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';return`<div class="vt-row"><span class="vt-name">${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
+      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';const muShortVT=t.muId?(multiunitsMap.get('short_'+t.muId)||''):''; /* v44 */return`<div class="vt-row"><span class="vt-name">${muShortVT?`<span style="font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;color:var(--orange);margin-right:3px">${muShortVT} ·</span>`:''  }${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}','${t.muId||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
     cardEl.appendChild(div);
   });
 }
@@ -794,16 +828,18 @@ async function loadPendingTasksPanel(){
       html+=tasksPast.map(t=>{
         const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='',dateCls='pt-tc-date';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
-        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
+        const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
     } else {html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
     if(tasksFuture.length){
       const futureCardsHtml=tasksFuture.map(t=>{
         const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
-        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
+        const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
       html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)"><span style="font-size:14px;flex-shrink:0">🗓️</span><div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div><div class="pt-tc-arr" style="transition:transform .2s">›</div></div><div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
     }
@@ -912,7 +948,7 @@ function buildCard(r,type){
   const urlCiOnline=`https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
   const urlEcFix=`https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
   const urlNotas=`notas-villamanager.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
-  const urlAddTask=`nueva-tarea.html?Idreserva=${encodeURIComponent(code)}&villa_id=${encodeURIComponent(villaId)}&villa_name=${encodeURIComponent(vl)}`;
+  const urlAddTask=`nueva-tarea.html?Idreserva=${encodeURIComponent(code)}&villa_id=${encodeURIComponent(villaId)}&villa_name=${encodeURIComponent(vl)}&multiunit_id=${encodeURIComponent(muId)}`; /* v40 */
   const urlResNotas=`notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
   const urlHostaway=g(r,'hostawayLink')||`https://dashboard.hostaway.com/reservations/${code}`;
   let html='';const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
@@ -1041,6 +1077,7 @@ function buildCard(r,type){
   }
   html+='</div>';
   el.setAttribute('data-villaid',String(parseInt(villaId)||0));
+  el.setAttribute('data-multiunitid',muId||''); /* v42 */
   el.setAttribute('data-checkout',(co||'').split('T')[0]);
   el.innerHTML=html;
   return el;
