@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- ══ PWA ══ -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/3villas-manuals/sw.js')
+        .then(r => console.log('SW registrado:', r.scope))
+        .catch(e => console.warn('SW error:', e));
+    });
+  }
+</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Editar Tarea v32 — 3Villas</title>
+  <!-- v29 —— editar-tarea.html —— 12/05/2026
+       v28:
+         - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
+         - Fix villa search: al escribir sin seleccionar, no guarda texto libre
+           · input limpia selectedVillaId
+           · blur restaura el texto al nombre de la villa seleccionada (o vacía)
+           · badge "✓ seleccionada" / "⚠ escribe y selecciona"
+  -->
+  
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:90px}
+    header{background:var(--red);color:#fff;padding:10px 44px 10px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:background .3s}
+    .h-corner{position:absolute;top:8px;right:10px;display:flex;flex-direction:column;align-items:center;gap:5px}
+    .h-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
+    .h-close:hover{background:rgba(255,255,255,.35)}
+    .h-status{display:inline-flex;align-items:center;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;transition:all .3s;white-space:nowrap}
+    .h-status.pend{background:rgba(255,255,255,.18);color:#fff}
+    .h-status.done{background:var(--green);color:#fff}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:clamp(15px,5vw,21px);font-weight:900;line-height:1.2;letter-spacing:.1px;margin:0;text-transform:none}
+    .h-meta{font-size:11px;opacity:.6;margin-top:3px;font-weight:400;letter-spacing:.1px}
+    main{padding:14px 12px;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .card-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:2px solid var(--gray-2)}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;flex:1}
+    .card-ico{font-size:18px;flex-shrink:0}
+    .card-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+    .card-resolucion{border:2px solid var(--green);box-shadow:0 4px 20px rgba(30,158,78,.12)}
+    .card-resolucion .card-head{background:var(--green-light);border-bottom-color:rgba(30,158,78,.2)}
+    .card-resolucion .card-head h2{color:var(--green)}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .req{color:var(--red)}
+    input[type=text],input[type=date],select,textarea{border:1.5px solid var(--gray-2);border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+    input[type=text]:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    input.err{border-color:var(--red)!important;background:var(--red-light)}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    textarea{resize:vertical;min-height:76px;line-height:1.5}
+    .date-wrap{position:relative;display:block}
+    .date-wrap input[type=date]{cursor:pointer}
+    .date-wrap input[type=date]::-webkit-calendar-picker-indicator{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;opacity:0;cursor:pointer}
+    .input-mic{display:flex;gap:6px}
+    .input-mic input,.input-mic textarea{flex:1}
+    .mic-btn{flex-shrink:0;width:44px;border:1.5px solid var(--gray-2);border-radius:10px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .15s;color:var(--gray-4)}
+    .mic-btn.hidden{display:none}
+    .mic-btn:hover{border-color:var(--red);color:var(--red)}
+    .mic-btn.rec{border-color:var(--red);background:var(--red-light);animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,16,46,.3)}50%{box-shadow:0 0 0 6px rgba(200,16,46,0)}}
+    .terminada-toggle{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid var(--gray-2);border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+    .terminada-toggle:hover{border-color:var(--green)}
+    .terminada-toggle.on{border-color:var(--green);background:var(--green-light)}
+    .tt-circle{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;background:#fff;color:transparent}
+    .terminada-toggle.on .tt-circle{border-color:var(--green);background:var(--green);color:#fff}
+    .tt-text{flex:1;font-size:14px;font-weight:600}
+    .terminada-toggle.on .tt-text{color:var(--green-dark);font-weight:700}
+    .res-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+    .btn-cerrar{background:var(--green);color:#fff;border:none;border-radius:12px;padding:16px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;letter-spacing:.3px;grid-column:1/-1}
+    .btn-cerrar:hover{background:var(--green-dark);transform:translateY(-1px)}
+    .btn-cerrar:disabled{background:var(--gray-3);cursor:not-allowed;transform:none}
+    .btn-solo{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:12px;padding:12px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+    .btn-solo:hover{background:var(--gray-3)}
+    /* Fotos */
+    .photos-section-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .photo-gallery{display:flex;flex-wrap:wrap;gap:8px}
+    .photo-thumb{position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;background:var(--gray-2)}
+    .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .photo-thumb .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:0;transition:opacity .15s}
+    .photo-thumb:hover .pt-del{opacity:1}
+    .photo-thumb .pt-num{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;pointer-events:none}
+    .photo-thumb .pt-new{position:absolute;bottom:4px;left:4px;background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;display:none}
+    .photo-thumb.is-new .pt-new{display:block}
+    /* Slots vacíos */
+    .photo-empty-slot{width:90px;height:90px;border-radius:10px;border:2px dashed var(--gray-3);background:var(--gray-1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;position:relative;overflow:hidden}
+    .photo-empty-slot .pes-num{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-3)}
+    .photo-empty-slot .pes-btns{display:flex;gap:4px}
+    .photo-empty-slot .pes-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:7px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;transition:all .15s}
+    .photo-empty-slot .pes-btn:hover{border-color:var(--red);background:var(--red-light)}
+    .photo-empty-slot input[type=file]{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;font-size:0}
+    /* Más opciones */
+    .mas-opt-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border:1.5px dashed var(--gray-3);border-radius:10px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;width:100%;transition:all .15s}
+    .mas-opt-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .mas-opt-panel{display:none;padding-top:10px}
+    .mas-opt-panel.open{display:block}
+    .villa-search-wrap{position:relative}
+    .villa-dropdown{position:fixed;background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;box-shadow:var(--shadow-md);z-index:9000;max-height:220px;overflow-y:auto;display:none}
+    .villa-opt{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-2);transition:background .1s}
+    .villa-opt:last-child{border-bottom:none}
+    .villa-opt:hover{background:var(--red-light);color:var(--red)}
+    .villa-opt mark{background:rgba(200,16,46,.15);color:var(--red);border-radius:2px;font-style:normal}
+    .villa-current{font-size:11px;color:var(--gray-4);margin-top:4px;font-family:'Montserrat',sans-serif;font-weight:600}
+    .villa-current.ok{color:var(--green)}
+    .villa-current.warn{color:var(--orange)}
+    /* v30: estado error en villa (texto libre sin seleccionar al guardar) */
+    .villa-current.err-save{color:var(--red);font-weight:800}
+    #fVillaSearch.villa-err{border-color:var(--red)!important;background:var(--red-light)!important;animation:shake-v .35s}
+    .photo-divider{border:none;border-top:2px dashed rgba(224,123,0,.35);margin:4px 0}
+    /* Save bar */
+    .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
+    .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+    .btn-save:hover{background:var(--red-dark)}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
+    .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
+    .btn-save.loading{opacity:.85}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .btn-back2:hover{background:var(--gray-3)}
+    #stLoad,#stErr{padding:60px 20px;text-align:center;color:var(--gray-4)}
+    .big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-lg);transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+    #toast.ok{background:var(--green)}
+    #toast.err{background:var(--red)}
+    #successBox{display:none;text-align:center;padding:40px 20px}
+    #successBox .big{font-size:56px;margin-bottom:12px}
+    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
+    #lightbox.open{display:flex}
+    #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px}
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}.res-btns{grid-template-columns:1fr}.btn-cerrar{grid-column:auto}}
+    @keyframes shake-v{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+  
+    .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .re-row .lbl{margin:0}
+    .re-btn{border:1px solid var(--gray-3);border-radius:6px;background:var(--gray-1);padding:2px 9px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;color:var(--gray-4);line-height:1.6;transition:all .12s}
+    .re-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .ql-wrap{flex:1}
+    .ql-container.ql-snow{border:1.5px solid var(--gray-2);border-radius:10px;font-size:14px;transition:border-color .15s,box-shadow .15s}
+    .ql-container.ql-snow:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .ql-editor{min-height:76px;padding:11px 14px;line-height:1.5;color:var(--gray-5);font-size:14px;font-family:'Open Sans',sans-serif}
+    .ql-editor.ql-blank::before{color:var(--gray-3);font-style:normal}
+    .ql-editor ul>li::before{color:var(--red)}
+    .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
+    .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+  <meta name="theme-color" content="#C8102E">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+</head>
+<body>
+<script>Auth.require('tareas');</script>
+<div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
+<div id="toast"></div>
+<header id="mainHeader" style="position:sticky;top:0">
+  <div class="h-corner">
+    <button class="h-close" onclick="goBack()" title="Cerrar">✕</button>
+    <span class="h-status pend" id="hStatus">⏳ Pendiente</span>
+  </div>
+  <div class="h-title" id="hTitle">Cargando…</div>
+  <div class="h-meta" id="hMeta"></div>
+</header>
+<main>
+  <div id="stLoad" class="card"><div class="big-spinner"></div><p style="font-family:Montserrat,sans-serif;font-weight:700">Cargando tarea…</p></div>
+  <div id="stErr" class="card" style="display:none"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p><p style="font-size:12px">Comprueba el parámetro taskid en la URL.</p></div>
+
+  <div id="formWrap" style="display:none;flex-direction:column;gap:12px">
+
+    <!-- RESOLUCIÓN -->
+    <div class="card card-resolucion">
+      <div class="card-head"><span class="card-ico">🏁</span><h2>Resolución</h2></div>
+      <div class="card-body">
+        <div class="terminada-toggle" id="ttRow" onclick="toggleTerminada()">
+          <div class="tt-circle" id="ttCircle"></div>
+          <span class="tt-text" id="ttText">Marcar como terminada</span>
+        </div>
+        <div class="field">
+          <div class="re-row"><label class="lbl">Solución aplicada</label><button type="button" class="re-btn" onclick="qFmt('fSolucion','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fSolucion','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fSolucion_ql"></div></div><button class="mic-btn hidden" id="micSolucion" type="button">🎤</button></div>
+          <textarea id="fSolucion" style="display:none"></textarea>
+        </div>
+        <div class="res-btns">
+          <button class="btn-cerrar" id="btnCerrar" type="button">
+            <span id="spinCerrar" style="display:none;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;flex-shrink:0"></span>
+            <span>✅ Cerrar y guardar tarea</span>
+          </button>
+          <button class="btn-solo" id="btnSoloGuardar" type="button">💾 Solo guardar</button>
+          <button class="btn-solo" type="button" onclick="goBack()">← Volver</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAREA -->
+    <div class="card">
+      <div class="card-head"><span class="card-ico">✏️</span><h2 id="tareaCardTitle">Tarea</h2></div>
+      <div class="card-body">
+        <div class="field">
+          <label class="lbl">Nombre <span class="req">*</span></label>
+          <div class="input-mic">
+            <input type="text" id="fNombre" placeholder="Nombre de la tarea…" autocomplete="off">
+            <button class="mic-btn hidden" id="micNombre" type="button">🎤</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="re-row"><label class="lbl">Descripción</label><button type="button" class="re-btn" onclick="qFmt('fDesc','bullet')">• Lista</button><button type="button" class="re-btn" onclick="qFmt('fDesc','check')">☐ Check</button></div>
+          <div class="input-mic"><div class="ql-wrap"><div id="fDesc_ql"></div></div><button class="mic-btn hidden" id="micDesc" type="button">🎤</button></div>
+          <textarea id="fDesc" style="display:none"></textarea>
+        </div>
+        <div class="field">
+          <label class="lbl">Notas internas del equipo</label>
+          <div class="input-mic">
+            <textarea id="fNotas" rows="2" placeholder="Notas internas…"></textarea>
+            <button class="mic-btn hidden" id="micNotas" type="button">🎤</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="lbl">Asignado a</label>
+            <div class="villa-search-wrap">
+              <input type="text" id="fAsignadoSearch" placeholder="Buscar persona…" autocomplete="off">
+              <div class="villa-dropdown" id="usuarioDropdown"></div>
+            </div>
+            <div class="villa-current" id="usuarioCurrentLabel"></div>
+            <!-- hidden: guarda el ID seleccionado -->
+            <input type="hidden" id="fAsignado">
+          </div>
+          <div class="field">
+            <label class="lbl">Fecha</label>
+            <div class="date-wrap"><input type="date" id="fFecha"></div>
+          </div>
+        </div>
+        <!-- v29: Campo villa siempre visible, fuera de "Más opciones" -->
+        <div class="field">
+          <label class="lbl">Villa</label>
+          <div class="villa-search-wrap">
+            <input type="text" id="fVillaSearch" placeholder="Buscar villa por nombre…" autocomplete="off">
+            <div class="villa-dropdown" id="villaDropdown"></div>
+          </div>
+          <div class="villa-current" id="villaCurrentLabel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOTOS -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-ico">📸</span><h2>Fotos</h2>
+        <span id="newPhotosBadge" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;background:var(--orange-light);color:var(--orange);padding:2px 8px;border-radius:10px">NUEVAS</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="photos-section-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray-3);display:inline-block;flex-shrink:0"></span>Fotos antes</div>
+          <div class="photo-gallery" id="beforeGallery"></div>
+          <input type="file" id="beforeCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="beforeFileInp" accept="image/*" style="display:none">
+        </div>
+        <hr class="photo-divider">
+        <div>
+          <div class="photos-section-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;flex-shrink:0"></span>Fotos después</div>
+          <div class="photo-gallery" id="afterGallery"></div>
+          <input type="file" id="afterCamInp" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="afterFileInp" accept="image/*" style="display:none">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="successCard" style="display:none">
+      <div id="successBox"><div class="big">✅</div><h3 style="font-family:Montserrat,sans-serif;font-size:18px;font-weight:800;margin-bottom:6px">¡Tarea actualizada!</h3><p style="color:var(--gray-4);font-size:13px">Cerrando…</p></div>
+    </div>
+
+  </div>
+</main>
+
+<div class="save-bar" id="saveBar" style="display:none">
+  <button class="btn-back2" onclick="goBack()">← Volver</button>
+  <button class="btn-save" id="btnSaveBar" type="button"><span id="saveBarLabel">💾 Guardar cambios</span></button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+var PK='taskid';
+var F={nombre:'Taskname',descripcion:'Taskdescription',fecha:'Data_to_be_done_fixed',asignado:'UserID_asigned_alfanum',terminada:'Tarea_terminada',notas:'Internal_notes',solucion:'Solutiondescription'};
+var BEFORE_FIELDS=['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
+var AFTER_FIELDS=['Picture_cloudfare_after1','Picture_cloudfare_after2','Picture_cloudfare_after3','Picture_cloudfare_after4','Picture_cloudfare_after5'];
+
+// Estado fotos: array de 5, índice fijo = slot fijo
+var beforePhotos=[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:false,preview:''}; });
+
+var myUserName='',taskData=null,isSaving=false,isTerminada=false;
+var allVillas=[],selectedVillaId='';
+var allUsers=[],selectedUserId='';
+var urlP=new URLSearchParams(window.location.search);
+var taskId=(urlP.get('taskid')||'').trim();
+
+/* ══ FIX v29: Persistencia de estado en sessionStorage (evita pérdida al abrir cámara iOS) ══ */
+const _MAX_AGE_MS = 300000; /* 5 minutos */
+function _stateKey(){ return 'editar_state_'+taskId; }
+
+function saveState() {
+  if(!taskId) return;
+  try {
+    const g2=id=>document.getElementById(id);
+    sessionStorage.setItem(_stateKey(), JSON.stringify({
+      ts:       Date.now(),
+      nombre:   g2('fNombre')  ? g2('fNombre').value   : '',
+      notas:    g2('fNotas')   ? g2('fNotas').value    : '',
+      fecha:    g2('fFecha')   ? g2('fFecha').value    : '',
+      asignado: g2('fAsignado')? g2('fAsignado').value : '',
+      asignadoName: g2('fAsignadoSearch')? g2('fAsignadoSearch').value : '',
+      villaId:  typeof selectedVillaId!=='undefined' ? selectedVillaId : '',
+      villaName:g2('fVillaSearch') ? g2('fVillaSearch').value : '',
+      terminada:typeof isTerminada!=='undefined' ? isTerminada : false
+    }));
+  } catch(e) {}
+}
+
+function restoreStateIfRecent() {
+  if(!taskId) return;
+  try {
+    const raw = sessionStorage.getItem(_stateKey()); if(!raw) return;
+    const s = JSON.parse(raw);
+    if(Date.now() - s.ts > _MAX_AGE_MS) return;
+    const g2=id=>document.getElementById(id);
+    if(g2('fNombre')   && s.nombre)   g2('fNombre').value   = s.nombre;
+    if(g2('fNotas')    && s.notas)    g2('fNotas').value    = s.notas;
+    if(g2('fFecha')    && s.fecha)    g2('fFecha').value    = s.fecha;
+    if(s.asignado && window._setUsuarioConfirmed){
+      var _rUser=allUsers.find(function(u){return u.id===s.asignado;});
+      window._setUsuarioConfirmed(s.asignado, s.asignadoName||(_rUser?_rUser.name:''));
+    }
+    if(s.villaId && typeof window._setVillaConfirmed==='function') window._setVillaConfirmed(s.villaId, s.villaName);
+    if(typeof setTerminada==='function') setTerminada(!!s.terminada);
+  } catch(e) {}
+}
+
+function clearState() {
+  try { if(taskId) sessionStorage.removeItem(_stateKey()); } catch(e) {}
+}
+
+/* Restaurar al volver de la cámara */
+document.addEventListener('visibilitychange', function() {
+  if(document.visibilityState === 'visible') restoreStateIfRecent();
+});
+window.addEventListener('pageshow', function(e) {
+  if(e.persisted) restoreStateIfRecent();
+});
+
+
+function g(id){ return document.getElementById(id); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function today(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+var _toastT;
+function toast(msg,type){ var el=g('toast'); el.textContent=msg; el.className='show '+(type||''); clearTimeout(_toastT); _toastT=setTimeout(function(){ el.className=''; },4000); }
+
+window.openLightbox=function(src){ if(!src)return; g('lbImg').src=src; g('lightbox').classList.add('open'); };
+window.closeLightbox=function(){ g('lightbox').classList.remove('open'); };
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') window.closeLightbox(); });
+
+function setTerminada(val){
+  isTerminada=!!val;
+  var row=g('ttRow'),circle=g('ttCircle'),text=g('ttText');
+  if(isTerminada){ row&&row.classList.add('on'); if(circle)circle.textContent='✓'; if(text)text.textContent='Tarea terminada ✓'; }
+  else { row&&row.classList.remove('on'); if(circle)circle.textContent=''; if(text)text.textContent='Marcar como terminada'; }
+  var s=g('hStatus'),h=g('mainHeader');
+  if(s){ if(isTerminada){s.textContent='✅ Terminada';s.className='h-status done';if(h)h.style.background='var(--green-dark)';}
+         else{s.textContent='⏳ Pendiente';s.className='h-status pend';if(h)h.style.background='var(--red)';} }
+}
+window.toggleTerminada=function(){ setTerminada(!isTerminada); };
+
+window.toggleMasOpt=function(){
+  var p=g('masOptPanel'),b=g('masOptBtn'); if(!p||!b)return;
+  var open=p.classList.contains('open');
+  p.classList.toggle('open',!open);
+  b.textContent=open?'▾ Más opciones':'▴ Menos opciones';
+};
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded',function(){
+  myUserName=Auth.name?Auth.name():'';
+  if(!taskId){ showErr('Falta el parámetro taskid en la URL.'); return; }
+  buildGallery('before'); buildGallery('after');
+  initMic();
+  g('btnCerrar').addEventListener('click',function(){ submitForm(true); });
+  g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
+  g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
+  Promise.all([loadUsers(),loadTask(),loadVillas()])
+    .then(function(){
+      populateForm();
+      initVillaSearch();
+      initUsuarioSearch(); /* v32 */
+      restoreStateIfRecent(); /* FIX v29 */
+      /* Auto-guardar en cambios */
+      ['fNombre','fNotas','fFecha'].forEach(function(id){
+        var el=g(id); if(el) el.addEventListener('input', saveState);
+      });
+      var selA=g('fAsignado'); if(selA) selA.addEventListener('change', saveState);
+      g('stLoad').style.display='none';
+      g('formWrap').style.display='flex';
+      g('saveBar').style.display='flex';
+      if(window._qlInit){_qlInit('fDesc','Detalles de la tarea…');_qlInit('fSolucion','Describe brevemente la solución…');}
+    })
+    .catch(function(e){ showErr(e.message||'Error cargando tarea'); });
+});
+
+function showErr(msg){ g('stLoad').style.display='none'; g('stErr').style.display='block'; if(g('errMsg'))g('errMsg').innerHTML=msg; }
+
+// ── Carga tarea + villa ──
+function loadTask(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(PK+'='+taskId)+'&limit=1'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      if(!rows.length) throw new Error('Tarea no encontrada (taskid='+taskId+')');
+      taskData=rows[0];
+      var vid=taskData.villaid;
+      if(vid&&parseInt(vid)>0){
+        return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid='+parseInt(vid)+'&limit=1'))
+          .then(function(r){ return r.json(); })
+          .then(function(j){ var v=(j.Result||j.result||[])[0]; if(v)taskData._villaName=v.Name_villa_para_inquilinos||v.Name||''; })
+          .catch(function(){});
+      }
+    });
+}
+
+// ── Cargar usuarios ──
+function loadUsers(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var users=json.Result||json.result||[];
+      var active=users.filter(function(u){ var s=u['User_Status']; return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1; });
+      /* v32: array para buscador (no select) */
+      allUsers=active.map(function(u){ return {id:String(u.UserID||''),name:u.Name||''}; }).filter(function(u){ return u.id&&u.name; });
+    });
+}
+
+// ── Cargar villas ──
+function loadVillas(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      allVillas=rows.map(function(v){ return {id:String(v.villaid||''),name:v.Name_villa_para_inquilinos||v.Name||''}; }).filter(function(v){ return v.id&&v.name; });
+    }).catch(function(){});
+}
+
+// ── Popular formulario ──
+function populateForm(){
+  if(!taskData)return;
+  var t=taskData, nombre=t[F.nombre]||'', villa=t._villaName||'';
+  // Título: "Tarea Nr. 66712" en header y en card
+  // Header: nombre grande, nr+villa pequeño
+  g('hTitle').textContent=nombre||'Tarea Nr. '+taskId;
+  var metaParts=['Nr. '+taskId]; if(villa) metaParts.unshift('📍 '+villa);
+  var hm=g('hMeta'); if(hm) hm.textContent=metaParts.join('  ·  ');
+  var tct=g('tareaCardTitle'); if(tct) tct.textContent='Tarea Nr. '+taskId;
+  // Campos
+  g('fNombre').value=nombre;
+  g('fDesc').value=t[F.descripcion]||''; /* richLoad se llama desde _initQuill */
+  g('fNotas').value=t[F.notas]||'';
+  g('fSolucion').value=t[F.solucion]||'';
+  var rf=t[F.fecha]||t.Data_to_be_done||'';
+  g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
+  /* v32: asignado via buscador */
+  var _asigId=String(t[F.asignado]||'');
+  if(_asigId&&window._setUsuarioConfirmed){
+    var _asigUser=allUsers.find(function(u){return u.id===_asigId;});
+    window._setUsuarioConfirmed(_asigId,_asigUser?_asigUser.name:'');
+  }
+  setTerminada(isTruthy(t[F.terminada]));
+  // Villa en campo siempre visible (v28)
+  selectedVillaId=String(t.villaid||'');
+  if(window._setVillaConfirmed){
+    window._setVillaConfirmed(selectedVillaId, villa);
+  } else {
+    var vs=g('fVillaSearch'); if(vs) vs.value=villa;
+    var cl=g('villaCurrentLabel'); if(cl) cl.textContent=villa?'Villa actual: '+villa:'';
+  }
+  // Fotos: índice fijo → orden garantizado
+  BEFORE_FIELDS.forEach(function(field,idx){ if(t[field]){ beforePhotos[idx].url=t[field]; } });
+  AFTER_FIELDS.forEach(function(field,idx){ if(t[field]){ afterPhotos[idx].url=t[field]; } });
+  renderGallery('before'); renderGallery('after');
+}
+
+function setSelectVal(id,val){ var sel=g(id); if(!sel)return; for(var i=0;i<sel.options.length;i++){ if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;} } }
+function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof v==='boolean')return v; if(typeof v==='number')return v!==0; return!['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase()); }
+
+
+// ── Usuario search (v32: igual que villa search) ──
+function initUsuarioSearch(){
+  var inp=g('fAsignadoSearch'),drop=g('usuarioDropdown'),hidden=g('fAsignado');
+  if(!inp||!drop)return;
+  document.body.appendChild(drop);
+  var confirmedName='';
+
+  function setStatus(ok,msg){
+    var cl=g('usuarioCurrentLabel');if(!cl)return;
+    cl.textContent=msg;
+    cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
+  }
+
+  inp.addEventListener('input',function(){
+    var q=inp.value.trim().toLowerCase();
+    selectedUserId='';if(hidden)hidden.value='';
+    confirmedName='';setStatus(null,'');
+    drop.innerHTML='';drop.style.display='none';
+    if(!q)return;
+    var matches=allUsers.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}).slice(0,12);
+    if(!matches.length)return;
+    drop.innerHTML=matches.map(function(u){
+      var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\]/g,'\$&')+')','gi');
+      return '<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
+    }).join('');
+    drop.querySelectorAll('.villa-opt').forEach(function(opt){
+      opt.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        selectedUserId=opt.dataset.id;confirmedName=opt.dataset.name;
+        if(hidden)hidden.value=selectedUserId;
+        inp.value=confirmedName;drop.style.display='none';
+        setStatus(true,'✓ Persona seleccionada');
+      });
+    });
+    var rect=inp.getBoundingClientRect();
+    drop.style.top=(rect.bottom+4)+'px';drop.style.left=rect.left+'px';drop.style.width=rect.width+'px';
+    drop.style.display='block';
+  });
+
+  inp.addEventListener('blur',function(){
+    setTimeout(function(){
+      drop.style.display='none';
+      if(!selectedUserId){
+        if(confirmedName){inp.value=confirmedName;setStatus(true,'✓ Persona seleccionada');}
+        else if(inp.value.trim()){inp.value='';setStatus(false,'⚠ Escribe y selecciona una persona');}
+      }
+    },200);
+  });
+
+  window._setUsuarioConfirmed=function(id,name){
+    selectedUserId=id;confirmedName=name;
+    if(hidden)hidden.value=id;
+    if(inp)inp.value=name;
+    setStatus(name?true:null,name?'✓ '+name:'');
+  };
+
+  window.addEventListener('scroll',function(){
+    if(drop.style.display==='block'){var r=inp.getBoundingClientRect();drop.style.top=(r.bottom+4)+'px';drop.style.left=r.left+'px';}
+  },true);
+}
+
+// ── Villa search (v28 fix) ──
+function initVillaSearch(){
+  var inp=g('fVillaSearch'),drop=g('villaDropdown'); if(!inp||!drop)return;
+  // Mover dropdown al body para evitar que overflow:hidden del card lo corte
+  document.body.appendChild(drop);
+
+  /* Nombre de la villa confirmada (seteado al seleccionar del dropdown o al cargar la tarea) */
+  var confirmedName='';
+
+  /* Actualizar el badge de estado */
+  function setStatus(ok, msg){
+    var cl=g('villaCurrentLabel'); if(!cl)return;
+    cl.textContent=msg;
+    cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
+  }
+
+  inp.addEventListener('input',function(){
+    var q=inp.value.trim().toLowerCase();
+    /* v28 FIX: al escribir, invalidar la selección actual hasta que se elija del dropdown */
+    selectedVillaId='';
+    confirmedName='';
+    setStatus(null,'');
+    drop.innerHTML=''; drop.style.display='none';
+    if(!q||q.length<2)return;
+    var matches=allVillas.filter(function(v){ return v.name.toLowerCase().indexOf(q)!==-1; }).slice(0,12);
+    if(!matches.length)return;
+    drop.innerHTML=matches.map(function(v){
+      var safe=v.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      return '<div class="villa-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
+    }).join('');
+    drop.querySelectorAll('.villa-opt').forEach(function(opt){
+      opt.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        /* Selección confirmada */
+        selectedVillaId=opt.dataset.id;
+        confirmedName=opt.dataset.name;
+        inp.value=confirmedName;
+        drop.style.display='none';
+        setStatus(true,'✓ Villa seleccionada');
+        var hm2=g('hMeta'); if(hm2)hm2.textContent='📍 '+confirmedName+'  ·  Nr. '+taskId;
+      });
+    });
+    // Posicionar fixed
+    var rect=inp.getBoundingClientRect();
+    drop.style.top=(rect.bottom+4)+'px';
+    drop.style.left=rect.left+'px';
+    drop.style.width=rect.width+'px';
+    drop.style.display='block';
+  });
+
+  inp.addEventListener('blur',function(){
+    setTimeout(function(){
+      drop.style.display='none';
+      /* v28 FIX: si el usuario escribió texto pero NO seleccionó del dropdown,
+         restaurar el input al nombre de la villa confirmada (o vaciar si no hay ninguna) */
+      if(!selectedVillaId){
+        if(confirmedName){
+          /* Tenía una villa, restaurar */
+          inp.value=confirmedName;
+          setStatus(true,'✓ Villa seleccionada');
+        } else {
+          /* No había villa seleccionada, limpiar el texto libre */
+          if(inp.value.trim()){
+            inp.value='';
+            setStatus(false,'⚠ Escribe y selecciona una villa de la lista');
+          }
+        }
+      }
+    },200);
+  });
+
+  /* Permitir asignar la villa confirmada desde fuera (al cargar la tarea) */
+  window._setVillaConfirmed=function(id,name){
+    selectedVillaId=id;
+    confirmedName=name;
+    if(inp)inp.value=name;
+    setStatus(name?true:null, name?'Villa actual: '+name:'');
+  };
+
+  // Reposicionar si el usuario hace scroll mientras está abierto
+  window.addEventListener('scroll',function(){ if(drop.style.display==='block'){ var r=inp.getBoundingClientRect(); drop.style.top=(r.bottom+4)+'px'; drop.style.left=r.left+'px'; } },true);
+}
+
+// ── FOTOS: galería con slots fijos (orden garantizado) ──
+function buildGallery(type){
+  var galId=type==='before'?'beforeGallery':'afterGallery';
+  var store=type==='before'?beforePhotos:afterPhotos;
+  renderGallery(type); // se llama vacía al init, y luego de nuevo en populateForm
+}
+
+function renderGallery(type){
+  var galId=type==='before'?'beforeGallery':'afterGallery';
+  var store=type==='before'?beforePhotos:afterPhotos;
+  var gal=g(galId); if(!gal)return;
+  gal.innerHTML='';
+
+  store.forEach(function(p,idx){
+    var displayUrl=p.preview||(p.deleted?'':p.url);
+    if(displayUrl){
+      // Slot CON foto
+      var thumb=document.createElement('div'); thumb.className='photo-thumb'+(p.file?' is-new':'');
+      var img=document.createElement('img'); img.alt='';
+      img.onerror=function(){ store[idx].url=''; store[idx].preview=''; renderGallery(type); };
+      img.src=displayUrl; thumb.appendChild(img);
+      // Badge número de slot
+      var numBadge=document.createElement('span'); numBadge.className='pt-num'; numBadge.textContent=idx+1; thumb.appendChild(numBadge);
+      // Badge NUEVA
+      var nb=document.createElement('span'); nb.className='pt-new'; nb.textContent='NUEVA'; thumb.appendChild(nb);
+      // Botón eliminar
+      var del=document.createElement('button'); del.type='button'; del.className='pt-del'; del.textContent='✕ Quitar';
+      (function(i){ del.onclick=function(e){ e.stopPropagation(); store[i]={file:null,url:'',deleted:true,preview:''}; renderGallery(type); checkBadge(); }; })(idx);
+      thumb.appendChild(del);
+      // Lightbox
+      (function(url){ thumb.onclick=function(e){ if(!e.target.classList.contains('pt-del')) openLightbox(url); }; })(displayUrl);
+      gal.appendChild(thumb);
+    } else {
+      // Slot VACÍO — con sus propios inputs para respetar el índice
+      var empty=document.createElement('div'); empty.className='photo-empty-slot';
+      var numLbl=document.createElement('span'); numLbl.className='pes-num'; numLbl.textContent=''+(idx+1); empty.appendChild(numLbl);
+      var btnsDiv=document.createElement('div'); btnsDiv.className='pes-btns';
+      // Botón cámara
+      var btnCam=document.createElement('button'); btnCam.type='button'; btnCam.className='pes-btn'; btnCam.textContent='📷'; btnCam.title='Hacer foto';
+      // Botón archivo
+      var btnFile=document.createElement('button'); btnFile.type='button'; btnFile.className='pes-btn'; btnFile.textContent='📂'; btnFile.title='Subir archivo';
+      // Inputs
+      var inpCam=document.createElement('input'); inpCam.type='file'; inpCam.accept='image/*'; inpCam.setAttribute('capture','environment'); inpCam.style.display='none';
+      var inpFile=document.createElement('input'); inpFile.type='file'; inpFile.accept='image/*'; inpFile.style.display='none';
+      (function(i,s){
+        inpCam.onchange=function(e){ if(e.target.files&&e.target.files[0]){ s[i].file=e.target.files[0]; s[i].deleted=false; var r=new FileReader(); r.onload=function(ev){ s[i].preview=ev.target.result; renderGallery(type); checkBadge(); }; r.readAsDataURL(s[i].file); } };
+        inpFile.onchange=function(e){ if(e.target.files&&e.target.files[0]){ s[i].file=e.target.files[0]; s[i].deleted=false; var r=new FileReader(); r.onload=function(ev){ s[i].preview=ev.target.result; renderGallery(type); checkBadge(); }; r.readAsDataURL(s[i].file); } };
+        btnCam.onclick=function(e){ e.stopPropagation(); saveState(); inpCam.value=''; inpCam.click(); }; /* FIX v29 */
+        btnFile.onclick=function(e){ e.stopPropagation(); saveState(); inpFile.value=''; inpFile.click(); }; /* FIX v29 */
+      })(idx,store);
+      btnsDiv.appendChild(btnCam); btnsDiv.appendChild(btnFile);
+      empty.appendChild(btnsDiv); empty.appendChild(inpCam); empty.appendChild(inpFile);
+      gal.appendChild(empty);
+    }
+  });
+}
+
+function checkBadge(){
+  var hasNew=beforePhotos.concat(afterPhotos).some(function(p){ return!!p.file; });
+  var b=g('newPhotosBadge'); if(b)b.style.display=hasNew?'':'none';
+}
+
+// ── Mic ──
+function initMic(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR)return;
+  var rec=new SR(); rec.lang='es-ES'; rec.continuous=false; rec.interimResults=false;
+  var aB=null,aF=null,isR=false;
+  function startRec(b,f){ if(isR){rec.stop();return;} aB=b;aF=f;isR=true;b.classList.add('rec');try{rec.start();}catch(e){stopRec();} }
+  function stopRec(){ isR=false; if(aB)aB.classList.remove('rec'); aB=null;aF=null; }
+  rec.onresult=function(e){ var t=e.results[0][0].transcript; if(aF)aF.value=(aF.value?aF.value+' ':'')+t; };
+  rec.onend=stopRec; rec.onerror=function(){ stopRec(); toast('Error de micrófono','err'); };
+  [['micNombre','fNombre'],['micDesc','fDesc'],['micNotas','fNotas'],['micSolucion','fSolucion']].forEach(function(p){
+    var b=g(p[0]),f=g(p[1]); if(!b||!f)return;
+    b.classList.remove('hidden');
+    b.addEventListener('click',function(){ startRec(b,f); });
+  });
+}
+
+window.goBack=function(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); },200); };
+
+// ── Subir foto (mantiene orden: idx = número de slot) ──
+function uploadPhoto(type,idx){
+  var store=type==='before'?beforePhotos:afterPhotos, p=store[idx];
+  if(!p.file) return Promise.resolve(p.deleted?'':p.url);
+  var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear());
+  var ext=(p.file.name.split('.').pop()||'jpg').toLowerCase();
+  var safe=(myUserName||'user').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  var fname='fotos-tareas/'+year+'_'+(type==='before'?'before':'after')+'_'+taskId+'_'+safe+'_'+(idx+1)+'.'+ext;
+  var fd=new FormData(); fd.append('file',p.file,fname); fd.append('filename',fname);
+  return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ return j.url||j.publicUrl||p.url; })
+    .catch(function(){ return p.url; });
+}
+
+function setBusy(on){
+  isSaving=on;
+  ['btnCerrar','btnSoloGuardar','btnSaveBar'].forEach(function(id){ var b=g(id); if(b)b.disabled=on; });
+  var sb=g('btnSaveBar'); if(sb)sb.disabled=on;
+  var sbl=g('saveBarLabel'); if(sbl)sbl.textContent=on?'Guardando…':'💾 Guardar cambios';
+  var sc=g('spinCerrar'); if(sc){ sc.style.display=on?'inline-block':'none'; sc.style.animation=on?'spin .6s linear infinite':'none'; }
+}
+
+function submitForm(markDone){
+  if(isSaving)return;
+  var nombre=g('fNombre').value.trim();
+  g('fNombre').classList.remove('err');
+  if(!nombre){ g('fNombre').classList.add('err'); g('fNombre').scrollIntoView({behavior:'smooth',block:'center'}); toast('⚠️ El nombre es obligatorio','err'); return; }
+
+  /* v30 FIX: validar campo villa
+     Caso problemático: el usuario escribió texto en fVillaSearch pero NO seleccionó
+     del dropdown → selectedVillaId está vacío pero el input tiene texto libre.
+     Esto puede ocurrir si el blur (200ms) aún no limpió el campo cuando se pulsó Guardar.
+     → Bloquear el guardado y señalar el campo con error */
+  var villaInp = g('fVillaSearch');
+  var villaText = villaInp ? villaInp.value.trim() : '';
+  if(villaText && !selectedVillaId){
+    /* Hay texto libre pero sin villa seleccionada → error */
+    if(villaInp){
+      villaInp.classList.add('villa-err');
+      /* Limpiar la clase error después de 1.5s para que el usuario pueda reintentar */
+      setTimeout(function(){ villaInp.classList.remove('villa-err'); }, 1500);
+      villaInp.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    var cl = g('villaCurrentLabel');
+    if(cl){ cl.textContent = '⚠ Selecciona una villa de la lista antes de guardar'; cl.className='villa-current err-save'; }
+    toast('⚠️ Selecciona una villa de la lista','err');
+    return; /* Bloquear el guardado */
+  }
+  /* Si el input de villa está vacío y no hay selección, simplemente no cambia la villa */
+  if(villaInp) villaInp.classList.remove('villa-err');
+
+  /* v32: validar campo asignado — texto libre sin seleccionar persona */
+  var userInp=g('fAsignadoSearch');
+  var userText=userInp?userInp.value.trim():'';
+  if(userText&&!selectedUserId){
+    if(userInp){
+      userInp.classList.add('villa-err');
+      setTimeout(function(){userInp.classList.remove('villa-err');},1500);
+      userInp.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+    var ucl=g('usuarioCurrentLabel');
+    if(ucl){ucl.textContent='⚠ Selecciona una persona de la lista antes de guardar';ucl.className='villa-current err-save';}
+    toast('⚠️ Selecciona una persona de la lista','err');
+    return;
+  }
+  if(userInp) userInp.classList.remove('villa-err');
+
+  setBusy(true);
+  if(markDone) setTerminada(true);
+
+  // ORDEN CORRECTO: primero todos los before (0-4), luego todos los after (0-4)
+  var uploads=[];
+  for(var i=0;i<5;i++)(function(idx){ uploads.push(uploadPhoto('before',idx)); })(i);
+  for(var i=0;i<5;i++)(function(idx){ uploads.push(uploadPhoto('after',idx));  })(i);
+
+  Promise.allSettled(uploads).then(function(results){
+    // results[0-4] = before slots 0-4
+    // results[5-9] = after slots 0-4
+    var beforeUrls=results.slice(0,5).map(function(r){ return r.status==='fulfilled'?r.value:''; });
+    var afterUrls =results.slice(5,10).map(function(r){ return r.status==='fulfilled'?r.value:''; });
+    var record={};
+    record[F.nombre]     =nombre;
+    record[F.descripcion]=(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim();
+    record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
+    record[F.asignado]   =selectedUserId||g('fAsignado').value||''; /* v32 */
+    record[F.terminada]  =isTerminada;
+    record[F.notas]      =g('fNotas').value.trim();
+    record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
+    if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
+    BEFORE_FIELDS.forEach(function(f,i){ record[f]=beforeUrls[i]||''; });
+    AFTER_FIELDS.forEach(function(f,i){ record[f]=afterUrls[i]||''; });
+    return fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+  })
+  .then(function(r){ if(!r.ok)return r.json().then(function(e){ throw new Error(e.Message||e.error||'HTTP '+r.status); }); return r.json(); })
+  .then(function(j){ if(j.error||j.Message)throw new Error(j.error||j.Message); onDone(); })
+  .catch(function(err){ setBusy(false); toast('❌ '+err.message,'err'); console.error('[EditTask]',err); });
+}
+
+function onDone(){
+  setBusy(false);
+  clearState(); /* FIX v29 */
+  g('formWrap').style.display='none'; g('saveBar').style.display='none';
+  g('successCard').style.display='block'; g('successBox').style.display='block';
+  toast('¡Tarea actualizada!','ok');
+  setTimeout(function(){ try{window.close();}catch(e){} setTimeout(function(){ history.back(); },400); },1800);
+}
+
+})();
+
+/* ════ Rich editor con Quill (fuera del IIFE principal) ════ */
+(function() {
+  var _q = {};
+
+  function toPlain(html) {
+    if (!html) return '';
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    var lines = [];
+    d.childNodes.forEach(function(n) {
+      if (n.nodeName === 'UL') {
+        var chk = n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li) {
+          var t = (li.innerText || li.textContent || '').trim();
+          if (chk === 'true') lines.push('[x] ' + t);
+          else if (chk === 'false') lines.push('[ ] ' + t);
+          else lines.push('\u2022 ' + t);
+        });
+      } else {
+        var t = (n.innerText || n.textContent || '').replace(/\n/g, ' ').trim();
+        if (t) lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+
+  function toHtml(text) {
+    if (!text) return '';
+    if (text.indexOf('<ul') !== -1 || text.indexOf('<p>') !== -1) return text;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    return text.split('\n').map(function(line) {
+      if (/^\[x\] /.test(line)) return '<ul data-checked="true"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\[ \] /.test(line)) return '<ul data-checked="false"><li>' + esc(line.slice(4)) + '</li></ul>';
+      if (/^\u2022 /.test(line)) return '<ul><li>' + esc(line.slice(2)) + '</li></ul>';
+      return '<p>' + esc(line) + '</p>';
+    }).join('');
+  }
+
+  window._qlInit = function(fId, ph) {
+    var ta = document.getElementById(fId);
+    var wrap = document.getElementById(fId + '_ql');
+    if (!ta || !wrap || !window.Quill) return;
+    var q = new Quill(wrap, { modules: { toolbar: false }, theme: 'snow', placeholder: ph || '' });
+    _q[fId] = q;
+    if (ta.value) q.root.innerHTML = toHtml(ta.value);
+    q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
+    ta.style.display = 'none';
+  };
+
+  window._qlGet = function(fId) {
+    return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
+  };
+
+  window.qFmt = function(fId, type) {
+    var q = _q[fId]; if (!q) return; q.focus();
+    var f = q.getFormat();
+    if (type === 'bullet') q.format('list', f.list === 'bullet' ? false : 'bullet');
+    else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
+  };
+})();
+</script>
+</body>
+</html>
