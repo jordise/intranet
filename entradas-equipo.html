@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v33 — 3Villas</title>
+  <title>Entradas Equipo v36 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -667,13 +667,18 @@ function renderCards(records){
   if($('sCnt'))$('sCnt').textContent=`${entradas} ent. / ${salidas} sal.`;
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
   const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
-  resetVillaPendingMap();loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
-  if(villaIds.length){const _sid=_searchId;loadVillaPendingTasks(villaIds).then(()=>{if(_sid===_searchId)updateVillaTasksInDOM();}).catch(e=>console.warn('Villa tasks:',e.message));}
+  resetVillaPendingMap();
   if($('hCount'))$('hCount').textContent=rows.length;
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
-  if(_calMode){grid.style.display='none';renderWeekly();return;}
-  grid.style.display='grid';
-  rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));
+  if(_calMode){grid.style.display='none';renderWeekly();}
+  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
+  /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
+  if(villaIds.length){
+    loadVillaPendingTasks(villaIds)
+      .then(()=>{updateVillaTasksInDOM();})
+      .catch(e=>console.warn('Villa tasks:',e.message));
+  }
+  loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
 }
 
 function openTaskPopup(url){
@@ -707,26 +712,31 @@ async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
-  const toLoad=unique.length>200?unique.slice(0,200):unique; /* v30: cap 40→200 */
+  const toLoad=unique.length>200?unique.slice(0,200):unique;
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
-  const BATCH=15;
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
-  for(let i=0;i<toLoad.length;i+=BATCH){
-    const batch=toLoad.slice(i,i+BATCH);
-    const where=batch.length===1?'villaid='+batch[0]:'('+batch.map(id=>'villaid='+id).join(' OR ')+')';
+
+  /* v36: una llamada por villa en PARALELO — Caspio no soporta IN/OR multi-villa */
+  await Promise.allSettled(toLoad.map(async function(vid){
     try{
-      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent('villaid='+vid)+'&limit=500');
       const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
       for(const t of tasks){
-        const vid=String(parseInt(t.villaid)||0);
-        if(villaPendingMap[vid]===undefined)continue;
+        const key=String(parseInt(t.villaid)||0);
+        if(villaPendingMap[key]===undefined)continue;
         if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done||t.Data_to_be_done_fixed||''});
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||''});
         }
       }
-    }catch(e){console.warn('[VillaTasks] Error:',e.message);}
-  }
+    }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
+  }));
+  /* debug */
+  const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
+  const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
+  const prev=$('dbBox').textContent||'';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (parallel)';
 }
+
 function updateVillaTasksInDOM(){
   /* v30: busca en todo el doc (#grid, #wkModalInner, #weekGrid) */
   document.querySelectorAll('[data-villaid]').forEach(cardEl=>{
@@ -769,12 +779,12 @@ async function loadPendingTasksPanel(){
     const res=await fetch(url);const json=await res.json();const rawTasks=json.Result||json.result||[];
     const villaIds=[...new Set(rawTasks.map(t=>t.villaid).filter(Boolean))];
     const villaNameMap={};
-    if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:villaIds.map(id=>`villaid=${id}`).join(' OR ');const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
+    if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:`villaid IN (${villaIds.join(',')})`;const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
     const tasks=rawTasks.filter(t=>{const done=t.Tarea_terminada;return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');});
-    tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||a.Data_to_be_done||'9999';const db=b.Data_to_be_done_fixed||b.Data_to_be_done||'9999';return da<db?-1:da>db?1:0;});
+    tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||'9999';const db=b.Data_to_be_done_fixed||'9999';return da<db?-1:da>db?1:0;});
     const _today=new Date();_today.setHours(0,0,0,0);
-    const tasksPast=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return true;return new Date(rd.split('T')[0]+'T00:00:00')<=_today;});
-    const tasksFuture=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||t.Data_to_be_done||'';if(!rd)return false;return new Date(rd.split('T')[0]+'T00:00:00')>_today;});
+    const tasksPast=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||'';if(!rd)return true;return new Date(rd.split('T')[0]+'T00:00:00')<=_today;});
+    const tasksFuture=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||'';if(!rd)return false;return new Date(rd.split('T')[0]+'T00:00:00')>_today;});
     if($('ptCount'))$('ptCount').textContent=tasksPast.length;
     if($('ptLoading'))$('ptLoading').style.display='none';
     if(!tasks.length){if($('ptEmpty')){$('ptEmpty').textContent='No hay tareas pendientes ✓';$('ptEmpty').style.display='block';}return;}
@@ -782,7 +792,7 @@ async function loadPendingTasksPanel(){
     let html='';
     if(tasksPast.length){
       html+=tasksPast.map(t=>{
-        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';let dateStr='',dateCls='pt-tc-date';
+        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='',dateCls='pt-tc-date';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
         return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
@@ -790,7 +800,7 @@ async function loadPendingTasksPanel(){
     } else {html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
     if(tasksFuture.length){
       const futureCardsHtml=tasksFuture.map(t=>{
-        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||t.Data_to_be_done||'';let dateStr='';
+        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';
         return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}')" title="${taskName}"><div class="pt-tc-villa">${villaName}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
@@ -833,7 +843,7 @@ function openGuestModal(data){
       var btnId='gmc_'+ri+'_'+srcClass;
       return'<div class="gm-col">'
         +'<span class="gm-val">'+val+'</span>'
-        +'<button class="gm-copy" id="'+btnId+'" onclick="copyToClipboard('+JSON.stringify(val)+',this)" title="Copiar">⎘</button>'
+        +'<button class="gm-copy" data-v="'+val.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" onclick="copyToClipboard(this.dataset.v,this)" title="Copiar">⎘</button>'
         +'</div>';
     }
     return'<div class="gm-row">'
