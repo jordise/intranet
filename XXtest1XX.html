@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v25 — 3Villas</title>
+  <title>Nueva Tarea v26 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -219,24 +219,49 @@
   /* ══ v24: Multiunit ══ */
   var selectedVillaId_=''; /* tracking villa seleccionada */
 
+  var _villaIdField=''; /* v26: campo detectado automáticamente */
+
   function loadAllMultiunits(){
-    /* v25: retorna Promise para que loadVillas espere */
     return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
       .then(function(r){return r.json();})
       .then(function(json){
         var rows=json.Result||json.result||[];
+        if(!rows.length){console.warn('[Multiunit] Sin registros en TaMultiunits');return;}
+
+        /* v26: detectar automáticamente el campo que contiene el villaId */
+        var first=rows[0];
+        var candidates=['VillalDcaspio','VillaDcaspio','VillaIDcaspio','VillaIdCaspio',
+                        'villalDcaspio','villaDcaspio','villaIDcaspio','villaIdCaspio',
+                        'VillaId','villaid','VillaID','Villaid'];
+        _villaIdField='';
+        for(var ci=0;ci<candidates.length;ci++){
+          if(first[candidates[ci]]!==undefined){_villaIdField=candidates[ci];break;}
+        }
+        /* Si no encontramos, buscar cualquier campo que contenga 'villa' en su nombre */
+        if(!_villaIdField){
+          var keys=Object.keys(first);
+          for(var ki=0;ki<keys.length;ki++){
+            if(keys[ki].toLowerCase().indexOf('villa')!==-1&&keys[ki].toLowerCase()!=='multiunitid'){
+              _villaIdField=keys[ki];break;
+            }
+          }
+        }
+        console.log('[Multiunit] Campo villa detectado:',_villaIdField,'| Ejemplo value:',first[_villaIdField]);
+        console.log('[Multiunit] Claves del primer registro:',Object.keys(first));
+        console.log('[Multiunit] Total multiunits:',rows.length);
+
         allMultiunits=rows.map(function(m){
-          /* Campo que vincula con TaVillas — imagen Caspio muestra VillalDcaspio */
-          var vid=String(m.VillalDcaspio||m.VillaDcaspio||m.villalDcaspio||m.villaDcaspio||'').trim();
+          var vid=_villaIdField?String(m[_villaIdField]||'').trim():'';
           return{
-            id:   String(m.multiunitID||m.MultiunitID||'').trim(),
+            id:   String(m.multiunitID||m.MultiunitID||m.multiUnitID||'').trim(),
             name: m.descripcion||m.Descripcion||m.nombre_listing_manual||'',
             villaId: vid
           };
         }).filter(function(m){return m.id&&m.name;});
-        /* Si ya hay villa preseleccionada, refrescar ahora */
+
+        console.log('[Multiunit] Procesados:',allMultiunits.length,allMultiunits.slice(0,3));
         if(selectedVillaId_)refreshMultiunits(selectedVillaId_);
-      }).catch(function(){});
+      }).catch(function(e){console.error('[Multiunit] Error carga:',e);});
   }
 
   function refreshMultiunits(villaId){
@@ -245,6 +270,7 @@
     if(hidden)hidden.value='';
     if(inp)inp.value='';
     var mus=allMultiunits.filter(function(m){return m.villaId===String(villaId);});
+    console.log('[Multiunit] refreshMultiunits villaId='+villaId+' → encontrados:',mus.length,'de',allMultiunits.length,'total. Campo usado:',_villaIdField);
     if(inp){
       if(!villaId)inp.placeholder='Selecciona primero una villa';
       else if(!mus.length)inp.placeholder='Esta villa no tiene unidades';
