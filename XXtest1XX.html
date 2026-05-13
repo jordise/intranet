@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v35 — 3Villas</title>
+  <title>Entradas Equipo v36 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -712,31 +712,31 @@ async function loadVillaPendingTasks(villaIds){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
-  const toLoad=unique.length>200?unique.slice(0,200):unique; /* v30: cap 40→200 */
+  const toLoad=unique.length>200?unique.slice(0,200):unique;
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
-  const BATCH=30; /* v35: de 15 a 30 — menos round-trips */
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
-  for(let i=0;i<toLoad.length;i+=BATCH){
-    const batch=toLoad.slice(i,i+BATCH);
-    const where=batch.length===1?'villaid='+batch[0]:'('+batch.map(id=>'villaid='+id).join(' OR ')+')';
+
+  /* v36: una llamada por villa en PARALELO — Caspio no soporta IN/OR multi-villa */
+  await Promise.allSettled(toLoad.map(async function(vid){
     try{
-      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent('villaid='+vid)+'&limit=500');
       const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
       for(const t of tasks){
-        const vid=String(parseInt(t.villaid)||0);
-        if(villaPendingMap[vid]===undefined)continue;
+        const key=String(parseInt(t.villaid)||0);
+        if(villaPendingMap[key]===undefined)continue;
         if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||''});
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||''});
         }
       }
-    }catch(e){console.warn('[VillaTasks] Error:',e.message);}
-  }
-  /* v35: debug info */
+    }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
+  }));
+  /* debug */
   const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
   const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
   const prev=$('dbBox').textContent||'';
-  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+Object.keys(villaPendingMap).length+' villas';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (parallel)';
 }
+
 function updateVillaTasksInDOM(){
   /* v30: busca en todo el doc (#grid, #wkModalInner, #weekGrid) */
   document.querySelectorAll('[data-villaid]').forEach(cardEl=>{
@@ -779,7 +779,7 @@ async function loadPendingTasksPanel(){
     const res=await fetch(url);const json=await res.json();const rawTasks=json.Result||json.result||[];
     const villaIds=[...new Set(rawTasks.map(t=>t.villaid).filter(Boolean))];
     const villaNameMap={};
-    if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:villaIds.map(id=>`villaid=${id}`).join(' OR ');const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
+    if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:`villaid IN (${villaIds.join(',')})`;const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
     const tasks=rawTasks.filter(t=>{const done=t.Tarea_terminada;return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');});
     tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||'9999';const db=b.Data_to_be_done_fixed||'9999';return da<db?-1:da>db?1:0;});
     const _today=new Date();_today.setHours(0,0,0,0);
