@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v41 — 3Villas</title>
+  <title>Entradas Equipo v42 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -633,7 +633,16 @@ async function doSearch(){
     const _seen=new Set();
     const records=rawRecords.filter(r=>{const key=r[F.confirmCode]||r[F.reservationId]||'';if(!key||_seen.has(key))return!key?true:false;_seen.add(key);return true;});
     $('dbBox').textContent=`WHERE:\n${where}\n\nRegistros: ${records.length}\n\n${JSON.stringify(records[0]||{},null,2)}`;
-    renderCards(records);loadPendingTasksPanel().catch(e=>console.warn('[Tasks]',e.message));
+    /* v42: villaIds de rawRecords (antes de dedup) + mapa multiunit→villaid */
+    const _allVillaIds=[...new Set(rawRecords.map(r=>parseInt(r[F.villaId])||0).filter(id=>id>0))];
+    const _muVillaMap={}; /* {muId: villaid del booking} */
+    rawRecords.forEach(r=>{
+      const mu=String(r[F.pmsmultiunitId]||'').trim();
+      const vid=String(parseInt(r[F.villaId])||0);
+      if(mu&&vid!=='0')_muVillaMap[mu]=vid;
+    });
+    renderCards(records,_allVillaIds,_muVillaMap);
+    loadPendingTasksPanel().catch(e=>console.warn('[Tasks]',e.message));
   }catch(err){if(mySearchId!==_searchId)return;if($('stLoad'))$('stLoad').style.display='none';if($('stErr'))$('stErr').style.display='block';if($('errMsg'))$('errMsg').textContent=err.message;$('dbBox').textContent='Error doSearch:\n'+err.message;}
 }
 
@@ -642,7 +651,7 @@ function saveToURL(){const params=new URLSearchParams();const desde=($('fDesde')
 function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['desde','hasta','mgr','ci','wp','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('desde')&&$('fDesde'))$('fDesde').value=p.get('desde');if(p.has('hasta')&&$('fHasta'))$('fHasta').value=p.get('hasta');if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');if(p.has('tipo'))tipoFilter=p.get('tipo');return true;}
 
 // ════════════════ RENDER CARDS ════════════════
-function renderCards(records){
+function renderCards(records,_extVillaIds,_muVillaMap){
   if($('stLoad'))$('stLoad').style.display='none';
   const grid=$('grid');if(!grid)return;grid.style.display='grid';
   if(!records.length){grid.innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay entradas ni salidas para los filtros seleccionados.</p></div>';return;}
@@ -667,7 +676,8 @@ function renderCards(records){
   rows.forEach(row=>{if(row.type==='entrada')entradas++;else salidas++;paxT+=(parseInt(g(row.r,'adults'))||0)+(parseInt(g(row.r,'children'))||0);});
   if($('sCnt'))$('sCnt').textContent=`${entradas} ent. / ${salidas} sal.`;
   if($('sPax'))$('sPax').textContent=paxT||'—';if($('sNights'))$('sNights').textContent=records.length;if($('statsBar'))$('statsBar').style.display='flex';
-  const villaIds=[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
+  /* v42: usa villaIds de rawRecords (captura todos los IDs de multiunit) */
+  const villaIds=(_extVillaIds&&_extVillaIds.length>0)?_extVillaIds:[...new Set(records.map(r=>r[F.villaId]).map(id=>parseInt(id)||0).filter(id=>id>0))];
   resetVillaPendingMap();
   if($('hCount'))$('hCount').textContent=rows.length;
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
@@ -675,9 +685,9 @@ function renderCards(records){
   else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
-    loadVillaPendingTasks(villaIds)
+    loadVillaPendingTasks(villaIds,_muVillaMap||{})
       .then(()=>{updateVillaTasksInDOM();})
-      .catch(e=>console.warn('Villa tasks:',e.message));
+      .catch(e=>console.warn('Villa tasks:',e.message)); /* v42 */
   }
   loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
 }
@@ -709,7 +719,7 @@ function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)retu
 const villaPendingMap={};
 /* v29: limpiar mapa completo antes de cada búsqueda nueva */
 function resetVillaPendingMap(){Object.keys(villaPendingMap).forEach(k=>delete villaPendingMap[k]);}
-async function loadVillaPendingTasks(villaIds){
+async function loadVillaPendingTasks(villaIds,muVillaMap){
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
@@ -731,6 +741,29 @@ async function loadVillaPendingTasks(villaIds){
       }
     }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
   }));
+  /* v42: TAMBIÉN query por PMSmultiunitID para tareas sin villaid */
+  const muIds=Object.keys(muVillaMap||{});
+  if(muIds.length){
+    await Promise.allSettled(muIds.map(async function(muId){
+      try{
+        const vid=String(muVillaMap[muId]||'0');
+        if(!villaPendingMap[vid]){villaPendingMap[vid]=[];}
+        const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent("PMSmultiunitID='"+muId+"'")+'&limit=500');
+        const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+        for(const t of tasks){
+          const isDone=isDoneCheck(t.Tarea_terminada);
+          if(isDone||Number(t.Tasktype)===20)continue;
+          /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
+          const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
+          if(!exists){
+            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||'')});
+          }
+        }
+        console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
+      }catch(e){console.warn('[VillaTasks] muId '+muId+':',e.message);}
+    }));
+  }
+
   /* debug */
   const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
   const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
@@ -1042,6 +1075,7 @@ function buildCard(r,type){
   }
   html+='</div>';
   el.setAttribute('data-villaid',String(parseInt(villaId)||0));
+  el.setAttribute('data-multiunitid',muId||''); /* v42 */
   el.setAttribute('data-checkout',(co||'').split('T')[0]);
   el.innerHTML=html;
   return el;
