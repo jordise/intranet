@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v31 — 3Villas</title>
+  <title>Entradas Equipo v32 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -468,7 +468,7 @@ const F = {
   status:'TaBookings2021_BookingStatus',guestName:'TaBookings2021_Guest_Full_Name',
   fiscalName:'TaBookings2021_Fiscal_guest_name',guestPhone:'TaBookings2021_Guest_phonenumber',
   phoneArrival:'TaBookings2021_Segundo_Telefono',phoneCual:'TaBookings2021_Guest_phonenumber_cual_usar',
-  guestEmail:'TaBookings2021_Guest_email',villaManager:'TaVillas_KeyHolder_person',
+  guestEmail:'TaBookings2021_Guest_email',secondEmail:'TaBookings2021_Segundo_email',villaManager:'TaVillas_KeyHolder_person',
   keyholderUserId:'TaVillas_KeyHolder_person',limpieza:'TaBookings2021_LimpiezaTerminada',
   wellcomePack:'TaBookings2021_Welcomepackentregado',cierre:'TaBookings2021_Checkoutcontrolado',
   cleaner:'TaVillas_Cleanning_team',cleaningNotes:'TaBookings2021_CleaningNotes',
@@ -591,7 +591,7 @@ function filterManagerList(){const q=($('managerSearch')||{}).value||'';renderMa
 function toggleManager(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);loadPendingTasksPanel().catch(()=>{});}
 function selectAllManagers(){allManagersList.forEach(m=>selectedManagers.add(m.id));renderManagerList();updateManagerBtn();}
 function clearManagers(){selectedManagers.clear();renderManagerList();updateManagerBtn();}
-function updateManagerBtn(){const lbl=$('fManagerLabel');if(!lbl)return;if(selectedManagers.size===0)lbl.textContent='Todos';else if(selectedManagers.size===1){const id=[...selectedManagers][0];lbl.textContent=allUsersMap.get(id)||id;}else lbl.textContent=`${selectedManagers.size} managers seleccionados`;}
+function updateManagerBtn(){const lbl=$('fManagerLabel');if(!lbl)return;if(selectedManagers.size===0)lbl.textContent='Todos';else if(selectedManagers.size===1){const id=[...selectedManagers][0];const nm=allUsersMap.get(id)||id;lbl.textContent=nm.length>25?nm.slice(0,23)+'…':nm;}else lbl.textContent=`${selectedManagers.size} managers`;}
 function toggleManagerPanel(e){e&&e.stopPropagation();const panel=$('managerPanel');const btn=$('fManagerBtn');if(!panel||!btn)return;if(panel.style.display!=='none'){panel.style.display='none';return;}const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';panel.style.display='flex';renderManagerList();if($('managerSearch')){$('managerSearch').value='';$('managerSearch').focus();}}
 function closeManagerPanel(){const panel=$('managerPanel');if(panel)panel.style.display='none';}
 document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))panel.style.display='none';});
@@ -824,8 +824,9 @@ function openGuestModal(data){
   var $=id=>document.getElementById(id);
   $('gmName').textContent=data.name||'—';
   var rows=[
-    {label:'Teléfono', ha:data.ph1, af:data.ph2},
-    {label:'Email',    ha:data.em1, af:data.em2},
+    {label:'Nombre',   ha:data.nameHA, af:data.nameAF},
+    {label:'Teléfono', ha:data.ph1,    af:data.ph2},
+    {label:'Email',    ha:data.em1,    af:data.em2},
   ];
   $('gmRows').innerHTML=rows.map(function(row,ri){
     function cell(val,src,srcClass){
@@ -961,9 +962,16 @@ function buildCard(r,type){
   }
   if(mp||kbCode){html+='<div class="c-links">';if(mp)html+=`<a class="lnk lnk-m" href="${mp}" target="_blank">📍 Maps</a>`;if(kbCode)html+=`<span class="lnk lnk-k">🔑 ${kbCode}</span>`;html+='</div>';}
   html+='<div class="c-body"><hr class="dv">';
-  /* v31: guest name clickable → popup */
-  const _gd={name:gn||'',ph1:ph||'',ph2:ph2||'',em1:em||'',em2:''};
-  const _gdStr=JSON.stringify(_gd).replace(/'/g,"\'").replace(/"/g,'&quot;');
+  /* v32: guest popup — campos idénticos a notas-equipo-reservas */
+  const _gd={
+    name:       gn||'',
+    nameHA:     g(r,'guestName')||'',          /* Guest_Full_Name   — Hostaway  */
+    nameAF:     g(r,'fiscalName')||'',          /* Fiscal_guest_name — Arrival   */
+    ph1:        g(r,'guestPhone')||'',          /* Guest_phonenumber — Hostaway  */
+    ph2:        g(r,'phoneArrival')||'',        /* Segundo_Telefono  — Arrival   */
+    em1:        g(r,'guestEmail')||'',          /* Guest_email       — Hostaway  */
+    em2:        g(r,'secondEmail')||'',         /* Segundo_email     — Arrival   */
+  };
   html+=`<div class="gname" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="openGuestModal(${JSON.stringify(_gd).replace(/"/g,'&quot;')})" title="Ver contacto">${gn||'—'}</div>`;
   html+='<div class="gmeta">';
   if(st)html+=`<span class="spill ${stClass(st)}">${st}</span>`;
@@ -1143,11 +1151,19 @@ function renderWeekly(){
         var pills='<span class="wk-pill '+(isSal?'sal':'ent')+'">'+(isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
         var btns=isSal?statusBtn(cierOk,uCier):statusBtn(limpOk,uLimp)+statusBtn(wpOk,uWP);
 
-        /* v28: diseño caja v23 — border-left + wk-card-inner */
+        /* v32: villa clicable + keybox en weekly card */
+        var _wkVillaId=r[F.villaId]?String(r[F.villaId]):'';
+        var _wkVillaHtml=_wkVillaId
+          ?'<a href="villa.html?villa_id='+encodeURIComponent(_wkVillaId)+'" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;font-weight:700;display:block;font-size:11px;line-height:1.3;word-break:break-word" title="'+fullVilla+'">'+fullVilla+'</a>'
+          :'<div class="wk-villa2" title="'+fullVilla+'">'+fullVilla+'</div>';
+        var _wkMuId=String(g(r,'pmsmultiunitId')||'').trim();
+        var _wkKb=(_wkMuId&&multiunitsMap.get(_wkMuId))||g(r,'keyboxCode')||'';
+        var _wkKbHtml=_wkKb?'<div style="margin-top:4px;font-size:9px;font-weight:800;font-family:Montserrat,sans-serif;color:var(--gray-4);letter-spacing:.3px">🔑 '+_wkKb+'</div>':'';
         card.innerHTML='<div class="wk-card-inner">'
           +'<div class="wk-row">'+pills+btns+'</div>'
-          +'<div class="wk-villa2" title="'+fullVilla+'">'+fullVilla+'</div>'
+          +_wkVillaHtml
           +(vmName2?'<div class="wk-vm" style="font-size:9px;color:var(--gray-4);margin-top:3px;font-family:Montserrat,sans-serif;font-weight:600">🏠 '+vmName2+'</div>':'')
+          +_wkKbHtml
           +'</div>';
         wrap.appendChild(card);
       });
