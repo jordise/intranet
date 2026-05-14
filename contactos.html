@@ -9,7 +9,7 @@
        - Carga desde TaContacts via Cloudflare Worker
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Contactos vcontactos02 — 3Villas</title>
+  <title>Contactos v03 — 3Villas</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -35,13 +35,19 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
 
-    /* ══ HEADER ══ */
-    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:400;box-shadow:0 2px 12px rgba(0,0,0,.25)}
-    .h-row{display:flex;align-items:center;gap:8px}
-    .h-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1}
-    .h-title{font-family:Montserrat,sans-serif;font-size:clamp(14px,4vw,18px);font-weight:900;text-transform:uppercase;letter-spacing:.5px;flex:1}
-    .h-count{background:rgba(255,255,255,.2);border-radius:6px;padding:3px 9px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;flex-shrink:0}
-    .h-menu{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:34px;height:34px;border-radius:8px;text-decoration:none;font-size:18px;flex-shrink:0}
+/* ── Nav compacta — pedir-wellcomepacks style ── */
+    .wp-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:400}
+    .wp-nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+    .wp-nav-logo img{height:26px;object-fit:contain}
+    .wp-nav-center{flex:1;min-width:0;padding:0 6px}
+    .wp-nav-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-sub{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .wp-nav-user{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0}
+    .wp-nav-menu{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-menu:hover{background:var(--red-dark)}
+    .wp-nav-close{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-close:hover{background:rgba(200,16,46,.2)}
 
     /* ══ OVERLAY ══ */
     #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.93);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
@@ -146,6 +152,8 @@
     }
   </style>
   <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
 </head>
 <body>
 <script>Auth.require('entradas');</script>
@@ -153,15 +161,21 @@
 <div id="loadOverlay"><div class="spinner"></div><div class="sp-txt" id="loadTxt">Cargando contactos…</div></div>
 <div id="toast"></div>
 
-<!-- ══ HEADER ══ -->
-<header>
-  <div class="h-row">
-    <button class="h-back" onclick="history.back()">←</button>
-    <span class="h-title">Contactos</span>
-    <span class="h-count" id="hCount"></span>
-    <a href="index.html" class="h-menu" title="Menú">☰</a>
+<!-- ══ NAV COMPACTA ══ -->
+<nav class="wp-nav">
+  <a class="wp-nav-logo" href="index.html">
+    <img src="logo-negro.png" alt="<3Villas">
+  </a>
+  <div class="wp-nav-center">
+    <div class="wp-nav-title">Contactos</div>
+    <div class="wp-nav-sub" id="hSub"></div>
   </div>
-</header>
+  <div class="wp-nav-btns">
+    <div class="wp-nav-user" id="hCount" style="font-family:Montserrat,sans-serif;font-weight:800"></div>
+    <button class="wp-nav-menu" onclick="NavComponent.open()" title="Menú">☰</button>
+    <button class="wp-nav-close" onclick="history.back()" title="Volver">✕</button>
+  </div>
+</nav>
 
 <!-- ══ SEARCH + FILTROS ══ -->
 <div id="filterBar">
@@ -443,9 +457,9 @@ document.addEventListener('DOMContentLoaded',function(){
 
   /* Fix posición del filterBar según altura del header */
   function fixStickyBar(){
-    var hdr = document.querySelector('header');
+    var nav = document.querySelector('.wp-nav');
     var fb  = g('filterBar');
-    if(hdr&&fb) fb.style.top = hdr.offsetHeight+'px';
+    if(nav&&fb) fb.style.top = nav.offsetHeight+'px';
   }
   window.addEventListener('resize',fixStickyBar);
 
