@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v48 — 3Villas</title>
+  <title>Entradas Equipo v49 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -712,6 +712,19 @@ function toggleCardBody(id){const wrap=document.getElementById(id);if(!wrap)retu
 
 // ════════════════ VILLA PENDING TASKS ════════════════
 const villaPendingMap={};
+
+/* v49: helper para leer campos yes/no de Caspio */
+function isFlagOn(v){if(!v)return false;var s=String(v).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s);}
+function prioScoreTask(t){var imp=isFlagOn(t.importante),urg=isFlagOn(t.urgente);if(imp)return 2;if(urg)return 1;return 0;}
+function sortByPriority(arr){
+  return arr.slice().sort(function(a,b){
+    var ps=prioScoreTask(b)-prioScoreTask(a);
+    if(ps!==0)return ps;
+    var da=(a.dueDate||a.Data_to_be_done_fixed||'9999').split('T')[0];
+    var db=(b.dueDate||b.Data_to_be_done_fixed||'9999').split('T')[0];
+    return da<db?-1:da>db?1:0;
+  });
+}
 /* v29: limpiar mapa completo antes de cada búsqueda nueva */
 function resetVillaPendingMap(){Object.keys(villaPendingMap).forEach(k=>delete villaPendingMap[k]);}
 async function loadVillaPendingTasks(villaIds,muVillaMap){
@@ -731,7 +744,7 @@ async function loadVillaPendingTasks(villaIds,muVillaMap){
         const key=String(parseInt(t.villaid)||0);
         if(villaPendingMap[key]===undefined)continue;
         if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||'')}); /* v40 */
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
         }
       }
     }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
@@ -751,7 +764,7 @@ async function loadVillaPendingTasks(villaIds,muVillaMap){
           /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
           const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
           if(!exists){
-            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||'')});
+            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')}); /* v49 */
           }
         }
         console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
@@ -773,12 +786,23 @@ function updateVillaTasksInDOM(){
     const coStr=cardEl.getAttribute('data-checkout')||'';
     const _limit=coStr?new Date(coStr+'T23:59:59'):null;
     const allTasks=villaPendingMap[vKey]||[];
-    const tasks=allTasks.filter(t=>{if(!t.dueDate||!_limit)return true;const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');return isNaN(d)||d<=_limit;});
+    const tasksFiltered=allTasks.filter(t=>{if(!t.dueDate||!_limit)return true;const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');return isNaN(d)||d<=_limit;});
+    /* v49: separar y ordenar por prioridad igual que tareas */
+    const _now=new Date();_now.setHours(0,0,0,0);
+    const vtImp=[], vtUrg=[], vtNorm=[];
+    tasksFiltered.forEach(function(t){
+      const isFut=t.dueDate&&new Date(t.dueDate.split('T')[0]+'T00:00:00')>_now;
+      const imp=isFlagOn(t.importante), urg=isFlagOn(t.urgente);
+      if(imp&&!isFut) vtImp.push(t);
+      else if(urg)    vtUrg.push(t);   /* urgente: cualquier fecha, fuera de prox */
+      else            vtNorm.push(t);
+    });
+    const tasks=[...sortByPriority(vtImp),...sortByPriority(vtUrg),...sortByPriority(vtNorm)];
     const existing=cardEl.querySelector('.villa-tasks');if(existing)existing.remove();
     if(!tasks.length)return;
     const div=document.createElement('div');div.className='villa-tasks';
     div.innerHTML='<div class="vt-title">⚑ Tareas pendientes villa</div>'+
-      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';const muShortVT=t.muId?(multiunitsMap.get('short_'+t.muId)||''):''; /* v44 */return`<div class="vt-row"><span class="vt-name">${muShortVT?`<span style="font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;color:var(--orange);margin-right:3px">${muShortVT} ·</span>`:''  }${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}','${t.muId||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
+      tasks.map(t=>{const assignedName=t.assignedId?(allUsersMap.get(t.assignedId)||''):'';const firstName=assignedName?assignedName.split(' ')[0]:'';const muShortVT=t.muId?(multiunitsMap.get('short_'+t.muId)||''):''; /* v44 */const vtFlag=(isFlagOn(t.importante)?'🚩 ':''+(isFlagOn(t.urgente)?'🏁 ':'')); return`<div class="vt-row"><span class="vt-name">${muShortVT?`<span style="font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;color:var(--orange);margin-right:3px">${muShortVT} ·</span>`:''  }${vtFlag}${t.name||'(sin nombre)'}</span>${firstName?`<span style="font-size:10px;color:var(--gray-4);flex-shrink:0">${firstName}</span>`:''} ${t.taskid?`<button class="vt-edit-btn" onclick="openEditTask('${t.taskid}','${t.reserva||''}','${t.muId||''}')">✏️ Editar</button>`:`<span style="font-size:10px;color:var(--gray-3)">Sin ID</span>`}</div>`;}).join('');
     cardEl.appendChild(div);
   });
 }
@@ -810,10 +834,22 @@ async function loadPendingTasksPanel(){
     const villaNameMap={};
     if(villaIds.length){try{const vWhere=villaIds.length===1?`villaid=${villaIds[0]}`:`villaid IN (${villaIds.join(',')})`;const vRes=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=TaVillas&where=${encodeURIComponent(vWhere)}&limit=500`));const vJson=await vRes.json();(vJson.Result||vJson.result||[]).forEach(v=>{villaNameMap[v.villaid]=v.Name_villa_para_inquilinos||v.Name||String(v.villaid);});}catch(e){}}
     const tasks=rawTasks.filter(t=>{const done=t.Tarea_terminada;return!(done===true||done===1||done===-1||String(done).toLowerCase()==='yes'||String(done).toLowerCase()==='sí'||String(done).toLowerCase()==='true');});
-    tasks.sort((a,b)=>{const da=a.Data_to_be_done_fixed||'9999';const db=b.Data_to_be_done_fixed||'9999';return da<db?-1:da>db?1:0;});
+    /* v49: ordenar panel por prioridad igual que tareas_v20 */
     const _today=new Date();_today.setHours(0,0,0,0);
-    const tasksPast=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||'';if(!rd)return true;return new Date(rd.split('T')[0]+'T00:00:00')<=_today;});
-    const tasksFuture=tasks.filter(t=>{const rd=t.Data_to_be_done_fixed||'';if(!rd)return false;return new Date(rd.split('T')[0]+'T00:00:00')>_today;});
+    const ptGrpImp=[], ptGrpUrg=[], ptGrpNorm=[], ptGrpProx=[];
+    tasks.forEach(function(t){
+      const rd=t.Data_to_be_done_fixed||'';
+      const isFut=rd&&new Date(rd.split('T')[0]+'T00:00:00')>_today;
+      const imp=isFlagOn(t.importante), urg=isFlagOn(t.urgente);
+      if(imp&&!isFut)  ptGrpImp.push(t);
+      else if(urg)     ptGrpUrg.push(t);   /* urgente: cualquier fecha */
+      else if(!isFut)  ptGrpNorm.push(t);
+      else             ptGrpProx.push(t);
+    });
+    /* orden fecha dentro de cada grupo */
+    function sortPtDate(arr){return arr.sort((a,b)=>{const da=a.Data_to_be_done_fixed||'9999';const db=b.Data_to_be_done_fixed||'9999';return da<db?-1:da>db?1:0;});}
+    const tasksPast=[...sortPtDate(ptGrpImp),...sortPtDate(ptGrpUrg),...sortPtDate(ptGrpNorm)];
+    const tasksFuture=sortPtDate(ptGrpProx);
     if($('ptCount'))$('ptCount').textContent=tasksPast.length;
     if($('ptLoading'))$('ptLoading').style.display='none';
     if(!tasks.length){if($('ptEmpty')){$('ptEmpty').textContent='No hay tareas pendientes ✓';$('ptEmpty').style.display='block';}return;}
@@ -821,7 +857,7 @@ async function loadPendingTasksPanel(){
     let html='';
     if(tasksPast.length){
       html+=tasksPast.map(t=>{
-        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const taskName=(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='',dateCls='pt-tc-date';
+        const vid=t.villaid||'';const villaName=villaNameMap[vid]||(vid?'Villa '+vid:'—');const ptFlag=(isFlagOn(t.importante)?'🚩 ':'')+(isFlagOn(t.urgente)?'🏁 ':'');const taskName=ptFlag+(t.Taskname||'(sin descripción)').slice(0,70);const rawDate=t.Data_to_be_done_fixed||'';let dateStr='',dateCls='pt-tc-date';
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
         const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
