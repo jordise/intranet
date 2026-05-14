@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+  <title>Buscar Villa v03 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+      --green:#1e9e4e;--green-light:#e6f7ee;
+      --orange:#e07b00;--orange-light:#fff4e0;
+      --blue:#1967d2;--blue-light:#e8f0fe;
+      --gray-1:#f8f9fa;--gray-2:#eaecef;--gray-3:#c8cdd8;
+      --gray-4:#7a8194;--gray-5:#2d3142;
+      --shadow-xs:0 1px 3px rgba(0,0,0,.07);
+      --shadow-sm:0 2px 8px rgba(0,0,0,.08);
+      --shadow-md:0 4px 16px rgba(0,0,0,.11);
+      --r:14px;--r-sm:10px;--r-xs:7px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
+
+    /* ══ NAV — idéntico a pedir-wellcomepacks ══ */
+    nav.top-nav{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 20px;background:#fff;
+      border-bottom:1px solid var(--gray-2);
+      box-shadow:var(--shadow-xs);
+      position:sticky;top:0;z-index:100;
+    }
+    .nav-logo{display:flex;align-items:center;gap:1px;text-decoration:none}
+    .nav-logo .l1{font-family:Montserrat,sans-serif;font-size:21px;font-weight:900;color:var(--red);letter-spacing:-1px}
+    .nav-logo .l2{font-family:Montserrat,sans-serif;font-size:21px;font-weight:900;color:var(--gray-5);letter-spacing:-.5px}
+    .nav-btns{display:flex;align-items:center;gap:8px}
+    .nav-menu{
+      display:flex;align-items:center;justify-content:center;
+      background:var(--red);border:none;color:#fff;
+      width:34px;height:34px;border-radius:8px;
+      text-decoration:none;font-size:18px;transition:background .15s;
+    }
+    .nav-menu:hover{background:var(--red-dark)}
+    .nav-close{
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(200,16,46,.1);border:none;color:var(--red);
+      width:34px;height:34px;border-radius:50%;
+      font-size:16px;font-weight:900;cursor:pointer;transition:background .15s;
+    }
+    .nav-close:hover{background:rgba(200,16,46,.2)}
+
+    /* ══ HERO — idéntico a pedir-wellcomepacks ══ */
+    .hero{text-align:center;padding:32px 20px 16px}
+    .hero-title{font-family:Montserrat,sans-serif;font-size:clamp(22px,5vw,34px);font-weight:900;color:var(--red);margin-bottom:4px}
+    .hero-sub{font-size:13px;color:var(--gray-4)}
+
+    /* ══ MAIN CARD — idéntico a pedir-wellcomepacks ══ */
+    .main-wrap{max-width:640px;margin:0 auto 40px;padding:0 12px}
+    .main-card{
+      background:#fff;border-radius:16px;
+      box-shadow:0 6px 24px rgba(0,0,0,.09);
+      overflow:hidden;border-top:3px solid var(--red);
+    }
+
+    /* ══ FORM — dentro de la card ══ */
+    .form-inner{padding:20px 24px 24px}
+    .f-label{
+      font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5);
+      display:flex;align-items:center;gap:6px;margin-bottom:6px;
+    }
+    .f-help{
+      width:16px;height:16px;border-radius:50%;background:var(--gray-2);
+      color:var(--gray-4);font-size:9px;font-weight:800;
+      display:inline-flex;align-items:center;justify-content:center;
+      cursor:help;font-family:Montserrat,sans-serif;flex-shrink:0;
+    }
+    .f-inp{
+      border:1.5px solid var(--gray-2);border-radius:var(--r-sm);
+      padding:11px 14px;font-size:14px;font-family:'Open Sans',sans-serif;
+      color:var(--gray-5);background:#fff;outline:none;width:100%;
+      transition:border-color .15s,box-shadow .15s;
+    }
+    .f-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+    .f-inp::placeholder{color:var(--gray-3)}
+    .f-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    .f-field{display:flex;flex-direction:column}
+
+    /* Autocomplete */
+    .ac-wrap{position:relative}
+    .ac-dd{
+      position:absolute;top:calc(100% + 4px);left:0;right:0;
+      background:#fff;border:1.5px solid var(--red);border-radius:var(--r-sm);
+      box-shadow:var(--shadow-md);z-index:200;
+      max-height:230px;overflow-y:auto;display:none;
+    }
+    .ac-opt{
+      padding:10px 14px;font-size:13px;color:var(--gray-5);
+      cursor:pointer;border-bottom:1px solid var(--gray-2);transition:background .1s;
+    }
+    .ac-opt:last-child{border-bottom:none}
+    .ac-opt:hover{background:var(--red-light);color:var(--red)}
+    .ac-opt mark{background:rgba(200,16,46,.12);color:var(--red);border-radius:2px;padding:0 2px;font-style:normal;font-weight:700}
+    .ac-sub{font-size:11px;color:var(--gray-4);margin-top:2px}
+
+    /* Botón BUSCAR */
+    .btn-buscar{
+      width:100%;margin-top:18px;height:50px;
+      background:var(--red);color:#fff;border:none;
+      border-radius:var(--r-sm);
+      font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;
+      letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:all .15s;box-shadow:0 4px 14px rgba(200,16,46,.3);
+    }
+    .btn-buscar:hover{background:var(--red-dark)}
+    .btn-buscar:active{transform:scale(.98)}
+    .btn-buscar:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed;transform:none}
+    .btn-buscar .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    .btn-buscar.loading .spin{display:block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ══ RESULTADOS ══ */
+    .results-wrap{padding:0 24px 24px;display:none;flex-direction:column;gap:10px}
+    .results-header{
+      font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);
+      padding:14px 0 6px;border-top:1px solid var(--gray-2);
+    }
+    .villa-card{
+      background:var(--gray-1);border-radius:var(--r-sm);
+      border:1.5px solid var(--gray-2);overflow:hidden;
+      text-decoration:none;display:block;color:inherit;
+      transition:box-shadow .15s,border-color .15s,transform .15s;
+    }
+    .villa-card:hover{box-shadow:var(--shadow-md);border-color:var(--red);transform:translateY(-1px)}
+    .vc-head{background:#1565c0;padding:10px 16px;display:flex;align-items:center;gap:10px}
+    .vc-name{font-family:Montserrat,sans-serif;font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.4px;flex:1;line-height:1.2}
+    .vc-id{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);color:#fff;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+    .vc-body{padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .vc-pill{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid var(--gray-2);border-radius:20px;padding:3px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-4)}
+    .vc-pill span{color:var(--gray-5);font-weight:800}
+    .vc-arrow{margin-left:auto;color:var(--gray-3);font-size:20px;flex-shrink:0}
+
+    /* Estado vacío */
+    .state-init{text-align:center;padding:40px 24px;color:var(--gray-4)}
+    .state-init .big{font-size:40px;margin-bottom:10px}
+    .state-init p{font-size:13px;line-height:1.6}
+
+    /* Loading overlay */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
+    .spinner{width:36px;height:36px;border:2.5px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    .sp-txt{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-4)}
+
+    /* Toast */
+    #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);opacity:0;background:var(--gray-5);color:#fff;padding:9px 18px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    #toast.err{background:var(--red)}
+
+    @media(max-width:480px){.f-row{grid-template-columns:1fr}}
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt">Buscando…</div></div>
+<div id="toast"></div>
+
+<!-- ══ NAV — igual que pedir-wellcomepacks ══ -->
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">
+    <span class="l1">&lt;3</span><span class="l2">villas</span>
+  </a>
+  <div class="nav-btns">
+    <a class="nav-menu" href="index.html" title="Menú principal">☰</a>
+    <button class="nav-close" onclick="history.back()" title="Volver">✕</button>
+  </div>
+</nav>
+
+<!-- ══ HERO — igual que pedir-wellcomepacks ══ -->
+<div class="hero">
+  <div class="hero-title">Buscar Villa</div>
+  <div class="hero-sub">Busca por nombre, código llavero o código Hostaway</div>
+</div>
+
+<!-- ══ MAIN CARD ══ -->
+<div class="main-wrap">
+  <div class="main-card">
+
+    <!-- Formulario -->
+    <div class="form-inner">
+
+      <div class="f-field">
+        <label class="f-label">
+          Buscar por el nombre de la villa
+          <span class="f-help" title="Escribe parte del nombre de la villa">?</span>
+        </label>
+        <div class="ac-wrap">
+          <input type="text" id="fNombre" class="f-inp"
+                 placeholder="Ej: Binichic, Serpentona…"
+                 autocomplete="off" oninput="onNombreInput()">
+          <div class="ac-dd" id="acDd"></div>
+        </div>
+      </div>
+
+      <div class="f-row">
+        <div class="f-field">
+          <label class="f-label">
+            Código llavero Llaves
+            <span class="f-help" title="Número interno de villa (villaid)">?</span>
+          </label>
+          <input type="text" id="fVillaid" class="f-inp"
+                 placeholder="ej. 75" inputmode="numeric"
+                 oninput="clearAutoSelect()">
+        </div>
+        <div class="f-field">
+          <label class="f-label">
+            Código Hostaway
+            <span class="f-help" title="ID en Hostaway (Hostawayid)">?</span>
+          </label>
+          <input type="text" id="fHostaway" class="f-inp"
+                 placeholder="ej. 92737" inputmode="numeric"
+                 oninput="clearAutoSelect()">
+        </div>
+      </div>
+
+      <button class="btn-buscar" id="btnBuscar" onclick="doSearch()">
+        <div class="spin"></div>
+        <span>BUSCAR</span>
+      </button>
+    </div>
+
+    <!-- Resultados -->
+    <div class="results-wrap" id="resultsWrap">
+      <div class="results-header" id="resultsHeader"></div>
+      <div id="resultsList"></div>
+    </div>
+
+    <!-- Estado inicial -->
+    <div class="state-init" id="stateInit">
+      <div class="big"><img src="icons/icon-192.png" alt="3Villas" style="width:72px;height:72px;object-fit:contain;opacity:.55"></div>
+      <p>Introduce el nombre, el código llavero<br>o el código Hostaway para buscar.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+var allVillas=[],_loaded=false,_autoSelectedId='';
+
+window.addEventListener('DOMContentLoaded',function(){
+  /* Cargar todas las villas para autocomplete */
+  fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      allVillas=(json.Result||json.result||[]).map(function(v){
+        return{
+          id:    String(v.villaid||''),
+          name:  v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid,
+          hwid:  String(v.Hostawayid||''),
+          keybox:String(v.Keybox_code||v.keybox_code||v.Keybox||v.keybox||v.Guidal_keybox_ENES_param3_field||'')
+        };
+      }).filter(function(v){return v.id;});
+      _loaded=true;
+    }).catch(function(){});
+  document.addEventListener('keydown',function(e){if(e.key==='Enter')doSearch();});
+});
+
+/* ── Autocomplete ── */
+function onNombreInput(){
+  _autoSelectedId='';
+  var q=document.getElementById('fNombre').value.trim();
+  var dd=document.getElementById('acDd');
+  dd.innerHTML='';dd.style.display='none';
+  if(!q||q.length<2||!_loaded)return;
+  var ql=q.toLowerCase();
+  var matches=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,10);
+  if(!matches.length)return;
+  dd.innerHTML=matches.map(function(v){
+    var safe=v.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    var idx=safe.toLowerCase().indexOf(ql);
+    if(idx>=0)safe=safe.slice(0,idx)+'<mark>'+safe.slice(idx,idx+q.length)+'</mark>'+safe.slice(idx+q.length);
+    var sub=v.hwid?'<div class="ac-sub">Hostaway: '+v.hwid+'</div>':'';
+    return'<div class="ac-opt" data-id="'+v.id+'" data-name="'+v.name.replace(/"/g,'&quot;')+'">'+safe+sub+'</div>';
+  }).join('');
+  dd.querySelectorAll('.ac-opt').forEach(function(opt){
+    opt.addEventListener('mousedown',function(e){
+      e.preventDefault();
+      _autoSelectedId=opt.dataset.id;
+      document.getElementById('fNombre').value=opt.dataset.name;
+      dd.style.display='none';
+      doSearch();
+    });
+  });
+  dd.style.display='block';
+}
+document.addEventListener('click',function(e){
+  var dd=document.getElementById('acDd');
+  var inp=document.getElementById('fNombre');
+  if(inp&&!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
+});
+function clearAutoSelect(){_autoSelectedId='';}
+window.clearAutoSelect=clearAutoSelect;
+
+/* ── Búsqueda ── */
+window.doSearch=function doSearch(){
+  document.getElementById('acDd').style.display='none';
+  var nombre=document.getElementById('fNombre').value.trim();
+  var villaid=document.getElementById('fVillaid').value.trim();
+  var hwid=document.getElementById('fHostaway').value.trim();
+  if(!nombre&&!villaid&&!hwid){toast('Introduce al menos un campo de búsqueda','err');return;}
+
+  setBusy(true);
+  document.getElementById('stateInit').style.display='none';
+
+  /* Búsqueda local por nombre */
+  if(_loaded&&nombre&&!villaid&&!hwid){
+    var ql=nombre.toLowerCase();
+    var res=_autoSelectedId
+      ?allVillas.filter(function(v){return v.id===_autoSelectedId;})
+      :allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;});
+    setBusy(false);renderResults(res);return;
+  }
+  /* Búsqueda local por IDs */
+  if(_loaded&&!nombre){
+    var res2=allVillas.filter(function(v){
+      if(villaid&&hwid)return v.id===villaid&&v.hwid===hwid;
+      if(villaid)return v.id===villaid;
+      if(hwid)return v.hwid===hwid;
+      return false;
+    });
+    if(res2.length){setBusy(false);renderResults(res2);return;}
+  }
+
+  /* Query Caspio */
+  var parts=[];
+  if(villaid)parts.push('villaid='+encodeURIComponent(villaid));
+  if(hwid)parts.push('Hostawayid='+encodeURIComponent(hwid));
+  if(nombre&&!villaid&&!hwid)parts.push("Name_villa_para_inquilinos LIKE '%"+nombre+"%'");
+  var where=parts.join(' AND ');
+  var url=WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=50';
+  fetch(Auth.url(url))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=(json.Result||json.result||[]).map(function(v){return{
+        id:    String(v.villaid||''),
+        name:  v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid,
+        hwid:  String(v.Hostawayid||''),
+        keybox:String(v.Keybox_code||v.keybox_code||v.Keybox||v.keybox||v.Guidal_keybox_ENES_param3_field||'')
+      };}).filter(function(v){return v.id;});
+      renderResults(rows);
+    })
+    .catch(function(e){toast('Error: '+e.message,'err');})
+    .finally(function(){setBusy(false);});
+};
+
+/* ── Render resultados ── */
+function renderResults(villas){
+  var wrap=document.getElementById('resultsWrap');
+  var header=document.getElementById('resultsHeader');
+  var list=document.getElementById('resultsList');
+  if(!villas.length){
+    wrap.style.display='none';
+    var si=document.getElementById('stateInit');
+    si.style.display='block';
+    si.innerHTML='<div class="big"><img src="icons/icon-192.png" alt="" style="width:72px;height:72px;object-fit:contain;opacity:.45"></div><p>No se encontraron villas<br>con esos criterios.</p>';
+    return;
+  }
+  header.textContent=villas.length+' villa'+(villas.length>1?'s':'')+' encontrada'+(villas.length>1?'s':'');
+  list.innerHTML=villas.map(function(v){
+    var pills='';
+    if(v.id)pills+='<div class="vc-pill">🔑 Llavero <span>'+v.id+'</span></div>';
+    if(v.hwid)pills+='<div class="vc-pill">🏠 Hostaway <span>'+v.hwid+'</span></div>';
+    return'<a class="villa-card" href="villa.html?villa_id='+encodeURIComponent(v.id)+'" style="margin-bottom:8px">'
+      +'<div class="vc-head"><div class="vc-name">'+esc(v.name)+'</div><div class="vc-id">#'+v.id+'</div></div>'
+      +'<div class="vc-body">'+pills+'<div class="vc-arrow">›</div></div>'
+      +'</a>';
+  }).join('');
+  wrap.style.display='flex';
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function setBusy(on){
+  var btn=document.getElementById('btnBuscar');
+  var ov=document.getElementById('loadOverlay');
+  btn.disabled=on;btn.classList.toggle('loading',on);
+  if(ov)ov.style.display=on?'flex':'none';
+}
+
+var _tt;
+function toast(msg,type){
+  var el=document.getElementById('toast');
+  el.textContent=msg;el.className='show'+(type==='err'?' err':'');
+  clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);
+}
+})();
+</script>
+</body>
+</html>
