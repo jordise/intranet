@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v18 — 3Villas</title>
+  <title>Tareas v20 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -659,9 +659,7 @@ function toggleDesc(btn){
     }
     var muF=val('fMultiunit').trim();
     if(muF)parts.push("PMSmultiunitID='"+muF+"'"); /* v12 */
-    /* v15: urgente e importante */
-    if(filterUrgente)   parts.push("urgente='yes'");
-    if(filterImportante)parts.push("importante='yes'");
+    /* v19: urgente/importante filtrados en cliente con isFlagOn */
     return parts.join(' AND ');
   }
 
@@ -842,8 +840,13 @@ function toggleDesc(btn){
       // Filtro hasta en cliente: tareas sin fecha siempre pasan
       if(!hastaVal) return true;
       var rawD=t.Data_to_be_done_fixed||'';
-      if(!rawD) return true; // sin fecha → siempre visible
+      if(!rawD) return true;
       return rawD.split('T')[0]<=hastaVal;
+    }).filter(function(t){
+      /* v19: filtro urgente/importante en cliente */
+      if(filterUrgente   && !isFlagOn(t.urgente))    return false;
+      if(filterImportante && !isFlagOn(t.importante)) return false;
+      return true;
     }).map(function(t){
       return Object.assign({},t,{
         _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu].name:vn;})(), /* v12 */
@@ -858,20 +861,38 @@ function toggleDesc(btn){
       return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
     });
 
-    // Separar: pendientes urgentes vs futuras vs terminadas
-    var pendPast=[], pendFuture=[], doneRows=[];
+    /* v19: Separar en grupos con lógica de prioridad:
+       - Importante (solo pendPast, no futura salvo que sea también urgente) → primeros
+       - Urgente (cualquier fecha, sacada de Próximamente) → segundos
+       - Normal pendPast → en medio
+       - Próximamente: futuras no urgentes (aunque sean importantes) → colapsable
+       - Done → al final
+    */
+    var grpImportante=[], grpUrgente=[], grpNormal=[], grpProx=[], doneRows=[];
+
     filtered.forEach(function(t){
       if(isDone(t)){ doneRows.push(t); return; }
       var rawD=t.Data_to_be_done_fixed||'';
-      if(rawD && new Date(rawD.split('T')[0]+'T00:00:00')>today) pendFuture.push(t);
-      else pendPast.push(t);
+      var isFuture=rawD && new Date(rawD.split('T')[0]+'T00:00:00')>today;
+      var imp=isFlagOn(t.importante);
+      var urg=isFlagOn(t.urgente);
+
+      if(imp && !isFuture){
+        grpImportante.push(t);        /* importante + pasada/hoy → primero */
+      } else if(urg){
+        grpUrgente.push(t);           /* urgente (cualquier fecha) → segundo, sacada de Próximamente */
+      } else if(!isFuture){
+        grpNormal.push(t);            /* normal pasada/hoy → en medio */
+      } else {
+        grpProx.push(t);              /* futura no urgente → Próximamente */
+      }
     });
 
-    var pend=filtered.filter(function(t){return!isDone(t);}).length;
-    var done=filtered.filter(function(t){return isDone(t);}).length;
+    var pendTotal = grpImportante.length+grpUrgente.length+grpNormal.length+grpProx.length;
+    var done = doneRows.length;
     g('sCnt').textContent=filtered.length;
-    g('sPendCnt').textContent=pend; g('sDoneCnt').textContent=done;
-    g('sPendStat').style.display=pend>0?'flex':'none';
+    g('sPendCnt').textContent=pendTotal; g('sDoneCnt').textContent=done;
+    g('sPendStat').style.display=pendTotal>0?'flex':'none';
     g('sDoneStat').style.display=done>0?'flex':'none';
     g('statsBar').style.display='flex';
     if(g('hCount'))g('hCount').textContent=filtered.length||'';
@@ -882,31 +903,19 @@ function toggleDesc(btn){
       g('tableWrap').style.display='block'; return;
     }
 
-    /* v18: ordenar pendPast por prioridad: importante primero, urgente segundo, resto después */
-    function prioScore(t){
-      var imp=isFlagOn(t.importante), urg=isFlagOn(t.urgente);
-      if(imp) return 2;   /* importante: máxima prioridad */
-      if(urg) return 1;   /* urgente: segunda prioridad   */
-      return 0;           /* normal                       */
-    }
-    pendPast.sort(function(a,b){
-      var ps = prioScore(b)-prioScore(a);
-      if(ps!==0) return ps;
-      /* misma prioridad → mantener el orden existente (por fecha) */
-      return 0;
-    });
-
     var html='';
-    pendPast.forEach(function(t){ html+=buildRow(t,''); });
+    grpImportante.forEach(function(t){ html+=buildRow(t,''); });
+    grpUrgente.forEach(function(t){    html+=buildRow(t,''); });
+    grpNormal.forEach(function(t){     html+=buildRow(t,''); });
 
-    if(pendFuture.length){
+    if(grpProx.length){
       html+='<tr class="prox-toggle-row" onclick="toggleProxTareas()">'+
         '<td colspan="5">'+
         '<span style="margin-right:8px;font-size:14px">🗓️</span>'+
-        '<strong>Próximamente: '+pendFuture.length+' tarea'+(pendFuture.length>1?'s':'')+'</strong>'+
+        '<strong>Próximamente: '+grpProx.length+' tarea'+(grpProx.length>1?'s':'')+'</strong>'+
         '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>'+
         '</td></tr>';
-      pendFuture.forEach(function(t){ html+=buildRow(t,'prox-task-row'); });
+      grpProx.forEach(function(t){ html+=buildRow(t,'prox-task-row'); });
     }
 
     doneRows.forEach(function(t){ html+=buildRow(t,''); });
