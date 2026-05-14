@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editar Tarea v38 — 3Villas</title>
+  <title>Editar Tarea v39 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -73,6 +73,19 @@
     .mic-btn.rec{border-color:var(--red);background:var(--red-light);animation:pulse .8s ease-in-out infinite}
     @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,16,46,.3)}50%{box-shadow:0 0 0 6px rgba(200,16,46,0)}}
     .terminada-toggle{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid var(--gray-2);border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+    /* v39: toggles urgente / importante */
+    .flag-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .flag-toggle{display:flex;align-items:center;gap:10px;padding:11px 14px;border:2px solid var(--gray-2);border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+    .flag-toggle:hover.urg{border-color:var(--red)}
+    .flag-toggle:hover.imp{border-color:var(--orange)}
+    .flag-toggle.on.urg{border-color:var(--red);background:var(--red-light)}
+    .flag-toggle.on.imp{border-color:var(--orange);background:var(--orange-light)}
+    .ft-circle{width:24px;height:24px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;background:#fff;color:transparent}
+    .flag-toggle.on.urg .ft-circle{border-color:var(--red);background:var(--red);color:#fff}
+    .flag-toggle.on.imp .ft-circle{border-color:var(--orange);background:var(--orange);color:#fff}
+    .ft-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-4);transition:color .2s}
+    .flag-toggle.on.urg .ft-label{color:var(--red-dark);font-weight:800}
+    .flag-toggle.on.imp .ft-label{color:var(--orange);font-weight:800}
     .terminada-toggle:hover{border-color:var(--green)}
     .terminada-toggle.on{border-color:var(--green);background:var(--green-light)}
     .tt-circle{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;background:#fff;color:transparent}
@@ -246,6 +259,17 @@
             <div class="date-wrap"><input type="date" id="fFecha"></div>
           </div>
         </div>
+        <!-- v39: Urgente + Importante -->
+        <div class="flag-row">
+          <div class="flag-toggle urg" id="ftUrgente" onclick="toggleFlag('urgente')">
+            <div class="ft-circle" id="ftCircleUrg">✓</div>
+            <span class="ft-label" id="ftLabelUrg">Urgente</span>
+          </div>
+          <div class="flag-toggle imp" id="ftImportante" onclick="toggleFlag('importante')">
+            <div class="ft-circle" id="ftCircleImp">✓</div>
+            <span class="ft-label" id="ftLabelImp">Importante</span>
+          </div>
+        </div>
         <!-- v38: Villa + Multiunit en el mismo row, igual que nueva-tarea -->
         <div class="field-row" id="villaMuRow">
           <div class="field">
@@ -316,6 +340,7 @@ var afterPhotos =[0,1,2,3,4].map(function(){ return {file:null,url:'',deleted:fa
 
 var myUserName='',taskData=null,isSaving=false,isTerminada=false;
 var allVillas=[],selectedVillaId='';
+var isUrgente=false,isImportante=false; /* v39 */
 var allUsers=[],selectedUserId=''; /* v33 */
 var allMultiunits=[],selectedMultiunitId=''; /* v38 — igual que nueva-tarea */
 var selectedVillaId_='';  /* tracking para multiunit */
@@ -399,6 +424,21 @@ function setTerminada(val){
          else{s.textContent='⏳ Pendiente';s.className='h-status pend';if(h)h.style.background='var(--red)';} }
 }
 window.toggleTerminada=function(){ setTerminada(!isTerminada); };
+
+/* v39: Urgente / Importante */
+function setFlag(field,val){
+  if(field==='urgente'){
+    isUrgente=!!val;
+    var el=g('ftUrgente');if(el)el.classList.toggle('on',isUrgente);
+  } else {
+    isImportante=!!val;
+    var el=g('ftImportante');if(el)el.classList.toggle('on',isImportante);
+  }
+}
+window.toggleFlag=function(field){
+  if(field==='urgente')setFlag('urgente',!isUrgente);
+  else setFlag('importante',!isImportante);
+};
 
 window.toggleMasOpt=function(){
   var p=g('masOptPanel'),b=g('masOptBtn'); if(!p||!b)return;
@@ -503,6 +543,8 @@ function populateForm(){
     window._setUsuarioConfirmed(_aid, _au?_au.name:'');
   }
   setTerminada(isTruthy(t[F.terminada]));
+  setFlag('urgente',  isTruthy(t['urgente']   ||t['Urgente']   )); /* v39 */
+  setFlag('importante',isTruthy(t['importante']||t['Importante'])); /* v39 */
   // Villa en campo siempre visible (v28)
   selectedVillaId=String(t.villaid||'');
   /* v38: set multiunit del task */
@@ -959,6 +1001,8 @@ function submitForm(markDone){
     record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
     if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
     record['PMSmultiunitID']=selectedMultiunitId||''; /* v38 */
+    record['urgente']   =isUrgente;    /* v39 */
+    record['importante']=isImportante; /* v39 */
     BEFORE_FIELDS.forEach(function(f,i){ record[f]=beforeUrls[i]||''; });
     AFTER_FIELDS.forEach(function(f,i){ record[f]=afterUrls[i]||''; });
     return fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(taskId)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
