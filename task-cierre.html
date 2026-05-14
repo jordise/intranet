@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Tarea Limpieza v03 — 3Villas</title>
+  <title>Tarea Cierre v03 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -144,7 +144,7 @@
     <div class="wp-nav-sub" id="hRes"></div>
   </div>
   <div class="wp-nav-btns">
-    <div class="wp-task-badge" id="hTaskBadge">🧹 Limpieza</div>
+    <div class="wp-task-badge" id="hTaskBadge">🔒 Cierre</div>
     <button class="wp-debug-btn" onclick="showDebug()" title="Debug">🐛</button>
     <button class="wp-nav-close" onclick="try{window.close();}catch(e){history.back();}" title="Cerrar">✕</button>
   </div>
@@ -154,7 +154,7 @@
 
   <!-- 1. VERIFICACIONES -->
   <div class="card">
-    <div class="card-title">🧹 Verificaciones</div>
+    <div class="card-title">🔒 Cierre — Verificaciones</div>
     <label class="toggle-row" for="swVentanas">
       <div><div class="toggle-label">🪟 Ventanas y puertas cerradas</div><div class="toggle-sub">Obligatorio</div></div>
       <div class="switch"><input type="checkbox" id="swVentanas"><div class="slider"></div></div>
@@ -210,7 +210,7 @@
 
   <!-- 4. INCIDENCIAS — toggle -->
   <div class="card">
-    <label class="toggle-row" for="swIncidencias" style="padding:16px" onclick="event.preventDefault();handleIncToggle()">
+    <label class="toggle-row" for="swIncidencias" style="padding:16px" >
       <div>
         <div class="toggle-label" style="font-size:15px;font-weight:600">⚠️ Incidencias</div>
         <div class="toggle-sub" id="incHint">Marcar si hay algo roto o alguna incidencia</div>
@@ -336,7 +336,7 @@
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 const params=new URLSearchParams(location.search);
 const idReserva=params.get('Idreserva')||params.get('idreserva')||'';
-const taskType=params.get('Tasktype_booking')||'10';
+const taskType=params.get('Tasktype_booking')||'30';
 const code=params.get('code')||'';
 const TASK_CONFIG={'10':{badge:'🧹 Limpieza'},'20':{badge:'📦 WelcomePack'},'30':{badge:'🔒 Cierre'}};
 const cfg=TASK_CONFIG[taskType]||TASK_CONFIG['10'];
@@ -354,7 +354,7 @@ const SLOT_MAP={
 };
 
 /* ── sessionStorage iOS ── */
-const STATE_KEY='lim_'+idReserva+'_'+taskType;
+const STATE_KEY='cierr_'+idReserva+'_'+taskType;
 const MAX_AGE=5*60*1000;
 
 function saveState(){
@@ -474,7 +474,8 @@ async function guardarTodoOk(){
 
 /* ── Guardar ── */
 async function guardar(fromOk){
-  if(!fotoPresente()){fotoError();return;}
+  /* Foto obligatoria solo si se marca la tarea como completada */
+  if(sw('swDone')&&!fotoPresente()){fotoError();return;}
   const btn=g('btnSave'),lbl=g('saveLabel'),sp=g('saveSpinner'),btnOk=g('btnTodoOk');
   btn.disabled=true;if(btnOk)btnOk.disabled=true;lbl.textContent='Guardando...';sp.style.display='block';
   try{
@@ -482,23 +483,51 @@ async function guardar(fromOk){
       Limpieza_filtrolavaplatos:sw('swVentanas'),
       Limpieza_salyabrillan_lavaplatos:sw('swAires')?'Y':'',
       Limpieza_cajon_lavadora_limpio:sw('swBasura')?'Y':'',
-      Incidencias:incOpen,Solutiondescription:gv('txtIncidencia').trim(),
+      Incidencias:incOpen===true,Taskdescription:gv('txtIncidencia').trim(),
       Internal_notes:gv('txtNotas').trim(),
-      Taskname:cfg.badge||'Limpieza'};
+      Taskname:cfg.badge||'Cierre'};
 
-    /* Subir foto principal */
-    if(photos.main.file&&photos.main.base64){try{const up=await uploadPhoto(photos.main.file,idReserva,taskType,'1');if(up&&up.url)data['Picture_cloudfare1']=up.url;}catch(e){console.warn(e);}}
+    /* Subir foto principal: si hay archivo nuevo, subir; si hay previa cargada, preservar URL */
+    if(photos.main.file&&photos.main.base64){
+      try{const up=await uploadPhoto(photos.main.file,idReserva,taskType,'1');if(up&&up.url)data['Picture_cloudfare1']=up.url;}
+      catch(e){console.warn('Upload foto principal:',e);toast('⚠️ Error subiendo foto cocina','error');}
+    } else {
+      /* Preservar URL existente si la foto ya estaba guardada */
+      const prevImg=g('photoPreview');
+      if(prevImg&&prevImg.style.display==='block'&&prevImg.src&&prevImg.src.startsWith('http'))
+        data['Picture_cloudfare1']=prevImg.src;
+    }
     /* Subir fotos incidencias → Picture_cloudfare_after1..5 */
     for(const[slot,idx]of[['ai1',1],['ai2',2],['ai3',3],['ai4',4],['ai5',5]]){
-      if(photos[slot].file&&photos[slot].base64){try{const up=await uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx);if(up&&up.url)data['Picture_cloudfare_after'+idx]=up.url;}catch(e){console.warn(e);}}
+      if(photos[slot].file&&photos[slot].base64){
+        try{const up=await uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx);if(up&&up.url)data['Picture_cloudfare_after'+idx]=up.url;}
+        catch(e){console.warn('Upload foto inc'+idx+':',e);toast('⚠️ Error subiendo foto '+(idx),'error');}
+      } else {
+        const prevImg=g('aiPreview'+idx);
+        if(prevImg&&prevImg.style.display==='block'&&prevImg.src&&prevImg.src.startsWith('http'))
+          data['Picture_cloudfare_after'+idx]=prevImg.src;
+      }
     }
 
+    /* Comprobar si existe la tarea y guardar */
     const wh=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-    const chk=await(await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`))).json();
-    const exists=(chk.Result||chk.result||[]).length>0;
-    const qs=exists?`action=save&table=TaTasks&where=${encodeURIComponent(wh)}&method=PUT`:`action=save&table=TaTasks&method=POST`;
-    const res=await fetch(Auth.url(`${WORKER}?${qs}`),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-    if(!res.ok)throw new Error(await res.text());
+    const chkRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`));
+    const chkJson=await chkRes.json();
+    const existingRows=(chkJson.Result||chkJson.result||[]);
+    const exists=existingRows.length>0;
+    let res;
+    if(exists){
+      /* PUT: actualizar registro existente */
+      const taskId=existingRows[0].taskid||existingRows[0].TaskID||existingRows[0].idtask||'';
+      const putUrl=taskId
+        ? Auth.url(`${WORKER}?action=update&table=TaTasks&id=${encodeURIComponent(taskId)}`)
+        : Auth.url(`${WORKER}?action=save&table=TaTasks&where=${encodeURIComponent(wh)}&method=PUT`);
+      res=await fetch(putUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    } else {
+      /* POST: crear nuevo registro */
+      res=await fetch(Auth.url(`${WORKER}?action=save&table=TaTasks&method=POST`),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    }
+    if(!res.ok){const errTxt=await res.text();throw new Error('HTTP '+res.status+': '+errTxt.slice(0,120));}
     clearState();
     toast('✓ Guardado correctamente','success');
     btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
@@ -532,7 +561,7 @@ async function loadTask(){
   $sw('swAires',    task['Limpieza_salyabrillan_lavaplatos']=== 'Y'||task['Limpieza_salyabrillan_lavaplatos']===true);
   $sw('swBasura',   task['Limpieza_cajon_lavadora_limpio']=== 'Y'||task['Limpieza_cajon_lavadora_limpio']===true);
   onSwDoneChange();
-  const ti=g('txtIncidencia');if(ti&&task['Solutiondescription'])ti.value=task['Solutiondescription'];
+  const ti=g('txtIncidencia');if(ti&&task['Taskdescription'])ti.value=task['Taskdescription'];
   const tn=g('txtNotas');if(tn&&task['Internal_notes'])tn.value=task['Internal_notes'];
   const incVal=task['Incidencias'];
   if(incVal===true||incVal===1||['yes','sí','true'].includes(String(incVal).toLowerCase()))if(!incOpen)openInc();
