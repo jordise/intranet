@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="3Villas">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Buscar Villa v03 — 3Villas</title>
+  <title>Buscar Villa v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -221,7 +221,7 @@
           </label>
           <input type="text" id="fVillaid" class="f-inp"
                  placeholder="ej. 75" inputmode="numeric"
-                 oninput="clearAutoSelect()">
+                 oninput="updateBtnState()">
         </div>
         <div class="f-field">
           <label class="f-label">
@@ -230,7 +230,7 @@
           </label>
           <input type="text" id="fHostaway" class="f-inp"
                  placeholder="ej. 92737" inputmode="numeric"
-                 oninput="clearAutoSelect()">
+                 oninput="updateBtnState()">
         </div>
       </div>
 
@@ -248,7 +248,7 @@
 
     <!-- Estado inicial -->
     <div class="state-init" id="stateInit">
-      <div class="big"><img src="icons/icon-192.png" alt="3Villas" style="width:72px;height:72px;object-fit:contain;opacity:.55"></div>
+      <div class="big"><img src="icon-192.png" alt="3Villas" style="width:72px;height:72px;object-fit:contain"></div>
       <p>Introduce el nombre, el código llavero<br>o el código Hostaway para buscar.</p>
     </div>
 
@@ -259,19 +259,17 @@
 (function(){
 'use strict';
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
-var allVillas=[],_loaded=false,_autoSelectedId='';
+var allVillas=[],_loaded=false,_selectedVilla=null; /* villa seleccionada del dropdown */
 
 window.addEventListener('DOMContentLoaded',function(){
-  /* Cargar todas las villas para autocomplete */
   fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
     .then(function(r){return r.json();})
     .then(function(json){
       allVillas=(json.Result||json.result||[]).map(function(v){
         return{
-          id:    String(v.villaid||''),
-          name:  v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid,
-          hwid:  String(v.Hostawayid||''),
-          keybox:String(v.Keybox_code||v.keybox_code||v.Keybox||v.keybox||v.Guidal_keybox_ENES_param3_field||'')
+          id:   String(v.villaid||''),
+          name: v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid,
+          hwid: String(v.Hostawayid||'')
         };
       }).filter(function(v){return v.id;});
       _loaded=true;
@@ -279,16 +277,20 @@ window.addEventListener('DOMContentLoaded',function(){
   document.addEventListener('keydown',function(e){if(e.key==='Enter')doSearch();});
 });
 
-/* ── Autocomplete ── */
+/* ── Autocomplete nombre: seleccionar → ir directo a villa.html ── */
 function onNombreInput(){
-  _autoSelectedId='';
+  _selectedVilla=null; /* limpiar selección al escribir */
+  updateBtnState();
   var q=document.getElementById('fNombre').value.trim();
   var dd=document.getElementById('acDd');
   dd.innerHTML='';dd.style.display='none';
   if(!q||q.length<2||!_loaded)return;
   var ql=q.toLowerCase();
-  var matches=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,10);
-  if(!matches.length)return;
+  var matches=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);
+  if(!matches.length){
+    dd.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--gray-4);text-align:center">Sin resultados</div>';
+    dd.style.display='block';return;
+  }
   dd.innerHTML=matches.map(function(v){
     var safe=v.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     var idx=safe.toLowerCase().indexOf(ql);
@@ -299,94 +301,123 @@ function onNombreInput(){
   dd.querySelectorAll('.ac-opt').forEach(function(opt){
     opt.addEventListener('mousedown',function(e){
       e.preventDefault();
-      _autoSelectedId=opt.dataset.id;
+      _selectedVilla={id:opt.dataset.id,name:opt.dataset.name};
       document.getElementById('fNombre').value=opt.dataset.name;
       dd.style.display='none';
-      doSearch();
+      /* Ir directamente a la villa */
+      window.location.href='villa.html?villa_id='+encodeURIComponent(opt.dataset.id);
     });
   });
   dd.style.display='block';
 }
+window.onNombreInput=onNombreInput;
+
+/* cerrar dropdown al clicar fuera */
 document.addEventListener('click',function(e){
   var dd=document.getElementById('acDd');
   var inp=document.getElementById('fNombre');
   if(inp&&!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
 });
-function clearAutoSelect(){_autoSelectedId='';}
-window.clearAutoSelect=clearAutoSelect;
 
-/* ── Búsqueda ── */
-window.doSearch=function doSearch(){
-  document.getElementById('acDd').style.display='none';
-  var nombre=document.getElementById('fNombre').value.trim();
+/* Al salir del campo nombre sin selección: limpiar */
+document.addEventListener('DOMContentLoaded',function(){
+  var inp=document.getElementById('fNombre');
+  if(!inp)return;
+  inp.addEventListener('blur',function(){
+    setTimeout(function(){
+      document.getElementById('acDd').style.display='none';
+      if(!_selectedVilla&&inp.value.trim()){
+        /* texto libre sin seleccionar → marcar error visual */
+        inp.style.borderColor='var(--orange)';
+      }
+    },250);
+  });
+  inp.addEventListener('focus',function(){
+    inp.style.borderColor='';
+    if(inp.value.trim()&&!_selectedVilla)onNombreInput();
+  });
+});
+
+/* Habilitar/deshabilitar BUSCAR según estado */
+function updateBtnState(){
+  var btn=document.getElementById('btnBuscar');
   var villaid=document.getElementById('fVillaid').value.trim();
   var hwid=document.getElementById('fHostaway').value.trim();
-  if(!nombre&&!villaid&&!hwid){toast('Introduce al menos un campo de búsqueda','err');return;}
+  /* Buscar habilitado si: villa seleccionada del dropdown OR hay código */
+  var ok=!!_selectedVilla||!!villaid||!!hwid;
+  /* v05: botón siempre rojo — validación al hacer clic */
+}
+window.updateBtnState=updateBtnState;
 
-  setBusy(true);
-  document.getElementById('stateInit').style.display='none';
+/* ── BUSCAR: solo actúa con códigos (nombre ya va directo al seleccionar) ── */
+window.doSearch=function doSearch(){
+  document.getElementById('acDd').style.display='none';
+  var villaid=document.getElementById('fVillaid').value.trim();
+  var hwid=document.getElementById('fHostaway').value.trim();
+  var nombre=document.getElementById('fNombre').value.trim();
 
-  /* Búsqueda local por nombre */
-  if(_loaded&&nombre&&!villaid&&!hwid){
-    var ql=nombre.toLowerCase();
-    var res=_autoSelectedId
-      ?allVillas.filter(function(v){return v.id===_autoSelectedId;})
-      :allVillas.filter(function(v){return v.name.toLowerCase().indexOf(ql)!==-1;});
-    setBusy(false);renderResults(res);return;
+  /* Si hay nombre escrito pero sin selección → avisar */
+  if(nombre&&!_selectedVilla&&!villaid&&!hwid){
+    toast('Selecciona una villa del desplegable','err');
+    document.getElementById('fNombre').style.borderColor='var(--orange)';
+    return;
   }
-  /* Búsqueda local por IDs */
-  if(_loaded&&!nombre){
-    var res2=allVillas.filter(function(v){
+
+  /* Si villa seleccionada del dropdown → ya fue directo, pero por si acaso */
+  if(_selectedVilla){
+    window.location.href='villa.html?villa_id='+encodeURIComponent(_selectedVilla.id);
+    return;
+  }
+
+  if(!villaid&&!hwid){toast('Introduce al menos un código','err');return;}
+
+  /* Buscar por código en local primero */
+  if(_loaded){
+    var res=allVillas.filter(function(v){
       if(villaid&&hwid)return v.id===villaid&&v.hwid===hwid;
       if(villaid)return v.id===villaid;
       if(hwid)return v.hwid===hwid;
       return false;
     });
-    if(res2.length){setBusy(false);renderResults(res2);return;}
+    if(res.length===1){window.location.href='villa.html?villa_id='+encodeURIComponent(res[0].id);return;}
+    if(res.length>1){renderResults(res);return;}
   }
 
-  /* Query Caspio */
+  /* Query Caspio como fallback */
+  setBusy(true);
   var parts=[];
   if(villaid)parts.push('villaid='+encodeURIComponent(villaid));
   if(hwid)parts.push('Hostawayid='+encodeURIComponent(hwid));
-  if(nombre&&!villaid&&!hwid)parts.push("Name_villa_para_inquilinos LIKE '%"+nombre+"%'");
-  var where=parts.join(' AND ');
-  var url=WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=50';
+  var url=WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(parts.join(' AND '))+'&limit=10';
   fetch(Auth.url(url))
     .then(function(r){return r.json();})
     .then(function(json){
-      var rows=(json.Result||json.result||[]).map(function(v){return{
-        id:    String(v.villaid||''),
-        name:  v.Name_villa_para_inquilinos||v.Name||'Villa '+v.villaid,
-        hwid:  String(v.Hostawayid||''),
-        keybox:String(v.Keybox_code||v.keybox_code||v.Keybox||v.keybox||v.Guidal_keybox_ENES_param3_field||'')
-      };}).filter(function(v){return v.id;});
-      renderResults(rows);
+      var rows=(json.Result||json.result||[]).filter(function(v){return v.villaid;});
+      if(rows.length===1){
+        window.location.href='villa.html?villa_id='+encodeURIComponent(rows[0].villaid);
+      } else if(rows.length>1){
+        renderResults(rows.map(function(v){return{id:String(v.villaid),name:v.Name_villa_para_inquilinos||v.Name||'',hwid:String(v.Hostawayid||'')};}));
+      } else {
+        var si=document.getElementById('stateInit');
+        si.style.display='block';
+        si.innerHTML='<div class="big"><img src="icon-192.png" alt="" style="width:72px;height:72px;object-fit:contain;opacity:.6"></div><p>No se encontraron villas<br>con esos criterios.</p>';
+      }
     })
     .catch(function(e){toast('Error: '+e.message,'err');})
     .finally(function(){setBusy(false);});
 };
 
-/* ── Render resultados ── */
+/* Múltiples resultados por código → lista compacta */
 function renderResults(villas){
+  document.getElementById('stateInit').style.display='none';
   var wrap=document.getElementById('resultsWrap');
   var header=document.getElementById('resultsHeader');
   var list=document.getElementById('resultsList');
-  if(!villas.length){
-    wrap.style.display='none';
-    var si=document.getElementById('stateInit');
-    si.style.display='block';
-    si.innerHTML='<div class="big"><img src="icons/icon-192.png" alt="" style="width:72px;height:72px;object-fit:contain;opacity:.45"></div><p>No se encontraron villas<br>con esos criterios.</p>';
-    return;
-  }
-  header.textContent=villas.length+' villa'+(villas.length>1?'s':'')+' encontrada'+(villas.length>1?'s':'');
+  header.textContent=villas.length+' villas encontradas — elige una';
   list.innerHTML=villas.map(function(v){
-    var pills='';
-    if(v.id)pills+='<div class="vc-pill">🔑 Llavero <span>'+v.id+'</span></div>';
-    if(v.hwid)pills+='<div class="vc-pill">🏠 Hostaway <span>'+v.hwid+'</span></div>';
     return'<a class="villa-card" href="villa.html?villa_id='+encodeURIComponent(v.id)+'" style="margin-bottom:8px">'
       +'<div class="vc-head"><div class="vc-name">'+esc(v.name)+'</div><div class="vc-id">#'+v.id+'</div></div>'
-      +'<div class="vc-body">'+pills+'<div class="vc-arrow">›</div></div>'
+      +'<div class="vc-body">'+(v.hwid?'<div class="vc-pill">🏠 Hostaway <span>'+v.hwid+'</span></div>':'')+'<div class="vc-arrow">›</div></div>'
       +'</a>';
   }).join('');
   wrap.style.display='flex';
@@ -397,7 +428,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function setBusy(on){
   var btn=document.getElementById('btnBuscar');
   var ov=document.getElementById('loadOverlay');
-  btn.disabled=on;btn.classList.toggle('loading',on);
+  btn.classList.toggle('loading',on);
   if(ov)ov.style.display=on?'flex':'none';
 }
 
@@ -407,6 +438,11 @@ function toast(msg,type){
   el.textContent=msg;el.className='show'+(type==='err'?' err':'');
   clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);
 }
+
+/* Estado inicial: botón deshabilitado */
+document.addEventListener('DOMContentLoaded',function(){
+  /* v05: botón siempre activo */
+});
 })();
 </script>
 </body>
