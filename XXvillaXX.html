@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- villa-info.html v05 — nav compacta estilo pedir-wellcomepacks + menú lateral -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Villa Info v05 — 3Villas</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+      --green:#1e9e4e;--green-light:#e6f7ee;
+      --orange:#e07b00;--orange-light:#fff4e0;
+      --blue:#1967d2;--blue-light:#e8f0fe;
+      --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;
+      --gray-4:#7a8194;--gray-5:#2d3142;
+      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+      --shadow-md:0 4px 16px rgba(0,0,0,.11);
+      --r:12px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:40px}
+
+    /* ══ NAV COMPACTA ══ */
+    .wp-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:400}
+    .wp-nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+    .wp-nav-logo img{height:26px;object-fit:contain}
+    .wp-nav-center{flex:1;min-width:0;padding:0 6px}
+    .wp-nav-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-sub{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .h-id{background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:6px;padding:4px 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--gray-4);flex-shrink:0;white-space:nowrap}
+    .wp-nav-menu{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-menu:hover{background:var(--red-dark)}
+    .wp-nav-close{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-close:hover{background:rgba(200,16,46,.2)}
+
+    /* ══ LINKS BAR ══ */
+    #linksBar{background:#fff;border-bottom:1px solid var(--gray-2);padding:7px 14px;display:none;gap:6px;flex-wrap:wrap;position:sticky;z-index:350}
+    #linksBar.has-links{display:flex}
+    .h-btn{display:inline-flex;align-items:center;gap:5px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-5);padding:5px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-decoration:none;transition:all .15s;white-space:nowrap}
+    .h-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+
+    /* ══ SEARCH + NAV PILLS ══ */
+    #searchBar{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 16px;position:sticky;z-index:300;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:8px}
+    #searchInput{flex:1;border:1.5px solid var(--gray-2);border-radius:8px;padding:8px 12px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;transition:border-color .15s}
+    #searchInput:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    #searchCount{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--gray-4);white-space:nowrap;min-width:60px;text-align:right}
+    #navBar{background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 16px;position:sticky;z-index:200;overflow-x:auto;display:flex;gap:6px;scrollbar-width:none}
+    #navBar::-webkit-scrollbar{display:none}
+    .nav-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:5px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-decoration:none;transition:all .15s;white-space:nowrap;cursor:pointer;user-select:none}
+    .nav-pill:hover,.nav-pill.active{background:var(--red-light);border-color:var(--red);color:var(--red)}
+
+    /* ══ LOADING ══ */
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.93);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sp-txt{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+
+    /* ══ MAIN / SECTIONS ══ */
+    main{padding:14px 12px;max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+    .sec{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .sec-head{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;user-select:none;transition:background .15s;border-bottom:2px solid var(--gray-2)}
+    .sec-head:hover{background:var(--gray-1)}
+    .sec-ico{font-size:20px;flex-shrink:0;width:28px;text-align:center}
+    .sec-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5);flex:1}
+    .sec-arr{font-size:11px;color:var(--gray-4);transition:transform .22s;flex-shrink:0}
+    .sec.open .sec-arr{transform:rotate(180deg)}
+    .sec-body{display:none;padding:16px}
+    .sec.open .sec-body{display:block}
+    .sec.open{border-left:3px solid var(--red)}
+
+    /* ══ FIELDS ══ */
+    .field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:12px}
+    .field-grid:last-child{margin-bottom:0}
+    .fld{background:var(--gray-1);border-radius:8px;padding:10px 12px}
+    .fld-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:4px}
+    .fld-val{font-size:13px;color:var(--gray-5);font-weight:500;line-height:1.4;word-break:break-word}
+    .fld-val.empty{color:var(--gray-3);font-style:italic;font-size:12px}
+    .fld-val a{color:var(--blue);text-decoration:none;word-break:break-all}
+    .fld-val a:hover{text-decoration:underline}
+    .fld.highlight{background:var(--red-light);border-left:3px solid var(--red)}
+    .fld.highlight .fld-lbl{color:var(--red-dark)}
+    .fld.blue{background:var(--blue-light);border-left:3px solid var(--blue)}
+    .fld.blue .fld-lbl{color:var(--blue)}
+    .fld.green{background:var(--green-light);border-left:3px solid var(--green)}
+    .fld.green .fld-lbl{color:var(--green)}
+    .fld-full{background:var(--gray-1);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+    .fld-full:last-child{margin-bottom:0}
+
+    /* ══ KEYBOX ══ */
+    .keybox-box{background:var(--gray-5);color:#fff;border-radius:10px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:14px}
+    .keybox-code{font-family:'Montserrat',sans-serif;font-size:28px;font-weight:900;letter-spacing:3px;color:#fff}
+    .keybox-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;opacity:.6;margin-bottom:3px}
+    .keybox-notes{font-size:12px;opacity:.8;line-height:1.4;margin-top:4px}
+
+    /* ══ TEAM ══ */
+    .team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:10px}
+    .team-card{background:var(--gray-1);border-radius:10px;border-left:3px solid var(--gray-3);cursor:pointer;transition:box-shadow .15s,transform .1s;overflow:hidden}
+    .team-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1);transform:translateY(-1px)}
+    .team-card.keyholder{border-left-color:var(--red);background:var(--red-light)}
+    .team-card.cleaner{border-left-color:#1565c0;background:var(--blue-light)}
+    .team-card.pool{border-left-color:#0288d1}
+    .team-card.garden{border-left-color:var(--green);background:var(--green-light)}
+    .team-card.maintenance{border-left-color:var(--orange)}
+    .team-card-top{padding:10px 12px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+    .team-card-info{flex:1;min-width:0}
+    .team-role{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:3px}
+    .team-name{font-size:13px;font-weight:700;color:var(--gray-5);line-height:1.3;word-break:break-word}
+    .team-arrow{font-size:16px;color:var(--gray-3);flex-shrink:0;padding-left:4px}
+    .team-actions{display:flex;border-top:1px solid rgba(0,0,0,.06)}
+    .tc-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 4px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-decoration:none;color:var(--gray-5);transition:background .15s;border-right:1px solid rgba(0,0,0,.06)}
+    .tc-btn:last-child{border-right:none}
+    .tc-btn:hover{background:rgba(0,0,0,.06)}
+    .tc-call{color:var(--green)}.tc-wa{color:#25D366}.tc-mail{color:var(--blue)}
+
+    /* ══ ROOMS ══ */
+    .room-row{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:8px;background:var(--gray-1);margin-bottom:6px}
+    .room-num{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:900;color:var(--red);width:20px;flex-shrink:0;margin-top:1px}
+    .room-info{font-size:12px;color:var(--gray-5);line-height:1.5;flex:1}
+    .room-tag{display:inline-block;background:var(--gray-2);color:var(--gray-5);border-radius:4px;padding:1px 6px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;margin:1px 2px}
+
+    /* ══ CAROUSEL ══ */
+    .carousel{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:thin;scrollbar-color:var(--gray-3) transparent;margin:10px 0}
+    .carousel:empty{display:none}
+    .carousel::-webkit-scrollbar{height:4px}
+    .carousel::-webkit-scrollbar-thumb{background:var(--gray-3);border-radius:2px}
+    .car-img{flex:0 0 auto;width:200px;height:160px;border-radius:10px;object-fit:cover;scroll-snap-align:start;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .2s}
+    .car-img:hover{transform:scale(1.03)}
+
+    /* ══ LIGHTBOX ══ */
+    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+    #lightbox.open{display:flex}
+    #lbImg{max-width:95vw;max-height:85vh;border-radius:10px;object-fit:contain}
+    #lbClose{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .lb-nav{display:flex;gap:20px}
+    .lb-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:10px 20px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s}
+    .lb-btn:hover{background:rgba(255,255,255,.3)}
+
+    /* ══ WIFI / ALARMA / PISCINA ══ */
+    .wifi-box{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;border-radius:10px;padding:16px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .wifi-box .fld-lbl{color:rgba(255,255,255,.6)}
+    .wifi-box .fld-val{color:#fff;font-size:17px;font-weight:700;font-family:'Montserrat',sans-serif;letter-spacing:2px;margin-top:4px;word-break:break-all}
+    .alarm-box{background:linear-gradient(135deg,#b71c1c,#c62828);color:#fff;border-radius:10px;padding:14px;margin-bottom:12px}
+    .alarm-code{font-family:'Montserrat',sans-serif;font-size:40px;font-weight:900;letter-spacing:10px;text-align:center;margin:8px 0}
+    .pool-box{background:linear-gradient(135deg,#0277bd,#0288d1);color:#fff;border-radius:10px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:14px}
+    .pool-ico{font-size:36px}
+    .pool-name{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800}
+    .pool-size{font-size:12px;opacity:.8;margin-top:3px}
+
+    /* ══ PAX ══ */
+    .pax-box{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .pax-num{border-radius:10px;padding:12px 16px;text-align:center;min-width:80px}
+    .pax-n{font-family:'Montserrat',sans-serif;font-size:32px;font-weight:900;line-height:1}
+    .pax-l{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;margin-top:4px}
+
+    /* ══ MISC ══ */
+    .sec-divider{border:none;border-top:1px solid var(--gray-2);margin:14px 0}
+    .sub-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:8px;display:block}
+    .dist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+    .dist-card{background:var(--gray-1);border-radius:8px;padding:10px;text-align:center}
+    .dist-ico{font-size:20px;margin-bottom:4px}
+    .dist-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:3px}
+    .dist-val{font-size:13px;font-weight:700;color:var(--gray-5)}
+    mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);opacity:0;background:var(--gray-5);color:#fff;padding:10px 20px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;transition:all .3s;z-index:9999;pointer-events:none}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* ══ MENÚ LATERAL ══ */
+    #menuOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;backdrop-filter:blur(2px)}
+    #menuOverlay.open{display:block}
+    #menuPanel{position:fixed;top:0;left:0;bottom:0;width:min(280px,80vw);background:#fff;z-index:901;box-shadow:4px 0 24px rgba(0,0,0,.15);transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;overflow:hidden}
+    #menuPanel.open{transform:translateX(0)}
+    .mp-head{padding:16px 18px 12px;border-bottom:1.5px solid var(--gray-2);display:flex;align-items:center;justify-content:space-between}
+    .mp-logo{display:flex;align-items:center;text-decoration:none}
+    .mp-logo img{height:26px;object-fit:contain}
+    .mp-close{background:none;border:none;color:var(--gray-4);font-size:18px;font-weight:900;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s}
+    .mp-close:hover{background:var(--gray-1)}
+    .mp-items{flex:1;overflow-y:auto;padding:8px 0}
+    .mp-item{display:flex;align-items:center;gap:14px;padding:13px 20px;text-decoration:none;color:var(--gray-5);font-family:'Open Sans',sans-serif;font-size:14px;font-weight:500;transition:background .12s;border-left:3px solid transparent}
+    .mp-item:hover{background:var(--gray-1);border-left-color:var(--red)}
+    .mp-item.active{background:var(--red-light);color:var(--red);font-weight:700;border-left-color:var(--red)}
+    .mp-ico{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .mp-ico.red{background:var(--red-light);color:var(--red)}.mp-ico.blue{background:#e8f0fe;color:#1967d2}.mp-ico.green{background:var(--green-light);color:var(--green)}.mp-ico.orange{background:var(--orange-light);color:var(--orange)}.mp-ico.gray{background:var(--gray-2);color:var(--gray-4)}
+    .mp-sep{height:1px;background:var(--gray-2);margin:6px 20px}
+    .mp-user{padding:14px 20px;border-top:1.5px solid var(--gray-2);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--gray-4)}
+    .mp-user-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+    @media(max-width:600px){
+      .field-grid{grid-template-columns:1fr}
+      .team-grid{grid-template-columns:1fr}
+      .dist-grid{grid-template-columns:repeat(3,1fr)}
+      .wifi-box{grid-template-columns:1fr}
+    }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<!-- ══ MENÚ LATERAL ══ -->
+<div id="menuOverlay" onclick="closeMenu()"></div>
+<div id="menuPanel">
+  <div class="mp-head">
+    <a class="mp-logo" href="index.html"><img src="logo-negro.png" alt="<3Villas"></a>
+    <button class="mp-close" onclick="closeMenu()">✕</button>
+  </div>
+  <div class="mp-items">
+    <a class="mp-item" href="entradas.html"><span class="mp-ico red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Entradas</a>
+    <a class="mp-item" href="buscar-villa.html"><span class="mp-ico blue"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg></span>Villas</a>
+    <a class="mp-item" href="tareas.html"><span class="mp-ico green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>Tareas</a>
+    <a class="mp-item" href="contactos.html"><span class="mp-ico orange"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Contactos</a>
+    <div class="mp-sep"></div>
+    <a class="mp-item" href="https://www.3villas.net/intranet" target="_blank"><span class="mp-ico gray"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>Antigua intranet ↗</a>
+  </div>
+  <div class="mp-user"><div class="mp-user-dot"></div><span id="menuUserName">—</span></div>
+</div>
+
+<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt" id="loadTxt">Cargando villa…</div></div>
+<div id="toast"></div>
+
+<div id="lightbox" onclick="if(event.target===this)closeLB()">
+  <button id="lbClose" onclick="closeLB()">✕</button>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-nav">
+    <button class="lb-btn" onclick="lbPrev()">← Anterior</button>
+    <button class="lb-btn" onclick="lbNext()">Siguiente →</button>
+  </div>
+</div>
+
+<!-- ══ NAV COMPACTA ══ -->
+<nav class="wp-nav">
+  <a class="wp-nav-logo" href="index.html">
+    <img src="logo-negro.png" alt="<3Villas">
+  </a>
+  <div class="wp-nav-center">
+    <div class="wp-nav-title" id="hName">Cargando…</div>
+    <div class="wp-nav-sub" id="hSub"></div>
+  </div>
+  <div class="wp-nav-btns">
+    <div class="h-id" id="hId"></div>
+    <button class="wp-nav-menu" onclick="openMenu()" title="Menú">☰</button>
+    <button class="wp-nav-close" onclick="goBack()" title="Cerrar">✕</button>
+  </div>
+</nav>
+
+<!-- ══ LINKS BAR: Mapa · Hostaway · 3villas.com · Drive ══ -->
+<div id="linksBar"></div>
+
+<div id="searchBar">
+  <input id="searchInput" type="text" placeholder="🔍 Buscar en la ficha…" oninput="doSearch(this.value)">
+  <span id="searchCount"></span>
+</div>
+
+<div id="navBar">
+  <span class="nav-pill" onclick="navGo('sec-keys')">🔑 Acceso</span>
+  <span class="nav-pill" onclick="navGo('sec-loc')">📍 Ubicación</span>
+  <span class="nav-pill" onclick="navGo('sec-team')">👥 Equipo</span>
+  <span class="nav-pill" onclick="navGo('sec-admin')">📋 Admin</span>
+  <span class="nav-pill" onclick="navGo('sec-rooms')">🛏 Hab.</span>
+  <span class="nav-pill" onclick="navGo('sec-pool')">🏊 Piscina</span>
+  <span class="nav-pill" onclick="navGo('sec-wifi')">📶 Wifi</span>
+  <span class="nav-pill" onclick="navGo('sec-install')">⚡ Instalaciones</span>
+  <span class="nav-pill" onclick="navGo('sec-extras')">✨ Extras</span>
+  <span class="nav-pill" onclick="navGo('sec-safety')">🧰 Seguridad</span>
+</div>
+
+<main id="mainContent" style="display:none">
+
+  <!-- 1. ACCESO -->
+  <div class="sec open" id="sec-keys">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">🔑</span><span class="sec-title">Acceso y Llaves</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div id="keybox1Wrap"></div><div class="carousel" id="carKeybox1"></div>
+      <div id="keybox2Wrap"></div><div class="carousel" id="carKeybox2"></div>
+    </div>
+  </div>
+
+  <!-- 2. UBICACIÓN -->
+  <div class="sec" id="sec-loc">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">📍</span><span class="sec-title">Ubicación y Distancias</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div class="field-grid" id="locFields"></div>
+      <hr class="sec-divider"><span class="sub-title">Distancias aproximadas</span>
+      <div class="dist-grid" id="distGrid"></div>
+    </div>
+  </div>
+
+  <!-- 3. EQUIPO -->
+  <div class="sec" id="sec-team">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">👥</span><span class="sec-title">Equipo y Servicios</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body"><div id="teamNotesWrap"></div><div class="team-grid" id="teamGrid"></div></div>
+  </div>
+
+  <!-- 4. ADMIN -->
+  <div class="sec" id="sec-admin">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">📋</span><span class="sec-title">Administración y Contrato</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div class="field-grid" id="adminFields"></div>
+      <hr class="sec-divider"><span class="sub-title">🌐 Plataformas y webs</span>
+      <div class="field-grid" id="webFields"></div>
+    </div>
+  </div>
+
+  <!-- 5. HABITACIONES -->
+  <div class="sec" id="sec-rooms">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">🛏</span><span class="sec-title">Habitaciones y Baños</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div class="pax-box" id="paxBox"></div>
+      <div id="roomsList"></div>
+      <hr class="sec-divider"><div class="field-grid" id="bathFields"></div>
+    </div>
+  </div>
+
+  <!-- 6. PISCINA -->
+  <div class="sec" id="sec-pool">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">🏊</span><span class="sec-title">Piscina y Jacuzzi</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div id="poolBox"></div><div class="field-grid" id="poolFields"></div><div id="jacuzziBlock"></div>
+    </div>
+  </div>
+
+  <!-- 7. WIFI -->
+  <div class="sec" id="sec-wifi">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">📶</span><span class="sec-title">Wifi</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body"><div id="wifiBox"></div><div class="field-grid" id="wifiFields"></div></div>
+  </div>
+
+  <!-- 8. INSTALACIONES -->
+  <div class="sec" id="sec-install">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">⚡</span><span class="sec-title">Instalaciones</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <span class="sub-title">🔥 Calefacción / Caldera</span>
+      <div class="field-grid" id="calderaFields"></div><div class="carousel" id="carCaldera"></div>
+      <hr class="sec-divider"><span class="sub-title">⚡ Electricidad</span>
+      <div class="field-grid" id="elecFields"></div><div class="carousel" id="carElec"></div>
+      <hr class="sec-divider"><span class="sub-title">💧 Agua</span>
+      <div class="field-grid" id="aguaFields"></div><div class="carousel" id="carAgua"></div>
+      <hr class="sec-divider"><span class="sub-title">☀️ Placas Solares</span>
+      <div class="field-grid" id="placasFields"></div><div class="carousel" id="carPlacas"></div>
+    </div>
+  </div>
+
+  <!-- 9. EXTRAS -->
+  <div class="sec" id="sec-extras">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">✨</span><span class="sec-title">Extras y Equipamiento</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body"><div class="field-grid" id="extrasFields"></div></div>
+  </div>
+
+  <!-- 10. SEGURIDAD -->
+  <div class="sec" id="sec-safety">
+    <div class="sec-head" onclick="togSec(this)"><span class="sec-ico">🧰</span><span class="sec-title">Seguridad y Mantenimiento</span><span class="sec-arr">▾</span></div>
+    <div class="sec-body">
+      <div id="alarmBox"></div><div class="field-grid" id="alarmFields"></div>
+      <hr class="sec-divider"><div class="field-grid" id="safetyFields"></div><div id="safeboxBlock"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function(){
+'use strict';
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+var params=new URLSearchParams(location.search);
+var villaId=(params.get('villa_id')||params.get('villaid')||'').trim();
+var villaData=null,contactsMap={},usersMap={};
+
+function loadContacts(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaContacts&limit=500'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      (json.Result||json.result||[]).forEach(function(c){
+        var id=String(c.ContactID||c.contactID||'').trim();
+        var name=(c.Name||c.FullName||c.full_name||[c.FirstName,c.LastName].filter(Boolean).join(' ')||c.email||c.Email||id).trim();
+        var phone=(c.Phone||c.phone||'').trim();
+        var email=(c.Email||c.email||'').trim();
+        if(id)contactsMap[id]={name:name,phone:phone,email:email};
+      });
+    }).catch(function(){});
+}
+function resContact(id){if(!id)return null;var sid=String(id).trim();var data=contactsMap[sid];if(data)return data.name||null;return usersMap[sid]||null;}
+function resContactData(id){if(!id)return null;var sid=String(id).trim();return contactsMap[sid]||null;}
+
+function g(id){return document.getElementById(id);}
+function v(k){if(!villaData)return'';var vl=villaData[k];return(vl!==undefined&&vl!==null&&vl!=='')?vl:'';}
+function fUrl(k){var vl=villaData[k];if(!vl)return null;if(typeof vl==='string'&&vl.startsWith('http'))return vl;if(typeof vl==='object'&&vl)return vl.Url||vl.url||null;return null;}
+function empty(s){return!s||String(s).trim()===''||String(s).trim()==='-';}
+function val(k){return empty(v(k))?null:String(v(k)).trim();}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+var _tt;function toast(msg){var el=g('toast');el.textContent=msg;el.className='show';clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},2500);}
+
+window.goBack=function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},200);};
+
+/* fixStickyTops — v05: usa .wp-nav */
+function fixStickyTops(){
+  var nav=document.querySelector('.wp-nav'),lbar=g('linksBar'),sbar=g('searchBar'),nbar=g('navBar');
+  if(!nav||!sbar)return;
+  var navH=nav.offsetHeight,lbarH=(lbar&&lbar.classList.contains('has-links'))?lbar.offsetHeight:0;
+  if(lbar)lbar.style.top=navH+'px';
+  sbar.style.top=(navH+lbarH)+'px';
+  if(nbar)nbar.style.top=(navH+lbarH+sbar.offsetHeight)+'px';
+}
+window.addEventListener('resize',fixStickyTops);
+
+/* navGo — v05: usa .wp-nav */
+window.navGo=function(secId){
+  var sec=g(secId);if(!sec)return;
+  if(!sec.classList.contains('open'))sec.classList.add('open');
+  fixStickyTops();
+  var nav=document.querySelector('.wp-nav'),lbar=g('linksBar'),sbar=g('searchBar'),nbar=g('navBar');
+  var off=(nav?nav.offsetHeight:0)+((lbar&&lbar.classList.contains('has-links'))?lbar.offsetHeight:0)+(sbar?sbar.offsetHeight:0)+(nbar?nbar.offsetHeight:0)+10;
+  var top=sec.getBoundingClientRect().top+window.pageYOffset-off;
+  window.scrollTo({top:top,behavior:'smooth'});
+  document.querySelectorAll('.nav-pill').forEach(function(p){p.classList.remove('active');});
+  var pill=document.querySelector('[onclick="navGo(\''+secId+'\')"]');
+  if(pill)pill.classList.add('active');
+};
+
+window.togSec=function(head){head.closest('.sec').classList.toggle('open');};
+
+var lbImages=[],lbIdx=0;
+window.openLB=function(imgs,idx){lbImages=imgs;lbIdx=idx;g('lbImg').src=imgs[idx];g('lightbox').classList.add('open');document.body.style.overflow='hidden';};
+window.closeLB=function(){g('lightbox').classList.remove('open');document.body.style.overflow='';};
+window.lbNext=function(){lbIdx=(lbIdx+1)%lbImages.length;g('lbImg').src=lbImages[lbIdx];};
+window.lbPrev=function(){lbIdx=(lbIdx-1+lbImages.length)%lbImages.length;g('lbImg').src=lbImages[lbIdx];};
+document.addEventListener('keydown',function(e){if(!g('lightbox').classList.contains('open'))return;if(e.key==='ArrowRight')lbNext();if(e.key==='ArrowLeft')lbPrev();if(e.key==='Escape')closeLB();});
+
+function makeCarousel(containerId,urlArray){
+  var validUrls=urlArray.filter(Boolean);var cont=g(containerId);
+  if(!validUrls.length){cont.style.display='none';return;}
+  cont.innerHTML=validUrls.map(function(u,i){return'<img class="car-img" src="'+u+'" alt="foto '+(i+1)+'" loading="lazy" onerror="this.style.display=\'none\'" onclick="openLB('+JSON.stringify(validUrls)+','+i+')">';}).join('');
+}
+function makeField(label,value,opts){
+  opts=opts||{};if(empty(value)&&!opts.showEmpty)return null;
+  var inner=opts.raw?(value||'—'):esc(value||'—');
+  var cls='fld'+(opts.highlight?' highlight':opts.blue?' blue':opts.green?' green':'');
+  return'<div class="'+cls+'"><div class="fld-lbl">'+label+'</div><div class="fld-val'+(empty(value)?' empty':'')+'">'+inner+'</div></div>';
+}
+function addFields(containerId,fields){var html=fields.filter(Boolean).join('');if(html)g(containerId).innerHTML=html;}
+function url3villas(){var wt=val('web_tresvillas_link');if(wt){if(wt.startsWith('http'))return wt;return'https://www.3villas.com/es/listings/'+wt;}var vr=val('vreasyid');if(vr)return'https://www.3villas.com/es/listings/'+vr;return null;}
+function urlHostaway(){var lw=val('linkweb');if(lw){if(lw.startsWith('http'))return lw;return'https://dashboard.hostaway.com/listings/edit/'+lw;}var vr=val('vreasyid');if(vr)return'https://dashboard.hostaway.com/listings/edit/'+vr;return null;}
+
+var originalHTML='';
+window.doSearch=function(term){
+  if(!g('mainContent'))return;
+  if(!originalHTML)originalHTML=g('mainContent').innerHTML;
+  g('mainContent').innerHTML=originalHTML;
+  if(!term.trim()){g('searchCount').textContent='';return;}
+  var body=g('mainContent'),count=0;
+  var walker=document.createTreeWalker(body,NodeFilter.SHOW_TEXT);
+  var nodes=[],node;while((node=walker.nextNode()))nodes.push(node);
+  var re=new RegExp('('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  nodes.forEach(function(n){if(!re.test(n.textContent))return;re.lastIndex=0;var span=document.createElement('span');span.innerHTML=n.textContent.replace(re,'<mark class="sh">$1</mark>');count+=span.querySelectorAll('mark').length;n.parentNode.replaceChild(span,n);});
+  g('searchCount').textContent=count?count+' res.':'Sin resultados';
+};
+
+function populate(){
+  var name=val('Name_villa_para_inquilinos')||val('Name')||'Villa';
+  g('hName').textContent=name;
+  var vmName=resContact(val('KeyHolder_person'))||val('KeyHolder_person')||'';
+  g('hSub').textContent=[val('Zone')||'',vmName?'VM: '+vmName:''].filter(Boolean).join(' · ');
+  g('hId').textContent='Villa #'+(val('villaid')||villaId);
+
+  var url3v=url3villas(),urlHa=urlHostaway(),linksHtml='';
+  if(val('Googlemaps_link'))linksHtml+='<a class="h-btn" href="'+esc(v('Googlemaps_link'))+'" target="_blank">📍 Mapa</a>';
+  if(urlHa)linksHtml+='<a class="h-btn" href="'+esc(urlHa)+'" target="_blank">🏠 Hostaway</a>';
+  if(url3v)linksHtml+='<a class="h-btn" href="'+esc(url3v)+'" target="_blank">🌐 3villas.com</a>';
+  if(val('Drive'))linksHtml+='<a class="h-btn" href="'+esc(v('Drive'))+'" target="_blank">📁 Drive</a>';
+  if(linksHtml){g('linksBar').innerHTML=linksHtml;g('linksBar').classList.add('has-links');}
+
+  if(val('Keybox_code')){g('keybox1Wrap').innerHTML='<div class="keybox-box"><div style="font-size:36px">🔑</div><div><div class="keybox-label">Keybox Principal</div><div class="keybox-code">'+esc(v('Keybox_code'))+'</div>'+(val('Key_Coments')?'<div class="keybox-notes">'+esc(v('Key_Coments'))+'</div>':'')+'</div></div>';}
+  makeCarousel('carKeybox1',[fUrl('PictureKeybox1'),fUrl('PictureKeybox2'),fUrl('PictureKeybox3'),fUrl('PictureKeybox4'),fUrl('PictureKeybox5'),fUrl('PictureKeybox6'),fUrl('PictureKeybox7'),fUrl('PictureKeybox8'),fUrl('PictureKeybox9'),fUrl('PictureKeybox10'),fUrl('PictureKeybox11'),fUrl('PictureKeybox12'),fUrl('PictureKeybox13')]);
+  if(val('Keybox_code2')){g('keybox2Wrap').innerHTML='<hr class="sec-divider"><div class="keybox-box" style="background:var(--gray-4)"><div style="font-size:36px">🔐</div><div><div class="keybox-label">Segundo Keybox</div><div class="keybox-code">'+esc(v('Keybox_code2'))+'</div>'+(val('Key_Coments2')?'<div class="keybox-notes">'+esc(v('Key_Coments2'))+'</div>':'')+'</div></div>';}
+  makeCarousel('carKeybox2',[fUrl('PictureKeybox2_1'),fUrl('PictureKeybox2_2'),fUrl('PictureKeybox2_3'),fUrl('PictureKeybox2_4'),fUrl('PictureKeybox2_5'),fUrl('PictureKeybox2_6'),fUrl('PictureKeybox2_7'),fUrl('PictureKeybox2_8')]);
+  if(val('Notas_keyholder')){g('keybox2Wrap').innerHTML+='<div class="fld-full" style="border-left:3px solid var(--orange);background:var(--orange-light);margin-top:10px"><div class="fld-lbl">📌 Notas Villamanager</div><div class="fld-val">'+esc(v('Notas_keyholder'))+'</div></div>';}
+
+  addFields('locFields',[makeField('Dirección',val('Address')),makeField('Zona',val('Zone')),makeField('Transporte público',val('Public_transpost')),makeField('Taxi y Transfers',val('Taxi_and_Transfers'))]);
+  g('distGrid').innerHTML=[{ico:'🏖️',label:'Playa',k:'Beach_distance'},{ico:'🍽️',label:'Restaurantes',k:'Restaurant_distance'},{ico:'🛒',label:'Supermercado',k:'Supermarket_distance'},{ico:'✈️',label:'Aeropuerto',k:'Airport_distance'},{ico:'💊',label:'Farmacia',k:'Pharmacy_distance'}].map(function(d){return'<div class="dist-card"><div class="dist-ico">'+d.ico+'</div><div class="dist-lbl">'+d.label+'</div><div class="dist-val">'+(val(d.k)||'—')+'</div></div>';}).join('');
+
+  if(val('Sercives_comments')){g('teamNotesWrap').innerHTML='<div class="fld-full" style="margin-bottom:12px;border-left:3px solid var(--orange);background:var(--orange-light)"><div class="fld-lbl">Comentarios de servicios</div><div class="fld-val">'+esc(v('Sercives_comments'))+'</div></div>';}
+  var teamDefs=[{cls:'keyholder',ico:'🏠',role:'Villamanager',k:'KeyHolder_person'},{cls:'cleaner',ico:'🧹',role:'Limpieza',k:'Cleanning_team'},{cls:'pool',ico:'🏊',role:'Piscinero',k:'Pool_team'},{cls:'garden',ico:'🌳',role:'Jardinero',k:'Garden_team'},{cls:'maintenance',ico:'🔧',role:'Mantenimiento',k:'Maintenance_team'},{cls:'maintenance',ico:'⚡',role:'Electricista',k:'Electrician'},{cls:'maintenance',ico:'🔩',role:'Fontanero',k:'Plumber'},{cls:'maintenance',ico:'❄️',role:'Responsable Aire',k:'Aircondition_ownerteam'},{cls:'',ico:'📊',role:'Gestoría / Contable',k:'Agency_gestoria'},{cls:'',ico:'⚠️',role:'Responsable Incidencias',k:'Issues_responsible'},{cls:'',ico:'📦',role:'Welcome Pack',k:'Wellcompack'}];
+  g('teamGrid').innerHTML=teamDefs.filter(function(t){return val(t.k);}).map(function(t){
+    var rawId=val(t.k),cdata=resContactData(rawId);
+    var display=(cdata&&cdata.name)||resContact(rawId)||rawId;
+    var phone=cdata?cdata.phone:'',email=cdata?cdata.email:'';
+    var contactUrl='https://jordise.github.io/3villas-manuals/contactos.html?contactid='+encodeURIComponent(rawId);
+    var actionBtns='';
+    if(phone){actionBtns+='<a class="tc-btn tc-call" href="tel:'+esc(phone)+'" onclick="event.stopPropagation()">📞 Llamar</a>';actionBtns+='<a class="tc-btn tc-wa" href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" onclick="event.stopPropagation()">💬 WA</a>';}
+    if(email)actionBtns+='<a class="tc-btn tc-mail" href="mailto:'+esc(email)+'" onclick="event.stopPropagation()">✉️ Email</a>';
+    return'<div class="team-card '+t.cls+'" onclick="location.href=\''+contactUrl+'\'" role="button"><div class="team-card-top"><div class="team-card-info"><div class="team-role">'+t.ico+' '+t.role+'</div><div class="team-name">'+esc(display)+'</div></div>'+(actionBtns?'<div class="team-arrow">›</div>':'')+'</div>'+(actionBtns?'<div class="team-actions">'+actionBtns+'</div>':'')+'</div>';
+  }).join('');
+
+  var ownerDisplay=resContact(val('Owner'))||val('Owner');
+  var comDisplay=resContact(val('Comercializador'))||val('Comercializador');
+  addFields('adminFields',[makeField('Nº RUA',val('nro_rua')),makeField('Licencia',val('License')),makeField('Estado',val('Status')),makeField('Tipo Contrato',val('Deal_Type')),makeField('Activa',val('Activa'),{green:true}),makeField('Propietario',ownerDisplay,{blue:true}),makeField('Comercializador',comDisplay),val('Important_comments')?'<div class="fld highlight" style="grid-column:1/-1"><div class="fld-lbl">⚠️ Comentarios importantes</div><div class="fld-val">'+esc(v('Important_comments'))+'</div></div>':null]);
+  var ha3Link=url3villas(),haLink=urlHostaway();
+  addFields('webFields',[val('Drive')?makeField('Drive Villa','<a href="'+esc(v('Drive'))+'" target="_blank">Abrir Drive Villa ↗</a>',{raw:true}):null,val('Drive_Agency')?makeField('Drive Agencia','<a href="'+esc(v('Drive_Agency'))+'" target="_blank">Abrir Drive Agencia ↗</a>',{raw:true}):null,haLink?makeField('Hostaway (Dashboard)','<a href="'+esc(haLink)+'" target="_blank">Abrir en Hostaway ↗</a>',{raw:true}):null,ha3Link?makeField('3villas.com','<a href="'+esc(ha3Link)+'" target="_blank">Ver en 3villas.com ↗</a>',{raw:true}):null,val('vreasyid')?makeField('ID Hostaway / PMS',val('vreasyid')):null]);
+
+  var paxHtml='';
+  if(val('Total_Pax'))paxHtml+='<div class="pax-num" style="background:var(--red);color:#fff"><div class="pax-n">'+esc(v('Total_Pax'))+'</div><div class="pax-l" style="color:rgba(255,255,255,.8)">Total pax</div></div>';
+  if(val('Pax_legal'))paxHtml+='<div class="pax-num" style="background:var(--gray-5);color:#fff"><div class="pax-n">'+esc(v('Pax_legal'))+'</div><div class="pax-l" style="color:rgba(255,255,255,.7)">Pax legal</div></div>';
+  if(val('Rooms_number'))paxHtml+='<div class="pax-num" style="background:var(--blue);color:#fff"><div class="pax-n">'+esc(v('Rooms_number'))+'</div><div class="pax-l" style="color:rgba(255,255,255,.8)">Hab.</div></div>';
+  g('paxBox').innerHTML=paxHtml;
+  var rooms='';
+  for(var i=1;i<=7;i++){var beds=val('Room'+i+'Beds'),otherbeds=val('Room'+i+'Otherbeds'),bath=val('Room'+i+'Bath'),aircon=val('Room'+i+'Aircon'),fan=val('Room'+i+'fan'),floor=val('Room'+i+'foor'),comments=val('Room'+i+'comments');if(!beds&&!comments)continue;var tags='';if(beds)tags+='<span class="room-tag">🛏 '+esc(beds)+'</span>';if(otherbeds&&otherbeds!=='-')tags+='<span class="room-tag">'+esc(otherbeds)+'</span>';if(bath)tags+='<span class="room-tag">🚿 '+esc(bath)+'</span>';if(aircon&&aircon!=='No')tags+='<span class="room-tag">❄️ AC</span>';if(fan&&fan!=='No')tags+='<span class="room-tag">💨 Vent.</span>';if(floor)tags+='<span class="room-tag">📐 '+esc(floor)+'</span>';rooms+='<div class="room-row"><div class="room-num">'+i+'</div><div class="room-info">'+tags+(comments?'<div style="margin-top:5px;font-size:11px;color:var(--gray-4)">'+esc(comments)+'</div>':'')+'</div></div>';}
+  if(val('Beds_Explanation'))rooms+='<div class="fld-full" style="margin-top:8px"><div class="fld-lbl">Notas camas</div><div class="fld-val">'+esc(v('Beds_Explanation'))+'</div></div>';
+  g('roomsList').innerHTML=rooms||'<div style="color:var(--gray-4);font-size:13px;padding:8px">Sin información de habitaciones</div>';
+  addFields('bathFields',[makeField('Baños compartidos',val('Shared_BATHROOMS')),makeField('Baños ensuite',val('Ensuite_BATHROOMS'))]);
+
+  var poolVal=val('Swiming_pool');
+  if(poolVal){g('poolBox').innerHTML='<div class="pool-box"><div class="pool-ico">🏊</div><div class="pool-text"><div class="pool-name">'+esc(poolVal)+'</div>'+(val('size_of_swimingpool')?'<div class="pool-size">📐 '+esc(v('size_of_swimingpool'))+'</div>':'')+'</div></div>';}
+  addFields('poolFields',[makeField('Valla infantil',val('Swimingpool_fence')),makeField('Descripción valla',val('Swimingpool_fence_description')),makeField('Días limpieza',val('Swimingpool_Cleaningdays')),makeField('Piscinero',resContact(val('Pool_team'))||val('Pool_team'))]);
+  if(val('Jacuzzi_info_team')||val('Jacuzzi_info_guest')){var jHtml='<hr class="sec-divider"><span class="sub-title">🛁 Jacuzzi</span><div class="field-grid">';if(val('Jacuzzi_info_team'))jHtml+=makeField('Instrucciones equipo',val('Jacuzzi_info_team'));if(val('Jacuzzi_info_guest'))jHtml+=makeField('Instrucciones inquilinos',val('Jacuzzi_info_guest'));jHtml+='</div>';g('jacuzziBlock').innerHTML=jHtml;var jUrls=[fUrl('Foto_Jacuzzi_1'),fUrl('Foto_Jacuzzi_2')].filter(Boolean);if(jUrls.length){g('jacuzziBlock').innerHTML+='<div class="carousel" id="carJacuzzi"></div>';makeCarousel('carJacuzzi',jUrls);}}
+
+  if(val('Wifi_user')||val('Wifi_password')){g('wifiBox').innerHTML='<div class="wifi-box"><div><div class="fld-lbl">👤 Red / Usuario</div><div class="fld-val">'+esc(v('Wifi_user')||'—')+'</div></div><div><div class="fld-lbl">🔒 Contraseña</div><div class="fld-val">'+esc(v('Wifi_password')||'—')+'</div></div></div>';}
+  addFields('wifiFields',[makeField('Velocidad / Tipo',val('Wifi_speed_company_type')),makeField('Compañía',val('Wifi_Comany')),makeField('Contratado por',val('Who_contract_internet'))]);
+
+  addFields('calderaFields',[makeField('Instrucciones equipo',val('Caldera_info_team')),makeField('Instrucciones inquilinos',val('Caldera_info_guest'))]);
+  makeCarousel('carCaldera',[fUrl('Foto_Caldera_1'),fUrl('Foto_Caldera_2')]);
+  addFields('elecFields',[makeField('Cuadro eléctrico',val('where_is_mainpower'),{highlight:true})]);
+  makeCarousel('carElec',[fUrl('foto_where_is_mainpower')]);
+  addFields('aguaFields',[makeField('Llave de paso interior',val('wher_is_water_stopcock'),{highlight:true}),makeField('Llave de paso calle',val('where_is_water_stopcock_street'))]);
+  makeCarousel('carAgua',[fUrl('foto_wher_is_water_stopcock'),fUrl('foto_where_is_water_stopcock_str')]);
+  addFields('placasFields',[makeField('Instalación / info',val('Placas_solares_info'))]);
+  makeCarousel('carPlacas',[fUrl('Foto_placas_solares_1'),fUrl('Foto_placas_solares_2')]);
+
+  addFields('extrasFields',[makeField('Vistas al mar',val('Views')),makeField('Parking',val('Parking')),makeField('Parking (inquilinos)',val('Parking_aditionalinfo')),makeField('BBQ / Barbacoa',val('BBQ')),makeField('TV',val('TV')),makeField('Aire Acondicionado',val('Aircon')),makeField('Info AC inquilinos',val('Explanation_aircon')),makeField('Cafetera',val('Cofe_Machine')),makeField('Descripción cafetera',val('Description_cofe_machine')),makeField('Nº Deshumidificadores',val('dehumidifier_number')),makeField('Dónde se guardan',val('dehumidifier_explanation')),makeField('Ventiladores',val('Fans_ventiladores')),makeField('Cunas disponibles',val('cots_cunas')),makeField('Tronas',val('Highchair_silita')),makeField('Mascotas permitidas',val('Pets_allowed')),makeField('Condiciones mascotas',val('Pets_allowed_comments')),makeField('Toallas piscina',val('Beach_towels_provided'))]);
+
+  if(val('Alarm_code')){g('alarmBox').innerHTML='<div class="alarm-box"><div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;opacity:.7">🚨 Código de Alarma</div><div class="alarm-code">'+esc(v('Alarm_code'))+'</div></div>';}
+  addFields('alarmFields',[makeField('Descripción alarma equipo',val('Alarm_descrition')),makeField('Descripción alarma inquilinos',val('Alarm_description_guest'))]);
+  addFields('safetyFields',[makeField('Extintores',val('Extintores__extinguisher_comment')),makeField('Detectores de humo',val('Detector_de_humos__Smoke_Detecto')),makeField('Botiquín',val('first_aid_kit')),makeField('¿Dónde está el botiquín?',val('where_is_first_aid'),{highlight:true})]);
+  if(val('safe_box_comments_team')||val('safe_box_comments_guest')){var sbHtml='<hr class="sec-divider"><span class="sub-title">🔒 Caja Fuerte</span><div class="field-grid">';if(val('safe_box_comments_team'))sbHtml+=makeField('Instrucciones equipo',val('safe_box_comments_team'));if(val('safe_box_comments_guest'))sbHtml+=makeField('Instrucciones inquilinos',val('safe_box_comments_guest'));sbHtml+='</div>';g('safeboxBlock').innerHTML=sbHtml;var sfUrls=[fUrl('safe_box_File1'),fUrl('safe_box_File2'),fUrl('safe_box_File3')].filter(Boolean);if(sfUrls.length){g('safeboxBlock').innerHTML+='<div class="carousel" id="carSafebox"></div>';makeCarousel('carSafebox',sfUrls);}}
+
+  originalHTML=g('mainContent').innerHTML;
+  setTimeout(fixStickyTops,50);
+}
+
+function loadUsers(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      (json.Result||json.result||[]).forEach(function(u){
+        var id=String(u.UserID||u.userid||'').trim();
+        var name=(u.Name||u.FullName||u.full_name||[u.FirstName,u.LastName].filter(Boolean).join(' ')||u.email||u.Email||id).trim();
+        if(id)usersMap[id]=name;
+      });
+    }).catch(function(){});
+}
+
+function loadVilla(){
+  if(!villaId){g('loadOverlay').style.display='none';g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">⚠️</div><p style="color:var(--red);font-weight:700;font-family:Montserrat,sans-serif">Falta el parámetro villa_id</p><p style="margin-top:8px;color:var(--gray-4);font-size:13px">Ejemplo: villa-info.html?villa_id=123</p></div>';g('mainContent').style.display='';return Promise.resolve();}
+  var where='villaid='+encodeURIComponent(villaId);
+  var url=WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent(where)+'&limit=1';
+  return fetch(Auth.url(url)).then(function(r){return r.json();}).then(function(json){var rows=json.Result||json.result||[];if(!rows.length)throw new Error('Villa '+villaId+' no encontrada');villaData=rows[0];});
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  g('loadTxt').textContent='Cargando villa y equipo…';
+  Promise.all([loadVilla(),loadContacts(),loadUsers()])
+    .then(function(){if(villaData)populate();g('loadOverlay').style.display='none';g('mainContent').style.display='';})
+    .catch(function(e){g('loadOverlay').style.display='none';g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">⚠️</div><p style="color:var(--red);font-weight:700;font-family:Montserrat,sans-serif">'+esc(e.message||String(e))+'</p></div>';g('mainContent').style.display='';});
+});
+})();
+</script>
+
+<script>
+/* ══ Menú lateral ══ */
+function openMenu(){
+  document.getElementById('menuOverlay').classList.add('open');
+  document.getElementById('menuPanel').classList.add('open');
+  document.body.style.overflow='hidden';
+  var cur=window.location.pathname.split('/').pop()||'index.html';
+  document.querySelectorAll('.mp-item').forEach(function(a){a.classList.toggle('active',a.getAttribute('href')===cur);});
+  var un=document.getElementById('menuUserName');
+  if(un&&typeof Auth!=='undefined'&&Auth.name)un.textContent=Auth.name()||'—';
+}
+function closeMenu(){
+  document.getElementById('menuOverlay').classList.remove('open');
+  document.getElementById('menuPanel').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.getElementById('menuPanel').classList.contains('open'))closeMenu();});
+</script>
+</body>
+</html>
