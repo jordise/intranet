@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v47 — 3Villas</title>
+  <title>Entradas Equipo v48 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -284,6 +284,35 @@
     #btnCalendar{background:#fff;border:2px solid #ddd;border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .2s;flex-shrink:0}
     #btnCalendar.active{background:#fff5f5;border-color:var(--red);border-width:2.5px;box-shadow:0 0 0 2px rgba(200,16,46,.15)}
     #btnCalendar:hover{border-color:#aaa;background:#fafafa}
+
+    /* ── Menú lateral — diseño oscuro nav-component ── */
+    #menuOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:900}
+    #menuOverlay.open{display:block}
+    #menuPanel{position:fixed;top:0;left:0;bottom:0;width:min(280px,82vw);background:#1e2235;z-index:901;box-shadow:6px 0 32px rgba(0,0,0,.4);transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;overflow:hidden}
+    #menuPanel.open{transform:translateX(0)}
+    /* Header rojo del menú */
+    .mp-hdr{background:var(--red);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .mp-logo-txt{display:flex;flex-direction:column}
+    .mp-logo-main{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.5px}
+    .mp-logo-sub{font-family:Montserrat,sans-serif;font-size:7px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+    .mp-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+    .mp-x:hover{background:rgba(255,255,255,.35)}
+    /* Sección usuario */
+    .mp-user{padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+    .mp-user-ico{width:34px;height:34px;border-radius:50%;background:#5e35b1;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+    .mp-user-info{flex:1;min-width:0}
+    .mp-user-name{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:#fff;line-height:1.2}
+    .mp-user-role{display:inline-block;background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+    /* Items del menú */
+    .mp-items{flex:1;overflow-y:auto;padding:8px 0}
+    .mp-items::-webkit-scrollbar{width:4px}
+    .mp-items::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+    .mp-item{display:flex;align-items:center;gap:12px;padding:13px 16px;text-decoration:none;color:rgba(255,255,255,.85);font-family:'Open Sans',sans-serif;font-size:13px;font-weight:500;transition:background .12s;cursor:pointer;border:none;background:none;width:100%;text-align:left}
+    .mp-item:hover{background:rgba(255,255,255,.07);color:#fff}
+    .mp-item.active{background:var(--red);color:#fff;font-weight:700}
+    .mp-item.active .mp-ico-sq{background:rgba(0,0,0,.2)}
+    .mp-ico-sq{width:30px;height:30px;border-radius:6px;background:rgba(160,90,44,.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+    .mp-item-arr{margin-left:auto;font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -1216,5 +1245,31 @@ function renderWeekly(){
 <div id="wkModal" onclick="if(event.target===this)_closeModal()">
   <div id="wkModalInner"></div>
 </div>
+<script>
+
+function openMenu(){
+  document.getElementById('menuOverlay').classList.add('open');
+  document.getElementById('menuPanel').classList.add('open');
+  document.body.style.overflow='hidden';
+  /* Marcar activo */
+  var cur=window.location.pathname.split('/').pop()||'index.html';
+  document.querySelectorAll('.mp-item').forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('href')===cur);
+  });
+  /* Nombre usuario */
+  var un=document.getElementById('menuUserName');
+  var ur=document.getElementById('menuUserRole');
+  if(un&&typeof Auth!=='undefined'&&Auth.name){
+    un.textContent=Auth.name()||'—';
+    if(ur&&Auth.role)ur.textContent=Auth.role()||'Usuario';
+  }
+}
+function closeMenu(){
+  document.getElementById('menuOverlay').classList.remove('open');
+  document.getElementById('menuPanel').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMenu();});
+</script>
 </body>
 </html>
