@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v45 — 3Villas</title>
+  <title>Editar Tarea v46 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -180,7 +180,7 @@
     /* v45: checkboxes más grandes en móvil */
     .ql-editor ul[data-checked=true]>li::before,
     .ql-editor ul[data-checked=false]>li::before{font-size:20px;margin-right:6px;vertical-align:middle}
-    .ql-editor ul>li{padding:3px 0;min-height:32px;display:flex;align-items:center}
+    .ql-editor ul>li{padding:4px 0;min-height:32px;line-height:32px}
 
     
     /* ── Menú lateral — diseño oscuro nav-component ── */
@@ -925,20 +925,31 @@ function initMic(){
   function stopRec(){ isR=false; if(aB)aB.classList.remove('rec'); aB=null;aF=null; }
   rec.onresult=function(e){
     var t=e.results[0][0].transcript;
-    /* v45: insertar en Quill al cursor si lo hay, si no en textarea */
-    var lr=window._lastQl;
-    if(lr&&lr.q){
-      lr.q.focus();
-      lr.q.insertText(lr.idx, t+' ');
-      window._lastQl=null;
+    /* v46: insertar en la posición guardada antes del click (mousedown) */
+    var saved=window._savedMicQl; window._savedMicQl=null;
+    if(saved&&saved.q){
+      saved.q.focus();
+      saved.q.setSelection(saved.idx,0);
+      saved.q.insertText(saved.idx,t+' ');
       return;
     }
     if(aF)aF.value=(aF.value?aF.value+' ':'')+t;
   };
   rec.onend=stopRec; rec.onerror=function(){ stopRec(); toast('Error de micrófono','err'); };
+  var QL_IDS=['fDesc','fNotas','fSolucion']; /* IDs con Quill */
   [['micNombre','fNombre'],['micDesc','fDesc'],['micNotas','fNotas'],['micSolucion','fSolucion']].forEach(function(p){
     var b=g(p[0]),f=g(p[1]); if(!b||!f)return;
     b.classList.remove('hidden');
+    /* v46: guardar cursor de Quill en mousedown, ANTES de perder el foco */
+    b.addEventListener('mousedown',function(){
+      QL_IDS.forEach(function(qid){
+        var qi=window._qlGetInstance&&window._qlGetInstance(qid);
+        if(qi&&qi.hasFocus()){
+          var rng=qi.getSelection();
+          if(rng) window._savedMicQl={q:qi,idx:rng.index};
+        }
+      });
+    });
     b.addEventListener('click',function(){ startRec(b,f); });
   });
 }
@@ -1101,10 +1112,7 @@ function onDone(){
     _q[fId] = q;
     if (ta.value) q.root.innerHTML = toHtml(ta.value);
     q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
-    /* v45: guardar última posición de cursor para el micrófono */
-    q.on('selection-change', function(range) {
-      if (range) window._lastQl = { q: q, idx: range.index };
-    });
+
     ta.style.display = 'none';
   };
   window._qlGetInstance = function(fId) { return _q[fId]; };
