@@ -19,15 +19,15 @@
     });
   }
 </script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v46 — 3Villas</title>
-  <!-- v29 —— editar-tarea.html —— 12/05/2026
-       v28:
-         - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
-         - Fix villa search: al escribir sin seleccionar, no guarda texto libre
-           · input limpia selectedVillaId
-           · blur restaura el texto al nombre de la villa seleccionada (o vacía)
-           · badge "✓ seleccionada" / "⚠ escribe y selecciona"
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Editar Tarea v45 — 3Villas</title>
+  <!-- v45 —— editar-tarea.html
+       v45:
+         - Fix: botón ✕ (cerrar nav) ahora funciona igual que "Volver"
+         - Nuevo: campo Enlace/Botón — guarda URL + texto en campo Referencia
+           · Si hay URL → muestra botón azul clicable
+           · Al clicar: menú con "Ir al enlace" y "Editar botón"
+           · Editar: inputs inline para texto y URL + guardar / cancelar / quitar
   -->
   
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -177,13 +177,32 @@
     .ql-editor ul>li::before{color:var(--red)}
     .ql-editor ul[data-checked=true]>li::before{color:var(--green)}
     .ql-editor ul[data-checked=true]>li{text-decoration:line-through;color:var(--gray-4)}
-    /* v45: checkboxes más grandes en móvil */
-    .ql-editor ul[data-checked=true]>li::before,
-    .ql-editor ul[data-checked=false]>li::before{font-size:20px;margin-right:6px;vertical-align:middle}
-    .ql-editor ul>li{padding:4px 0;min-height:32px;line-height:32px}
 
     
     /* ── Menú lateral — diseño oscuro nav-component ── */
+    /* ── v45: Link / Botón field ── */
+    .link-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border:2px dashed var(--gray-3);border-radius:9px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;width:100%}
+    .link-add-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .link-btn-display{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#e8f0fe;color:#1967d2;border:1.5px solid #c5d8f8;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;width:100%;justify-content:space-between;text-align:left}
+    .link-btn-display:hover{background:#d2e3fc;border-color:#93b4f0}
+    .link-btn-icon{font-size:17px;flex-shrink:0}
+    .link-btn-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .link-btn-arr{font-size:14px;opacity:.6;flex-shrink:0;transition:transform .15s}
+    .link-menu{background:#fff;border:1.5px solid var(--gray-2);border-radius:10px;box-shadow:var(--shadow-md);overflow:hidden;margin-top:4px;animation:fadeIn .12s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+    .link-menu-item{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;font-family:'Open Sans',sans-serif;font-weight:500;color:var(--gray-5);text-decoration:none;background:none;border:none;border-bottom:1px solid var(--gray-2);width:100%;cursor:pointer;transition:background .1s}
+    .link-menu-item:last-child{border-bottom:none}
+    .link-menu-item:hover{background:var(--gray-1)}
+    .link-menu-item.go{color:#1967d2;font-weight:600}
+    .link-editor{background:var(--gray-1);border-radius:10px;padding:12px;border:1.5px solid var(--gray-2);display:flex;flex-direction:column;gap:8px;animation:fadeIn .15s ease}
+    .link-editor .lbl{font-size:9px}
+    .link-editor-btns{display:flex;gap:8px;margin-top:2px;align-items:center}
+    .link-editor-save{background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer;transition:background .15s}
+    .link-editor-save:hover{background:var(--red-dark)}
+    .link-editor-cancel{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:8px;padding:8px 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s}
+    .link-editor-cancel:hover{background:var(--gray-3)}
+    .link-editor-del{background:none;border:none;color:var(--gray-4);font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;padding:8px 8px;margin-left:auto;transition:color .15s}
+    .link-editor-del:hover{color:var(--red)}
   </style>
   <script src="auth.js"></script>
   <meta name="theme-color" content="#C8102E">
@@ -264,6 +283,44 @@
             <textarea id="fNotas" rows="2" placeholder="Notas internas…"></textarea>
             <button class="mic-btn hidden" id="micNotas" type="button">🎤</button>
           </div>
+        </div>
+
+        <!-- v45: Enlace / Botón -->
+        <div class="field" id="linkField">
+          <label class="lbl">Enlace / Botón</label>
+          <!-- Sin enlace -->
+          <div id="linkEmpty">
+            <button type="button" class="link-add-btn" onclick="showLinkEditor()">🔗 Añadir enlace</button>
+          </div>
+          <!-- Con enlace: botón + menú -->
+          <div id="linkDisplay" style="display:none">
+            <button type="button" class="link-btn-display" onclick="toggleLinkMenu(event)">
+              <span class="link-btn-icon">🔗</span>
+              <span class="link-btn-label" id="linkBtnLabel">Ver enlace</span>
+              <span class="link-btn-arr">▾</span>
+            </button>
+            <div id="linkMenu" style="display:none" class="link-menu">
+              <a id="linkMenuGo" href="#" target="_blank" rel="noopener" class="link-menu-item go">🚀 Ir al enlace</a>
+              <button type="button" class="link-menu-item" onclick="showLinkEditor();document.getElementById('linkMenu').style.display='none'">✏️ Editar botón</button>
+            </div>
+          </div>
+          <!-- Editor inline -->
+          <div id="linkEditor" style="display:none" class="link-editor">
+            <div class="field">
+              <label class="lbl">Texto del botón</label>
+              <input type="text" id="linkText" placeholder="ej. Ver manual, Ver en Maps…" autocomplete="off" maxlength="120">
+            </div>
+            <div class="field">
+              <label class="lbl">URL <span class="req">*</span></label>
+              <input type="url" id="linkUrl" placeholder="https://…" autocomplete="off">
+            </div>
+            <div class="link-editor-btns">
+              <button type="button" class="link-editor-save" onclick="saveLinkEditor()">✓ Aplicar</button>
+              <button type="button" class="link-editor-cancel" onclick="hideLinkEditor()">Cancelar</button>
+              <button type="button" class="link-editor-del" onclick="deleteLink()">🗑 Quitar enlace</button>
+            </div>
+          </div>
+          <input type="hidden" id="fLinkData">
         </div>
         <div class="field-row">
           <div class="field">
@@ -351,7 +408,7 @@
 'use strict';
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 var PK='taskid';
-var F={nombre:'Taskname',descripcion:'Taskdescription',fecha:'Data_to_be_done_fixed',asignado:'UserID_asigned_alfanum',terminada:'Tarea_terminada',notas:'Internal_notes',solucion:'Solutiondescription'};
+var F={nombre:'Taskname',descripcion:'Taskdescription',fecha:'Data_to_be_done_fixed',asignado:'UserID_asigned_alfanum',terminada:'Tarea_terminada',notas:'Internal_notes',solucion:'Solutiondescription',linkData:'Referencia'};
 var BEFORE_FIELDS=['Picture_cloudfare1','Picture_cloudfare2','Picture_cloudfare3','Picture_cloudfare4','Picture_cloudfare5'];
 var AFTER_FIELDS=['Picture_cloudfare_after1','Picture_cloudfare_after2','Picture_cloudfare_after3','Picture_cloudfare_after4','Picture_cloudfare_after5'];
 
@@ -366,6 +423,7 @@ var allUsers=[],selectedUserId=''; /* v33 */
 var allMultiunits=[],selectedMultiunitId=''; /* v38 — igual que nueva-tarea */
 var selectedVillaId_='';  /* tracking para multiunit */
 var _villaIdField='';     /* campo detectado automáticamente */
+var _linkData={text:'',url:''};  /* v45 */
 var urlP=new URLSearchParams(window.location.search);
 var taskId=(urlP.get('taskid')||'').trim();
 var paramMultiunitId=(urlP.get('multiunit_id')||'').trim(); /* v38 */
@@ -474,6 +532,9 @@ document.addEventListener('DOMContentLoaded',function(){
   if(!taskId){ showErr('Falta el parámetro taskid en la URL.'); return; }
   buildGallery('before'); buildGallery('after');
   initMic();
+  /* v45: fix botón ✕ nav — bind directo con stopPropagation */
+  var navClose=document.querySelector('.nav-close-btn');
+  if(navClose){navClose.onclick=null;navClose.addEventListener('click',function(e){e.stopPropagation();history.back();});}
   g('btnCerrar').addEventListener('click',function(){ submitForm(true); });
   g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
   g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
@@ -582,6 +643,9 @@ function populateForm(){
   BEFORE_FIELDS.forEach(function(field,idx){ if(t[field]){ beforePhotos[idx].url=t[field]; } });
   AFTER_FIELDS.forEach(function(field,idx){ if(t[field]){ afterPhotos[idx].url=t[field]; } });
   renderGallery('before'); renderGallery('after');
+  /* v45: link field */
+  _linkData=_parseLinkField(t[F.linkData]||'');
+  _renderLinkField();
 }
 
 function setSelectVal(id,val){ var sel=g(id); if(!sel)return; for(var i=0;i<sel.options.length;i++){ if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;} } }
@@ -923,36 +987,72 @@ function initMic(){
   var aB=null,aF=null,isR=false;
   function startRec(b,f){ if(isR){rec.stop();return;} aB=b;aF=f;isR=true;b.classList.add('rec');try{rec.start();}catch(e){stopRec();} }
   function stopRec(){ isR=false; if(aB)aB.classList.remove('rec'); aB=null;aF=null; }
-  rec.onresult=function(e){
-    var t=e.results[0][0].transcript;
-    /* v46: insertar en la posición guardada antes del click (mousedown) */
-    var saved=window._savedMicQl; window._savedMicQl=null;
-    if(saved&&saved.q){
-      saved.q.focus();
-      saved.q.setSelection(saved.idx,0);
-      saved.q.insertText(saved.idx,t+' ');
-      return;
-    }
-    if(aF)aF.value=(aF.value?aF.value+' ':'')+t;
-  };
+  rec.onresult=function(e){ var t=e.results[0][0].transcript; if(aF)aF.value=(aF.value?aF.value+' ':'')+t; };
   rec.onend=stopRec; rec.onerror=function(){ stopRec(); toast('Error de micrófono','err'); };
-  var QL_IDS=['fDesc','fNotas','fSolucion']; /* IDs con Quill */
   [['micNombre','fNombre'],['micDesc','fDesc'],['micNotas','fNotas'],['micSolucion','fSolucion']].forEach(function(p){
     var b=g(p[0]),f=g(p[1]); if(!b||!f)return;
     b.classList.remove('hidden');
-    /* v46: guardar cursor de Quill en mousedown, ANTES de perder el foco */
-    b.addEventListener('mousedown',function(){
-      QL_IDS.forEach(function(qid){
-        var qi=window._qlGetInstance&&window._qlGetInstance(qid);
-        if(qi&&qi.hasFocus()){
-          var rng=qi.getSelection();
-          if(rng) window._savedMicQl={q:qi,idx:rng.index};
-        }
-      });
-    });
     b.addEventListener('click',function(){ startRec(b,f); });
   });
 }
+
+/* ════ v45: Link / Botón ════ */
+function _parseLinkField(val){
+  if(!val)return{text:'',url:''};
+  try{var j=JSON.parse(val);if(j&&j.url)return{text:j.text||'',url:j.url};}catch(e){}
+  // Fallback: URL plana
+  if(val.indexOf('http')===0)return{text:'',url:val};
+  return{text:'',url:''};
+}
+function _renderLinkField(){
+  var hasUrl=!!_linkData.url;
+  var empty=g('linkEmpty'),display=g('linkDisplay'),lbl=g('linkBtnLabel'),go=g('linkMenuGo'),hid=g('fLinkData');
+  if(empty)empty.style.display=hasUrl?'none':'block';
+  if(display)display.style.display=hasUrl?'block':'none';
+  if(lbl)lbl.textContent=_linkData.text||_linkData.url||'Ver enlace';
+  if(go){go.href=_linkData.url||'#';}
+  if(hid)hid.value=hasUrl?JSON.stringify(_linkData):'';
+}
+window.showLinkEditor=function(){
+  var ed=g('linkEditor');if(ed)ed.style.display='block';
+  var display=g('linkDisplay');if(display)display.style.display='none';
+  var empty=g('linkEmpty');if(empty)empty.style.display='none';
+  var menu=g('linkMenu');if(menu)menu.style.display='none';
+  var lt=g('linkText'),lu=g('linkUrl');
+  if(lt)lt.value=_linkData.text||'';
+  if(lu)lu.value=_linkData.url||'';
+  if(lu)setTimeout(function(){lu.focus();},50);
+};
+window.hideLinkEditor=function(){
+  var ed=g('linkEditor');if(ed)ed.style.display='none';
+  _renderLinkField();
+};
+window.saveLinkEditor=function(){
+  var lt=g('linkText'),lu=g('linkUrl');
+  var url=(lu?lu.value.trim():'');
+  var text=(lt?lt.value.trim():'');
+  if(url&&url.indexOf('http')!==0&&url.indexOf('//')!==0){url='https://'+url;}
+  _linkData={text:text,url:url};
+  var ed=g('linkEditor');if(ed)ed.style.display='none';
+  _renderLinkField();
+};
+window.deleteLink=function(){
+  _linkData={text:'',url:''};
+  var ed=g('linkEditor');if(ed)ed.style.display='none';
+  _renderLinkField();
+};
+window.toggleLinkMenu=function(e){
+  if(e)e.stopPropagation();
+  var menu=g('linkMenu');if(!menu)return;
+  menu.style.display=menu.style.display==='none'?'block':'none';
+};
+document.addEventListener('click',function(e){
+  var menu=g('linkMenu');
+  if(menu&&menu.style.display!=='none'){
+    var disp=g('linkDisplay');
+    if(disp&&!disp.contains(e.target))menu.style.display='none';
+  }
+});
 
 window.goBack=function(){ history.back(); }; /* v43: navegación normal */
 
@@ -1042,6 +1142,7 @@ function submitForm(markDone){
     record[F.terminada]  =isTerminada;
     record[F.notas]      =g('fNotas').value.trim();
     record[F.solucion]=(window._qlGet?_qlGet('fSolucion'):g('fSolucion').value).trim();
+    record[F.linkData]=(g('fLinkData')?g('fLinkData').value:''); /* v45 */
     if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
     record['PMSmultiunitID']=selectedMultiunitId||''; /* v38 */
     record['urgente']   =isUrgente;    /* v39 */
@@ -1057,11 +1158,11 @@ function submitForm(markDone){
 
 function onDone(){
   setBusy(false);
-  clearState();
+  clearState(); /* FIX v29 */
+  g('formWrap').style.display='none'; g('saveBar').style.display='none';
+  g('successCard').style.display='block'; g('successBox').style.display='block';
   toast('¡Tarea actualizada!','ok');
-  /* v45: navegar atrás inmediatamente — pageshow en la página anterior recarga datos */
-  sessionStorage.setItem('taskSaved','1');
-  setTimeout(function(){ history.back(); }, 600);
+  setTimeout(function(){ history.back(); },1400); /* v43 */
 }
 
 })();
@@ -1112,10 +1213,8 @@ function onDone(){
     _q[fId] = q;
     if (ta.value) q.root.innerHTML = toHtml(ta.value);
     q.on('text-change', function() { ta.value = toPlain(q.root.innerHTML); });
-
     ta.style.display = 'none';
   };
-  window._qlGetInstance = function(fId) { return _q[fId]; };
 
   window._qlGet = function(fId) {
     return _q[fId] ? toPlain(_q[fId].root.innerHTML) : (document.getElementById(fId) || {}).value || '';
