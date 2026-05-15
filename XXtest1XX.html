@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v28 — 3Villas</title>
+  <title>Tareas v30 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -760,6 +760,9 @@ function toggleDesc(btn){
     function buildWhere() {
     var parts=[], desde=val('fDesde'), hasta=val('fHasta');
     var reserva=val('fReserva').trim(), tt=val('fTasktype'), bt=val('fBookingType');
+    /* v30: filtrar Tarea_terminada en servidor — evita traer 1000 resultados mezclados */
+    if(estadoFilter==='pend') parts.push('Tarea_terminada=false');
+    if(estadoFilter==='done') parts.push('Tarea_terminada=true');
     var keys=selUsersKeys();
     if(keys.length>0){
       var ids=keys.map(function(id){return"'"+id+"'";}).join(',');
@@ -846,7 +849,19 @@ function toggleDesc(btn){
         if(myId!==searchId)return;
         if(json.error) throw new Error(json.error);
         var tasks=json.Result||json.result||[];
-        g('dbBox').textContent='WHERE:\n'+(where||'(sin filtros)')+'\n\nResultados: '+tasks.length+'\n\n'+JSON.stringify(tasks[0]||{},null,2);
+        /* v29: debug extendido para diagnóstico */
+        var dbSelectedUsers=JSON.stringify(selectedUsers);
+        var dbUsersList=allUsersList.map(function(u){return u.id+'='+u.name;}).join(', ');
+        var dbAssignedVals=[...new Set(tasks.map(function(t){return String(t.UserID_asigned_alfanum||'(vacío)');}))]
+                          .slice(0,20).join(', ');
+        g('dbBox').textContent=
+          'selectedUsers: '+dbSelectedUsers+
+          '\ncurrentUserId: '+currentUserId+
+          '\nWHERE: '+(where||'(sin filtros)')+
+          '\n\nResultados: '+tasks.length+
+          '\nUserID_asigned_alfanum en resultados: '+dbAssignedVals+
+          '\n\nallUsersList IDs: '+dbUsersList+
+          '\n\n'+JSON.stringify(tasks[0]||{},null,2);
         tasks.forEach(function(t){ if(t.Tasktype) tasktypeSet[String(t.Tasktype).trim()]=true; });
         var selTT=g('fTasktype'), curTT=selTT.value;
         selTT.innerHTML='<option value="">— Todos —</option>'+
