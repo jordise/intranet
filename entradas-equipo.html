@@ -30,7 +30,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v51 — 3Villas</title>
+  <title>Entradas Equipo v52 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -327,13 +327,6 @@
       </div>
     </div>
     <div class="pill-group">
-      <span class="pill-label">Cierres <span style="font-weight:400;opacity:.6">(salidas)</span></span>
-      <div class="pill-opts">
-        <button class="pill-opt on" id="tCIERall"  onclick="setCierresFilter('all')">Todos</button>
-        <button class="pill-opt"    id="tCIERpend" onclick="setCierresFilter('pending')">Pendiente</button>
-      </div>
-    </div>
-    <div class="pill-group">
       <span class="pill-label">Check-in online</span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tAll"  onclick="setToggle('all')">Todos</button>
@@ -522,7 +515,7 @@ const F = {
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
 // ════════════════ ESTADO GLOBAL ════════════════
-let toggleMode='all',_searchId=0,fWelcomePack='all',fCierres='all',tipoFilter='both';
+let toggleMode='all',_searchId=0,fWelcomePack='all',tipoFilter='both';
 let managersMap=new Map(),allUsersMap=new Map(),currentUserId='';
 let selectedManagers=new Set(),allManagersList=[];
 let contactsMap=new Map(),multiunitsMap=new Map();
@@ -570,8 +563,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
     setToggle(toggleMode);setTipoFilter(tipoFilter);
     const defaultWP=window.__restoredWP||fWelcomePack||(window.__isVillaManager?'pending':'all');
     setWPFilter(defaultWP);window.__restoredWP=null;
-    const defaultCIER=window.__restoredCIER||fCierres||(window.__isVillaManager?'pending':'all');
-    setCierresFilter(defaultCIER);window.__restoredCIER=null;
     if(window.__restoredTipo){setTipoFilter(window.__restoredTipo);window.__restoredTipo=null;}
     clearTimeout(_searchTimer);doSearch();
   }catch(err){$('dbBox').textContent='INIT ERROR: '+err.message;console.error(err);}
@@ -628,21 +619,20 @@ function onDesdeChange(){const desde=($('fDesde')||{}).value||'';const hastaEl=$
 function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');});scheduleSearch();}
 function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
 function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
-function setCierresFilter(mode){fCierres=mode;['tCIERall','tCIERpend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tCIERall'?mode==='all':mode==='pending');});scheduleSearch();}
-function clearAll(){clearManagers();try{localStorage.removeItem('3v_eys_filters');}catch(e){}if($('fDesde'))$('fDesde').value=todayStr();if($('fHasta'))$('fHasta').value=todayStr();if($('fCodigo'))$('fCodigo').value='';if($('fVilla'))$('fVilla').value='';if($('fInquilino'))$('fInquilino').value='';setToggle('all');setCierresFilter('all');updateSub();renderChips();doSearch();}
+function clearAll(){clearManagers();try{localStorage.removeItem('3v_eys_filters');}catch(e){}if($('fDesde'))$('fDesde').value=todayStr();if($('fHasta'))$('fHasta').value=todayStr();if($('fCodigo'))$('fCodigo').value='';if($('fVilla'))$('fVilla').value='';if($('fInquilino'))$('fInquilino').value='';setToggle('all');updateSub();renderChips();doSearch();}
 
 // ════════════════ WHERE ════════════════
 function buildWhere(){const parts=[`${F.status}<>'cancelled'`];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||desde;const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inquilino=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');parts.push(selectedManagers.size===1?`${F.villaManager}='${[...selectedManagers][0]}'`:`${F.villaManager} IN (${ids})`);}if(desde&&hasta){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59'))`);}else if(desde){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${desde}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${desde}T23:59:59'))`);}if(codigo)parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);if(villa)parts.push(`${F.villaName} LIKE '%${villa}%'`);if(inquilino)parts.push(`${F.guestName} LIKE '%${inquilino}%'`);return parts.join(' AND ');}
 
 // ════════════════ CHIPS ════════════════
-function renderChips(){const chipsData=[];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inq=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');const lbl=selectedManagers.size===1?`Manager: ${names}`:`Managers: ${names}`;chipsData.push({label:lbl,clear:()=>{clearManagers();}});}if(desde)chipsData.push({label:`Desde: ${fmtDate(desde)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});if(hasta)chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});if(codigo)chipsData.push({label:`Reserva: ${codigo}`,clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});if(villa)chipsData.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});if(inq)chipsData.push({label:`Inquilino: ${inq}`,clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});if(toggleMode==='pend')chipsData.push({label:'Pendiente CI',clear:()=>setToggle('all')});if(fCierres!=='all')chipsData.push({label:'Cierres pendientes',clear:()=>setCierresFilter('all')});if(tipoFilter!=='both')chipsData.push({label:tipoFilter==='entrada'?'Solo entradas':'Solo salidas',clear:()=>setTipoFilter('both')});window.__ch=chipsData;const wrap=$('chips');if(wrap)wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');}
+function renderChips(){const chipsData=[];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inq=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');const lbl=selectedManagers.size===1?`Manager: ${names}`:`Managers: ${names}`;chipsData.push({label:lbl,clear:()=>{clearManagers();}});}if(desde)chipsData.push({label:`Desde: ${fmtDate(desde)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});if(hasta)chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});if(codigo)chipsData.push({label:`Reserva: ${codigo}`,clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});if(villa)chipsData.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});if(inq)chipsData.push({label:`Inquilino: ${inq}`,clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});if(toggleMode==='pend')chipsData.push({label:'Pendiente CI',clear:()=>setToggle('all')});if(tipoFilter!=='both')chipsData.push({label:tipoFilter==='entrada'?'Solo entradas':'Solo salidas',clear:()=>setTipoFilter('both')});window.__ch=chipsData;const wrap=$('chips');if(wrap)wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');}
 
 // ════════════════ SEARCH ════════════════
 let _searchTimer=null;
 function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
 async function doSearch(){
   const mySearchId=++_searchId;updateSub();renderChips();
-  try{const state={managers:[...selectedManagers],desde:($('fDesde')||{}).value||'',hasta:($('fHasta')||{}).value||'',codigo:($('fCodigo')||{}).value||'',villa:($('fVilla')||{}).value||'',inquilino:($('fInquilino')||{}).value||'',toggle:toggleMode,wpFilter:fWelcomePack,cierFilter:fCierres,tipoFilter};localStorage.setItem('3v_eys_filters',JSON.stringify(state));saveToURL();}catch(e){}
+  try{const state={managers:[...selectedManagers],desde:($('fDesde')||{}).value||'',hasta:($('fHasta')||{}).value||'',codigo:($('fCodigo')||{}).value||'',villa:($('fVilla')||{}).value||'',inquilino:($('fInquilino')||{}).value||'',toggle:toggleMode,wpFilter:fWelcomePack,tipoFilter};localStorage.setItem('3v_eys_filters',JSON.stringify(state));saveToURL();}catch(e){}
   if($('grid')){$('grid').style.display='none';$('grid').innerHTML='';}
   if($('stInit'))$('stInit').style.display='none';if($('stLoad'))$('stLoad').style.display='block';if($('stErr'))$('stErr').style.display='none';if($('statsBar'))$('statsBar').style.display='none';if($('hCount'))$('hCount').textContent='';if($('hCountLabel'))$('hCountLabel').textContent='';
   const where=buildWhere();
@@ -668,8 +658,8 @@ async function doSearch(){
 }
 
 // ════════════════ URL PARAMS ════════════════
-function saveToURL(){const params=new URLSearchParams();const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const cod=($('fCodigo')||{}).value||'';const villa=($('fVilla')||{}).value||'';const inq=($('fInquilino')||{}).value||'';if(desde)params.set('desde',desde);if(hasta)params.set('hasta',hasta);if(selectedManagers.size)params.set('mgr',[...selectedManagers].join(','));if(toggleMode!=='all')params.set('ci',toggleMode);if(fWelcomePack!=='all')params.set('wp',fWelcomePack);if(fCierres!=='all')params.set('cier',fCierres);if(tipoFilter!=='both')params.set('tipo',tipoFilter);if(cod)params.set('cod',cod);if(villa)params.set('villa',villa);if(inq)params.set('inq',inq);const qs=params.toString();history.replaceState(null,'',qs?'?'+qs:location.pathname);}
-function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['desde','hasta','mgr','ci','wp','cier','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('desde')&&$('fDesde'))$('fDesde').value=p.get('desde');if(p.has('hasta')&&$('fHasta'))$('fHasta').value=p.get('hasta');if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');if(p.has('cier')){fCierres=p.get('cier');window.__restoredCIER=fCierres;}if(p.has('tipo'))tipoFilter=p.get('tipo');return true;}
+function saveToURL(){const params=new URLSearchParams();const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const cod=($('fCodigo')||{}).value||'';const villa=($('fVilla')||{}).value||'';const inq=($('fInquilino')||{}).value||'';if(desde)params.set('desde',desde);if(hasta)params.set('hasta',hasta);if(selectedManagers.size)params.set('mgr',[...selectedManagers].join(','));if(toggleMode!=='all')params.set('ci',toggleMode);if(fWelcomePack!=='all')params.set('wp',fWelcomePack);if(tipoFilter!=='both')params.set('tipo',tipoFilter);if(cod)params.set('cod',cod);if(villa)params.set('villa',villa);if(inq)params.set('inq',inq);const qs=params.toString();history.replaceState(null,'',qs?'?'+qs:location.pathname);}
+function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['desde','hasta','mgr','ci','wp','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('desde')&&$('fDesde'))$('fDesde').value=p.get('desde');if(p.has('hasta')&&$('fHasta'))$('fHasta').value=p.get('hasta');if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');if(p.has('tipo'))tipoFilter=p.get('tipo');return true;}
 
 // ════════════════ RENDER CARDS ════════════════
 function renderCards(records,_extVillaIds,_muVillaMap){
@@ -685,14 +675,11 @@ function renderCards(records,_extVillaIds,_muVillaMap){
     const ciTs=ci?new Date(ci).getTime():0,coTs=co?new Date(co).getTime():0;
     const isEntrada=ciTs>=desdeTs&&ciTs<=hastaTs,isSalida=coTs>=desdeTs&&coTs<=hastaTs;
     const wpOk=isOk(g(r,'wellcomePack'));
-    const cierreOk=isOk(g(r,'cierre'));
     const ciRaw=g(r,'checkinPend');const ciIsPending=Number(ciRaw)===3;
-    const skipWP=fWelcomePack==='pending'&&wpOk===true;
-    const skipCierre=fCierres==='pending'&&cierreOk===true;
-    const skipCI=toggleMode==='pend'&&!ciIsPending;
+    const skipWP=fWelcomePack==='pending'&&wpOk===true;const skipCI=toggleMode==='pend'&&!ciIsPending;
     const showEnt=tipoFilter==='both'||tipoFilter==='entrada';const showSal=tipoFilter==='both'||tipoFilter==='salida';
     if(isEntrada&&!skipWP&&!skipCI&&showEnt)rows.push({r,type:'entrada',sortDate:ciTs});
-    if(isSalida&&!skipCI&&!skipCierre&&showSal)rows.push({r,type:'salida',sortDate:coTs});
+    if(isSalida&&!skipCI&&showSal)rows.push({r,type:'salida',sortDate:coTs});
     if(!isEntrada&&!isSalida)rows.push({r,type:'entrada',sortDate:ciTs});
   });
   rows.sort((a,b)=>{if(a.sortDate!==b.sortDate)return a.sortDate-b.sortDate;const aT=a.type==='entrada'?g(a.r,'checkinTime'):(g(a.r,'checkoutTime')||g(a.r,'checkinTime'));const bT=b.type==='entrada'?g(b.r,'checkinTime'):(g(b.r,'checkoutTime')||g(b.r,'checkinTime'));const aM=parseTimeMin(aT),bM=parseTimeMin(bT);if(aM!==bM)return aM-bM;return a.type==='entrada'?-1:1;});
@@ -1073,7 +1060,7 @@ function buildCard(r,type){
   {
     const _hasAdult = _adultsNr || ad;
     const _hasChild = _childrenNr || ch;
-    if(_hasAdult || _hasChild){
+    if(_hasAdult || _hasChild || true){ /* v51: siempre mostrar pax-detail */
       html += '<div class="pax-detail">';
       if(_hasAdult){
         html += '<div class="pax-row">';
@@ -1082,10 +1069,18 @@ function buildCard(r,type){
         if(ad && _adultsNr && String(ad)!==String(_adultsNr)) html += ` <span class="pax-reserva">(reserva: ${ad})</span>`;
         html += '</div>';
       }
-      if(_hasChild){
+      /* v52: mostrar niños aunque el número sea 0; ✕ solo si número Y texto vacíos */
+      {
         html += '<div class="pax-row">';
-        html += `<span class="pax-lbl">👶 Niños:</span>${_childrenNr||ch}`;
-        if(_childrenAges) html += ` <span class="pax-ages">(${_childrenAges})</span>`;
+        html += `<span class="pax-lbl">👶 Niños:</span>`;
+        const _chNumEmpty = _childrenNr === '' && !ch;
+        const _chAgesEmpty = _childrenAges === '';
+        if(_chNumEmpty && _chAgesEmpty){
+          html += '<span style="color:var(--red);font-weight:800;font-size:13px">✕</span>';
+        } else {
+          if(!_chNumEmpty) html += `${_childrenNr !== '' ? _childrenNr : ch}`;
+          if(_childrenAges) html += ` <span class="pax-ages">(${_childrenAges})</span>`;
+        }
         html += '</div>';
       }
       html += '</div>';
