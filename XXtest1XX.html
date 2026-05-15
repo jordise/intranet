@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v41 — 3Villas</title>
+  <title>Tareas v43 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -110,11 +110,30 @@
     tbody tr:last-child{border-bottom:none}
     td{padding:9px 14px;vertical-align:middle}
     /* Villa + estado + asignado combinados */
+    #fBuscar{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:180px;max-width:220px;transition:border-color .15s;font-family:'Open Sans',sans-serif;flex-shrink:0}
+  #fBuscar:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+  #fBuscar::placeholder{color:var(--gray-3)}
+  /* ── Info Card (v42) ── */
+    .info-card{display:flex;flex-direction:column;justify-content:space-between;gap:6px;
+      border:1.5px solid var(--gray-2);border-radius:14px;padding:10px 10px 8px;
+      min-width:120px;max-width:160px;min-height:80px;background:#fff;box-sizing:border-box}
+    .info-card:hover{border-color:var(--gray-3)}
+    .info-top{flex:1}
+    .info-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;
+      color:var(--gray-5);line-height:1.25;word-break:break-word}
+    .info-user{font-family:'Open Sans',sans-serif;font-size:11px;color:var(--gray-4);
+      font-weight:600;margin-top:3px}
+    .info-bot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
+    .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
+    .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--gray-3)}
+    .btn-edit-card{display:flex;align-items:center;justify-content:center;
+      background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:50%;
+      color:var(--gray-4);width:30px;height:30px;font-size:14px;cursor:pointer;
+      flex-shrink:0;transition:all .15s;line-height:1;text-decoration:none}
+    .btn-edit-card:hover{background:var(--gray-5);border-color:var(--gray-5);color:#fff}
     .meta-cell{display:flex;flex-direction:column;gap:4px;min-width:140px}
     .meta-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5);text-transform:uppercase;letter-spacing:.3px}
     .meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-    .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--red)}
-    .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
     .meta-sep{color:var(--gray-3);font-size:10px}
     .meta-user{font-size:11px;color:var(--gray-4);font-weight:600}
     .type-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px;white-space:nowrap}
@@ -337,7 +356,7 @@ function toggleDesc(btn){
         <button class="pill-toggle" id="fUrgente" onclick="toggleFlagFilter('urgente')">🏁 Urgente</button>
       </div>
     </div>
-    <div class="f-buscar-wrap"><span class="f-buscar-ico">🔍</span><input type="text" id="fBuscar" placeholder="Buscar…" autocomplete="off"><button class="f-buscar-x" id="fBuscarX" onclick="clearBuscar()" title="Limpiar">✕</button></div>
+    <input type="text" id="fBuscar" placeholder="Buscar" autocomplete="off">
     <div style="flex:1"></div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
@@ -431,7 +450,7 @@ function toggleDesc(btn){
     <table>
       <thead>
         <tr class="th-top">
-          <th data-col="_villaName">Villa / Estado / Asignado<span class="sort-ico"></span></th>
+          <th data-col="_villaName" style="width:160px">Info<span class="sort-ico"></span></th>
           <th data-col="Taskname" style="width:200px">Tarea<span class="sort-ico"></span></th>
           <th data-col="Taskdescription">Descripción<span class="sort-ico"></span></th>
           <th data-col="Data_to_be_done_fixed" style="width:110px">Fecha<span class="sort-ico"></span></th>
@@ -565,7 +584,7 @@ function toggleDesc(btn){
       var h=g('fHasta'); if(h&&h.value&&h.value<this.value)h.value=this.value; schedule();
     });
     g('fHasta').addEventListener('change', function(){ schedule(); });
-    if(g('fBuscar'))g('fBuscar').addEventListener('input',function(){var x=g('fBuscarX');if(x)x.classList.toggle('vis',!!this.value.trim());schedule(600);});
+    if(g('fBuscar'))g('fBuscar').addEventListener('input',function(){schedule(600);});
     g('fReserva').addEventListener('input',   function(){ schedule(500); });
     /* v12: oninput en HTML, no listener aquí */
     g('fTasktype').addEventListener('change', function(){ schedule(); });
@@ -723,7 +742,6 @@ function toggleDesc(btn){
 
   window.clearBuscar = function(){
     var el=g('fBuscar');if(el)el.value='';
-    var x=g('fBuscarX');if(x)x.classList.remove('vis');
     schedule();
   };
   window.clearAll = function() {
@@ -731,7 +749,7 @@ function toggleDesc(btn){
     if(currentUserId) selectedUsers[currentUserId]=true;
     renderUserList(''); updateUserBtn();
     g('fDesde').value='2020-01-01'; g('fHasta').value='2029-12-31';
-    var _fb=g('fBuscar');if(_fb)_fb.value='';var _fx=g('fBuscarX');if(_fx)_fx.classList.remove('vis');
+    var _fb=g('fBuscar');if(_fb)_fb.value='';
     g('fReserva').value=''; g('fVilla').value='';
     if(g('fMultiunit'))g('fMultiunit').value='';
     if(g('multiunitFilterGroup'))g('multiunitFilterGroup').style.display='none';
@@ -1004,18 +1022,19 @@ function toggleDesc(btn){
       ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\''+taskId+'\',\''+(reserva||'')+'\');" title="Editar">✏️ Editar</button>'
       : '';
 
-    /* v41: metaCell fusiona Acciones + Villa/Estado/Asignado
-       — sin banderas en columna; sin "Pendiente"; Terminada en verde */
+    /* v42: info-card — villa + usuario + estado + botón editar */
     var isUrg = isFlagOn(t.urgente);
     var isImp = isFlagOn(t.importante);
-    var metaCell = '<div class="meta-cell">'
-      + '<div class="meta-row" style="justify-content:space-between;align-items:flex-start;gap:6px">'
-      +   '<div class="meta-villa">'+_esc(villaName)+'</div>'
-      +   btnEdit
+    var flagPfx=(isImp?'🚩 ':'')+(isUrg?'🏁 ':'');
+    var editUrl=taskId?'editar-tarea.html?taskid='+encodeURIComponent(taskId)+(reserva?'&Idreserva='+encodeURIComponent(reserva):''):'';
+    var metaCell = '<div class="info-card">'
+      + '<div class="info-top">'
+      +   '<div class="info-villa">'+flagPfx+_esc(villaName)+'</div>'
+      +   (userName?'<div class="info-user">'+_esc(userName.split(' ')[0])+'</div>':'')
       + '</div>'
-      + '<div class="meta-row">'
-      +   (done_t?'<span class="est-done">Terminada</span>':'')
-      +   (userName?'<span class="meta-user">'+_esc(userName.split(' ')[0])+'</span>':'')
+      + '<div class="info-bot">'
+      +   (done_t?'<span class="est-done">Terminada</span>':'<span class="est-pend">Pendiente</span>')
+      +   (editUrl?'<a class="btn-edit-card" href="'+editUrl+'" title="Editar">✎</a>':'')
       + '</div>'
       + '</div>';
     /* 🏁 delante si urgente, 🚩 delante si importante */
@@ -1047,7 +1066,7 @@ function toggleDesc(btn){
         + '</div>'
       : '';
     return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'
-      +'<td>'+metaCell+'</td>'
+      +'<td style="vertical-align:top;padding:8px 6px">'+metaCell+'</td>'
       +'<td style="max-width:200px;vertical-align:top">'+taskNameCell+'</td>'
       +'<td style="max-width:300px;vertical-align:top">'+descOnlyCell+'</td>'
       +'<td>'+dateCell(t)+'</td>'
