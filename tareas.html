@@ -20,7 +20,9 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v20 — 3Villas</title>
+  <title>Tareas v23 — 3Villas</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -147,11 +149,135 @@
   .desc-lines.open{-webkit-line-clamp:unset;overflow:visible}
   .desc-more{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
   .desc-more:hover{color:var(--gray-5)}
-  </style>
+  
+  .desc-editor{display:none;margin-top:4px}
+  .desc-ql-wrap{border:1.5px solid var(--red);border-radius:7px;overflow:hidden;background:#fff}
+  .desc-ql-wrap .ql-editor{min-height:80px;font-size:12px;font-family:inherit;padding:8px 10px;line-height:1.6}
+  .desc-ql-wrap .ql-editor.ql-blank::before{color:#bbb;font-style:normal}
+  .desc-ql-wrap .ql-container.ql-snow{border:none}
+  .desc-re-bar{display:flex;gap:4px;margin-bottom:4px}
+  .re-btn-inline{background:#fff;border:1.5px solid var(--gray-2);border-radius:5px;padding:3px 8px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;color:var(--gray-5);transition:all .12s}
+  .re-btn-inline:hover{border-color:var(--red);color:var(--red)}
+  .desc-actions{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .desc-save-btn{background:var(--red);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer;transition:opacity .15s}
+  .desc-save-btn:hover{opacity:.85}
+  .desc-saving{font-size:10px;color:var(--gray-3);font-family:Montserrat,sans-serif;font-weight:700;margin-left:2px}
+</style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
 <script>
+
+function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ── Editor inline Quill ── */
+var _tqls={};
+(function(){
+  function toPlain(h){
+    if(!h)return'';
+    var d=document.createElement('div');d.innerHTML=h;
+    var lines=[];
+    d.childNodes.forEach(function(n){
+      if(n.nodeName==='UL'){
+        var chk=n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li){
+          var t=(li.innerText||li.textContent||'').trim();
+          if(chk==='true')lines.push('[x] '+t);
+          else if(chk==='false')lines.push('[ ] '+t);
+          else lines.push('• '+t);
+        });
+      } else {
+        var t=(n.innerText||n.textContent||'').replace(/\n/g,' ').trim();
+        if(t)lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+  function toHtmlQ(text){
+    if(!text)return'';
+    if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1)return text;
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    return text.split('\n').map(function(line){
+      if(/^\[x\] /.test(line))return'<ul data-checked="true"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^\[ \] /.test(line))return'<ul data-checked="false"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^• /.test(line))return'<ul><li>'+esc(line.slice(2))+'</li></ul>';
+      return'<p>'+esc(line)+'</p>';
+    }).join('');
+  }
+  window._tplain=toPlain;
+  window._thtml=toHtmlQ;
+})();
+
+function _getWrap(el){return el.closest('.desc-wrap');}
+function _getQ(wrap){return _tqls[wrap.getAttribute('data-tid')]||null;}
+
+function _initQ(wrap){
+  var tid=wrap.getAttribute('data-tid');
+  if(_tqls[tid])return _tqls[tid];
+  var qlEl=wrap.querySelector('.desc-ql');
+  if(!qlEl||!window.Quill)return null;
+  qlEl.innerHTML='';
+  var q=new Quill(qlEl,{modules:{toolbar:false},theme:'snow',placeholder:'Descripción de la tarea…'});
+  q.root.innerHTML=_thtml(wrap.getAttribute('data-raw')||'');
+  _tqls[tid]=q;
+  return q;
+}
+
+function _openDesc(btn){
+  var wrap=_getWrap(btn);
+  var lines=wrap.querySelector('.desc-lines');
+  var editor=wrap.querySelector('.desc-editor');
+  lines.style.display='none';
+  btn.style.display='none';
+  editor.style.display='block';
+  var q=_initQ(wrap);
+  if(q)setTimeout(function(){q.focus();},50);
+}
+
+function _doSave(wrap,onDone){
+  var q=_getQ(wrap);
+  var newText=q?_tplain(q.root.innerHTML):(wrap.getAttribute('data-raw')||'');
+  newText=newText.trim();
+  wrap.setAttribute('data-raw',newText);
+  var lines=wrap.querySelector('.desc-lines');
+  if(lines)lines.innerHTML=descHtml(newText);
+  var tid=wrap.getAttribute('data-tid')||'';
+  if(onDone)onDone();
+  if(!tid)return;
+  var saving=wrap.querySelector('.desc-saving');
+  if(saving){saving.textContent='Guardando…';saving.style.color='';saving.style.display='inline';}
+  var _worker=window._W||'https://caspio-proxy.jordi-89b.workers.dev';
+  var url=_worker+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
+  if(typeof Auth!=='undefined'&&Auth.url)url=Auth.url(url);
+  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Taskdescription:newText})})
+  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});return r.json();})
+  .then(function(){if(saving){saving.textContent='✓';setTimeout(function(){saving.style.display='none';},2000);}})
+  .catch(function(e){console.error('[desc save]',tid,e);if(saving){saving.textContent='✕ Error';saving.style.color='var(--red)';setTimeout(function(){saving.style.display='none';saving.style.color='';},4000);}});
+}
+
+function _closeDesc(btn){
+  var wrap=_getWrap(btn);
+  var editor=wrap.querySelector('.desc-editor');
+  var openBtn=wrap.querySelector('.open-btn');
+  _doSave(wrap,function(){
+    editor.style.display='none';
+    var lines=wrap.querySelector('.desc-lines');
+    if(lines)lines.style.display='';
+    if(openBtn)openBtn.style.display='';
+  });
+}
+
+function _saveDescBtn(btn){_doSave(_getWrap(btn),null);}
+
+function _qFmtRow(btn,type){
+  var q=_getQ(_getWrap(btn));
+  if(!q)return;
+  q.focus();
+  var f=q.getFormat();
+  if(type==='bullet')q.format('list',f.list==='bullet'?false:'bullet');
+  else q.format('list',(f.list==='unchecked'||f.list==='checked')?false:'unchecked');
+}
+
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function descHtml(t){
   if(!t)return'';
@@ -416,12 +542,7 @@ function toggleDesc(btn){
     if (!rawId) { alert('Sin ID de tarea.'); return; }
     var params = 'taskid=' + encodeURIComponent(rawId);
     if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
-    var url = 'editar-tarea.html?' + params;
-    var w=520, h=820, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
-    var popup = window.open(url,'editartarea','width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');
-    if (popup) {
-      var t = setInterval(function(){ if(popup.closed){clearInterval(t);doSearch();} }, 600);
-    }
+    window.location.href = 'editar-tarea.html?' + params;
   };
 
   function fixStickyTops(){
@@ -474,7 +595,12 @@ function toggleDesc(btn){
     });
   });
 
-  window.addEventListener('pageshow', function(e){ if(e.persisted) doSearch(); });
+  window.addEventListener('pageshow', function(e){
+    if(e.persisted || sessionStorage.getItem('taskSaved')==='1'){
+      sessionStorage.removeItem('taskSaved');
+      doSearch();
+    }
+  });
 
   // ── CARGAR USUARIOS ──
   function loadUsers() {
@@ -815,7 +941,22 @@ function toggleDesc(btn){
       ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);line-height:1.3">'+nameDisplay+'</div>'
       : '<span style="color:var(--gray-3);font-size:11px">(sin nombre)</span>';
     var descOnlyCell = taskDesc
-      ? '<div class="desc-wrap"><div class="desc-lines" style="font-size:11px;color:var(--gray-4);line-height:1.6">'+descHtml(taskDesc)+'</div><button class="desc-more" onclick="toggleDesc(this)">▼ más</button></div>'
+      ? '<div class="desc-wrap" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(taskId)+'">'
+        + '<div class="desc-lines" style="font-size:11px;color:var(--gray-4);line-height:1.6">'+descHtml(taskDesc)+'</div>'
+        + '<div class="desc-editor">'
+        +   '<div class="desc-re-bar">'
+        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'bullet\')">• Lista</button>'
+        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'check\')">☐ Check</button>'
+        +   '</div>'
+        +   '<div class="desc-ql-wrap"><div class="desc-ql"></div></div>'
+        +   '<div class="desc-actions">'
+        +     '<button class="desc-more" onclick="_closeDesc(this)">▲ menos</button>'
+        +     '<button class="desc-save-btn" onclick="_saveDescBtn(this)">💾 Guardar</button>'
+        +     '<span class="desc-saving" style="display:none">Guardando…</span>'
+        +   '</div>'
+        + '</div>'
+        + '<button class="desc-more open-btn" onclick="_openDesc(this)">▼ más</button>'
+        + '</div>'
       : '';
     return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'
       +'<td style="text-align:center">'+btnEdit+'</td>'
