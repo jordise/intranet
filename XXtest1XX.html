@@ -1,284 +1,214 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <!-- ══ PWA ══ -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tareas v40 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="3Villas">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/3villas-manuals/sw.js')
-        .then(r => console.log('SW registrado:', r.scope))
-        .catch(e => console.warn('SW error:', e));
-    });
-  }
-</script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v39 — 3Villas</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
-/* ── Nav compacta — pedir-wellcomepacks style ── */
-    .wp-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:400}
-    .wp-nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
-    .wp-nav-logo img{height:26px;object-fit:contain}
-    .wp-nav-center{flex:1;min-width:0;padding:0 6px}
-    .wp-nav-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .wp-nav-sub{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .wp-nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
-    .wp-nav-user{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0}
-    .wp-nav-menu{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0}
-    .wp-nav-menu:hover{background:var(--red-dark)}
-    .wp-nav-close{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;transition:background .15s;flex-shrink:0}
-    .wp-nav-close:hover{background:rgba(200,16,46,.2)}
-    /* ── Filter panel ── */
-    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 22px 0;position:sticky;top:48px;z-index:200;box-shadow:var(--shadow-sm)}
-    .main-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:10px}
-    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
-    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
-    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
-    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
-    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
-    .btn-mas{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border:1.5px dashed var(--gray-3);border-radius:7px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
-    .btn-mas:hover{border-color:var(--red);color:var(--red)}
-    .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
-    .btn-mas .arr{transition:transform .2s}
-    .btn-mas.on .arr{transform:rotate(180deg)}
-    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s;flex-shrink:0}
-    .btn-clear:hover{color:var(--red)}
-    #masFiltros{overflow:hidden;max-height:0;transition:max-height .35s ease}
-    #masFiltros.open{max-height:400px}
-    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 8px}
-    .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-    .filter-row:last-child{margin-bottom:0}
-    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px}
-    .f-group.narrow{flex:0 0 140px}
-    .f-group.wide{flex:2;min-width:180px}
-    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
-    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
-    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
-    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
-    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
-    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
-    .manager-item:hover{background:var(--gray-1)}
-    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
-    .manager-item label{cursor:pointer;flex:1}
-    #chips{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0}
-    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
-    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
-    /* ── Stats ── */
-    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
-    .stat{display:flex;align-items:baseline;gap:5px}
-    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
-    /* ── Table ── */
-    main{padding:18px 22px;max-width:1400px;margin:0 auto}
-    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
-    .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    #tableWrap{display:none;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto}
-    table{width:100%;border-collapse:collapse;font-size:13px}
-    /* ── Tabla estilo pedir-wellcomepacks ── */
-    #tableWrap{border-top:3px solid var(--red)}
-    thead{position:sticky;top:0;z-index:10}
-    thead tr.th-top{background:var(--red)}
-    thead tr.th-top th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#fff;padding:10px 14px;text-align:left;white-space:nowrap;user-select:none;border-right:1px solid rgba(255,255,255,.12)}
-    thead tr.th-top th:last-child{border-right:none}
-    thead tr.th-top th[data-col]{cursor:pointer}
-    thead tr.th-top th[data-col]:hover{background:var(--red-dark)}
-    th .sort-ico{opacity:.5;margin-left:4px;font-size:9px}
-    th.sort-asc .sort-ico::after{content:'▲'}th.sort-desc .sort-ico::after{content:'▼'}th:not(.sort-asc):not(.sort-desc)[data-col] .sort-ico::after{content:'⇅'}
-    /* Badges urgente/importante en filas */
-    /* v16: flags como emoji inline — no se necesitan clases separadas */
-    /* Toggle pills urgente/importante */
-    .pill-toggle{border:1.5px solid var(--gray-2);background:#fff;color:var(--gray-4);padding:4px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
-    .pill-toggle:hover{border-color:var(--gray-4)}
-    .pill-toggle.on-urg{border-color:var(--red);background:var(--red-light);color:var(--red)}
-    .pill-toggle.on-imp{border-color:var(--orange);background:var(--orange-light);color:var(--orange)}
-    tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
-    tbody tr:hover{background:var(--gray-1)}
-    tbody tr:last-child{border-bottom:none}
-    td{padding:9px 14px;vertical-align:middle}
-    /* Villa + estado + asignado combinados */
-    .meta-cell{display:flex;flex-direction:column;gap:4px;min-width:140px}
-    .meta-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5);text-transform:uppercase;letter-spacing:.3px}
-    .meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-    .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--red)}
-    .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
-    .meta-sep{color:var(--gray-3);font-size:10px}
-    .meta-user{font-size:11px;color:var(--gray-4);font-weight:600}
-    .type-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px;white-space:nowrap}
-    .tb-com{background:#fce4ec;color:#c2185b}.tb-int{background:var(--purple-light);color:var(--purple)}.tb-x{background:var(--gray-2);color:var(--gray-4)}
-    .date-cell{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--gray-4)}
-    .date-cell.overdue{color:var(--red)}.date-cell.today{color:var(--orange)}
-    .res-link{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 7px;border-radius:4px;white-space:nowrap;cursor:pointer;border:none}
-    .act-btn{display:inline-flex;align-items:center;gap:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;cursor:pointer;border:none;white-space:nowrap;transition:filter .15s}
-    .act-btn:hover{filter:brightness(.88)}
-    .act-btn-ver{background:var(--gray-2);color:var(--gray-5)}
-    .act-btn-edit{background:var(--blue-light);color:var(--blue)}
-    .acts-wrap{display:flex;gap:5px;flex-wrap:wrap}
-    .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
-    /* Próximamente */
-    .prox-toggle-row td{cursor:pointer;padding:10px 14px;background:var(--gray-1);border-top:2px dashed var(--gray-3)}
-    .prox-toggle-row:hover td{background:var(--orange-light)}
-    .prox-task-row{display:none}
-    .prox-task-row td{background:var(--gray-1)}
-    #dbWrap{position:fixed;bottom:18px;right:18px;z-index:999}
-    #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
-    #dbBox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
-    #dbBox.open{display:block}
-    @media(max-width:700px){.f-group.narrow{flex:1}}
-    /* ── FAB nueva tarea ── */
-    #fabNueva{position:fixed;bottom:22px;right:22px;z-index:998;display:flex;align-items:center;gap:8px;background:var(--red);color:#fff;border:none;border-radius:28px;padding:13px 20px 13px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(200,16,46,.45);transition:all .2s;white-space:nowrap}
-    #fabNueva:hover{background:var(--red-dark);transform:translateY(-2px);box-shadow:0 6px 24px rgba(200,16,46,.55)}
-    #fabNueva:active{transform:translateY(0)}
-    #fabNueva .fab-ico{font-size:20px;line-height:1;flex-shrink:0}
-  
-  .desc-wrap{display:flex;flex-direction:column;gap:3px}
-  .desc-lines{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6}
-  .desc-lines.open{-webkit-line-clamp:unset;overflow:visible}
-  .desc-more{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
-  .desc-more:hover{color:var(--gray-5)}
-  
-  .desc-editor{display:none;margin-top:4px}
-  .desc-ql-wrap{border:1.5px solid var(--red);border-radius:7px;overflow:hidden;background:#fff}
-  .desc-ql-wrap .ql-editor{min-height:80px;font-size:12px;font-family:inherit;padding:8px 10px;line-height:1.6}
-  .desc-ql-wrap .ql-editor.ql-blank::before{color:#bbb;font-style:normal}
-  .desc-ql-wrap .ql-container.ql-snow{border:none}
-  .desc-re-bar{display:flex;gap:4px;margin-bottom:4px}
-  .re-btn-inline{background:#fff;border:1.5px solid var(--gray-2);border-radius:5px;padding:3px 8px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;color:var(--gray-5);transition:all .12s}
-  .re-btn-inline:hover{border-color:var(--red);color:var(--red)}
-  .desc-actions{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
-  .desc-save-btn{background:var(--red);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer;transition:opacity .15s}
-  .desc-save-btn:hover{opacity:.85}
-  .desc-saving{font-size:10px;color:var(--gray-3);font-family:Montserrat,sans-serif;font-weight:700;margin-left:2px}
+<script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-d:#9e0c24;--red-l:#fce8eb;
+  --green:#1e9e4e;--green-l:#e6f7ee;
+  --orange:#e07b00;--orange-l:#fff4e0;
+  --blue:#1967d2;--blue-l:#e8f0fe;
+  --g1:#f4f5f7;--g2:#e8eaed;--g3:#c4c9d4;--g4:#7a8194;--g5:#2d3142;
+  --sh:0 1px 4px rgba(0,0,0,.08);--sh2:0 4px 14px rgba(0,0,0,.12);
+  --r:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Open Sans',sans-serif;background:var(--g1);color:var(--g5);min-height:100vh}
+
+/* ── NAV ── */
+.nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;
+  border-bottom:1.5px solid var(--g2);box-shadow:0 2px 8px rgba(0,0,0,.07);
+  position:sticky;top:0;z-index:400}
+.nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+.nav-logo img{height:26px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 8px}
+.nav-title{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--g5)}
+.nav-sub{font-size:11px;color:var(--g4);margin-top:1px}
+.nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.nav-user{display:inline-flex;align-items:center;gap:4px;background:var(--g1);
+  border:1.5px solid var(--g2);color:var(--g4);padding:4px 10px;border-radius:20px;
+  font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
+.nav-menu{display:flex;align-items:center;justify-content:center;background:var(--red);
+  border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer}
+.nav-menu:hover{background:var(--red-d)}
+
+/* ── FILTROS BAR ── */
+.fbar{background:#fff;border-bottom:2px solid var(--g2);position:sticky;top:48px;z-index:300;
+  box-shadow:var(--sh)}
+.fbar-top{display:flex;align-items:center;gap:8px;padding:8px 14px;flex-wrap:wrap}
+
+/* Pills estado */
+.pills{display:flex;background:var(--g2);border-radius:20px;padding:2px;gap:1px}
+.pill{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:Montserrat,sans-serif;
+  font-weight:700;cursor:pointer;background:none;color:var(--g4);transition:all .15s;white-space:nowrap}
+.pill.on{background:#fff;color:var(--g5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* Toggle prioridad */
+.ptoggle{border:1.5px solid var(--g2);background:#fff;color:var(--g4);padding:4px 12px;
+  border-radius:20px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+  cursor:pointer;transition:all .15s;white-space:nowrap}
+.ptoggle.on-imp{border-color:var(--red);background:var(--red-l);color:var(--red)}
+.ptoggle.on-urg{border-color:var(--orange);background:var(--orange-l);color:var(--orange)}
+
+/* Botón filtros */
+.btn-filtros{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;
+  border:1.5px dashed var(--g3);border-radius:7px;background:transparent;color:var(--g4);
+  font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;
+  transition:all .15s;white-space:nowrap;flex-shrink:0}
+.btn-filtros:hover,.btn-filtros.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-l)}
+.btn-filtros .arr{transition:transform .2s}
+.btn-filtros.on .arr{transform:rotate(180deg)}
+.spacer{flex:1}
+.btn-clear{background:none;border:none;color:var(--g4);font-size:13px;cursor:pointer;
+  padding:4px 8px;border-radius:5px}
+.btn-clear:hover{color:var(--red)}
+
+/* Chips activos */
+.chips{display:flex;flex-wrap:wrap;gap:5px;padding:0 14px 8px;min-height:0}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--red-l);color:var(--red);
+  padding:3px 9px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700}
+.chip button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+
+/* Panel filtros avanzados */
+.fpanel{overflow:hidden;max-height:0;transition:max-height .35s ease}
+.fpanel.open{max-height:420px}
+.fpanel-inner{border-top:1px solid var(--g2);padding:12px 14px 8px;display:flex;flex-direction:column;gap:10px}
+.frow{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;position:relative}
+.fg.narrow{flex:0 0 140px}
+.flabel{font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--g4)}
+.finput,.fsel{height:36px;border:1.5px solid var(--g2);border-radius:7px;padding:0 10px;
+  font-size:13px;color:var(--g5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+.finput:focus,.fsel:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+.fsel{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+/* Usuario panel */
+.user-dd{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;
+  box-shadow:var(--sh2);z-index:9999;display:none;flex-direction:column;max-height:300px;min-width:220px}
+.user-list{overflow-y:auto;flex:1;padding:4px 0}
+.user-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;transition:background .1s}
+.user-item:hover{background:var(--g1)}
+.user-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+.user-item label{cursor:pointer;flex:1}
+.user-footer{padding:6px 10px;border-top:1px solid var(--g2);display:flex;gap:8px}
+.user-footer button{background:none;border:none;font-size:11px;cursor:pointer;padding:3px 6px;border-radius:4px}
+
+/* ── TABLA ── */
+main{padding:14px;max-width:1400px;margin:0 auto}
+.state-box{text-align:center;padding:60px 20px;color:var(--g4)}
+.spinner{display:inline-block;width:36px;height:36px;border:3px solid var(--g2);border-top-color:var(--red);
+  border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.twrap{background:#fff;border-radius:var(--r);box-shadow:var(--sh);overflow-x:auto;border-top:3px solid var(--red)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:var(--red)}
+th{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.6px;color:#fff;padding:10px 14px;text-align:left;white-space:nowrap;
+  user-select:none;border-right:1px solid rgba(255,255,255,.12)}
+th:last-child{border-right:none}
+th[data-col]{cursor:pointer}
+th[data-col]:hover{background:var(--red-d)}
+th .si{opacity:.5;margin-left:4px;font-size:9px}
+th.asc .si::after{content:'▲'}th.desc .si::after{content:'▼'}
+th:not(.asc):not(.desc)[data-col] .si::after{content:'⇅'}
+tbody tr{border-bottom:1px solid var(--g2);transition:background .1s}
+tbody tr:hover{background:var(--g1)}
+tbody tr:last-child{border-bottom:none}
+td{padding:9px 14px;vertical-align:middle}
+.empty-r td{text-align:center;padding:50px;color:var(--g4);font-family:Montserrat,sans-serif;font-size:15px}
+/* Prox toggle */
+.prox-r td{cursor:pointer;padding:10px 14px;background:var(--g1);border-top:2px dashed var(--g3)}
+.prox-r:hover td{background:var(--orange-l)}
+.prox-task-r{display:none}
+.prox-task-r td{background:var(--g1)}
+
+/* Meta cell */
+.mc{display:flex;flex-direction:column;gap:4px;min-width:130px}
+.mc-villa{font-family:Montserrat,sans-serif;font-weight:800;font-size:12px;color:var(--g5);text-transform:uppercase;letter-spacing:.3px}
+.mc-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.est-p{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--red)}
+.est-d{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;color:var(--green)}
+.mc-sep{color:var(--g3);font-size:10px}
+.mc-user{font-size:11px;color:var(--g4);font-weight:600}
+
+/* Tarea cell */
+.tname{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--g5);margin-bottom:2px}
+
+/* Desc inline Quill */
+.dw{display:flex;flex-direction:column;gap:3px}
+.dl{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6;font-size:11px;color:var(--g4)}
+.dl.open{-webkit-line-clamp:unset;overflow:visible}
+.de{display:none;margin-top:4px}
+.de.open{display:block}
+.de-rebar{display:flex;gap:4px;margin-bottom:4px}
+.re-btn{background:#fff;border:1.5px solid var(--g2);border-radius:5px;padding:3px 8px;
+  font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;color:var(--g5)}
+.re-btn:hover{border-color:var(--red);color:var(--red)}
+.de-ql{border:1.5px solid var(--red);border-radius:7px;overflow:hidden;background:#fff}
+.de-ql .ql-editor{min-height:70px;font-size:12px;font-family:inherit;padding:7px 10px;line-height:1.6}
+.de-ql .ql-container.ql-snow{border:none}
+.de-actions{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.de-save{background:var(--red);color:#fff;border:none;border-radius:6px;padding:4px 10px;
+  font-size:10px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer}
+.de-saving{font-size:10px;color:var(--g3);font-family:Montserrat,sans-serif;font-weight:700}
+.dmor{background:none;border:none;color:var(--g3);cursor:pointer;font-size:10px;
+  font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
+.dmor:hover{color:var(--g5)}
+
+/* Fecha */
+.date{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--g4)}
+.date.ov{color:var(--red)}.date.td{color:var(--orange)}
+
+/* Botones acción */
+.act{display:inline-flex;align-items:center;gap:3px;font-family:Montserrat,sans-serif;
+  font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;cursor:pointer;
+  border:none;white-space:nowrap;transition:filter .15s}
+.act:hover{filter:brightness(.88)}
+.act-e{background:var(--blue-l);color:var(--blue)}
+
+/* FAB */
+#fab{position:fixed;bottom:22px;right:22px;z-index:998;display:flex;align-items:center;gap:8px;
+  background:var(--red);color:#fff;border:none;border-radius:28px;padding:13px 20px 13px 16px;
+  font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;
+  box-shadow:0 4px 18px rgba(200,16,46,.45);transition:all .2s;white-space:nowrap}
+#fab:hover{background:var(--red-d);transform:translateY(-2px)}
+
+/* Stats */
+#stats{display:none;background:#fff;border-bottom:1px solid var(--g2);padding:6px 14px;
+  align-items:center;gap:18px;font-size:13px;color:var(--g4)}
+.stat{display:flex;align-items:baseline;gap:5px}
+.stat strong{font-family:Montserrat,sans-serif;font-size:18px;font-weight:800;color:var(--g5)}
+
+/* Debug */
+#dbw{position:fixed;bottom:18px;right:18px;z-index:997}
+#dbb{background:var(--g5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;
+  font-size:15px;cursor:pointer;box-shadow:var(--sh2);display:flex;align-items:center;justify-content:center}
+#dbbox{display:none;position:absolute;bottom:44px;right:0;width:min(460px,90vw);max-height:400px;
+  background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;
+  font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--sh2)}
+#dbbox.open{display:block}
 </style>
-  <script src="auth.js"></script>
-  <script src="nav.js"></script>
-  <script src="nav-component.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
 <script>
-
-function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-
-/* ── Editor inline Quill ── */
-var _tqls={};
-(function(){
-  function toPlain(h){
-    if(!h)return'';
-    var d=document.createElement('div');d.innerHTML=h;
-    var lines=[];
-    d.childNodes.forEach(function(n){
-      if(n.nodeName==='UL'){
-        var chk=n.getAttribute('data-checked');
-        n.querySelectorAll('li').forEach(function(li){
-          var t=(li.innerText||li.textContent||'').trim();
-          if(chk==='true')lines.push('[x] '+t);
-          else if(chk==='false')lines.push('[ ] '+t);
-          else lines.push('• '+t);
-        });
-      } else {
-        var t=(n.innerText||n.textContent||'').replace(/\n/g,' ').trim();
-        if(t)lines.push(t);
-      }
-    });
-    return lines.join('\n');
-  }
-  function toHtmlQ(text){
-    if(!text)return'';
-    if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1)return text;
-    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-    return text.split('\n').map(function(line){
-      if(/^\[x\] /.test(line))return'<ul data-checked="true"><li>'+esc(line.slice(4))+'</li></ul>';
-      if(/^\[ \] /.test(line))return'<ul data-checked="false"><li>'+esc(line.slice(4))+'</li></ul>';
-      if(/^• /.test(line))return'<ul><li>'+esc(line.slice(2))+'</li></ul>';
-      return'<p>'+esc(line)+'</p>';
-    }).join('');
-  }
-  window._tplain=toPlain;
-  window._thtml=toHtmlQ;
-})();
-
-function _getWrap(el){return el.closest('.desc-wrap');}
-function _getQ(wrap){return _tqls[wrap.getAttribute('data-tid')]||null;}
-
-function _initQ(wrap){
-  var tid=wrap.getAttribute('data-tid');
-  if(_tqls[tid])return _tqls[tid];
-  var qlEl=wrap.querySelector('.desc-ql');
-  if(!qlEl||!window.Quill)return null;
-  qlEl.innerHTML='';
-  var q=new Quill(qlEl,{modules:{toolbar:false},theme:'snow',placeholder:'Descripción de la tarea…'});
-  q.root.innerHTML=_thtml(wrap.getAttribute('data-raw')||'');
-  _tqls[tid]=q;
-  return q;
-}
-
-function _openDesc(btn){
-  var wrap=_getWrap(btn);
-  var lines=wrap.querySelector('.desc-lines');
-  var editor=wrap.querySelector('.desc-editor');
-  lines.style.display='none';
-  btn.style.display='none';
-  editor.style.display='block';
-  var q=_initQ(wrap);
-  if(q)setTimeout(function(){q.focus();},50);
-}
-
-function _doSave(wrap,onDone){
-  var q=_getQ(wrap);
-  var newText=q?_tplain(q.root.innerHTML):(wrap.getAttribute('data-raw')||'');
-  newText=newText.trim();
-  wrap.setAttribute('data-raw',newText);
-  var lines=wrap.querySelector('.desc-lines');
-  if(lines)lines.innerHTML=descHtml(newText);
-  var tid=wrap.getAttribute('data-tid')||'';
-  if(onDone)onDone();
-  if(!tid)return;
-  var saving=wrap.querySelector('.desc-saving');
-  if(saving){saving.textContent='Guardando…';saving.style.color='';saving.style.display='inline';}
-  var _worker=window._W||'https://caspio-proxy.jordi-89b.workers.dev';
-  var url=_worker+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
-  if(typeof Auth!=='undefined'&&Auth.url)url=Auth.url(url);
-  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Taskdescription:newText})})
-  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});return r.json();})
-  .then(function(){if(saving){saving.textContent='✓';setTimeout(function(){saving.style.display='none';},2000);}})
-  .catch(function(e){console.error('[desc save]',tid,e);if(saving){saving.textContent='✕ Error';saving.style.color='var(--red)';setTimeout(function(){saving.style.display='none';saving.style.color='';},4000);}});
-}
-
-function _closeDesc(btn){
-  var wrap=_getWrap(btn);
-  var editor=wrap.querySelector('.desc-editor');
-  var openBtn=wrap.querySelector('.open-btn');
-  _doSave(wrap,function(){
-    editor.style.display='none';
-    var lines=wrap.querySelector('.desc-lines');
-    if(lines)lines.style.display='';
-    if(openBtn)openBtn.style.display='';
-  });
-}
-
-function _saveDescBtn(btn){_doSave(_getWrap(btn),null);}
-
-function _qFmtRow(btn,type){
-  var q=_getQ(_getWrap(btn));
-  if(!q)return;
-  q.focus();
-  var f=q.getFormat();
-  if(type==='bullet')q.format('list',f.list==='bullet'?false:'bullet');
-  else q.format('list',(f.list==='unchecked'||f.list==='checked')?false:'unchecked');
-}
-
+/* ── Helpers descripción / Quill ── */
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function descHtml(t){
   if(!t)return'';
   if(t.indexOf('<ul')!==-1||t.indexOf('<p>')!==-1){
@@ -292,10 +222,66 @@ function descHtml(t){
     return _esc(l);
   }).join('<br>');
 }
-function toggleDesc(btn){
-  var p=btn.previousElementSibling;
-  p.classList.toggle('open');
-  btn.textContent=p.classList.contains('open')?'▲ menos':'▼ más';
+var _QLS={};
+function _toPlain(h){
+  if(!h)return'';
+  var d=document.createElement('div');d.innerHTML=h;var lines=[];
+  d.childNodes.forEach(function(n){
+    if(n.nodeName==='UL'){var ck=n.getAttribute('data-checked');
+      n.querySelectorAll('li').forEach(function(li){var t=(li.innerText||li.textContent||'').trim();
+        lines.push(ck==='true'?'[x] '+t:ck==='false'?'[ ] '+t:'\u2022 '+t);});}
+    else{var t=(n.innerText||n.textContent||'').replace(/\n/g,' ').trim();if(t)lines.push(t);}
+  });
+  return lines.join('\n');
+}
+function _toHtmlQ(text){
+  if(!text)return'';
+  if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1)return text;
+  function e(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  return text.split('\n').map(function(line){
+    if(/^\[x\] /.test(line))return'<ul data-checked="true"><li>'+e(line.slice(4))+'</li></ul>';
+    if(/^\[ \] /.test(line))return'<ul data-checked="false"><li>'+e(line.slice(4))+'</li></ul>';
+    if(/^\u2022 /.test(line))return'<ul><li>'+e(line.slice(2))+'</li></ul>';
+    return'<p>'+e(line)+'</p>';
+  }).join('');
+}
+function _gw(el){return el.closest('.dw');}
+function _gq(w){return _QLS[w.getAttribute('data-tid')]||null;}
+function _iq(w){
+  var tid=w.getAttribute('data-tid');if(_QLS[tid])return _QLS[tid];
+  var el=w.querySelector('.de-ql');if(!el||!window.Quill)return null;
+  var q=new Quill(el,{modules:{toolbar:false},theme:'snow',placeholder:'Descripción…'});
+  q.root.innerHTML=_toHtmlQ(w.getAttribute('data-raw')||'');
+  _QLS[tid]=q;return q;
+}
+function openDesc(btn){
+  var w=_gw(btn);
+  w.querySelector('.dl').style.display='none';btn.style.display='none';
+  var de=w.querySelector('.de');de.classList.add('open');
+  var q=_iq(w);if(q)setTimeout(function(){q.focus();},50);
+}
+function saveDesc(btn,close){
+  var w=_gw(btn);
+  var q=_gq(w);
+  var txt=q?_toPlain(q.root.innerHTML):(w.getAttribute('data-raw')||'');
+  txt=txt.trim();w.setAttribute('data-raw',txt);
+  var dl=w.querySelector('.dl');if(dl)dl.innerHTML=descHtml(txt);
+  if(close){w.querySelector('.de').classList.remove('open');
+    var ob=w.querySelector('.open-btn');
+    if(dl)dl.style.display='';if(ob)ob.style.display='';}
+  var tid=w.getAttribute('data-tid');if(!tid)return;
+  var sv=w.querySelector('.de-saving');if(sv){sv.textContent='Guardando…';sv.style.display='inline';}
+  var url=Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(tid));
+  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Taskdescription:txt})})
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(function(){if(sv){sv.textContent='✓';setTimeout(function(){sv.style.display='none';},2000);}})
+  .catch(function(e){if(sv){sv.textContent='✕ Error';sv.style.color='var(--red)';setTimeout(function(){sv.style.display='none';sv.style.color='';},4000);}});
+}
+function qfmt(btn,type){
+  var q=_gq(_gw(btn));if(!q)return;q.focus();
+  var f=q.getFormat();
+  if(type==='bullet')q.format('list',f.list==='bullet'?false:'bullet');
+  else q.format('list',(f.list==='unchecked'||f.list==='checked')?false:'unchecked');
 }
 </script>
 </head>
@@ -303,107 +289,84 @@ function toggleDesc(btn){
 <input type="hidden" id="mgrName">
 <script>Auth.require('tareas');</script>
 
-<nav class="wp-nav">
-  <a class="wp-nav-logo" href="index.html">
-    <img src="logo-negro.png" alt="<3Villas">
-  </a>
-  <div class="wp-nav-center">
-    <div class="wp-nav-title">Tareas</div>
-    <div class="wp-nav-sub" id="hSub"></div>
+<nav class="nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="nav-title">Tareas</div>
+    <div class="nav-sub" id="navSub"></div>
   </div>
-  <div class="wp-nav-btns">
-    <div class="wp-nav-user">👤 <span id="hUserName"></span></div>
-    <button class="wp-nav-menu" onclick="NavComponent.open()" title="Menú">☰</button>
-    <button class="wp-nav-close" onclick="history.back()" title="Volver">✕</button>
+  <div class="nav-btns">
+    <div class="nav-user">👤 <span id="navUser"></span></div>
+    <button class="nav-menu" onclick="NavComponent.open()">☰</button>
   </div>
 </nav>
 
-<!-- ── PANEL FILTROS ── -->
-<div id="filterPanel">
-  <!-- Barra siempre visible: Estado + botón Filtros -->
-  <div class="main-bar">
-    <div class="pill-group">
-      <span class="pill-label">Estado</span>
-      <div class="pill-opts">
-        <button class="pill-opt"    id="eAll">Todas</button>
-        <button class="pill-opt on" id="ePend">Pendientes</button>
-        <button class="pill-opt"    id="eDone">Terminadas</button>
-      </div>
+<div class="fbar">
+  <div class="fbar-top">
+    <!-- Estado -->
+    <div class="pills">
+      <button class="pill" id="eAll" onclick="setEstado('all')">Todas</button>
+      <button class="pill on" id="ePend" onclick="setEstado('pend')">Pendientes</button>
+      <button class="pill" id="eDone" onclick="setEstado('done')">Terminadas</button>
     </div>
-    <div class="pill-group" style="flex-shrink:0">
-      <span class="pill-label">Prioridad</span>
-      <div style="display:flex;gap:5px">
-        <button class="pill-toggle" id="fImportante" onclick="toggleFlagFilter('importante')">🚩 Importante</button>
-        <button class="pill-toggle" id="fUrgente" onclick="toggleFlagFilter('urgente')">🏁 Urgente</button>
-      </div>
-    </div>
-    <div style="flex:1"></div>
-    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+    <!-- Prioridad -->
+    <button class="ptoggle" id="fImp" onclick="togglePrio('imp')">🚩 Importante</button>
+    <button class="ptoggle" id="fUrg" onclick="togglePrio('urg')">🏁 Urgente</button>
+    <div class="spacer"></div>
+    <button class="btn-filtros" id="btnF" onclick="togglePanel()">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
-    <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
   </div>
-
-  <!-- Chips activos -->
-  <div id="chips"></div>
-
-  <!-- Panel colapsable -->
-  <div id="masFiltros">
-    <div class="mas-inner">
-      <div class="filter-row">
-        <div class="f-group wide" style="position:relative">
-          <label class="f-label">Asignado a</label>
-          <button id="fUserBtn" class="f-select" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-            <span id="fUserLabel">Cargando...</span>
-            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+  <div class="chips" id="chips"></div>
+  <div class="fpanel" id="fpanel">
+    <div class="fpanel-inner">
+      <div class="frow">
+        <!-- Asignado a -->
+        <div class="fg" style="flex:2;min-width:200px">
+          <label class="flabel">Asignado a</label>
+          <button id="fUserBtn" class="finput" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 10px">
+            <span id="fUserLbl">Cargando…</span><span style="font-size:10px;color:var(--g4)">▾</span>
           </button>
-          <div id="userPanel" class="manager-panel" style="display:none">
-            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
-              <input type="text" id="userSearch" class="f-input" placeholder="Buscar usuario..." style="height:30px;font-size:12px">
+          <div id="userDd" class="user-dd">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--g2)">
+              <input type="text" id="userSearch" class="finput" placeholder="Buscar usuario…" style="height:30px;font-size:12px">
             </div>
-            <div id="userList" class="manager-list"></div>
-            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
-              <button id="btnSelectAll" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
-              <button id="btnClearUsers" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            <div id="userList" class="user-list"></div>
+            <div class="user-footer">
+              <button onclick="selAllUsers()" style="color:var(--g4)">Todos</button>
+              <button onclick="selNoUsers()" style="color:var(--red)">Ninguno</button>
             </div>
           </div>
         </div>
-        <div class="f-group narrow">
-          <label class="f-label">Desde</label>
-          <input type="date" id="fDesde" class="f-input">
+        <div class="fg narrow">
+          <label class="flabel">Desde</label>
+          <input type="date" id="fDesde" class="finput">
         </div>
-        <div class="f-group narrow">
-          <label class="f-label">Hasta</label>
-          <input type="date" id="fHasta" class="f-input">
+        <div class="fg narrow">
+          <label class="flabel">Hasta</label>
+          <input type="date" id="fHasta" class="finput">
         </div>
       </div>
-      <div class="filter-row" style="margin-bottom:0">
-        <div class="f-group">
-          <label class="f-label">Villa</label>
-          <input type="text" id="fVilla" class="f-input" list="villasList" placeholder="Nombre de villa..." oninput="onVillaChange()">
-          <datalist id="villasList"></datalist>
+      <div class="frow">
+        <div class="fg" style="flex:2">
+          <label class="flabel">Villa</label>
+          <input type="text" id="fVilla" class="finput" list="villasDL" placeholder="Nombre de villa…">
+          <datalist id="villasDL"></datalist>
         </div>
-        <!-- v12: filtro multiunit -->
-        <div class="f-group" id="multiunitFilterGroup" style="display:none">
-          <label class="f-label">Multiunit / Unidad</label>
-          <select id="fMultiunit" class="f-input" onchange="schedule(0)">
-            <option value="">Todas las unidades</option>
-          </select>
+        <div class="fg narrow">
+          <label class="flabel">Id Reserva</label>
+          <input type="text" id="fRes" class="finput" placeholder="ej. j5oQcmp4FQ">
         </div>
-        <div class="f-group narrow">
-          <label class="f-label">Id Reserva</label>
-          <input type="text" id="fReserva" class="f-input" placeholder="ej. j5oQcmp4FQ">
+        <div class="fg narrow">
+          <label class="flabel">Tipo tarea</label>
+          <select id="fTasktype" class="fsel"><option value="">— Todos —</option></select>
         </div>
-        <div class="f-group narrow">
-          <label class="f-label">Tipo tarea</label>
-          <select id="fTasktype" class="f-select"><option value="">— Todos —</option></select>
-        </div>
-        <div class="f-group narrow">
-          <label class="f-label">Tipo reserva</label>
-          <select id="fBookingType" class="f-select">
+        <div class="fg narrow">
+          <label class="flabel">Tipo reserva</label>
+          <select id="fBooking" class="fsel">
             <option value="">— Todos —</option>
             <option value="10">🧹 Limpieza</option>
-            <option value="20">🎁 WelcomePack</option>
             <option value="30">🔒 Cierre</option>
           </select>
         </div>
@@ -412,736 +375,485 @@ function toggleDesc(btn){
   </div>
 </div>
 
-<div id="statsBar">
+<div id="stats">
   <div class="stat"><strong id="sCnt">0</strong> tareas</div>
-  <div class="stat" id="sPendStat" style="display:none"><strong id="sPendCnt" style="color:var(--red)">0</strong> pendientes</div>
-  <div class="stat" id="sDoneStat" style="display:none"><strong id="sDoneCnt" style="color:var(--green)">0</strong> terminadas</div>
+  <div class="stat" id="sPend" style="display:none"><strong id="sPendN" style="color:var(--red)">0</strong> pendientes</div>
+  <div class="stat" id="sDone" style="display:none"><strong id="sDoneN" style="color:var(--green)">0</strong> terminadas</div>
 </div>
 
 <main>
-  <div id="stInit" class="state-box"><div class="spinner"></div><p>Iniciando...</p></div>
-  <div id="stLoad" class="state-box" style="display:none"><div class="spinner"></div><p>Cargando tareas...</p></div>
-  <div id="stErr"  class="state-box" style="display:none">
+  <div id="stLoad" class="state-box"><div class="spinner"></div><p>Iniciando…</p></div>
+  <div id="stErr" class="state-box" style="display:none">
     <div style="font-size:40px;margin-bottom:10px">⚠️</div>
-    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
-    <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
+    <p id="errMsg" style="color:var(--red);font-weight:600"></p>
   </div>
-  <div id="tableWrap">
+  <div class="twrap" id="twrap" style="display:none">
     <table>
-      <thead>
-        <tr class="th-top">
-          <th style="width:90px;text-align:center">Acciones</th>
-          <th data-col="_villaName">Villa / Estado / Asignado<span class="sort-ico"></span></th>
-          <th data-col="Taskname" style="width:200px">Tarea<span class="sort-ico"></span></th>
-          <th data-col="Taskdescription">Descripción<span class="sort-ico"></span></th>
-          <th data-col="Data_to_be_done_fixed" style="width:110px">Fecha<span class="sort-ico"></span></th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th style="width:90px;text-align:center">Acciones</th>
+        <th data-col="_villa">Villa / Estado / Asignado<span class="si"></span></th>
+        <th data-col="Taskname" style="width:190px">Tarea<span class="si"></span></th>
+        <th data-col="Taskdescription">Descripción<span class="si"></span></th>
+        <th data-col="Data_to_be_done_fixed" style="width:110px">Fecha<span class="si"></span></th>
+      </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
   </div>
 </main>
 
-<button id="fabNueva" onclick="abrirNuevaTarea()" title="Nueva tarea">
-  <span class="fab-ico">＋</span> Nueva tarea
-</button>
+<button id="fab" onclick="irNuevaTarea()"><span style="font-size:20px;line-height:1">＋</span> Nueva tarea</button>
 
-<div id="dbWrap">
-  <button id="dbBtn">🐛</button>
-  <div id="dbBox">Sin datos aún.</div>
+<div id="dbw">
+  <button id="dbb">🐛</button>
+  <div id="dbbox">Sin datos.</div>
 </div>
 
 <script>
-(function () {
-  'use strict';
+(function(){
+'use strict';
+/* ══ CONFIG ══ */
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev'; window._W=WORKER;
+var DEFAULT_DESDE='2020-01-01', DEFAULT_HASTA='2029-12-31';
 
-  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+/* ══ STATE ══ */
+var estado='pend', fImp=false, fUrg=false;
+var allRows=[], allVillas=[], villaMap={}, allUsers=[], userMap={}, tasktypeSet={};
+var selUsers={}, curUserId='';
+var sortCol='Data_to_be_done_fixed', sortDir=1;
+var proxOpen=false, searchTimer=null, searchId=0;
 
-  function g(id)   { return document.getElementById(id); }
-  function val(id) { return (g(id) || {}).value || ''; }
-  function todayStr(){ return new Date().toISOString().split('T')[0]; }
-  function fmtDate(s) {
-    if (!s) return '—';
-    var d = new Date(s.includes('T') ? s : s + 'T00:00:00');
-    return isNaN(d) ? s : d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+/* ══ DOM helpers ══ */
+function g(id){return document.getElementById(id);}
+function v(id){return(g(id)||{}).value||'';}
+function todayStr(){return new Date().toISOString().split('T')[0];}
+function fmtDate(s){if(!s)return'—';var d=new Date(s.split('T')[0]+'T00:00:00');return isNaN(d)?s:d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function isFlagOn(val){if(!val&&val!==0)return false;var s=String(val).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s);}
+function isDone(t){return isFlagOn(t.Tarea_terminada);}
+function getTaskId(t){return t.taskid||t.TaskID||t.idtask||t.Id||t.ID||'';}
+
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded',function(){
+  g('fDesde').value=DEFAULT_DESDE; g('fHasta').value=DEFAULT_HASTA;
+  g('fUserBtn').addEventListener('click',toggleUserPanel);
+  g('userSearch').addEventListener('input',function(){renderUserList(this.value);});
+  g('fDesde').addEventListener('change',schedule);g('fHasta').addEventListener('change',schedule);
+  g('fRes').addEventListener('input',function(){schedule(500);});
+  g('fVilla').addEventListener('input',function(){schedule(500);});
+  g('fTasktype').addEventListener('change',schedule);g('fBooking').addEventListener('change',schedule);
+  document.querySelectorAll('th[data-col]').forEach(function(th){th.addEventListener('click',function(){sortBy(th.dataset.col);});});
+  document.addEventListener('click',function(e){
+    var dd=g('userDd'),btn=g('fUserBtn');
+    if(dd&&dd.style.display!=='none'&&btn&&!btn.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
+  });
+  g('dbb').addEventListener('click',function(){g('dbbox').classList.toggle('open');});
+  window.addEventListener('resize',reposUserPanel);
+  Promise.allSettled([loadUsers(),loadVillas()]).then(function(){setEstado('pend',false);doSearch();});
+});
+window.addEventListener('pageshow',function(e){
+  if(e.persisted||sessionStorage.getItem('taskSaved')==='1'){
+    sessionStorage.removeItem('taskSaved');doSearch();
   }
+});
 
-  var estadoFilter  = 'pend';
-  var filterUrgente   = false; /* v15 */
-  var filterImportante= false; /* v15 */
-
-  function isFlagOn(v){if(!v)return false;var s=String(v).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s);}
-
-  window.toggleFlagFilter = function(flag){
-    if(flag==='urgente'){
-      filterUrgente=!filterUrgente;
-      var btn=document.getElementById('fUrgente');
-      if(btn)btn.classList.toggle('on-urg',filterUrgente);
-    } else {
-      filterImportante=!filterImportante;
-      var btn=document.getElementById('fImportante');
-      if(btn)btn.classList.toggle('on-imp',filterImportante);
+/* ══ CARGAR USUARIOS ══ */
+function loadUsers(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
+  .then(function(r){return r.json();})
+  .then(function(json){
+    var users=json.Result||json.result||[];
+    var myEmail=Auth.email?Auth.email():'';
+    users.forEach(function(u){
+      var uid=String(u.UserID||'').trim();
+      var kpd=String(u['Keyholder_por_defecto']||'').trim();
+      var name=String(u.Name||'');
+      userMap[uid]=name;
+      if(kpd&&kpd!==uid)userMap[kpd]=name;
+    });
+    var active=users.filter(function(u){var s=u['User_Status'];return s===true||s===1||s===-1||['yes','sí','true'].includes(String(s).toLowerCase());});
+    allUsers=active.map(function(u){
+      var uid=String(u.UserID||'').trim();
+      var kpd=String(u['Keyholder_por_defecto']||'').trim();
+      return{id:uid, kpd:(kpd&&kpd!==uid?kpd:''), name:String(u.Name||'')};
+    });
+    var me=users.find(function(u){return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();});
+    if(me){
+      curUserId=String(me.UserID||'').trim();
+      if(g('navUser'))g('navUser').textContent=(me.Name||'').split(' ')[0];
+      if(g('mgrName'))g('mgrName').value=me.Name||'';
     }
-    schedule();
-  };
-  var allUsersMap   = {};
-  var selectedUsers = {};
-  var allUsersList  = [];
-  var currentUserId = '';
-  var villaNameMap  = {};
-  var multiunitsMap = {}; /* v12: {muId:{name,villaId}} */
-  var allVillas     = [];
-  var tasktypeSet   = {};
-  var allRows       = [];
-  var sortCol       = 'Data_to_be_done_fixed';
-  var sortDir       = 1;
-  var searchTimer   = null;
-  var searchId      = 0;
-  var proxOpen      = false;
+    selUsers={};if(curUserId)selUsers[curUserId]=true;
+    renderUserList('');updateUserBtn();
+  }).catch(function(e){if(g('fUserLbl'))g('fUserLbl').textContent='Error';});
+}
 
-  function selUsersKeys() { return Object.keys(selectedUsers); }
-  function schedule(ms)   { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, ms||0); }
-
-  function isDone(t) {
-    var v = t.Tarea_terminada;
-    return v===true||v===1||v===-1||
-           String(v).toLowerCase()==='yes'||
-           String(v).toLowerCase()==='sí'||
-           String(v).toLowerCase()==='true';
-  }
-  function getTaskId(t) { return t.taskid||t.TaskID||t.idtask||t.Id||t.ID||''; }
-
-  // ── Toggle filtros colapsables ──
-  window.toggleMas = function() {
-    g('btnMas').classList.toggle('on');
-    g('masFiltros').classList.toggle('open');
-  };
-
-  // ── Toggle Próximamente ──
-  window.toggleProxTareas = function() {
-    proxOpen = !proxOpen;
-    document.querySelectorAll('.prox-task-row').forEach(function(r) {
-      r.style.display = proxOpen ? 'table-row' : 'none';
+/* ══ CARGAR VILLAS ══ */
+function loadVillas(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+  .then(function(r){return r.json();})
+  .then(function(json){
+    var rows=json.Result||json.result||[];
+    var dl=g('villasDL');
+    rows.forEach(function(v){
+      var id=String(v.villaid||'');
+      var name=v.Name_villa_para_inquilinos||v.Name||id;
+      villaMap[id]=name;allVillas.push({id,name});
+      if(dl){var o=document.createElement('option');o.value=name;dl.appendChild(o);}
     });
-    var arr = g('proxArrow');
-    if (arr) arr.style.transform = proxOpen ? 'rotate(90deg)' : '';
-  };
+  }).catch(function(){});
+}
 
-  window.abrirNuevaTarea = function() {
-    var params = 'villa_id=164';
-    if (currentUserId) params += '&userid=' + encodeURIComponent(currentUserId);
-    window.location.href = 'nueva-tarea.html?' + params;
-  };
-
-  window.openEditTask = function(rawId, reserva) {
-    if (!rawId) { alert('Sin ID de tarea.'); return; }
-    var params = 'taskid=' + encodeURIComponent(rawId);
-    if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
-    window.location.href = 'editar-tarea.html?' + params;
-  };
-
-  function fixStickyTops(){
-    var nav=document.querySelector('.wp-nav');
-    var fp=document.getElementById('filterPanel');
-    if(nav&&fp) fp.style.top=nav.offsetHeight+'px';
-  }
-  window.addEventListener('resize', fixStickyTops);
-  setTimeout(fixStickyTops, 100);
-
-  document.addEventListener('DOMContentLoaded', function() {
-    g('eAll') .addEventListener('click', function(){ setEstado('all');  });
-    g('ePend').addEventListener('click', function(){ setEstado('pend'); });
-    g('eDone').addEventListener('click', function(){ setEstado('done'); });
-    g('fUserBtn').addEventListener('click', toggleUserPanel);
-    g('userSearch').addEventListener('input', function(){ renderUserList(this.value); });
-    g('btnSelectAll').addEventListener('click', function(){
-      allUsersList.forEach(function(u){ selectedUsers[u.id]=true; });
-      renderUserList(''); updateUserBtn();
-    });
-    g('btnClearUsers').addEventListener('click', function(){
-      selectedUsers={}; renderUserList(''); updateUserBtn();
-    });
-    g('fDesde').addEventListener('change', function(){
-      var h=g('fHasta'); if(h&&h.value&&h.value<this.value)h.value=this.value; schedule();
-    });
-    g('fHasta').addEventListener('change',    function(){ schedule(); });
-    g('fReserva').addEventListener('input',   function(){ schedule(500); });
-    /* v12: oninput en HTML, no listener aquí */
-    g('fTasktype').addEventListener('change', function(){ schedule(); });
-    g('fBookingType').addEventListener('change', function(){ schedule(); });
-    g('dbBtn').addEventListener('click', function(){ g('dbBox').classList.toggle('open'); });
-    document.querySelectorAll('th[data-col]').forEach(function(th){
-      th.addEventListener('click', function(){ sortBy(th.dataset.col); });
-    });
-    document.addEventListener('click', function(e){
-      var panel=g('userPanel'), btn=g('fUserBtn');
-      if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))
-        panel.style.display='none';
-    });
-    window.addEventListener('resize', repositionUserPanel);
-
-    fixStickyTops();
-    g('fDesde').value = '2020-01-01';
-    g('fHasta').value = '2029-12-31';
-
-    Promise.allSettled([loadUsers(), loadVillas()]).then(function(){
-      setEstado('pend', false);
-      doSearch();
+/* ══ PANEL USUARIOS ══ */
+function renderUserList(filter){
+  var list=g('userList');if(!list)return;
+  var q=(filter||'').toLowerCase();
+  var items=q?allUsers.filter(function(u){return u.name.toLowerCase().includes(q);}):allUsers;
+  list.innerHTML=items.map(function(u){
+    var chk=selUsers[u.id]?' checked':'';
+    return'<div class="user-item" data-uid="'+u.id+'"><input type="checkbox" id="uc_'+u.id+'"'+chk+'><label for="uc_'+u.id+'">'+u.name+'</label></div>';
+  }).join('');
+  list.querySelectorAll('.user-item').forEach(function(item){
+    item.addEventListener('click',function(){
+      var uid=item.dataset.uid;
+      if(selUsers[uid])delete selUsers[uid];else selUsers[uid]=true;
+      renderUserList(g('userSearch').value||'');updateUserBtn();schedule(300);
     });
   });
+}
+function updateUserBtn(){
+  var lbl=g('fUserLbl');if(!lbl)return;
+  var keys=Object.keys(selUsers);
+  if(!keys.length)lbl.textContent='Todos';
+  else if(keys.length===1)lbl.textContent=userMap[keys[0]]||keys[0];
+  else lbl.textContent=keys.length+' usuarios';
+  if(g('navSub')){
+    if(keys.length===1)g('navSub').textContent='de '+(userMap[keys[0]]||keys[0]).split(' ')[0];
+    else g('navSub').textContent='';
+  }
+}
+function toggleUserPanel(e){
+  e.stopPropagation();var dd=g('userDd'),btn=g('fUserBtn');
+  if(dd.style.display!=='none'){dd.style.display='none';return;}
+  reposUserPanel();dd.style.display='flex';
+  g('userSearch').value='';renderUserList('');g('userSearch').focus();
+}
+function reposUserPanel(){
+  var dd=g('userDd'),btn=g('fUserBtn');if(!dd||!btn||dd.style.display==='none')return;
+  var r=btn.getBoundingClientRect();
+  dd.style.top=(r.bottom+4)+'px';dd.style.left=r.left+'px';dd.style.width=r.width+'px';
+}
+function selAllUsers(){allUsers.forEach(function(u){selUsers[u.id]=true;});renderUserList('');updateUserBtn();}
+function selNoUsers(){selUsers={};renderUserList('');updateUserBtn();}
 
-  window.addEventListener('pageshow', function(e){
-    if(e.persisted || sessionStorage.getItem('taskSaved')==='1'){
-      sessionStorage.removeItem('taskSaved');
-      doSearch();
-    }
+/* ══ ESTADO / PRIORIDAD ══ */
+function setEstado(mode,doSearch_){
+  estado=mode;
+  ['eAll','ePend','eDone'].forEach(function(id){
+    var el=g(id);if(!el)return;
+    el.classList.toggle('on',(id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done'));
   });
+  if(doSearch_!==false)schedule();
+}
+function togglePrio(type){
+  if(type==='imp'){fImp=!fImp;g('fImp').classList.toggle('on-imp',fImp);}
+  else{fUrg=!fUrg;g('fUrg').classList.toggle('on-urg',fUrg);}
+  schedule();
+}
+function togglePanel(){g('btnF').classList.toggle('on');g('fpanel').classList.toggle('open');}
 
-  // ── CARGAR USUARIOS ──
-  function loadUsers() {
-    var btn = g('fUserBtn');
-    if (btn){ btn.disabled=true; g('fUserLabel').textContent='Cargando...'; }
-    return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
-      .then(function(r){ return r.json(); })
-      .then(function(json){
-        var users = json.Result||json.result||[];
-        users.forEach(function(u){
-          allUsersMap[String(u.UserID||'')] = String(u.Name||'');
-          /* v37: mapear KPD para mostrar nombre si tarea usa KPD */
-          var kpd=String(u['Keyholder_por_defecto']||'').trim();
-          if(kpd) allUsersMap[kpd]=String(u.Name||'');
-        });
-        var myEmail = Auth.email ? Auth.email() : '';
-        var myUser  = users.filter(function(u){
-          return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();
-        })[0];
-        if (myUser) {
-          currentUserId = String(myUser.UserID||'').trim(); /* v27: usar UserID directamente */
-          if (g('mgrName'))   g('mgrName').value = myUser.Name||'';
-          if (g('hUserName')) g('hUserName').textContent = (myUser.Name||'').split(' ')[0];
-        }
-        allUsersList = users.filter(function(u){
-          var s=u['User_Status'];
-          return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';
-        }).map(function(u){
-          var uid=String(u.UserID||'').trim();
-          var kpd=String(u['Keyholder_por_defecto']||'').trim();
-          /* v37: guardar ambos IDs — tareas pueden estar asignadas con cualquiera */
-          return {id:uid, kpd:(kpd&&kpd!==uid?kpd:''), name:String(u.Name||'')};
-        });
-        selectedUsers = {};
-        /* v37: default = UserID del usuario logado (sin KPD) */
-        if (currentUserId) selectedUsers[currentUserId] = true;
-        renderUserList(''); updateUserBtn();
-        if (btn) btn.disabled = false;
-        g('dbBox').textContent = 'Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
-      })
-      .catch(function(e){
-        if(btn){g('fUserLabel').textContent='Error';btn.disabled=false;}
-        console.error('loadUsers:',e);
-      });
-  }
+/* ══ CLEAR ALL ══ */
+function clearAll(){
+  selUsers={};if(curUserId)selUsers[curUserId]=true;
+  renderUserList('');updateUserBtn();
+  g('fDesde').value=DEFAULT_DESDE;g('fHasta').value=DEFAULT_HASTA;
+  g('fRes').value='';g('fVilla').value='';g('fTasktype').value='';g('fBooking').value='';
+  fImp=false;fUrg=false;
+  g('fImp').classList.remove('on-imp');g('fUrg').classList.remove('on-urg');
+  setEstado('pend',false);renderChips();doSearch();
+}
 
-  // ── CARGAR VILLAS ──
-  function loadVillas() {
-    return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
-      .then(function(r){ return r.json(); })
-      .then(function(json){
-        var rows=json.Result||json.result||[];
-        var dl=g('villasList');
-        rows.forEach(function(v){
-          var id=String(v.villaid||'');
-          var name=v.Name_villa_para_inquilinos||v.Name||id;
-          villaNameMap[id]=name;
-          allVillas.push({id:id,name:name});
-          if(dl){ var opt=document.createElement('option'); opt.value=name; dl.appendChild(opt); }
-        });
-      })
-      .catch(function(e){ console.warn('loadVillas:',e.message); });
-  }
+/* ══ CHIPS ══ */
+function renderChips(){
+  var html='';
+  var keys=Object.keys(selUsers);
+  var isDefault=(keys.length===1&&selUsers[curUserId]===true);
+  if(keys.length&&!isDefault)html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+keys.map(function(k){return userMap[k]||k;}).join(', '),'users');
+  var des=v('fDesde'),has=v('fHasta');
+  if(des&&des!==DEFAULT_DESDE)html+=chip('Desde: '+fmtDate(des),'desde');
+  if(has&&has!==DEFAULT_HASTA)html+=chip('Hasta: '+fmtDate(has),'hasta');
+  if(v('fRes').trim())html+=chip('Reserva: '+v('fRes'),'res');
+  if(v('fVilla').trim())html+=chip('Villa: '+v('fVilla'),'villa');
+  if(v('fBooking'))html+=chip({'10':'🧹 Limpieza','30':'🔒 Cierre'}[v('fBooking')]||v('fBooking'),'booking');
+  if(v('fTasktype'))html+=chip('Tipo: '+v('fTasktype'),'tasktype');
+  if(estado==='done')html+=chip('Terminadas','estado');
+  if(estado==='all')html+=chip('Todas','estado');
+  if(fImp)html+=chip('🚩 Importante','imp');
+  if(fUrg)html+=chip('🏁 Urgente','urg');
+  g('chips').innerHTML=html;
+  g('chips').querySelectorAll('button[data-key]').forEach(function(btn){
+    btn.addEventListener('click',function(){clearChip(btn.dataset.key);renderChips();doSearch();});
+  });
+}
+function chip(label,key){return'<span class="chip">'+label+' <button data-key="'+key+'">✕</button></span>';}
+function clearChip(key){
+  if(key==='users'){selUsers={};renderUserList('');updateUserBtn();}
+  if(key==='desde')g('fDesde').value='';if(key==='hasta')g('fHasta').value='';
+  if(key==='res')g('fRes').value='';if(key==='villa')g('fVilla').value='';
+  if(key==='booking')g('fBooking').value='';if(key==='tasktype')g('fTasktype').value='';
+  if(key==='estado')setEstado('pend',false);
+  if(key==='imp'){fImp=false;g('fImp').classList.remove('on-imp');}
+  if(key==='urg'){fUrg=false;g('fUrg').classList.remove('on-urg');}
+}
 
-  // ── PANEL USUARIOS ──
-  function renderUserList(filter) {
-    var list=g('userList'); if(!list)return;
-    var q=(filter||'').toLowerCase();
-    var items=q?allUsersList.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}):allUsersList;
-    list.innerHTML=items.map(function(u){
-      var checked=selectedUsers[u.id]?' checked':'';
-      return '<div class="manager-item" data-uid="'+u.id+'">'+
-             '<input type="checkbox" id="uc_'+u.id+'"'+checked+'>'+
-             '<label for="uc_'+u.id+'">'+u.name+'</label></div>';
-    }).join('');
-    list.querySelectorAll('.manager-item').forEach(function(item){
-      item.addEventListener('click', function(){
-        var uid=item.dataset.uid;
-        if(selectedUsers[uid]) delete selectedUsers[uid]; else selectedUsers[uid]=true;
-        renderUserList(g('userSearch').value||''); updateUserBtn(); schedule(300);
-      });
+/* ══ BUILD WHERE ══ */
+function buildWhereForUser(uids){
+  var parts=[];
+  /* Usuario: UserID + KPD */
+  if(uids&&uids.length){
+    var ids=[];
+    uids.forEach(function(uid){
+      ids.push("'"+uid+"'");
+      var u=allUsers.find(function(x){return x.id===uid;});
+      if(u&&u.kpd)ids.push("'"+u.kpd+"'");
     });
+    ids=ids.filter(function(v,i,a){return a.indexOf(v)===i;});
+    parts.push(ids.length===1?'UserID_asigned_alfanum='+ids[0]:'UserID_asigned_alfanum IN ('+ids.join(',')+')');
   }
-
-  function updateUserBtn() {
-    var lbl=g('fUserLabel'); if(!lbl)return;
-    var keys=selUsersKeys();
-    if(keys.length===0)      lbl.textContent='Todos';
-    else if(keys.length===1) lbl.textContent=allUsersMap[keys[0]]||keys[0];
-    else                     lbl.textContent=keys.length+' usuarios';
-    var hSub=g('hSub');
-    if(hSub){
-      if(keys.length===1){ var name=allUsersMap[keys[0]]||''; hSub.textContent=name?'de '+name.split(' ')[0]:''; }
-      else hSub.textContent='';
-    }
+  /* Fecha desde: incluir tareas sin fecha */
+  var des=v('fDesde');
+  if(des)parts.push("(Data_to_be_done_fixed IS NULL OR Data_to_be_done_fixed>='"+des+"T00:00:00')");
+  /* Reserva */
+  var res=v('fRes').trim();if(res)parts.push("idreserva LIKE '%"+res+"%'");
+  /* Villa */
+  var vq=v('fVilla').trim().toLowerCase();
+  if(vq){
+    var mids=allVillas.filter(function(x){return x.name.toLowerCase().includes(vq);}).map(function(x){return x.id;}).filter(Boolean);
+    if(!mids.length)parts.push('villaid=-999');
+    else if(mids.length===1)parts.push('villaid='+mids[0]);
+    else parts.push('villaid IN ('+mids.join(',')+')');
   }
+  /* Tipo reserva */
+  var bk=v('fBooking');if(bk)parts.push('Tasktype_booking='+bk);
+  /* Tipo tarea */
+  var tt=v('fTasktype');if(tt)parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
+  return parts.join(' AND ');
+}
 
-  function toggleUserPanel(e) {
-    e.stopPropagation();
-    var panel=g('userPanel'), btn=g('fUserBtn');
-    if(!panel||!btn)return;
-    if(panel.style.display!=='none'){panel.style.display='none';return;}
-    repositionUserPanel();
-    panel.style.display='flex';
-    g('userSearch').value=''; renderUserList(''); g('userSearch').focus();
-  }
-  function repositionUserPanel() {
-    var panel=g('userPanel'), btn=g('fUserBtn');
-    if(!panel||!btn||panel.style.display==='none')return;
-    var r=btn.getBoundingClientRect();
-    panel.style.top=(r.bottom+4)+'px'; panel.style.left=r.left+'px'; panel.style.width=r.width+'px';
-  }
+/* ══ SCHEDULE / SEARCH ══ */
+function schedule(ms){clearTimeout(searchTimer);searchTimer=setTimeout(doSearch,ms||0);}
 
-  // ── ESTADO ──
-  function setEstado(mode, doSch) {
-    estadoFilter=mode;
-    ['eAll','ePend','eDone'].forEach(function(id){
-      var el=g(id); if(!el)return;
-      var on=(id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done');
-      el.classList.toggle('on',on);
-    });
-    if(doSch!==false) schedule();
-  }
-
-  window.clearAll = function() {
-    selectedUsers={};
-    if(currentUserId) selectedUsers[currentUserId]=true;
-    renderUserList(''); updateUserBtn();
-    g('fDesde').value='2020-01-01'; g('fHasta').value='2029-12-31';
-    g('fReserva').value=''; g('fVilla').value='';
-    if(g('fMultiunit'))g('fMultiunit').value='';
-    if(g('multiunitFilterGroup'))g('multiunitFilterGroup').style.display='none';
-    g('fTasktype').value=''; g('fBookingType').value='';
-    setEstado('pend',false); renderChips(); doSearch();
-  };
-
-  // ── WHERE ──
-  function loadMultiunitsFirst(){
-    fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
-      .then(function(r){return r.json();})
-      .then(function(json){
-        var rows=json.Result||json.result||[];
-        rows.forEach(function(m){
-          var id=String(m.multiunitID||'').trim();
-          var vid=String(m.VillaID_caspio||m.VillalDcaspio||m.VillaDcaspio||'').trim();
-          var name=m.descripcion||m.nombre_listing_manual||id;
-          if(id)multiunitsMap[id]={name:name,villaId:vid};
-        });
-      })
-      .catch(function(){})
-      .then(function(){ loadData(); }); /* cargar tareas después */
-  }
-
-    /* v12: actualizar filtro multiunit al cambiar villa */
-  function onVillaChange(){
-    schedule(500);
-    var vText=val('fVilla').trim().toLowerCase();
-    var mg=g('multiunitFilterGroup'),ms=g('fMultiunit');
-    if(!vText){if(mg)mg.style.display='none';if(ms)ms.value='';return;}
-    /* buscar villa que coincida exactamente */
-    var matchVid=null;
-    Object.keys(villaNameMap).forEach(function(vid){if(villaNameMap[vid].toLowerCase()===vText)matchVid=vid;});
-    if(!matchVid){if(mg)mg.style.display='none';return;}
-    var mus=Object.keys(multiunitsMap).filter(function(id){return multiunitsMap[id].villaId===matchVid;});
-    if(!mus.length){if(mg)mg.style.display='none';return;}
-    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+multiunitsMap[id].name+'</option>';}).join('');
-    if(mg)mg.style.display='';
-  }
-    /* v32: buildWhereForUser acepta array de userIds específico */
-    function buildWhereForUser(userKeys){
-      var parts2=[], desde=val('fDesde');
-      var userKeys2=userKeys||selUsersKeys();
-      if(userKeys2.length>0){
-        /* v37: para cada usuario añadir UserID y KPD si son distintos */
-        var ids=[];
-        userKeys2.forEach(function(key){
-          ids.push("'"+key+"'");
-          var u=allUsersList.find(function(x){return x.id===key;});
-          if(u&&u.kpd&&u.kpd!==key) ids.push("'"+u.kpd+"'");
-        });
-        ids=ids.filter(function(v,i,a){return a.indexOf(v)===i;});
-        parts2.push(ids.length===1?'UserID_asigned_alfanum='+ids[0]:'UserID_asigned_alfanum IN ('+ids.join(',')+')');
-      }
-      if(desde) parts2.push("(Data_to_be_done_fixed IS NULL OR Data_to_be_done_fixed>='"+desde+"T00:00:00')"); /* v35 */
-      var bt=val('fBookingType'), tt=val('fTasktype'), reserva=val('fReserva').trim();
-      if(bt)    parts2.push('Tasktype_booking='+bt);
-      if(tt)    parts2.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
-      if(reserva) parts2.push("idreserva LIKE '%"+reserva+"%'");
-      var villaQ=val('fVilla').trim().toLowerCase();
-      if(villaQ){
-        var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);
-        if(!mids.length) parts2.push('villaid=-999');
-        else if(mids.length===1) parts2.push('villaid='+mids[0]);
-        else parts2.push('villaid IN ('+mids.join(',')+')');
-      }
-      var muF=val('fMultiunit').trim();
-      if(muF) parts2.push("PMSmultiunitID='"+muF+"'");
-      return parts2.join(' AND ');
-    }
-
-    function buildWhere() {
-    var parts=[], desde=val('fDesde'), hasta=val('fHasta');
-    var reserva=val('fReserva').trim(), tt=val('fTasktype'), bt=val('fBookingType');
-    /* v32: Tarea_terminada se filtra en cliente — ver doSearch */
-    var keys=selUsersKeys();
-    if(keys.length>0){
-      /* v37: incluir UserID y KPD de cada usuario */
-      var ids=[];
-      keys.forEach(function(key){
-        ids.push("'"+key+"'");
-        var u=allUsersList.find(function(x){return x.id===key;});
-        if(u&&u.kpd&&u.kpd!==key) ids.push("'"+u.kpd+"'");
-      });
-      ids=ids.filter(function(v,i,a){return a.indexOf(v)===i;});
-      parts.push(ids.length===1?'UserID_asigned_alfanum='+ids[0]:'UserID_asigned_alfanum IN ('+ids.join(',')+')');
-    }
-    // Solo filtrar desde en servidor (hasta client-side para no excluir tareas sin fecha)
-    if(desde) parts.push("(Data_to_be_done_fixed IS NULL OR Data_to_be_done_fixed>='"+desde+"T00:00:00')"); /* v35 */
-    if(bt)    parts.push('Tasktype_booking='+bt);
-    if(tt)    parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
-    if(reserva) parts.push("idreserva LIKE '%"+reserva+"%'");
-    var villaQ=val('fVilla').trim().toLowerCase();
-    if(villaQ){
-      var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);
-      if(!mids.length) parts.push('villaid=-999');
-      else if(mids.length===1) parts.push('villaid='+mids[0]);
-      else parts.push('villaid IN ('+mids.join(',')+')');
-    }
-    var muF=val('fMultiunit').trim();
-    if(muF)parts.push("PMSmultiunitID='"+muF+"'"); /* v12 */
-    /* v19: urgente/importante filtrados en cliente con isFlagOn */
-    return parts.join(' AND ');
-  }
-
-  // ── CHIPS ──
-  var DEFAULT_DESDE='2020-01-01', DEFAULT_HASTA='2029-12-31';
-
-  function renderChips() {
-    var html='';
-    var keys=selUsersKeys();
-    // Chip usuario: solo si hay selección no-default (más de 1 usuario, o un usuario distinto al actual)
-    var isDefaultUser=(keys.length===1&&selectedUsers[currentUserId]===true);
-    if(keys.length>0 && !isDefaultUser){
-      var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');
-      html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users');
-    }
-    // Chip fecha: solo si difiere del default
-    var d=val('fDesde'), h=val('fHasta');
-    if(d && d!==DEFAULT_DESDE) html+=chip('Desde: '+fmtDate(d),'desde');
-    if(h && h!==DEFAULT_HASTA) html+=chip('Hasta: '+fmtDate(h),'hasta');
-    if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
-    if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
-    if(val('fMultiunit').trim()){var _mn=multiunitsMap[val('fMultiunit')]?multiunitsMap[val('fMultiunit')].name:val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
-    var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
-    if(bt) html+=chip(btL[bt]||bt,'booking');
-    if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
-    // Chip estado: solo si es Terminadas (Pendientes es el default)
-    if(estadoFilter==='done') html+=chip('Terminadas','estado');
-    if(estadoFilter==='all')  html+=chip('Todas','estado');
-    if(filterUrgente)    html+=chip('🏁 Urgente','urgente');
-    if(filterImportante) html+=chip('🚩 Importante','importante');
-    g('chips').innerHTML=html;
-    g('chips').querySelectorAll('button[data-key]').forEach(function(btn){
-      btn.addEventListener('click',function(){ clearChip(btn.dataset.key); renderChips(); doSearch(); });
-    });
-  }
-  function chip(label,key){ return '<span class="chip-filter">'+label+' <button data-key="'+key+'">✕</button></span>'; }
-  function clearChip(key) {
-    // La X limpia el filtro (quita la restricción), no resetea al default
-    if(key==='users')   { selectedUsers={}; renderUserList(''); updateUserBtn(); }
-    if(key==='desde')   g('fDesde').value='';       // sin límite inferior de fecha
-    if(key==='hasta')   g('fHasta').value='';       // sin límite superior de fecha
-    if(key==='reserva') g('fReserva').value='';
-    if(key==='villa'){g('fVilla').value='';if(g('fMultiunit'))g('fMultiunit').value='';if(g('multiunitFilterGroup'))g('multiunitFilterGroup').style.display='none';}
-    if(key==='multiunit')  g('fMultiunit').value='';
-    if(key==='booking') g('fBookingType').value='';
-    if(key==='tasktype') g('fTasktype').value='';
-    if(key==='estado')  setEstado('pend',false);    // vuelve al default: pendientes
-    if(key==='urgente')   {filterUrgente=false;   var b=document.getElementById('fUrgente');   if(b)b.classList.remove('on-urg');}
-    if(key==='importante'){filterImportante=false; var b=document.getElementById('fImportante');if(b)b.classList.remove('on-imp');}
-  }
-
-  // ── BUSCAR ──
-  function doSearch() {
-    var myId=++searchId; proxOpen=false; renderChips();
-    g('tableWrap').style.display='none'; g('stInit').style.display='none';
-    g('stLoad').style.display='block';   g('stErr').style.display='none';
-    g('statsBar').style.display='none';  if(g('hCount'))g('hCount').textContent='';
-
-    var keys=selUsersKeys();
-    /* v32: si hay múltiples usuarios, una petición por usuario para evitar el límite de 1000 */
-    var fetchPromises;
-    if(keys.length>1){
-      fetchPromises=keys.map(function(uid){
-        var whereOne=buildWhereForUser([uid]);
-        var qs=whereOne?'&where='+encodeURIComponent(whereOne):'';
-        return fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
-          .then(function(r){return r.json();})
-          .then(function(j){return j.Result||j.result||[];});
-      });
-    } else {
-      var where=buildWhere();
+function doSearch(){
+  var myId=++searchId;proxOpen=false;renderChips();
+  g('twrap').style.display='none';g('stLoad').style.display='block';
+  g('stErr').style.display='none';g('stats').style.display='none';
+  var keys=Object.keys(selUsers);
+  /* Una petición por usuario → evita el límite de 1000 combinado */
+  var promises;
+  if(keys.length>1){
+    promises=keys.map(function(uid){
+      var where=buildWhereForUser([uid]);
       var qs=where?'&where='+encodeURIComponent(where):'';
-      fetchPromises=[fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
+      return fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
         .then(function(r){return r.json();})
-        .then(function(j){if(j.error)throw new Error(j.error);return j.Result||j.result||[];})];
-    }
-
-    Promise.all(fetchPromises)
-      .then(function(arrays){
-        if(myId!==searchId)return;
-        /* Combinar y deduplicar por taskid */
-        var seen={};
-        var tasks=[];
-        arrays.forEach(function(arr){
-          arr.forEach(function(t){
-            var id=String(t.taskid||t.PK_ID||'');
-            if(!seen[id]){seen[id]=true;tasks.push(t);}
-          });
-        });
-        /* v29: debug extendido para diagnóstico */
-        var dbSelectedUsers=JSON.stringify(selectedUsers);
-        var dbUsersList=allUsersList.map(function(u){return u.id+'='+u.name;}).join(', ');
-        var dbAssignedVals=[...new Set(tasks.map(function(t){return String(t.UserID_asigned_alfanum||'(vacío)');}))]
-                          .slice(0,20).join(', ');
-        g('dbBox').textContent=
-          'selectedUsers: '+dbSelectedUsers+
-          '\ncurrentUserId: '+currentUserId+
-          '\nWHERE: '+(where||'(sin filtros)')+
-          '\n\nResultados: '+tasks.length+
-          '\nUserID_asigned_alfanum en resultados: '+dbAssignedVals+
-          '\n\nallUsersList IDs: '+dbUsersList+
-          '\n\n'+JSON.stringify(tasks[0]||{},null,2);
-        tasks.forEach(function(t){ if(t.Tasktype) tasktypeSet[String(t.Tasktype).trim()]=true; });
-        var selTT=g('fTasktype'), curTT=selTT.value;
-        selTT.innerHTML='<option value="">— Todos —</option>'+
-          Object.keys(tasktypeSet).sort().map(function(v){
-            return '<option value="'+v+'"'+(v===curTT?' selected':'')+'>'+v+'</option>';
-          }).join('');
-        tasks.forEach(function(t){ var vid=String(t.villaid||''); if(vid&&!villaNameMap[vid])villaNameMap[vid]='Villa '+vid; });
-        allRows=tasks; renderTable();
-      })
-      .catch(function(err){
-        if(myId!==searchId)return;
-        g('stLoad').style.display='none'; g('stErr').style.display='block';
-        g('errMsg').textContent=err.message; g('dbBox').textContent='Error:\n'+err.message;
-      });
-  }
-
-  // ── SORT ──
-  function sortBy(col) {
-    if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
-    document.querySelectorAll('th[data-col]').forEach(function(th){
-      th.classList.remove('sort-asc','sort-desc');
-      if(th.dataset.col===col) th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+        .then(function(j){return j.Result||j.result||[];});
     });
-    renderTable();
+  } else {
+    var where=buildWhereForUser(keys.length?keys:null);
+    var qs=where?'&where='+encodeURIComponent(where):'';
+    promises=[fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
+      .then(function(r){return r.json();})
+      .then(function(j){if(j.error)throw new Error(j.error);return j.Result||j.result||[];})];
   }
+  Promise.all(promises).then(function(arrays){
+    if(myId!==searchId)return;
+    /* Combinar y deduplicar */
+    var seen={};var tasks=[];
+    arrays.forEach(function(arr){arr.forEach(function(t){
+      var id=String(t.taskid||t.PK_ID||'');
+      if(!seen[id]){seen[id]=true;tasks.push(t);}
+    });});
+    /* Añadir tipos de tarea al select */
+    tasks.forEach(function(t){if(t.Tasktype)tasktypeSet[String(t.Tasktype).trim()]=true;});
+    var sel=g('fTasktype'),cur=sel.value;
+    sel.innerHTML='<option value="">— Todos —</option>'+Object.keys(tasktypeSet).sort().map(function(v){
+      return'<option value="'+v+'"'+(v===cur?' selected':'')+'>'+v+'</option>';}).join('');
+    /* Enriquecer con nombre villa y usuario */
+    tasks.forEach(function(t){
+      t._villa=villaMap[String(t.villaid||'')]||String(t.villaid||'—');
+      t._user=userMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||'');
+    });
+    /* Debug */
+    var dbInfo='Peticiones: '+arrays.length+'\nTotal antes de filtro: '+tasks.length;
+    dbInfo+='\nWHERE (1ª petición): '+buildWhereForUser(keys.length?[keys[0]]:null);
+    dbInfo+='\n\nPrimer resultado:\n'+JSON.stringify(tasks[0]||{},null,2);
+    g('dbbox').textContent=dbInfo;
+    allRows=tasks;renderTable();
+  }).catch(function(err){
+    if(myId!==searchId)return;
+    g('stLoad').style.display='none';g('stErr').style.display='block';
+    g('errMsg').textContent=err.message;
+  });
+}
 
-  // ── FECHA CELL ──
-  function dateCell(t) {
+/* ══ SORT ══ */
+function sortBy(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}
+  document.querySelectorAll('th[data-col]').forEach(function(th){
+    th.classList.remove('asc','desc');
+    if(th.dataset.col===col)th.classList.add(sortDir===1?'asc':'desc');
+  });
+  renderTable();
+}
+
+/* ══ RENDER ══ */
+function renderTable(){
+  g('stLoad').style.display='none';
+  var today=new Date();today.setHours(0,0,0,0);
+  var hastaVal=v('fHasta');
+  /* Filtros cliente */
+  var filtered=allRows.filter(function(t){
+    if(estado==='pend')return!isDone(t);
+    if(estado==='done')return isDone(t);
+    return true;
+  }).filter(function(t){
+    /* Hasta: client-side, respeta tareas sin fecha */
+    if(!hastaVal)return true;
     var raw=t.Data_to_be_done_fixed||'';
-    if(!raw) return '<span class="date-cell">—</span>';
-    var d=new Date(raw.split('T')[0]+'T00:00:00');
-    var today=new Date(); today.setHours(0,0,0,0);
-    var diff=Math.round((d-today)/86400000);
-    var cls='date-cell'+(diff<0?' overdue':diff===0?' today':'');
-    var lbl=diff===0?'Hoy':diff===-1?'Ayer':diff===1?'Mañana':fmtDate(raw);
-    return '<span class="'+cls+'">'+lbl+'</span>';
+    if(!raw)return true;
+    return raw.split('T')[0]<=hastaVal;
+  }).filter(function(t){
+    /* Tasktype_booking=20 (WelcomePack) excluido siempre */
+    return String(t.Tasktype_booking||'') !== '20';
+  }).filter(function(t){
+    if(fImp&&!isFlagOn(t.importante))return false;
+    if(fUrg&&!isFlagOn(t.urgente))return false;
+    return true;
+  });
+  /* Ordenar por columna */
+  filtered.sort(function(a,b){
+    var av=sortCol==='Data_to_be_done_fixed'?(a.Data_to_be_done_fixed||'9999'):a[sortCol]||'';
+    var bv=sortCol==='Data_to_be_done_fixed'?(b.Data_to_be_done_fixed||'9999'):b[sortCol]||'';
+    return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
+  });
+  /* Stats */
+  var pend=filtered.filter(function(t){return!isDone(t);}).length;
+  var done=filtered.filter(function(t){return isDone(t);}).length;
+  g('sCnt').textContent=filtered.length;
+  g('sPendN').textContent=pend;g('sDoneN').textContent=done;
+  g('sPend').style.display=pend?'flex':'none';g('sDone').style.display=done?'flex':'none';
+  g('stats').style.display='flex';
+  if(!filtered.length){
+    g('tbody').innerHTML='<tr class="empty-r"><td colspan="5">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
+    g('twrap').style.display='block';return;
   }
+  /* Agrupar por prioridad */
+  var grpImp=[],grpUrg=[],grpNorm=[],grpProx=[],grpDone=[];
+  filtered.forEach(function(t){
+    if(isDone(t)){grpDone.push(t);return;}
+    var rawD=t.Data_to_be_done_fixed||'';
+    var isFut=rawD&&new Date(rawD.split('T')[0]+'T00:00:00')>today;
+    var imp=isFlagOn(t.importante),urg=isFlagOn(t.urgente);
+    if(imp&&!isFut)grpImp.push(t);
+    else if(urg)grpUrg.push(t);
+    else if(!isFut)grpNorm.push(t);
+    else grpProx.push(t);
+  });
+  var html='';
+  grpImp.forEach(function(t){html+=buildRow(t,'');});
+  grpUrg.forEach(function(t){html+=buildRow(t,'');});
+  grpNorm.forEach(function(t){html+=buildRow(t,'');});
+  if(grpProx.length){
+    html+='<tr class="prox-r" onclick="toggleProx()"><td colspan="5">'+
+      '<span style="margin-right:8px">🗓️</span>'+
+      '<strong>Próximamente: '+grpProx.length+' tarea'+(grpProx.length!==1?'s':'')+'</strong>'+
+      '<span id="proxArr" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>'+
+      '</td></tr>';
+    grpProx.forEach(function(t){html+=buildRow(t,'prox-task-r');});
+  }
+  grpDone.forEach(function(t){html+=buildRow(t,'');});
+  g('tbody').innerHTML=html;
+  g('twrap').style.display='block';
+}
 
-  // ── GENERAR FILA ──
-  function buildRow(t, extraClass) {
-    var done_t  = isDone(t);
-    var reserva = t.idreserva||t.Idreserva||'';
-    var taskName = (t.Taskname||'').trim();
-    var taskNameShort = taskName.length>70?taskName.slice(0,70)+'…':taskName;
-    var taskDesc = (t.Taskdescription||'').trim();
-    var taskDescShort = taskDesc.length>110?taskDesc.slice(0,110)+'…':taskDesc;
-    var taskId  = getTaskId(t);
-    var villaName = t._villaName||'—';
-    var userName  = t._userName||'';
+function toggleProx(){
+  proxOpen=!proxOpen;
+  document.querySelectorAll('.prox-task-r').forEach(function(r){r.style.display=proxOpen?'table-row':'none';});
+  var arr=g('proxArr');if(arr)arr.style.transform=proxOpen?'rotate(90deg)':'';
+}
 
-    var rowBg='';
-    if(!done_t && extraClass!=='prox-task-row'){
-      var rawD=t.Data_to_be_done_fixed||'';
-      if(rawD){
-        var today2=new Date(); today2.setHours(0,0,0,0);
-        var diff2=Math.round((new Date(rawD.split('T')[0]+'T00:00:00')-today2)/86400000);
-        if(diff2<0)      rowBg='background:#fff5f5';
-        else if(diff2===0) rowBg='background:#fffbf0';
-      }
-    }
-
-    var btnEdit = taskId
-      ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\'' + taskId + '\',\'' + (reserva||'') + '\')" title="Editar">✏️ Editar</button>'
-      : '';
-
-    // Celda combinada Villa / Estado / Asignado
-    var metaCell = '<div class="meta-cell">'+
-      '<div class="meta-villa">'+villaName+'</div>'+
-      '<div class="meta-row">'+
-        (done_t?'<span class="est-done">Terminada</span>':'<span class="est-pend">Pendiente</span>')+
-        (userName?'<span class="meta-sep">·</span><span class="meta-user">'+userName.split(' ')[0]+'</span>':'')+
+/* ══ BUILD ROW ══ */
+function buildRow(t,cls){
+  var done=isDone(t);
+  var taskId=getTaskId(t);
+  var reserva=t.idreserva||t.Idreserva||'';
+  var imp=isFlagOn(t.importante),urg=isFlagOn(t.urgente);
+  var prefix=(imp?'🚩 ':'')+(urg?'🏁 ':'');
+  var taskName=String(t.Taskname||'').trim();
+  var taskDesc=String(t.Taskdescription||'').trim();
+  var rowBg='';
+  if(!done&&cls!=='prox-task-r'){
+    var rawD=t.Data_to_be_done_fixed||'';
+    if(rawD){var today2=new Date();today2.setHours(0,0,0,0);
+      var diff=Math.round((new Date(rawD.split('T')[0]+'T00:00:00')-today2)/86400000);
+      if(diff<0)rowBg='background:#fff5f5';else if(diff===0)rowBg='background:#fffbf0';}}
+  /* Acción */
+  var btnEdit=taskId?'<button class="act act-e" onclick="editTask(\''+taskId+'\',\''+(_ea(reserva))+'\')" title="Editar">✏️ Editar</button>':'';
+  /* Meta: villa/estado/asignado */
+  var metaHtml='<div class="mc">'+
+    '<div class="mc-villa">'+_esc(t._villa)+'</div>'+
+    '<div class="mc-row">'+
+    (done?'<span class="est-d">Terminada</span>':'<span class="est-p">Pendiente</span>')+
+    (t._user?'<span class="mc-sep">·</span><span class="mc-user">'+_esc(t._user.split(' ')[0])+'</span>':'')+
+    '</div></div>';
+  /* Tarea */
+  var tareaHtml='<div class="tname">'+(prefix?prefix:'')+_esc(taskName||'(sin nombre)')+'</div>';
+  /* Descripción con editor inline */
+  var descHtml2='';
+  if(taskDesc){
+    descHtml2='<div class="dw" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(String(taskId))+'">'+
+      '<div class="dl">'+descHtml(taskDesc)+'</div>'+
+      '<div class="de">'+
+        '<div class="de-rebar">'+
+          '<button class="re-btn" onclick="qfmt(this,\'bullet\')">• Lista</button>'+
+          '<button class="re-btn" onclick="qfmt(this,\'check\')">☐ Check</button>'+
+        '</div>'+
+        '<div class="de-ql"></div>'+
+        '<div class="de-actions">'+
+          '<button class="dmor" onclick="saveDesc(this,true)">▲ menos</button>'+
+          '<button class="de-save" onclick="saveDesc(this,false)">💾 Guardar</button>'+
+          '<span class="de-saving" style="display:none"></span>'+
+        '</div>'+
       '</div>'+
+      '<button class="dmor open-btn" onclick="openDesc(this)">▼ más</button>'+
     '</div>';
-
-    /* v16: banderas delante del nombre, sin bloque extra */
-    var isUrg = isFlagOn(t.urgente);
-    var isImp = isFlagOn(t.importante);
-    /* 🏁 delante si urgente, 🚩 delante si importante */
-    var flagPrefix = (isImp ? '🚩' : '') + (isUrg ? '🏁' : '');
-    var nameDisplay = flagPrefix ? flagPrefix + ' ' + _esc(taskName) : _esc(taskName);
-    var nameHtml = taskName
-      ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin-bottom:3px">'+nameDisplay+'</div>'
-      : '';
-    /* v18: Tarea y Descripción en columnas separadas — 5 columnas */
-    var taskNameCell = taskName
-      ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);line-height:1.3">'+nameDisplay+'</div>'
-      : '<span style="color:var(--gray-3);font-size:11px">(sin nombre)</span>';
-    var descOnlyCell = taskDesc
-      ? '<div class="desc-wrap" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(taskId)+'">'
-        + '<div class="desc-lines" style="font-size:11px;color:var(--gray-4);line-height:1.6">'+descHtml(taskDesc)+'</div>'
-        + '<div class="desc-editor">'
-        +   '<div class="desc-re-bar">'
-        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'bullet\')">• Lista</button>'
-        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'check\')">☐ Check</button>'
-        +   '</div>'
-        +   '<div class="desc-ql-wrap"><div class="desc-ql"></div></div>'
-        +   '<div class="desc-actions">'
-        +     '<button class="desc-more" onclick="_closeDesc(this)">▲ menos</button>'
-        +     '<button class="desc-save-btn" onclick="_saveDescBtn(this)">💾 Guardar</button>'
-        +     '<span class="desc-saving" style="display:none">Guardando…</span>'
-        +   '</div>'
-        + '</div>'
-        + '<button class="desc-more open-btn" onclick="_openDesc(this)">▼ más</button>'
-        + '</div>'
-      : '';
-    return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'
-      +'<td style="text-align:center">'+btnEdit+'</td>'
-      +'<td>'+metaCell+'</td>'
-      +'<td style="max-width:200px;vertical-align:top">'+taskNameCell+'</td>'
-      +'<td style="max-width:300px;vertical-align:top">'+descOnlyCell+'</td>'
-      +'<td>'+dateCell(t)+'</td>'
-      +'</tr>';
   }
+  /* Fecha */
+  var raw=t.Data_to_be_done_fixed||'';
+  var dateHtml='<span class="date">—</span>';
+  if(raw){var d=new Date(raw.split('T')[0]+'T00:00:00');var today3=new Date();today3.setHours(0,0,0,0);
+    var diff2=Math.round((d-today3)/86400000);
+    var cls2='date'+(diff2<0?' ov':diff2===0?' td':'');
+    var lbl=diff2===0?'Hoy':diff2===-1?'Ayer':diff2===1?'Mañana':fmtDate(raw);
+    dateHtml='<span class="'+cls2+'">'+lbl+'</span>';}
+  return'<tr class="'+cls+'" style="'+rowBg+'">'+
+    '<td style="text-align:center">'+btnEdit+'</td>'+
+    '<td>'+metaHtml+'</td>'+
+    '<td style="vertical-align:top">'+tareaHtml+'</td>'+
+    '<td style="max-width:300px;vertical-align:top">'+descHtml2+'</td>'+
+    '<td>'+dateHtml+'</td>'+
+  '</tr>';
+}
 
-  // ── RENDER ──
-  function renderTable() {
-    g('stLoad').style.display='none';
-    var today=new Date(); today.setHours(0,0,0,0);
-
-    var hastaVal=val('fHasta');
-    var filtered=allRows.filter(function(t){
-      if(estadoFilter==='pend') return !isDone(t);
-      if(estadoFilter==='done') return  isDone(t);
-      return true;
-    }).filter(function(t){
-      /* v36: excluir Tasktype_booking=20 en cliente — evita problemas SQL con IS NULL */
-      return String(t.Tasktype_booking||'') !== '20';
-    }).filter(function(t){
-      // Filtro hasta en cliente: tareas sin fecha siempre pasan
-      if(!hastaVal) return true;
-      var rawD=t.Data_to_be_done_fixed||'';
-      if(!rawD) return true;
-      return rawD.split('T')[0]<=hastaVal;
-    }).filter(function(t){
-      /* v19: filtro urgente/importante en cliente */
-      if(filterUrgente   && !isFlagOn(t.urgente))    return false;
-      if(filterImportante && !isFlagOn(t.importante)) return false;
-      return true;
-    }).map(function(t){
-      return Object.assign({},t,{
-        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu].name:vn;})(), /* v12 */
-        _userName:  allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),
-        _done:      isDone(t)?1:0,
-      });
-    });
-
-    filtered.sort(function(a,b){
-      var av=a[sortCol]!==undefined?a[sortCol]:'', bv=b[sortCol]!==undefined?b[sortCol]:'';
-      if(sortCol==='Data_to_be_done_fixed'){av=a.Data_to_be_done_fixed||'9999';bv=b.Data_to_be_done_fixed||'9999';}
-      return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
-    });
-
-    /* v19: Separar en grupos con lógica de prioridad:
-       - Importante (solo pendPast, no futura salvo que sea también urgente) → primeros
-       - Urgente (cualquier fecha, sacada de Próximamente) → segundos
-       - Normal pendPast → en medio
-       - Próximamente: futuras no urgentes (aunque sean importantes) → colapsable
-       - Done → al final
-    */
-    var grpImportante=[], grpUrgente=[], grpNormal=[], grpProx=[], doneRows=[];
-
-    filtered.forEach(function(t){
-      if(isDone(t)){ doneRows.push(t); return; }
-      var rawD=t.Data_to_be_done_fixed||'';
-      var isFuture=rawD && new Date(rawD.split('T')[0]+'T00:00:00')>today;
-      var imp=isFlagOn(t.importante);
-      var urg=isFlagOn(t.urgente);
-
-      if(imp && !isFuture){
-        grpImportante.push(t);        /* importante + pasada/hoy → primero */
-      } else if(urg){
-        grpUrgente.push(t);           /* urgente (cualquier fecha) → segundo, sacada de Próximamente */
-      } else if(!isFuture){
-        grpNormal.push(t);            /* normal pasada/hoy → en medio */
-      } else {
-        grpProx.push(t);              /* futura no urgente → Próximamente */
-      }
-    });
-
-    var pendTotal = grpImportante.length+grpUrgente.length+grpNormal.length+grpProx.length;
-    var done = doneRows.length;
-    g('sCnt').textContent=filtered.length;
-    g('sPendCnt').textContent=pendTotal; g('sDoneCnt').textContent=done;
-    g('sPendStat').style.display=pendTotal>0?'flex':'none';
-    g('sDoneStat').style.display=done>0?'flex':'none';
-    g('statsBar').style.display='flex';
-    if(g('hCount'))g('hCount').textContent=filtered.length||'';
-
-    var tbody=g('tbody');
-    if(!filtered.length){
-      tbody.innerHTML='<tr class="empty-row"><td colspan="5">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
-      g('tableWrap').style.display='block'; return;
-    }
-
-    var html='';
-    grpImportante.forEach(function(t){ html+=buildRow(t,''); });
-    grpUrgente.forEach(function(t){    html+=buildRow(t,''); });
-    grpNormal.forEach(function(t){     html+=buildRow(t,''); });
-
-    if(grpProx.length){
-      html+='<tr class="prox-toggle-row" onclick="toggleProxTareas()">'+
-        '<td colspan="5">'+
-        '<span style="margin-right:8px;font-size:14px">🗓️</span>'+
-        '<strong>Próximamente: '+grpProx.length+' tarea'+(grpProx.length>1?'s':'')+'</strong>'+
-        '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>'+
-        '</td></tr>';
-      grpProx.forEach(function(t){ html+=buildRow(t,'prox-task-row'); });
-    }
-
-    doneRows.forEach(function(t){ html+=buildRow(t,''); });
-    tbody.innerHTML=html;
-    g('tableWrap').style.display='block';
-  }
+/* ══ ACCIONES ══ */
+function editTask(id,reserva){
+  var params='taskid='+encodeURIComponent(id);
+  if(reserva)params+='&Idreserva='+encodeURIComponent(reserva);
+  window.location.href='editar-tarea.html?'+params;
+}
+function irNuevaTarea(){
+  var params='villa_id=164';
+  if(curUserId)params+='&userid='+encodeURIComponent(curUserId);
+  window.location.href='nueva-tarea.html?'+params;
+}
 
 })();
 </script>
