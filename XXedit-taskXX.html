@@ -1021,6 +1021,12 @@ window.showLinkEditor=function(){
   var lt=g('linkText'),lu=g('linkUrl');
   if(lt)lt.value=_linkData.text||'';
   if(lu)lu.value=_linkData.url||'';
+  /* v45b: Enter en cualquiera de los dos inputs → confirmar */
+  function _onLinkKey(e){ if(e.key==='Enter'){e.preventDefault();saveLinkEditor();} }
+  if(lu){ lu.removeEventListener('keydown',lu._linkKey||function(){}); lu._linkKey=_onLinkKey; lu.addEventListener('keydown',lu._linkKey); }
+  if(lt){ lt.removeEventListener('keydown',lt._linkKey||function(){}); lt._linkKey=_onLinkKey; lt.addEventListener('keydown',lt._linkKey); }
+  /* v45b: al pegar en URL y perder el foco → confirmar automático si hay URL válida */
+  if(lu){ lu.removeEventListener('blur',lu._linkBlur||function(){}); lu._linkBlur=function(){ var v=lu.value.trim(); if(v&&(v.indexOf('http')===0||v.indexOf('//')===0||v.indexOf('www.')===0)){ setTimeout(saveLinkEditor,150); } }; lu.addEventListener('blur',lu._linkBlur); }
   if(lu)setTimeout(function(){lu.focus();},50);
 };
 window.hideLinkEditor=function(){
@@ -1031,7 +1037,11 @@ window.saveLinkEditor=function(){
   var lt=g('linkText'),lu=g('linkUrl');
   var url=(lu?lu.value.trim():'');
   var text=(lt?lt.value.trim():'');
-  if(url&&url.indexOf('http')!==0&&url.indexOf('//')!==0){url='https://'+url;}
+  if(!url)return; /* sin URL no hacer nada */
+  if(url&&url.indexOf('http')!==0&&url.indexOf('//')!==0&&url.indexOf('www.')!==0){url='https://'+url;}
+  if(url.indexOf('www.')===0)url='https://'+url;
+  /* Auto-label: si no pusieron texto, usar hostname limpio */
+  if(!text){try{text=new URL(url).hostname.replace(/^www\./,'');}catch(e){text='Ver enlace';}}
   _linkData={text:text,url:url};
   var ed=g('linkEditor');if(ed)ed.style.display='none';
   _renderLinkField();
