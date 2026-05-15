@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v43 — 3Villas</title>
+  <title>Tareas v45 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -114,23 +114,24 @@
   #fBuscar:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
   #fBuscar::placeholder{color:var(--gray-3)}
   /* ── Info Card (v42) ── */
-    .info-card{display:flex;flex-direction:column;justify-content:space-between;gap:6px;
+    /* v45: info-card — toda la caja es el botón */
+    .info-card{display:flex;flex-direction:column;gap:6px;
       border:1.5px solid var(--gray-2);border-radius:14px;padding:10px 10px 8px;
-      min-width:120px;max-width:160px;min-height:80px;background:#fff;box-sizing:border-box}
-    .info-card:hover{border-color:var(--gray-3)}
-    .info-top{flex:1}
+      min-width:120px;max-width:160px;min-height:80px;background:#fff;box-sizing:border-box;
+      cursor:pointer;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .12s}
+    .info-card:hover{border-color:var(--gray-4);box-shadow:0 2px 8px rgba(0,0,0,.10)}
+    .info-card:active{background:var(--gray-1)}
+    .info-flags{font-size:14px;line-height:1;min-height:18px}
+    .info-pencil{display:flex;align-items:center;justify-content:center;
+      background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:50%;
+      width:28px;height:28px;font-size:13px;flex-shrink:0}
     .info-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;
       color:var(--gray-5);line-height:1.25;word-break:break-word}
     .info-user{font-family:'Open Sans',sans-serif;font-size:11px;color:var(--gray-4);
-      font-weight:600;margin-top:3px}
-    .info-bot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
+      font-weight:600;margin-top:2px}
+    .info-bot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px}
     .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
     .est-pend{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--gray-3)}
-    .btn-edit-card{display:flex;align-items:center;justify-content:center;
-      background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:50%;
-      color:var(--gray-4);width:30px;height:30px;font-size:14px;cursor:pointer;
-      flex-shrink:0;transition:all .15s;line-height:1;text-decoration:none}
-    .btn-edit-card:hover{background:var(--gray-5);border-color:var(--gray-5);color:#fff}
     .meta-cell{display:flex;flex-direction:column;gap:4px;min-width:140px}
     .meta-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5);text-transform:uppercase;letter-spacing:.3px}
     .meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -349,6 +350,7 @@ function toggleDesc(btn){
         <button class="pill-opt"    id="eDone">Terminadas</button>
       </div>
     </div>
+    <input type="text" id="fBuscar" placeholder="Buscar" autocomplete="off">
     <div class="pill-group" style="flex-shrink:0">
       <span class="pill-label">Prioridad</span>
       <div style="display:flex;gap:5px">
@@ -356,7 +358,6 @@ function toggleDesc(btn){
         <button class="pill-toggle" id="fUrgente" onclick="toggleFlagFilter('urgente')">🏁 Urgente</button>
       </div>
     </div>
-    <input type="text" id="fBuscar" placeholder="Buscar" autocomplete="off">
     <div style="flex:1"></div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
@@ -1022,34 +1023,31 @@ function toggleDesc(btn){
       ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\''+taskId+'\',\''+(reserva||'')+'\');" title="Editar">✏️ Editar</button>'
       : '';
 
-    /* v42: info-card — villa + usuario + estado + botón editar */
+    /* v45: info-card — toda la caja navega a editar */
     var isUrg = isFlagOn(t.urgente);
     var isImp = isFlagOn(t.importante);
-    var flagPfx=(isImp?'🚩 ':'')+(isUrg?'🏁 ':'');
     var editUrl=taskId?'editar-tarea.html?taskid='+encodeURIComponent(taskId)+(reserva?'&Idreserva='+encodeURIComponent(reserva):''):'';
-    var metaCell = '<div class="info-card">'
-      + '<div class="info-top">'
-      +   '<div class="info-villa">'+flagPfx+_esc(villaName)+'</div>'
-      +   (userName?'<div class="info-user">'+_esc(userName.split(' ')[0])+'</div>':'')
-      + '</div>'
+    var flags=(isImp?'🚩':'')+(isUrg?'🏁':'');
+    var metaCell = (editUrl?'<a class="info-card" href="'+editUrl+'">':'<div class="info-card">')
+      /* Banderas arriba */
+      + '<div class="info-flags">'+flags+'</div>'
+      /* Nombre villa centrado */
+      + '<div class="info-villa">'+_esc(villaName)+'</div>'
+      /* Lápiz */
       + '<div class="info-bot">'
+      +   '<span class="info-pencil">✎</span>'
       +   (done_t?'<span class="est-done">Terminada</span>':'<span class="est-pend">Pendiente</span>')
-      +   (editUrl?'<a class="btn-edit-card" href="'+editUrl+'" title="Editar">✎</a>':'')
       + '</div>'
-      + '</div>';
-    /* 🏁 delante si urgente, 🚩 delante si importante */
-    var flagPrefix = (isImp ? '🚩' : '') + (isUrg ? '🏁' : '');
-    var nameDisplay = flagPrefix ? flagPrefix + ' ' + _esc(taskName) : _esc(taskName);
-    var nameHtml = taskName
-      ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin-bottom:3px">'+nameDisplay+'</div>'
-      : '';
-    /* v18: Tarea y Descripción en columnas separadas — 5 columnas */
+      /* Persona asignada abajo */
+      + (userName?'<div class="info-user">'+_esc(userName.split(' ')[0])+'</div>':'')
+      + (editUrl?'</a>':'</div>');
+    /* v45: columna Tarea sin banderas, color ligeramente más suave */
     var taskNameCell = taskName
-      ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);line-height:1.3">'+nameDisplay+'</div>'
+      ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-4);line-height:1.3">'+_esc(taskName)+'</div>'
       : '<span style="color:var(--gray-3);font-size:11px">(sin nombre)</span>';
     var descOnlyCell = taskDesc
       ? '<div class="desc-wrap" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(taskId)+'">'
-        + '<div class="desc-lines" style="font-size:11px;color:var(--gray-4);line-height:1.6">'+descHtml(taskDesc)+'</div>'
+        + '<div class="desc-lines" style="font-size:12px;color:var(--gray-5);line-height:1.55">'+descHtml(taskDesc)+'</div>'
         + '<div class="desc-editor">'
         +   '<div class="desc-re-bar">'
         +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'bullet\')">• Lista</button>'
