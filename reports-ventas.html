@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v01 — 3Villas</title>
+<title>Reports Ventas v02 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -170,6 +170,11 @@ td input[type=date]:focus{border-color:var(--red)}
         <span id="agenteLbl">Todos</span><span style="font-size:10px;color:var(--gray-4)">▾</span>
       </button>
       <div id="agentePanel" class="agente-panel">
+        <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+          <input type="text" id="agenteSearch" placeholder="Buscar agente…" autocomplete="off"
+            style="width:100%;border:1.5px solid var(--gray-2);border-radius:6px;padding:5px 9px;font-size:12px;outline:none"
+            oninput="filterAgenteList(this.value)">
+        </div>
         <div class="agente-list" id="agenteList"></div>
         <div class="agente-footer">
           <button onclick="selAllAgentes()">Todos</button>
@@ -179,11 +184,11 @@ td input[type=date]:focus{border-color:var(--red)}
     </div>
 
     <!-- Vista toggle -->
-    <div class="f-group narrow">
-      <label class="f-label">Vista</label>
-      <div class="view-toggle">
-        <button class="vt-btn on" id="vList" onclick="setVista('list')">☰ Listado</button>
-        <button class="vt-btn" id="vChart" onclick="setVista('chart')">📊 Gráficos</button>
+    <div class="pill-group">
+      <span class="pill-label">Vista</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="vList"  onclick="setVista('list')">☰ Listado</button>
+        <button class="pill-opt"    id="vChart" onclick="setVista('chart')">📊 Gráficos</button>
       </div>
     </div>
 
@@ -280,7 +285,7 @@ td input[type=date]:focus{border-color:var(--red)}
 
 /* ══ CONSTANTES ══ */
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-const TABLE  = 'Ta_raports_ventas';
+const TABLE  = 'Ta_raport_ventas';  /* v02: sin 's' */
 
 const FIELDS = [
   {key:'lCaptacion_Inmobiliaria',       label:'Captación Inmobiliaria'},
@@ -337,7 +342,13 @@ async function loadUsers(){
       if(uid) userMap[uid] = name;
     });
     allUsers = rows
-      .filter(u=>{ const s=u['User_Status']; return s===true||s===1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'; })
+      .filter(u=>{
+        const s=u['User_Status'];
+        const active=s===true||s===1||['yes','sí','true'].includes(String(s).toLowerCase());
+        /* v02: solo rol sales */
+        const role=String(u.Role||u.role||'').toLowerCase();
+        return active && role==='sales';
+      })
       .map(u=>({id:String(u.UserID||'').trim(), name:String(u.Name||'').trim()}))
       .filter(u=>u.id&&u.name);
     if(g('navUser')){
@@ -431,6 +442,7 @@ async function loadData(){
     const parts=[];
     if(desde) parts.push(`fecha>='${desde}T00:00:00'`);
     if(hasta) parts.push(`fecha<='${hasta}T23:59:59'`);
+    /* v02: NO filtrar por usuario logado — cargar todos por defecto */
     if(selAgentes.size>0){
       const ids=[...selAgentes].map(id=>`'${id}'`).join(',');
       parts.push(selAgentes.size===1?`agente='${[...selAgentes][0]}'`:`agente IN (${ids})`);
@@ -438,10 +450,12 @@ async function loadData(){
     const where=parts.join(' AND ');
     const qs=where?'&where='+encodeURIComponent(where):'';
     const url=WORKER+'?action=data&table='+TABLE+qs+'&orderBy=fecha%20DESC&limit=1000';
+    console.log('[RV v02] URL:', url);
     const res=await fetch(Auth.url(url));
     const json=await res.json();
     if(myId!==searchId)return;
     if(json.error)throw new Error(json.error);
+    console.log('[RV v02] Registros:', (json.Result||json.result||[]).length);
     allRows=json.Result||json.result||[];
 
     /* Enriquecer con nombre agente */
@@ -500,13 +514,14 @@ function showNewRows(){
   /* Cabecera tabla nueva */
   g('tblNewHead').innerHTML='<th>Fecha</th><th>Agente</th>'+FIELDS.map(f=>`<th>${f.label}</th>`).join('')+'<th></th>';
   /* Fila por agente activo */
+  /* v02: solo agentes con rol sales */
   const agentesToShow = selAgentes.size>0
     ? allUsers.filter(u=>selAgentes.has(u.id))
     : allUsers;
   g('tblNewBody').innerHTML=agentesToShow.map((u,idx)=>{
     const inputs=FIELDS.map(f=>`<td class="td-num"><input type="number" class="num-edit" data-field="${f.key}" value="0" min="0"></td>`).join('');
     return`<tr class="new-row" data-uid="${u.id}" data-idx="${idx}">
-      <td><input type="date" class="fecha-edit" value="${friday}"></td>
+      <td><input type="date" class="fecha-edit" value="${friday}" onchange="validateWeekDate(this,'${u.id}')"></td>
       <td class="td-agente">${u.name}</td>
       ${inputs}
       <td><button class="btn-save" onclick="saveNewRow(this)">💾 Guardar</button></td>
@@ -537,6 +552,7 @@ function setVista(v){
   vista=v;
   g('vList').classList.toggle('on',v==='list');
   g('vChart').classList.toggle('on',v==='chart');
+  /* v02: pill-opt style */
   if(v==='chart'){g('masFiltros').classList.add('open');g('btnMas').classList.add('on');}
   if(allRows.length>0||v==='list') { v==='list'?renderList():renderCharts(); }
 }
@@ -648,6 +664,27 @@ function getISOWeek(d){
 }
 
 /* Exponer globals */
+/* v02: filtrar lista de agentes por texto */
+window.filterAgenteList = function(q){
+  const ql=q.toLowerCase();
+  document.querySelectorAll('#agenteList .ag-item').forEach(item=>{
+    item.style.display=(!ql||item.querySelector('label').textContent.toLowerCase().includes(ql))?'':'none';
+  });
+};
+/* v02: validar que la fecha elegida no tenga ya registro para ese agente en la misma semana */
+window.validateWeekDate = function(input, agentId){
+  const d=input.value; if(!d)return;
+  const wk=getISOWeekStr(new Date(d+'T00:00:00'));
+  const conflict=allRows.some(r=>{
+    if(String(r.agente||'')!==agentId) return false;
+    const rd=new Date((r.fecha||r.Fecha||'').split('T')[0]+'T00:00:00');
+    return !isNaN(rd) && getISOWeekStr(rd)===wk;
+  });
+  input.style.borderColor=conflict?'var(--red)':'';
+  input.style.background=conflict?'var(--red-light)':'';
+  input.title=conflict?'Ya hay un registro de este agente en esa semana':'';
+};
+function getISOWeekStr(d){ return d.getFullYear()+'-W'+String(getISOWeek(d)).padStart(2,'0'); }
 window.setQuick=setQuick; window.onFilterChange=onFilterChange; window.toggleMas=toggleMas;
 window.toggleAgentePanel=toggleAgentePanel; window.selAllAgentes=selAllAgentes; window.selNoAgentes=selNoAgentes;
 window.setVista=setVista; window.clearAll=clearAll; window.saveNewRow=saveNewRow;
