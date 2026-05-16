@@ -28,7 +28,7 @@ const Auth = (function () {
    // ── Mapa de permisos ──────────────────────────────────────
   // Generado desde permisos.html — 8/5/2026, 18:27:33
 const PERMISSIONS = {
-    'reports-ventas': ['admin'],
+    'reports-ventas': ['admin', 'sales'],
     'entradas'     : ['admin', 'manager', 'staff', 'cleaner'],
     'salidas'      : ['admin', 'manager', 'staff', 'cleaner'],
     'tareas'       : ['admin', 'manager', 'staff', 'cleaner'],
