@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v03 — 3Villas</title>
+<title>Reports Ventas v04 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -646,17 +646,22 @@ function renderCharts(){
   /* Badge info */
   const cmpLbl={ninguna:'Sin comparativa',mensual:'Comparativa mensual',trimestral:'Comparativa trimestral',anual:'Comparativa anual'}[comparativa]||'';
   const perLbl={semanal:'eje X: semanas',mensual:'eje X: meses',trimestral:'eje X: trimestres',anual:'eje X: años'}[periodicidad]||'';
-  g('chartBadge').textContent=cmpLbl+(cmpLbl&&perLbl?' · ':'')+perLbl;
+  g('chartBadge').textContent='Σ todos los agentes · '+perLbl+(cmpLbl?' · '+cmpLbl:'');
 
-  /* Gráfico combinado: suma de campos seleccionados, una serie por comparativa */
-  const cmbDatasets=seriesKeys.map((sk,i)=>({
-    label:sk,
+  /* Gráfico combinado: una línea por CAMPO, valor = suma de TODOS los agentes × todos los períodos de comparativa */
+  /* Los agentes nunca se muestran por separado — siempre se suman */
+  const cmbDatasets=campos.map((f,fi)=>({
+    label:f.label,
     data:xLabels.map(xl=>{
-      const g2=groups[sk]?.[xl]; if(!g2)return 0;
-      return campos.reduce((s,f)=>s+(g2[f.key]||0),0);
+      /* Sumar este campo en TODOS los seriesKeys (años, trimestres, etc.) para este x-label */
+      if(seriesKeys.length===1){
+        return groups[seriesKeys[0]]?.[xl]?.[f.key]||0;
+      }
+      /* Con comparativa: en el gráfico combinado mostrar líneas por comparativa-período sumando campos */
+      return seriesKeys.reduce((sum,sk)=>sum+(groups[sk]?.[xl]?.[f.key]||0),0);
     }),
-    borderColor:PALETTE[i%PALETTE.length],
-    backgroundColor:PALETTE[i%PALETTE.length]+'25',
+    borderColor:PALETTE[fi%PALETTE.length],
+    backgroundColor:PALETTE[fi%PALETTE.length]+'25',
     borderWidth:2, tension:.3, pointRadius:3,
   }));
   chartInstances['combined']=new Chart(g('chartCombined').getContext('2d'),{
@@ -680,11 +685,12 @@ function renderCharts(){
         type: isSingleSeries?'bar':'line',
         data:{
           labels:xLabels,
+          /* Una serie por período de comparativa — SIEMPRE sumando todos los agentes */
           datasets:seriesKeys.map((sk,i)=>({
-            label:sk,
+            label: comparativa==='ninguna'?f.label:sk,
             data:xLabels.map(xl=>groups[sk]?.[xl]?.[f.key]||0),
             backgroundColor: isSingleSeries?PALETTE[fi%PALETTE.length]+'cc':PALETTE[i%PALETTE.length]+'30',
-            borderColor:PALETTE[i%PALETTE.length],
+            borderColor: isSingleSeries?PALETTE[fi%PALETTE.length]:PALETTE[i%PALETTE.length],
             borderWidth:isSingleSeries?1:2,
             borderRadius:isSingleSeries?4:0,
             tension:.3, pointRadius:2,
@@ -769,15 +775,21 @@ async function loadMissingAgents(){
   const fecha=val('mAddFecha'); if(!fecha)return;
   g('mAddLoading').style.display='block'; g('mAddContent').innerHTML=''; g('mAddSaveBtn').disabled=true;
   try{
-    const weekStr=isoWeekStr(new Date(fecha+'T00:00:00'));
-    /* Buscar registros de esa semana */
-    const mon=weekMonday(weekStr), fri=weekFriday(weekStr);
-    const w=`fecha>='${mon}T00:00:00' AND fecha<='${fri}T23:59:59'`;
-    const url=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=100';
+    /* v04: calcular bounds directamente desde la fecha elegida */
+    const {mon,sun}=getWeekBounds(fecha);
+    const weekStr=`${mon} → ${sun}`;
+    const w=`fecha>='${mon}T00:00:00' AND fecha<='${sun}T23:59:59'`;
+    console.log('[Modal Añadir] Buscando registros semana:',mon,'→',sun,'WHERE:',w);
+    const url=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=500';
     const res=await fetch(Auth.url(url));
     const json=await res.json();
-    const existing=new Set((json.Result||json.result||[]).map(r=>String(r.agente||'')));
-    const missing=salesAgents.filter(u=>!existing.has(u.id));
+    const rows=json.Result||json.result||[];
+    console.log('[Modal Añadir] Registros encontrados esa semana:',rows.length, rows.map(r=>r.agente));
+    /* Normalizar agente a String para comparar correctamente */
+    const existing=new Set(rows.map(r=>String(r.agente||'').trim()));
+    console.log('[Modal Añadir] Agentes con registro:',[...existing]);
+    const missing=salesAgents.filter(u=>!existing.has(String(u.id).trim()));
+    console.log('[Modal Añadir] Agentes sin registro:',missing.map(u=>u.name));
     g('mAddLoading').style.display='none';
     if(!missing.length){
       g('mAddContent').innerHTML='<div class="info-box orange">✅ Todos los agentes ya tienen registro esta semana ('+weekStr+')</div>'; return;
@@ -832,9 +844,9 @@ async function loadEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
   if(!fecha||!agente){ g('mEditContent').innerHTML=''; g('mEditSaveBtn').disabled=true; return; }
   g('mEditContent').innerHTML='<p style="color:var(--gray-4);font-size:13px">Buscando…</p>';
-  const weekStr=isoWeekStr(new Date(fecha+'T00:00:00'));
-  const mon=weekMonday(weekStr), fri=weekFriday(weekStr);
-  const w=`fecha>='${mon}T00:00:00' AND fecha<='${fri}T23:59:59' AND agente='${agente}'`;
+  const {mon:emon,sun:esun}=getWeekBounds(fecha);
+  const w=`fecha>='${emon}T00:00:00' AND fecha<='${esun}T23:59:59' AND agente='${agente}'`;
+  console.log('[Modal Editar] Buscando:',w);
   try{
     const res=await fetch(Auth.url(WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=1'));
     const json=await res.json();
@@ -887,8 +899,17 @@ function fmtDate(s){ if(!s)return'—'; const d=parseDate(s); return d?d.toLocal
 function getFriday(){ const d=new Date(); d.setDate(d.getDate()+(5-d.getDay()+7)%7); return d.toISOString().split('T')[0]; }
 function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
 function isoWeekStr(d){ return`${d.getFullYear()}-W${String(isoWeek(d)).padStart(2,'0')}`; }
-function weekMonday(ws){ const [y,w]=ws.split('-W').map(Number); const d=new Date(y,0,1+7*(w-1)); d.setDate(d.getDate()-(d.getDay()||7)+1); return d.toISOString().split('T')[0]; }
-function weekFriday(ws){ const m=new Date(weekMonday(ws)+'T00:00:00'); m.setDate(m.getDate()+4); return m.toISOString().split('T')[0]; }
+/* v04: cálculo de límites de semana directamente desde una fecha (sin pasar por ISO week string) */
+function getWeekBounds(dateStr){
+  const d=new Date(dateStr+'T12:00:00'); // mediodía evita problemas DST
+  const dow=(d.getDay()+6)%7;           // 0=Lun, 6=Dom
+  const mon=new Date(d); mon.setDate(d.getDate()-dow);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  return{mon:mon.toISOString().split('T')[0], sun:sun.toISOString().split('T')[0]};
+}
+/* weekMonday/weekFriday mantenidas por compatibilidad */
+function weekMonday(ws){ const [y,w]=ws.split('-W').map(Number); const d=new Date(Date.UTC(y,0,4)+7*(w-1)*86400000); return new Date(d-((d.getUTCDay()||7)-1)*86400000).toISOString().split('T')[0]; }
+function weekFriday(ws){ const m=new Date(weekMonday(ws)+'T12:00:00'); m.setDate(m.getDate()+4); return m.toISOString().split('T')[0]; }
 
 /* Exponer globales */
 Object.assign(window,{setQuick,clearQuickSel,schedule,toggleMas,clearAll,setVista,
