@@ -1,5 +1,9 @@
 // ================================================================
-//  nav.js — MENÚS POR ROL  3Villas  v2 — 17/05/2026
+//  nav.js — MENÚS POR ROL  3Villas  v3 — 17/05/2026
+//
+//  v3: NAV_MENU se asigna sincrónicamente con Auth.role()
+//      (auth.js carga antes, el rol ya está en localStorage).
+//      Ya no se necesita loadNavRole() ni cambios en nav-component.js.
 //
 //  Define un menú distinto para cada rol de usuario.
 //  El rol se lee del campo "Role" en TaUsers, comparando por email
@@ -75,9 +79,9 @@ var NAV_MENUS = {
   // ── SALES — equipo comercial ─────────────────────────────────
   //    Aplica a: Role = "sales" | "comercial"
   sales: [
-    { label: 'Report Semanal',  url: 'reports-ventas.html', icon: '📅' },
-    { label: 'Contactos vacacional',  url: 'contactos.html',         icon: '👥' },
-    { label: 'Villas vacacional',     url: 'buscar-villa.html',      icon: '🏡' },
+    { label: 'Ocupación',  url: 'listado-ocupacion.html', icon: '📅' },
+    { label: 'Villas',     url: 'buscar-villa.html',      icon: '🏡' },
+    { label: 'Contactos',  url: 'contactos.html',         icon: '👥' },
     { label: 'Login',      url: 'login.html',             icon: '🔑' },
   ],
 
@@ -100,12 +104,11 @@ var NAV_MENUS = {
 
 };
 
-// NAV_MENU = menú activo (nav-component.js lo lee directamente)
-// Empieza con 'default' y se actualiza cuando carga el rol
-var NAV_MENU = NAV_MENUS['default'];
-
 // ════════════════════════════════════════════════════════════════
-//  CARGA DEL ROL DESDE TaUsers
+//  ASIGNACIÓN SÍNCRONA DEL MENÚ
+//  auth.js carga antes que nav.js, por lo que Auth.role() ya tiene
+//  el rol del usuario desde localStorage/sessionStorage.
+//  No se necesita fetch ni esperar a nav-component.js.
 // ════════════════════════════════════════════════════════════════
 
 /**
@@ -122,47 +125,14 @@ function _normalizeRole(raw) {
   return 'default';
 }
 
-/**
- * Carga el rol del usuario actual desde TaUsers y actualiza NAV_MENU.
- * nav-component.js debe llamar a esta función antes de renderizar.
- * Devuelve una Promise que resuelve cuando NAV_MENU está listo.
- */
-function loadNavRole() {
-  return new Promise(function (resolve) {
-    try {
-      var email = (typeof Auth !== 'undefined' && Auth.email) ? Auth.email() : '';
-      if (!email) { resolve('default'); return; }
-
-      // Si ya lo tenemos en caché, no volvemos a pedir
-      if (window.__navRole) {
-        NAV_MENU = NAV_MENUS[window.__navRole] || NAV_MENUS['default'];
-        resolve(window.__navRole);
-        return;
-      }
-
-      var url = (typeof Auth !== 'undefined' && Auth.url)
-        ? Auth.url(_NAV_WORKER + '?action=data&table=TaUsers&where=' + encodeURIComponent("Email='" + email + "'") + '&limit=1')
-        : _NAV_WORKER + '?action=data&table=TaUsers&where=' + encodeURIComponent("Email='" + email + "'") + '&limit=1';
-
-      fetch(url)
-        .then(function (res) { return res.json(); })
-        .then(function (json) {
-          var users = json.Result || json.result || [];
-          var rawRole = users.length ? (users[0]['Role'] || '') : '';
-          var role = _normalizeRole(rawRole);
-          window.__navRole = role;
-          NAV_MENU = NAV_MENUS[role] || NAV_MENUS['default'];
-          resolve(role);
-        })
-        .catch(function () {
-          window.__navRole = 'default';
-          NAV_MENU = NAV_MENUS['default'];
-          resolve('default');
-        });
-    } catch (e) {
-      window.__navRole = 'default';
-      NAV_MENU = NAV_MENUS['default'];
-      resolve('default');
-    }
-  });
-}
+// NAV_MENU — se asigna aquí directamente, sin async ni fetch
+var NAV_MENU = (function () {
+  try {
+    var role = (typeof Auth !== 'undefined') ? _normalizeRole(Auth.role()) : 'default';
+    window.__navRole = role;
+    return NAV_MENUS[role] || NAV_MENUS['default'];
+  } catch (e) {
+    window.__navRole = 'default';
+    return NAV_MENUS['default'];
+  }
+})();
