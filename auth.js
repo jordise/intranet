@@ -49,17 +49,17 @@ const Auth = (function () {
     // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
     // entradas.html        → Auth.require('entradas')
     // entradas-equipo.html → Auth.require('entradas')
-    'entradas'              : ['admin', 'manager', 'staff',],
+    'entradas'              : ['admin', 'manager', 'staff', 'cleaner'],
     // salidas — clave de reserva (no hay salidas.html propio, se gestiona en entradas)
     'salidas'               : ['admin', 'manager', 'staff', 'cleaner'],
 
     // ── TAREAS ─────────────────────────────────────────────────
     // tareas.html
-    'tareas'                : ['admin', 'manager', 'staff','sales'],
+    'tareas'                : ['admin', 'manager', 'staff', 'cleaner'],
     // nueva-tarea.html
-    'nueva-tarea'           : ['admin', 'manager', 'staff','sales'],
+    'nueva-tarea'           : ['admin', 'manager', 'staff'],
     // editar-tarea.html
-    'editar-tarea'          : ['admin', 'manager', 'staff','sales'],
+    'editar-tarea'          : ['admin', 'manager', 'staff'],
 
     // ── SUBTAREAS DE FLUJO ⚠️ CRÍTICAS ────────────────────────
     // Se abren desde entradas.html — si el rol no tiene acceso rompe el flujo
