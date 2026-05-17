@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v07 — 3Villas</title>
+<title>Reports Ventas v08 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -893,13 +893,15 @@ async function loadEditRecord(){
       <div class="info-box ${editExistingRecord?'blue':'orange'}" style="margin-bottom:14px">
         ${editExistingRecord?'✏️ Editando registro existente — semana <strong>'+emon+' → '+esun+'</strong>':'⚠️ Sin registro esta semana — se creará nuevo para <strong>'+emon+' → '+esun+'</strong>'}
       </div>
-      <div style="overflow-x:auto">
-      <table class="modal-table">
-        <thead><tr><th>Campo</th><th style="width:100px">Valor</th></tr></thead>
-        <tbody>
-          ${FIELDS.map(f=>`<tr><td>${f.label}</td><td><input type="number" class="ne" data-field="${f.key}" value="${parseFloat(rec[f.key])||0}" min="0" style="width:80px"></td></tr>`).join('')}
-        </tbody>
-      </table></div>`;
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-top:4px">
+        ${FIELDS.map(f=>{
+          const v=parseFloat(rec[f.key])||0;
+          return `<div style="display:flex;align-items:center;gap:8px">
+            <input type="number" class="ne" data-field="${f.key}" value="${v}" min="0" style="width:64px;flex-shrink:0">
+            <span style="font-size:12px;color:var(--gray-5)">${f.label}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
     g('mEditSaveBtn').disabled=false;
     g('mEditSaveBtn').textContent=editExistingRecord?'💾 Guardar cambios':'💾 Crear registro';
   }catch(e){ g('mEditContent').innerHTML=`<div class="info-box orange">Error: ${e.message}</div>`; }
@@ -939,10 +941,24 @@ function getFriday(){ const d=new Date(); d.setDate(d.getDate()+(5-d.getDay()+7)
 /* Parsea cualquier string de fecha (con o sin hora, con T o espacio) → Date o null */
 function parseFechaStr(s){
   if(!s) return null;
-  const clean=String(s).trim().replace(' ','T').split('T')[0]; // solo YYYY-MM-DD
-  const [y,m,d]=clean.split('-').map(Number);
-  if(!y||!m||!d) return null;
-  return new Date(y, m-1, d, 12, 0, 0); // mediodía local, evita DST
+  let raw=String(s).trim().split('T')[0].split(' ')[0]; // quitar hora
+  let m;
+  // YYYY-MM-DD (ISO — el más común)
+  m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],12,0,0);
+  // YYYY/MM/DD
+  m=raw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],12,0,0);
+  // DD/MM/YYYY (formato europeo — Caspio España puede usarlo)
+  m=raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){ const d1=+m[1],d2=+m[2],y=+m[3]; return new Date(y,d2-1,d1,12,0,0); }
+  // DD-MM-YYYY
+  m=raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(m) return new Date(+m[3],+m[2]-1,+m[1],12,0,0);
+  // Último recurso: Date nativo
+  const dt=new Date(s);
+  if(!isNaN(dt.getTime())) return new Date(dt.getFullYear(),dt.getMonth(),dt.getDate(),12,0,0);
+  return null;
 }
 
 /* Devuelve string YYYY-MM-DD de un Date (usando fecha local) */
@@ -960,13 +976,21 @@ function getWeekBounds(dateStr){
   return{mon:toDateStr(mon), sun:toDateStr(sun)};
 }
 
-/* Dado un string de fecha, devuelve true si cae en la misma semana que refDateStr */
+/* v08: sameWeek — comparación de fecha robusta */
 function sameWeek(fechaStr, refDateStr){
+  if(!fechaStr||!refDateStr) return false;
   const ref=parseFechaStr(refDateStr); if(!ref) return false;
-  const d=parseFechaStr(fechaStr);     if(!d)   return false;
+  const d=parseFechaStr(fechaStr);
+  if(!d){
+    /* Fallback: comparar strings si parseFechaStr falla */
+    console.warn('[v08] parseFechaStr no pudo leer:',JSON.stringify(fechaStr));
+    return false;
+  }
   const {mon, sun}=getWeekBounds(refDateStr);
   const monD=parseFechaStr(mon), sunD=parseFechaStr(sun);
-  return d>=monD && d<=sunD;
+  if(!monD||!sunD) return false;
+  const ok=d>=monD && d<=sunD;
+  return ok;
 }
 
 /* v07: campos reales detectados dinámicamente del primer registro */
@@ -982,14 +1006,22 @@ function autodetectFields(sample){
   if(fe){ _fieldFecha=fe; console.log('[v07] Campo fecha detectado:',fe); }
 }
 
-/* Obtiene el valor del agente de un registro, probando variantes */
-function getAgente(r){
-  return r[_fieldAgente]??r.agente??r.Agente??r.AGENTE??r.agente_id??r.AgentId??'';
-}
-/* Obtiene el valor de la fecha de un registro, probando variantes */
+/* Obtiene el valor del agente de un registro */
+function getAgente(r){ return getAgenteRaw(r); }
+/* v08: log del formato raw de fecha para diagnóstico */
+let _logFechaFmt=false;
 function getFecha(r){
   const v=r[_fieldFecha]??r.fecha??r.Fecha??r.FECHA??r.date??r.Date??'';
-  return String(v).trim().split('T')[0];  /* siempre YYYY-MM-DD */
+  const raw=String(v==null?'':v).trim();
+  if(!_logFechaFmt&&raw){ console.log('[v08] Formato FECHA raw de Caspio:',JSON.stringify(raw)); _logFechaFmt=true; }
+  /* Devolver solo la parte de fecha YYYY-MM-DD (o el raw si no tiene T) */
+  return raw.split('T')[0].split(' ')[0];
+}
+let _logAgenteFmt=false;
+function getAgenteRaw(r){
+  const v=r[_fieldAgente]??r.agente??r.Agente??r.AGENTE??r.agente_id??r.AgentId??'';
+  if(!_logAgenteFmt&&v!==''){ console.log('[v08] Formato AGENTE raw de Caspio:',JSON.stringify(v)); _logAgenteFmt=true; }
+  return String(v==null?'':v).trim();
 }
 
 function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
