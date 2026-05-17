@@ -25,23 +25,94 @@ const Auth = (function () {
     EXPIRY  : '3v_expiry',   // timestamp ms — solo en localStorage (remember me)
   };
 
-   // ── Mapa de permisos ──────────────────────────────────────
-  // Generado desde permisos.html — 8/5/2026, 18:27:33
-const PERMISSIONS = {
-    'reports-ventas': ['admin', 'sales'],
-    'entradas'     : ['admin', 'manager', 'staff', 'cleaner'],
-    'salidas'      : ['admin', 'manager', 'staff', 'cleaner'],
-    'tareas'       : ['admin', 'manager', 'staff', 'cleaner'],
-    'nueva-tarea'  : ['admin', 'manager', 'staff'],
-    'editar-tarea' : ['admin', 'manager', 'staff'],
+  // ── Mapa de permisos ──────────────────────────────────────────
+  //
+  //  Clave        = valor que se pasa a Auth.require('clave')
+  //  Valor        = roles que pueden acceder
+  //  Roles válidos: 'admin', 'manager', 'staff', 'sales', 'cleaner'
+  //
+  //  ⚠️  PÁGINAS CRÍTICAS: task-limpieza, task-wp, task-cierre
+  //      Son subpáginas de flujo que se abren desde entradas.html.
+  //      Si un cleaner o staff no tiene permiso, su flujo se rompe.
+  //
+  //  ℹ️  PÁGINAS PÚBLICAS (sin Auth.require, no aparecen aquí):
+  //      login.html, reset-password.html, index.html
+  //
+  //  ℹ️  PÁGINAS TEST (ignoradas):
+  //      XXedit-taskXX.html, XXnuevatareaXX.html, XXtest1XX.html
+  //
+  //  Última revisión: 17/05/2026
+  // ─────────────────────────────────────────────────────────────
+
+  const PERMISSIONS = {
+
+    // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
+    // entradas.html        → Auth.require('entradas')
+    // entradas-equipo.html → Auth.require('entradas')
+    'entradas'              : ['admin', 'manager', 'staff', 'cleaner'],
+    // salidas — clave de reserva (no hay salidas.html propio, se gestiona en entradas)
+    'salidas'               : ['admin', 'manager', 'staff', 'cleaner'],
+
+    // ── TAREAS ─────────────────────────────────────────────────
+    // tareas.html
+    'tareas'                : ['admin', 'manager', 'staff', 'cleaner'],
+    // nueva-tarea.html
+    'nueva-tarea'           : ['admin', 'manager', 'staff'],
+    // editar-tarea.html
+    'editar-tarea'          : ['admin', 'manager', 'staff'],
+
+    // ── SUBTAREAS DE FLUJO ⚠️ CRÍTICAS ────────────────────────
+    // Se abren desde entradas.html — si el rol no tiene acceso rompe el flujo
+    // task-limpieza.html → Auth.require('task-limpieza')
+    'task-limpieza'         : ['admin', 'manager', 'staff', 'cleaner'],
+    // task-wp.html → Auth.require('task-wp')
+    'task-wp'               : ['admin', 'manager', 'staff', 'cleaner'],
+    // task-cierre.html → Auth.require('task-cierre')
+    'task-cierre'           : ['admin', 'manager', 'staff', 'cleaner'],
+
+    // ── VILLAS ─────────────────────────────────────────────────
+    // buscar-villa.html → Auth.require('villas')
+    // villa.html        → Auth.require('villas')
+    // sales puede ver villas pero NO entradas — clave separada para ello
+    'villas'                : ['admin', 'manager', 'staff', 'sales'],
+
+    // ── CONTACTOS ──────────────────────────────────────────────
+    // contactos.html
+    'contactos'             : ['admin', 'manager', 'staff', 'sales'],
+
+    // ── OCUPACIÓN ──────────────────────────────────────────────
+    // listado-ocupacion.html
+    'listado-ocupacion'     : ['admin', 'manager', 'staff', 'sales'],
+
+    // ── NOTAS ──────────────────────────────────────────────────
+    // notas-equipo-reservas.html
     'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
-    'notas-villamanager' : ['admin', 'manager', 'staff'],
-    'villas'       : ['admin', 'manager', 'staff', 'sales'],
-    'permisos'     : ['admin'],
-    'manuales'     : ['admin', 'manager'],
-    'dashboard'    : ['admin', 'manager'],
-    'contabilidad' : ['admin'],
-    'usuarios'     : ['admin'],
+    // notas-villamanager.html
+    'notas-villamanager'    : ['admin', 'manager', 'staff'],
+
+    // ── WELCOMEPACKS ───────────────────────────────────────────
+    // pedir-wellcomepacks.html
+    'pedir-wellcomepacks'   : ['admin', 'manager', 'staff'],
+
+    // ── REPORTS ────────────────────────────────────────────────
+    // reports-ventas.html
+    'reports-ventas'        : ['admin', 'sales'],
+
+    // ── MANUALES ───────────────────────────────────────────────
+    // generar.html + manual-*.html → Auth.require('manuales')
+    // ⚠️ confirmar si generar.html usa 'manuales' o 'generar'
+    'manuales'              : ['admin', 'manager'],
+    'generar'               : ['admin', 'manager'],
+
+    // ── CONFIGURACIÓN ──────────────────────────────────────────
+    // permisos.html
+    'permisos'              : ['admin'],
+
+    // ── PÁGINAS FUTURAS (sin .html aún — admin por defecto) ────
+    'dashboard'             : ['admin', 'manager'],
+    'contabilidad'          : ['admin'],
+    'usuarios'              : ['admin'],
+
   };
 
   // ── JWT decode (sin verificar firma — solo para leer payload) ──
