@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v09 — 3Villas</title>
+<title>Reports Ventas v10 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -584,13 +584,16 @@ async function loadData(){
   try{
     const desde=val('fDesde'), hasta=val('fHasta');
     const parts=[];
-    if(desde) parts.push(`fecha>='${desde}T00:00:00'`);
-    if(hasta) parts.push(`fecha<='${hasta}T23:59:59'`);
+    /* v10: usar nombre real del campo fecha (puede ser 'Fecha' con mayúscula) */
+    const ff=_fieldFecha||'fecha';
+    if(desde) parts.push(`${ff}>='${desde}T00:00:00'`);
+    if(hasta) parts.push(`${ff}<='${hasta}T23:59:59'`);
     /* Filtro agentes solo si no están todos */
     const allSel=selAgentes.size===salesAgents.length;
+    const fa=_fieldAgente||'agente';
     if(!allSel&&selAgentes.size>0){
       const ids=[...selAgentes].map(id=>`'${id}'`).join(',');
-      parts.push(selAgentes.size===1?`agente='${[...selAgentes][0]}'`:`agente IN (${ids})`);
+      parts.push(selAgentes.size===1?`${fa}='${[...selAgentes][0]}'`:`${fa} IN (${ids})`);
     }
     const where=parts.join(' AND ');
     const qs=where?'&where='+encodeURIComponent(where):'';
@@ -777,23 +780,29 @@ function openModalAnadir(){
 }
 async function loadMissingAgents(){
   const fecha=val('mAddFecha');
-  if(!fecha){ console.warn('[Añadir v06] Sin fecha seleccionada'); return; }
-  console.log('[Añadir v06] Fecha recibida:',fecha);
+  if(!fecha){ return; }
   g('mAddLoading').style.display='block'; g('mAddContent').innerHTML=''; g('mAddSaveBtn').disabled=true;
   try{
     const {mon,sun}=getWeekBounds(fecha);
-    console.log('[Añadir v06] Semana calculada: Lun',mon,'→ Dom',sun);
+    /* v10: query directa con campo real (Fecha/fecha según Caspio) */
+    const ff2=_fieldFecha||'Fecha';
+    const wDirect=`${ff2}>='${mon}T00:00:00' AND ${ff2}<='${sun}T23:59:59'`;
+    console.log('[Añadir v10] Campo fecha detectado:',ff2,' WHERE:',wDirect);
+    const urlD=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(wDirect)+'&limit=500';
+    const resD=await fetch(Auth.url(urlD));
+    const jsonD=await resD.json();
+    let allFetched=jsonD.Result||jsonD.result||[];
+    console.log('[Añadir v10] Query directa:',allFetched.length,'registros');
 
-    /* v06: NO usar WHERE de fecha — traer TODO y filtrar client-side */
-    const allFetched=await fetchAllRecordsForModal();
+    /* Si la query directa falla, fallback a fetchAll+filtro cliente */
+    if(!allFetched.length){
+      console.warn('[Añadir v10] Query directa vacía → fetchAll fallback');
+      const allR=await fetchAllRecordsForModal();
+      allFetched=allR.filter(r=>sameWeek(getFecha(r),fecha));
+      console.log('[Añadir v10] Fallback encontró:',allFetched.length);
+    }
 
-    /* v09: filtrar semana + detectar agente con fallback completo */
-    const inWeek=allFetched.filter(r=>{
-      const fDate=getFecha(r);
-      const ok=sameWeek(fDate, fecha);
-      if(ok) console.log('[Añadir v09] ✓ en semana — agente raw:',JSON.stringify(getAgente(r)),'fecha:',fDate);
-      return ok;
-    });
+    const inWeek=allFetched; /* ya filtrados por semana */
     console.log('[Añadir v09] Registros en semana ('+mon+' → '+sun+'):',inWeek.length);
     if(inWeek.length>0) console.log('[Añadir v09] Primer registro semana:',JSON.stringify(inWeek[0]));
 
@@ -851,7 +860,8 @@ async function saveNewRecords(){
   let ok=0,errors=[];
   for(const tr of rows){
     const uid=tr.dataset.uid;
-    const record={agente:uid,fecha:fecha+'T00:00:00'};
+    /* v10: usar campo real para el POST */
+    const record={[_fieldAgente||'agente']:uid,[_fieldFecha||'fecha']:fecha+'T00:00:00'};
     tr.querySelectorAll('input').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
     try{
       const res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
@@ -876,33 +886,38 @@ function openModalEditar(){
 }
 async function loadEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
-  console.log('[Editar v06] fecha=',fecha,' agente=',agente);
   if(!fecha||!agente){ g('mEditContent').innerHTML=''; g('mEditSaveBtn').disabled=true; return; }
   g('mEditContent').innerHTML='<p style="color:var(--gray-4);font-size:13px">Buscando…</p>';
 
   const {mon:emon,sun:esun}=getWeekBounds(fecha);
-  console.log('[Editar v06] Semana: Lun',emon,'→ Dom',esun,' agente:',agente);
+  /* v10: usar nombre REAL del campo (Agente/Fecha con mayúscula según Caspio) */
+  const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
+  const where=`${ff}>='${emon}T00:00:00' AND ${ff}<='${esun}T23:59:59' AND ${fa}='${agente}'`;
+  console.log('[Editar v10] WHERE:',where,' campos detectados: fecha='+ff+' agente='+fa);
 
   try{
-    /* v06: NO usar WHERE — traer todo y filtrar client-side */
-    const allFetched=await fetchAllRecordsForModal();
+    /* Query DIRECTA con campos reales — sin fetch masivo */
+    const url=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(where)+'&limit=10';
+    const res=await fetch(Auth.url(url));
+    const json=await res.json();
+    let rows=json.Result||json.result||[];
+    console.log('[Editar v10] Registros directo:',rows.length, rows);
 
-    /* v07: usar getAgente() y getFecha() que detectan el campo real */
-    const agStr=String(agente).trim();
-    console.log('[Editar v07] Buscando agente='+agStr+' en semana '+emon+' → '+esun);
-    console.log('[Editar v07] Total registros en cache:',allFetched.length);
-
-    const match=allFetched.filter(r=>{
-      const rAg=String(getAgente(r)||'').trim();
-      const rFe=getFecha(r);
-      const aMatch=rAg===agStr;
-      const wMatch=sameWeek(rFe, fecha);
-      /* Log de todos los registros para debug */
-      console.log('[Editar v07] rec agente='+rAg+'(match:'+aMatch+') fecha='+rFe+'(semana:'+wMatch+')');
-      return aMatch&&wMatch;
-    });
-    editExistingRecord=match[0]||null;
-    console.log('[Editar v07] Resultado:',editExistingRecord?'ENCONTRADO pk='+editExistingRecord.vv_Clave_Primaria_Entidad:'NO ENCONTRADO');
+    /* Si la query directa no devuelve nada (posible error WHERE), fallback a fetch todo */
+    if(!rows.length){
+      console.warn('[Editar v10] Query directa vacía → fallback fetchAll');
+      const all=await fetchAllRecordsForModal();
+      const agStr=String(agente).trim();
+      rows=all.filter(r=>{
+        const rAg=String(getAgente(r)||'').trim();
+        const rFe=getFecha(r);
+        console.log('[Editar v10] fallback: agente='+rAg+'(vs'+agStr+') fecha='+rFe);
+        return rAg===agStr && sameWeek(rFe,fecha);
+      });
+      console.log('[Editar v10] Fallback encontró:',rows.length);
+    }
+    editExistingRecord=rows[0]||null;
+    console.log('[Editar v10] Resultado final:',editExistingRecord?'ENCONTRADO':'NO ENCONTRADO', editExistingRecord);
 
     const rec=editExistingRecord||{};
     g('mEditContent').innerHTML=`
