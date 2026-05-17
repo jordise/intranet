@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v08 — 3Villas</title>
+<title>Reports Ventas v09 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -95,11 +95,11 @@ main{padding:16px;max-width:1300px;margin:0 auto}
 .twrap{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto;border-top:3px solid var(--red)}
 table{width:100%;border-collapse:collapse;font-size:12px;min-width:860px}
 thead tr{background:var(--red)}
-th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fff;padding:9px 8px;text-align:center;white-space:nowrap;border-right:1px solid rgba(255,255,255,.12)}
-th:first-child,th:nth-child(2){text-align:left} th:last-child{border-right:none}
+th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;padding:8px 6px;text-align:center;white-space:normal;word-break:break-word;max-width:70px;line-height:1.25;border-right:1px solid rgba(255,255,255,.12)}
+th:first-child{text-align:left;max-width:80px} th:nth-child(2){text-align:left;max-width:90px} th:last-child{border-right:none}
 tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
 tbody tr:hover{background:var(--gray-1)}
-td{padding:7px 8px;vertical-align:middle;text-align:center}
+td{padding:6px 6px;vertical-align:middle;text-align:center}
 td:first-child,td:nth-child(2){text-align:left}
 .td-fecha{font-weight:600;white-space:nowrap;color:var(--gray-5)}
 .td-agente{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;white-space:nowrap}
@@ -602,7 +602,7 @@ async function loadData(){
     if(json.error)throw new Error(json.error);
     allRows=json.Result||json.result||[];
     console.log('[RV v03] registros:', allRows.length, allRows[0]||'(vacío)');
-    if(allRows.length) autodetectFields(allRows[0]);
+    if(allRows.length){ console.log('[v09] allRows[0] keys:',Object.keys(allRows[0]).join(',')); autodetectFields(allRows[0]); }
     allRows.forEach(r=>{ const av=String(getAgente(r)||'').trim(); r._agente=av&&userMap[av]?userMap[av]:(av||'—'); });
     /* v07: ordenar por fecha DESC client-side como seguro */
     allRows.sort((a,b)=>{ const fa=getFecha(a), fb=getFecha(b); return fb.localeCompare(fa); });
@@ -787,21 +787,37 @@ async function loadMissingAgents(){
     /* v06: NO usar WHERE de fecha — traer TODO y filtrar client-side */
     const allFetched=await fetchAllRecordsForModal();
 
-    /* v07: usar getFecha() y getAgente() que detectan el campo real */
+    /* v09: filtrar semana + detectar agente con fallback completo */
     const inWeek=allFetched.filter(r=>{
       const fDate=getFecha(r);
       const ok=sameWeek(fDate, fecha);
-      if(ok) console.log('[Añadir v07] ✓ semana — agente:',getAgente(r),'fecha:',fDate);
+      if(ok) console.log('[Añadir v09] ✓ en semana — agente raw:',JSON.stringify(getAgente(r)),'fecha:',fDate);
       return ok;
     });
-    console.log('[Añadir v07] Registros en semana ('+mon+' → '+sun+'):',inWeek.length);
+    console.log('[Añadir v09] Registros en semana ('+mon+' → '+sun+'):',inWeek.length);
+    if(inWeek.length>0) console.log('[Añadir v09] Primer registro semana:',JSON.stringify(inWeek[0]));
 
-    const existing=new Set(inWeek.map(r=>String(getAgente(r)||'').trim()));
-    console.log('[Añadir v07] Agentes CON registro:',[...existing]);
-    console.log('[Añadir v07] IDs salesAgents:',[...salesAgents.map(u=>u.id)]);
+    /* Un registro cuenta si: tiene agente reconocible O si algún campo métrico > 0 */
+    const existing=new Set();
+    const METRIC_KEYS=FIELDS.map(f=>f.key);
+    inWeek.forEach(r=>{
+      const ag=String(getAgente(r)||'').trim();
+      if(ag){ existing.add(ag); return; }
+      /* Fallback: si tiene algún campo métrico > 0, buscar a qué agente pertenece */
+      const hasMetric=METRIC_KEYS.some(k=>parseFloat(r[k]||r[k.toLowerCase()]||0)>0);
+      if(hasMetric){
+        /* Buscar el agente mirando todos los campos vs userMap */
+        for(const key of Object.keys(r)){
+          const v=String(r[key]==null?'':r[key]).trim();
+          if(v&&userMap[v]){ existing.add(v); console.log('[Añadir v09] Agente por métrica campo:',key,'val:',v); break; }
+        }
+      }
+    });
+    console.log('[Añadir v09] Agentes CON registro:',[...existing]);
+    console.log('[Añadir v09] IDs salesAgents:',salesAgents.map(u=>u.id));
 
     const missing=salesAgents.filter(u=>!existing.has(String(u.id).trim()));
-    console.log('[Añadir v07] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
+    console.log('[Añadir v09] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
 
     g('mAddLoading').style.display='none';
     if(!missing.length){
@@ -1008,20 +1024,37 @@ function autodetectFields(sample){
 
 /* Obtiene el valor del agente de un registro */
 function getAgente(r){ return getAgenteRaw(r); }
-/* v08: log del formato raw de fecha para diagnóstico */
+/* v09: getFecha y getAgente con log diagnóstico y búsqueda exhaustiva */
 let _logFechaFmt=false;
 function getFecha(r){
   const v=r[_fieldFecha]??r.fecha??r.Fecha??r.FECHA??r.date??r.Date??'';
   const raw=String(v==null?'':v).trim();
-  if(!_logFechaFmt&&raw){ console.log('[v08] Formato FECHA raw de Caspio:',JSON.stringify(raw)); _logFechaFmt=true; }
-  /* Devolver solo la parte de fecha YYYY-MM-DD (o el raw si no tiene T) */
+  if(!_logFechaFmt&&raw){ console.log('[v09] Formato FECHA raw:',JSON.stringify(raw),' campo:',_fieldFecha); _logFechaFmt=true; }
   return raw.split('T')[0].split(' ')[0];
 }
+
 let _logAgenteFmt=false;
 function getAgenteRaw(r){
-  const v=r[_fieldAgente]??r.agente??r.Agente??r.AGENTE??r.agente_id??r.AgentId??'';
-  if(!_logAgenteFmt&&v!==''){ console.log('[v08] Formato AGENTE raw de Caspio:',JSON.stringify(v)); _logAgenteFmt=true; }
-  return String(v==null?'':v).trim();
+  /* Primero intentar con el campo detectado y variantes conocidas */
+  const v=r[_fieldAgente]??r.agente??r.Agente??r.AGENTE??r.agente_id??r.AgentId??null;
+  if(v!=null&&String(v).trim()){
+    const s=String(v).trim();
+    if(!_logAgenteFmt){ console.log('[v09] AGENTE por campo conocido:',JSON.stringify(s),' campo:',_fieldAgente); _logAgenteFmt=true; }
+    return s;
+  }
+  /* FALLBACK CRÍTICO: buscar en TODOS los campos del registro
+     un valor que exista en userMap (es decir, un UserID válido) */
+  for(const key of Object.keys(r)){
+    if(/fecha|date|fech|captac|visita|firma|cartel|seguro|alquil|finca|clave|Id$/i.test(key)) continue;
+    const val=String(r[key]==null?'':r[key]).trim();
+    if(val&&userMap[val]){
+      if(!_logAgenteFmt){ console.log('[v09] AGENTE encontrado por userMap en campo:',key,'valor:',val); _logAgenteFmt=true; }
+      return val;
+    }
+  }
+  /* Segundo fallback: buscar campos numéricos pequeños que puedan ser IDs de usuario */
+  if(!_logAgenteFmt){ console.warn('[v09] ⚠️ No se encontró campo agente. Keys del registro:',Object.keys(r).join(',')); _logAgenteFmt=true; }
+  return '';
 }
 
 function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
@@ -1042,7 +1075,7 @@ async function fetchAllRecordsForModal(){
   _modalCache=json.Result||json.result||[];
   _modalCacheTs=now;
   console.log('[Modal v07] Registros totales:',_modalCache.length);
-  if(_modalCache.length>0){ console.log('[Modal v07] Primer registro completo:',_modalCache[0]); autodetectFields(_modalCache[0]); }
+  if(_modalCache.length>0){ console.log('[v09] PRIMER REGISTRO COMPLETO (JSON):',JSON.stringify(_modalCache[0])); autodetectFields(_modalCache[0]); }
   return _modalCache;
 }
 
