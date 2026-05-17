@@ -29,7 +29,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
 
-    /* ══ NAV — idéntico a pedir-wellcomepacks ══ */
+    /* ══ NAV ══ */
     nav.top-nav{
       display:flex;align-items:center;justify-content:space-between;
       padding:10px 20px;background:#fff;
@@ -56,12 +56,12 @@
     }
     .nav-close:hover{background:rgba(200,16,46,.2)}
 
-    /* ══ HERO — idéntico a pedir-wellcomepacks ══ */
+    /* ══ HERO ══ */
     .hero{text-align:center;padding:32px 20px 16px}
     .hero-title{font-family:Montserrat,sans-serif;font-size:clamp(22px,5vw,34px);font-weight:900;color:var(--red);margin-bottom:4px}
     .hero-sub{font-size:13px;color:var(--gray-4)}
 
-    /* ══ MAIN CARD — idéntico a pedir-wellcomepacks ══ */
+    /* ══ MAIN CARD ══ */
     .main-wrap{max-width:640px;margin:0 auto 40px;padding:0 12px}
     .main-card{
       background:#fff;border-radius:16px;
@@ -69,7 +69,7 @@
       overflow:hidden;border-top:3px solid var(--red);
     }
 
-    /* ══ FORM — dentro de la card ══ */
+    /* ══ FORM ══ */
     .form-inner{padding:20px 24px 24px}
     .f-label{
       font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
@@ -166,7 +166,6 @@
     #toast.err{background:var(--red)}
 
     @media(max-width:480px){.f-row{grid-template-columns:1fr}}
-    /* tooltip click llavero */
     .tip-wrap{position:relative;display:inline-flex}
     .tip-box{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
       background:var(--gray-5);color:#fff;padding:9px 13px;border-radius:var(--r-xs);
@@ -181,7 +180,6 @@
       display:inline-flex;align-items:center;justify-content:center;
       cursor:pointer;font-family:Montserrat,sans-serif;flex-shrink:0}
 
-    
     /* ── Menú lateral — diseño oscuro nav-component ── */
   </style>
   <script src="auth.js"></script>
@@ -189,7 +187,8 @@
   <script src="nav-component.js"></script>
 </head>
 <body>
-<script>Auth.require('entradas');</script>
+<!-- v12: Auth.require cambiado a 'villas' para que sales pueda acceder -->
+<script>Auth.require('villas');</script>
 
 <div id="loadOverlay">
   <img src="icon-corazon-rojo-fondo-transparente.png" alt="<3Villas"
@@ -200,7 +199,6 @@
 
 <div id="toast"></div>
 
-<!-- ══ NAV — igual que pedir-wellcomepacks ══ -->
 <nav class="top-nav">
   <a class="nav-logo" href="index.html">
     <img src="logo-negro.png" alt="<3Villas" style="height:32px;object-fit:contain">
@@ -211,17 +209,14 @@
   </div>
 </nav>
 
-<!-- ══ HERO — igual que pedir-wellcomepacks ══ -->
 <div class="hero">
   <div class="hero-title">Buscar Villa</div>
   <div class="hero-sub">Busca por nombre, código llavero o código Hostaway</div>
 </div>
 
-<!-- ══ MAIN CARD ══ -->
 <div class="main-wrap">
   <div class="main-card">
 
-    <!-- Formulario -->
     <div class="form-inner">
 
       <div class="f-field">
@@ -262,13 +257,11 @@
       </button>
     </div>
 
-    <!-- Resultados -->
     <div class="results-wrap" id="resultsWrap">
       <div class="results-header" id="resultsHeader"></div>
       <div id="resultsList"></div>
     </div>
 
-    <!-- Estado inicial -->
     <div class="state-init" id="stateInit">
       <div class="big"><img src="icon-corazon-rojo-fondo-transparente.png" alt="3Villas" style="width:72px;height:72px;object-fit:contain"></div>
       <p>Introduce el nombre, el código llavero<br>o el código Hostaway para buscar.</p>
@@ -281,7 +274,7 @@
 (function(){
 'use strict';
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
-var allVillas=[],_loaded=false,_selectedVilla=null; /* villa seleccionada del dropdown */
+var allVillas=[],_loaded=false,_selectedVilla=null;
 
 window.addEventListener('DOMContentLoaded',function(){
   fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
@@ -300,9 +293,8 @@ window.addEventListener('DOMContentLoaded',function(){
   document.addEventListener('click',function(e){var t=document.getElementById('tipLlavero');if(t&&!t.contains(e.target))t.classList.remove('open');});
 });
 
-/* ── Autocomplete nombre: seleccionar → ir directo a villa.html ── */
 function onNombreInput(){
-  _selectedVilla=null; /* limpiar selección al escribir */
+  _selectedVilla=null;
   updateBtnState();
   var q=document.getElementById('fNombre').value.trim();
   var dd=document.getElementById('acDd');
@@ -327,7 +319,6 @@ function onNombreInput(){
       _selectedVilla={id:opt.dataset.id,name:opt.dataset.name};
       document.getElementById('fNombre').value=opt.dataset.name;
       dd.style.display='none';
-      /* Ir directamente a la villa */
       window.location.href='villa.html?villa_id='+encodeURIComponent(opt.dataset.id);
     });
   });
@@ -335,14 +326,12 @@ function onNombreInput(){
 }
 window.onNombreInput=onNombreInput;
 
-/* cerrar dropdown al clicar fuera */
 document.addEventListener('click',function(e){
   var dd=document.getElementById('acDd');
   var inp=document.getElementById('fNombre');
   if(inp&&!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
 });
 
-/* Al salir del campo nombre sin selección: limpiar */
 document.addEventListener('DOMContentLoaded',function(){
   var inp=document.getElementById('fNombre');
   if(!inp)return;
@@ -350,7 +339,6 @@ document.addEventListener('DOMContentLoaded',function(){
     setTimeout(function(){
       document.getElementById('acDd').style.display='none';
       if(!_selectedVilla&&inp.value.trim()){
-        /* texto libre sin seleccionar → marcar error visual */
         inp.style.borderColor='var(--orange)';
       }
     },250);
@@ -361,32 +349,21 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 });
 
-/* Habilitar/deshabilitar BUSCAR según estado */
-function updateBtnState(){
-  var btn=document.getElementById('btnBuscar');
-  var villaid=document.getElementById('fVillaid').value.trim();
-  var hwid=document.getElementById('fHostaway').value.trim();
-  /* Buscar habilitado si: villa seleccionada del dropdown OR hay código */
-  var ok=!!_selectedVilla||!!villaid||!!hwid;
-  /* v05: botón siempre rojo — validación al hacer clic */
-}
+function updateBtnState(){}
 window.updateBtnState=updateBtnState;
 
-/* ── BUSCAR: solo actúa con códigos (nombre ya va directo al seleccionar) ── */
 window.doSearch=function doSearch(){
   document.getElementById('acDd').style.display='none';
   var villaid=document.getElementById('fVillaid').value.trim();
   var hwid=document.getElementById('fHostaway').value.trim();
   var nombre=document.getElementById('fNombre').value.trim();
 
-  /* Si hay nombre escrito pero sin selección → avisar */
   if(nombre&&!_selectedVilla&&!villaid&&!hwid){
     toast('Selecciona una villa del desplegable','err');
     document.getElementById('fNombre').style.borderColor='var(--orange)';
     return;
   }
 
-  /* Si villa seleccionada del dropdown → ya fue directo, pero por si acaso */
   if(_selectedVilla){
     window.location.href='villa.html?villa_id='+encodeURIComponent(_selectedVilla.id);
     return;
@@ -394,7 +371,6 @@ window.doSearch=function doSearch(){
 
   if(!villaid&&!hwid){toast('Introduce al menos un código','err');return;}
 
-  /* Buscar por código en local primero */
   if(_loaded){
     var res=allVillas.filter(function(v){
       if(villaid&&hwid)return v.id===villaid&&v.hwid===hwid;
@@ -406,7 +382,6 @@ window.doSearch=function doSearch(){
     if(res.length>1){renderResults(res);return;}
   }
 
-  /* Query Caspio como fallback */
   setBusy(true);
   var parts=[];
   if(villaid)parts.push('villaid='+encodeURIComponent(villaid));
@@ -430,7 +405,6 @@ window.doSearch=function doSearch(){
     .finally(function(){setBusy(false);});
 };
 
-/* Múltiples resultados por código → lista compacta */
 function renderResults(villas){
   document.getElementById('stateInit').style.display='none';
   var wrap=document.getElementById('resultsWrap');
@@ -461,11 +435,6 @@ function toast(msg,type){
   el.textContent=msg;el.className='show'+(type==='err'?' err':'');
   clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);
 }
-
-/* Estado inicial: botón deshabilitado */
-document.addEventListener('DOMContentLoaded',function(){
-  /* v05: botón siempre activo */
-});
 })();
 </script>
 
