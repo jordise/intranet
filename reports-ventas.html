@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v16 — 3Villas</title>
+<title>Reports Ventas v18 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,6 +13,7 @@
 <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -211,6 +212,7 @@ td:first-child,td:nth-child(2){text-align:left}
     <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
     <button class="btn-act green" onclick="openModalAnadir()" style="height:36px;padding:0 12px;font-size:11px">➕ Añadir</button>
     <button class="btn-act red"   onclick="openModalEditar()" style="height:36px;padding:0 12px;font-size:11px">✏️ Editar</button>
+    <button class="btn-act blue" onclick="captureScreenshot()" id="btnCaptura" style="height:36px;padding:0 12px;font-size:11px" title="Captura de pantalla">📸</button>
   </div>
 
   <!-- MÁS FILTROS -->
@@ -278,6 +280,7 @@ td:first-child,td:nth-child(2){text-align:left}
 </div>
 
 <!-- STATS -->
+<div id="screenshotToast"></div>
 <div id="statsBar">
   <div class="stat"><strong id="stReg">0</strong> registros</div>
   <div class="stat"><strong id="stAg">0</strong> agentes</div>
@@ -922,24 +925,18 @@ async function saveNewRecords(){
     /* NO incluir registro_id — se genera automáticamente */
     const record=inWeekExisting[uid]?metricRecord:fullRecord;
     try{
-      let res;
       if(inWeekExisting[uid]){
-        /* v15: usar registro_id si existe, si no WHERE */
         const existRec=inWeekExisting[uid];
         const rid2=existRec.rid??null;
         if(rid2!=null){
-          res=await fetch(Auth.url(WORKER+'?action=update&table='+TABLE+'&id='+rid2),
-            {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+          await saveWithFieldFix(WORKER+'?action=update&table='+TABLE+'&id='+rid2, record);
         } else {
           const wh=`${ff2}='${existRec.fecha}' AND ${fa2}='${uid}'`;
-          res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT'),
-            {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+          await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT', record);
         }
       } else {
-        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
-          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&method=POST', record, true);
       }
-      if(!res.ok)throw new Error('HTTP '+res.status);
       ok++;
       tr.querySelector('td').innerHTML=`<span class="saved-ok">✓ ${tr.querySelector('td').textContent}</span>`;
     }catch(e){ errors.push(e.message); }
@@ -1028,6 +1025,54 @@ async function loadEditRecord(){
     g('mEditSaveBtn').textContent=editExistingRecord?'💾 Guardar cambios':'💾 Crear registro';
   }catch(e){ g('mEditContent').innerHTML=`<div class="info-box orange">Error: ${e.message}</div>`; }
 }
+/* v18: guardar con corrección automática de nombres de campo
+   Caspio acepta 'lCaptacion_Inmobiliaria' en lectura pero a veces lo rechaza en escritura.
+   Si detecta ColumnNotFound, quita la 'l' minúscula inicial y reintenta. */
+async function saveWithFieldFix(url, body, isPost=false){
+  const method=isPost?'POST':'PUT';
+  console.log('[v18 saveWithFieldFix] URL:',url,' body:',JSON.stringify(body));
+
+  /* Aplicar writeMap ya conocido */
+  const applyWriteMap=b=>{
+    const out={};
+    Object.entries(b).forEach(([k,v])=>{ out[_caspioWriteMap[k]??k]=v; });
+    return out;
+  };
+
+  let reqBody=applyWriteMap(body);
+  let res=await fetch(Auth.url(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
+  let txt=await res.text();
+  console.log('[v18 saveWithFieldFix] resp status:',res.status,' body:',txt.slice(0,200));
+
+  if(!res.ok&&txt.includes('ColumnNotFound')){
+    /* Extraer el campo problemático del mensaje de error */
+    const badMatch=txt.match(/'([^']+)'/);
+    const badKey=badMatch?badMatch[1]:null;
+    console.warn('[v18] ColumnNotFound para campo:',badKey,'. Intentando fix automático...');
+
+    /* Construir versión corregida: quitar 'l' minúscula inicial si aplica */
+    const fixedBody={};
+    Object.entries(reqBody).forEach(([k,v])=>{
+      let fk=k;
+      /* Si el campo falla y empieza con l+mayúscula, quitamos la l */
+      if((!badKey||k===badKey)&&/^l[A-Z]/.test(k)){
+        fk=k.slice(1);
+        _caspioWriteMap[k]=fk; /* guardar para futuros saves */
+        console.log('[v18] Mapeando '+k+' → '+fk);
+      }
+      fixedBody[fk]=v;
+    });
+
+    console.log('[v18] Reintentando con body corregido:',JSON.stringify(fixedBody));
+    res=await fetch(Auth.url(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fixedBody)});
+    txt=await res.text();
+    console.log('[v18] Segundo intento status:',res.status,' body:',txt.slice(0,200));
+  }
+
+  if(!res.ok) throw new Error('HTTP '+res.status+' '+txt.slice(0,150));
+  return res;
+}
+
 async function saveEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
   if(!fecha||!agente)return;
@@ -1041,34 +1086,22 @@ async function saveEditRecord(){
   });
   console.log('[Guardar v16] record con campos reales:',JSON.stringify(record));
   try{
-    let res;
     if(editExistingRecord){
-      /* v15: usar registro_id para action=update (mismo patrón que tareas) */
       const rid=editExistingRecord.registro_id??editExistingRecord.Registro_id??editExistingRecord.REGISTRO_ID??null;
-      console.log('[Guardar v15] registro_id encontrado:',rid,' record:',JSON.stringify(editExistingRecord));
+      console.log('[Guardar v18] registro_id:',rid);
       if(rid!=null){
-        const url=WORKER+'?action=update&table='+TABLE+'&id='+rid;
-        console.log('[Guardar v15] PUT URL:',url);
-        res=await fetch(Auth.url(url),
-          {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        await saveWithFieldFix(WORKER+'?action=update&table='+TABLE+'&id='+rid, record);
       } else {
-        /* Fallback: WHERE por agente+fecha actual */
         const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
         const actualFecha=getFecha(editExistingRecord);
-        const whereUpd=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
-        console.warn('[Guardar v15] Sin registro_id, usando WHERE:',whereUpd);
-        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whereUpd)+'&method=PUT'),
-          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        const wh=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
+        await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT', record);
       }
     }else{
-      /* POST nuevo */
       const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
       record[fa]=agente; record[ff]=fecha;
-      console.log('[Guardar v15] POST nuevo registro');
-      res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
-        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&method=POST', record, true);
     }
-    if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,120)); }
     btn.textContent='✓ Guardado'; btn.style.background='var(--green)'; _modalCache=null;
     setTimeout(()=>{ closeModal('modalEditar'); loadData(); },800);
   }catch(e){ btn.disabled=false; btn.textContent='💾 Guardar'; alert('Error: '+e.message); }
@@ -1142,7 +1175,8 @@ function sameWeek(fechaStr, refDateStr){
 
 /* v07: campos reales detectados dinámicamente del primer registro */
 let _fieldAgente='agente', _fieldFecha='fecha';  /* defaults, se corrigen en autodetect */
-let _caspioFieldMap={};  /* v16: mapping FIELDS.key → nombre real Caspio */
+let _caspioFieldMap={};   /* v16: mapping FIELDS.key → nombre real Caspio (lectura) */
+let _caspioWriteMap={};   /* v18: mapping para escritura (puede diferir de lectura) */
 
 function autodetectFields(sample){
   if(!sample) return;
@@ -1221,10 +1255,60 @@ async function fetchAllRecordsForModal(){
   return _modalCache;
 }
 
+/* v17: captura de pantalla como JPG */
+window.captureScreenshot = async function(){
+  /* Avisar si hay más de 10 registros */
+  if(allRows.length>10){
+    const toast=g('screenshotToast');
+    toast.textContent='⚠️ Hay '+allRows.length+' registros. Para una captura más clara, selecciona una semana concreta.';
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),4500);
+    /* Pedir confirmación */
+    if(!confirm('Hay '+allRows.length+' registros — la captura puede quedar muy larga.\n¿Deseas continuar igualmente?')) return;
+  }
+  const btn=g('btnCaptura');
+  btn.textContent='⏳'; btn.disabled=true;
+  /* Capturar la zona visible (listado o gráficos) */
+  const target=vista==='list'?g('listView'):g('chartView');
+  if(!target||target.style.display==='none'){
+    alert('No hay contenido visible para capturar.'); btn.textContent='📸'; btn.disabled=false; return;
+  }
+  /* Añadir temporalmente una cabecera al screenshot */
+  const header=document.createElement('div');
+  header.style.cssText='background:var(--red);color:#fff;padding:10px 16px;font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;border-radius:8px 8px 0 0';
+  const desde=val('fDesde'),hasta=val('fHasta');
+  const rango=desde&&hasta?' · '+desde+' → '+hasta:'';
+  header.textContent='📊 Reports Ventas 3Villas'+rango+' · '+allRows.length+' registros';
+  target.insertBefore(header, target.firstChild);
+  try{
+    const canvas=await html2canvas(target,{
+      scale:2,          /* mayor resolución */
+      useCORS:true,
+      backgroundColor:'#f4f5f7',
+      logging:false,
+    });
+    /* Guardar como JPG */
+    canvas.toBlob(blob=>{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const fecha=new Date().toISOString().slice(0,10);
+      a.href=url; a.download='reports-ventas-'+fecha+'.jpg';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },'image/jpeg',0.92);
+  }catch(err){
+    alert('Error al capturar: '+err.message);
+  }finally{
+    target.removeChild(header);
+    btn.textContent='📸'; btn.disabled=false;
+  }
+};
+
 Object.assign(window,{setQuick,clearQuickSel,schedule,toggleMas,clearAll,setVista,
   toggleDD,filterDD,ddSelAll,ddSelNone,
   openModalAnadir,loadMissingAgents,saveNewRecords,closeModal,
-  openModalEditar,loadEditRecord,saveEditRecord});
+  openModalEditar,loadEditRecord,saveEditRecord,captureScreenshot});
 })();
 </script>
 </body>
