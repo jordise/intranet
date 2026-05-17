@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v10 — 3Villas</title>
+<title>Reports Ventas v11 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -807,10 +807,13 @@ async function loadMissingAgents(){
     if(inWeek.length>0) console.log('[Añadir v09] Primer registro semana:',JSON.stringify(inWeek[0]));
 
     /* Un registro cuenta si: tiene agente reconocible O si algún campo métrico > 0 */
+    /* v11: comparación de agentes con múltiples estrategias */
     const existing=new Set();
     const METRIC_KEYS=FIELDS.map(f=>f.key);
+    console.log('[Añadir v11] inWeek registros:',inWeek.length);
     inWeek.forEach(r=>{
       const ag=String(getAgente(r)||'').trim();
+      console.log('[Añadir v11] registro → agente raw:',JSON.stringify(ag),'fecha:',getFecha(r));
       if(ag){ existing.add(ag); return; }
       /* Fallback: si tiene algún campo métrico > 0, buscar a qué agente pertenece */
       const hasMetric=METRIC_KEYS.some(k=>parseFloat(r[k]||r[k.toLowerCase()]||0)>0);
@@ -825,7 +828,19 @@ async function loadMissingAgents(){
     console.log('[Añadir v09] Agentes CON registro:',[...existing]);
     console.log('[Añadir v09] IDs salesAgents:',salesAgents.map(u=>u.id));
 
-    const missing=salesAgents.filter(u=>!existing.has(String(u.id).trim()));
+    console.log('[Añadir v11] existing (agentes con registro):',JSON.stringify([...existing]));
+    console.log('[Añadir v11] salesAgents ids:',salesAgents.map(u=>u.id));
+    const missing=salesAgents.filter(u=>{
+      const uid=String(u.id).trim();
+      /* Exact, case-insensitive, numeric, por nombre en userMap inverso */
+      const found=[...existing].some(ex=>{
+        return ex===uid || ex.toLowerCase()===uid.toLowerCase() ||
+               (Number(ex)===Number(uid)&&!isNaN(Number(ex))) ||
+               (userMap[ex]&&userMap[ex]===u.name);
+      });
+      if(found) console.log('[Añadir v11] '+u.name+' YA tiene registro');
+      return !found;
+    });
     console.log('[Añadir v09] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
 
     g('mAddLoading').style.display='none';
@@ -837,7 +852,10 @@ async function loadMissingAgents(){
       <div class="info-box blue">Semana <strong>${mon} → ${sun}</strong> — ${missing.length} agente(s) sin registro:</div>
       <div style="overflow-x:auto">
       <table class="modal-table">
-        <thead><tr><th>Agente</th>${FIELDS.map(f=>`<th>${f.label}</th>`).join('')}</tr></thead>
+        <thead><tr>
+          <th style="text-align:left;min-width:80px">Agente</th>
+          ${FIELDS.map(f=>`<th style="white-space:normal;word-break:break-word;max-width:65px;line-height:1.25;padding:6px 4px;font-size:8px">${f.label}</th>`).join('')}
+        </tr></thead>
         <tbody>
           ${missing.map(u=>`
             <tr data-uid="${u.id}">
@@ -903,28 +921,46 @@ async function loadEditRecord(){
     let rows=json.Result||json.result||[];
     console.log('[Editar v10] Registros directo:',rows.length, rows);
 
-    /* Si la query directa no devuelve nada (posible error WHERE), fallback a fetch todo */
-    if(!rows.length){
-      console.warn('[Editar v10] Query directa vacía → fallback fetchAll');
-      const all=await fetchAllRecordsForModal();
-      const agStr=String(agente).trim();
-      rows=all.filter(r=>{
-        const rAg=String(getAgente(r)||'').trim();
-        const rFe=getFecha(r);
-        console.log('[Editar v10] fallback: agente='+rAg+'(vs'+agStr+') fecha='+rFe);
-        return rAg===agStr && sameWeek(rFe,fecha);
-      });
-      console.log('[Editar v10] Fallback encontró:',rows.length);
-    }
+    /* Fallback SIEMPRE: complementar con búsqueda exhaustiva client-side */
+    const all=await fetchAllRecordsForModal();
+    const agStr=String(agente).trim();
+    /* Nombre del agente seleccionado para matching por nombre */
+    const selOpt=g('mEditAgente')?.options[g('mEditAgente')?.selectedIndex];
+    const agName=selOpt?selOpt.text.trim():'';
+    console.log('[Editar v11] Buscando agente valor='+agStr+' nombre='+agName+' en semana '+emon+'→'+esun);
+    console.log('[Editar v11] Cache total:',all.length,'registros');
+
+    /* Log de TODOS los valores únicos de agente en el cache */
+    const uniqAg=[...new Set(all.map(r=>String(getAgente(r)||'')))];
+    console.log('[Editar v11] Valores únicos Agente en cache:',uniqAg);
+
+    const fallback=all.filter(r=>{
+      const rAg=String(getAgente(r)||'').trim();
+      const rFe=getFecha(r);
+      /* Múltiples estrategias de matching para agente */
+      const match1=rAg===agStr;                          /* exact */
+      const match2=rAg.toLowerCase()===agStr.toLowerCase(); /* case-insensitive */
+      const match3=Number(rAg)===Number(agStr)&&!isNaN(Number(rAg)); /* numeric */
+      const match4=agName&&userMap[rAg]===agName;        /* por nombre */
+      const aMatch=match1||match2||match3||match4;
+      const wMatch=sameWeek(rFe,fecha);
+      if(wMatch) console.log('[Editar v11] semana OK → agente:'+rAg+' m1:'+match1+' m2:'+match2+' m3:'+match3+' m4:'+match4+' fecha:'+rFe);
+      return aMatch&&wMatch;
+    });
+    console.log('[Editar v11] Fallback encontró:',fallback.length);
+
+    if(!rows.length&&fallback.length) rows=fallback;
+    if(!rows.length) console.error('[Editar v11] ⛔ Sin resultados. agStr='+agStr+' agName='+agName+' uniqAg='+uniqAg.join(','));
+
     editExistingRecord=rows[0]||null;
-    console.log('[Editar v10] Resultado final:',editExistingRecord?'ENCONTRADO':'NO ENCONTRADO', editExistingRecord);
+    console.log('[Editar v11] Resultado:',editExistingRecord?'✅ ENCONTRADO ':' ❌ NO ENCONTRADO', editExistingRecord);
 
     const rec=editExistingRecord||{};
     g('mEditContent').innerHTML=`
       <div class="info-box ${editExistingRecord?'blue':'orange'}" style="margin-bottom:14px">
         ${editExistingRecord?'✏️ Editando registro existente — semana <strong>'+emon+' → '+esun+'</strong>':'⚠️ Sin registro esta semana — se creará nuevo para <strong>'+emon+' → '+esun+'</strong>'}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-top:4px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-top:4px;padding:4px 0">
         ${FIELDS.map(f=>{
           const v=parseFloat(rec[f.key])||0;
           return `<div style="display:flex;align-items:center;gap:8px">
