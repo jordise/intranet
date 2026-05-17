@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v12 — 3Villas</title>
+<title>Reports Ventas v13 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -594,7 +594,8 @@ async function loadData(){
     const parts=[];
     /* v10: usar nombre real del campo fecha (puede ser 'Fecha' con mayúscula) */
     const ff=_fieldFecha||'fecha';
-    if(desde) parts.push(`${ff}>='${desde}T00:00:00'`);
+    /* v13 FIX DATE: >= sin T00:00:00 (Fecha guardada sin hora en Caspio) */
+    if(desde) parts.push(`${ff}>='${desde}'`);
     if(hasta) parts.push(`${ff}<='${hasta}T23:59:59'`);
     /* Filtro agentes solo si no están todos */
     const allSel=selAgentes.size===salesAgents.length;
@@ -798,7 +799,7 @@ async function loadMissingAgents(){
     const {mon,sun}=getWeekBounds(fecha);
     /* v10: query directa con campo real (Fecha/fecha según Caspio) */
     const ff2=_fieldFecha||'Fecha';
-    const wDirect=`${ff2}>='${mon}T00:00:00' AND ${ff2}<='${sun}T23:59:59'`;
+    /* v13 FIX DATE */ const wDirect=`${ff2}>='${mon}' AND ${ff2}<='${sun}T23:59:59'`;
     console.log('[Añadir v10] Campo fecha detectado:',ff2,' WHERE:',wDirect);
     const urlD=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(wDirect)+'&limit=500';
     const resD=await fetch(Auth.url(urlD));
@@ -922,7 +923,7 @@ async function loadEditRecord(){
   const {mon:emon,sun:esun}=getWeekBounds(fecha);
   /* v10: usar nombre REAL del campo (Agente/Fecha con mayúscula según Caspio) */
   const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
-  const where=`${ff}>='${emon}T00:00:00' AND ${ff}<='${esun}T23:59:59' AND ${fa}='${agente}'`;
+  /* v13 FIX DATE */ const where=`${ff}>='${emon}' AND ${ff}<='${esun}T23:59:59' AND ${fa}='${agente}'`;
   console.log('[Editar v10] WHERE:',where,' campos detectados: fecha='+ff+' agente='+fa);
 
   try{
