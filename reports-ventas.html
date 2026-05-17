@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v06 — 3Villas</title>
+<title>Reports Ventas v07 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -602,8 +602,11 @@ async function loadData(){
     if(json.error)throw new Error(json.error);
     allRows=json.Result||json.result||[];
     console.log('[RV v03] registros:', allRows.length, allRows[0]||'(vacío)');
-    allRows.forEach(r=>{ r._agente=userMap[String(r.agente||'')]||String(r.agente||'—'); });
-    const uSet=new Set(allRows.map(r=>r.agente));
+    if(allRows.length) autodetectFields(allRows[0]);
+    allRows.forEach(r=>{ const av=String(getAgente(r)||'').trim(); r._agente=av&&userMap[av]?userMap[av]:(av||'—'); });
+    /* v07: ordenar por fecha DESC client-side como seguro */
+    allRows.sort((a,b)=>{ const fa=getFecha(a), fb=getFecha(b); return fb.localeCompare(fa); });
+    const uSet=new Set(allRows.map(r=>String(getAgente(r)||'').trim()).filter(Boolean));
     g('stReg').textContent=allRows.length; g('stAg').textContent=uSet.size;
     g('navSub').textContent=allRows.length+' registros';
     g('stLoad').style.display='none';
@@ -784,22 +787,21 @@ async function loadMissingAgents(){
     /* v06: NO usar WHERE de fecha — traer TODO y filtrar client-side */
     const allFetched=await fetchAllRecordsForModal();
 
-    /* Filtrar por semana exacta usando sameWeek() — 100% client-side */
+    /* v07: usar getFecha() y getAgente() que detectan el campo real */
     const inWeek=allFetched.filter(r=>{
-      const fRaw=String(r.fecha||r.Fecha||r.FECHA||'').trim();
-      const fDate=fRaw.split('T')[0];          /* solo YYYY-MM-DD */
+      const fDate=getFecha(r);
       const ok=sameWeek(fDate, fecha);
-      if(ok) console.log('[Añadir v06] ✓ Registro en semana — agente:',r.agente,'fecha:',fDate);
+      if(ok) console.log('[Añadir v07] ✓ semana — agente:',getAgente(r),'fecha:',fDate);
       return ok;
     });
-    console.log('[Añadir v06] Registros en semana ('+mon+' → '+sun+'):',inWeek.length);
+    console.log('[Añadir v07] Registros en semana ('+mon+' → '+sun+'):',inWeek.length);
 
-    /* Agentes con registro esta semana */
-    const existing=new Set(inWeek.map(r=>String(r.agente||'').trim()));
-    console.log('[Añadir v06] Agentes CON registro:',[...existing]);
+    const existing=new Set(inWeek.map(r=>String(getAgente(r)||'').trim()));
+    console.log('[Añadir v07] Agentes CON registro:',[...existing]);
+    console.log('[Añadir v07] IDs salesAgents:',[...salesAgents.map(u=>u.id)]);
 
     const missing=salesAgents.filter(u=>!existing.has(String(u.id).trim()));
-    console.log('[Añadir v06] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
+    console.log('[Añadir v07] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
 
     g('mAddLoading').style.display='none';
     if(!missing.length){
@@ -869,18 +871,22 @@ async function loadEditRecord(){
     /* v06: NO usar WHERE — traer todo y filtrar client-side */
     const allFetched=await fetchAllRecordsForModal();
 
-    /* Filtrar: mismo agente + misma semana (ambas comparaciones client-side) */
+    /* v07: usar getAgente() y getFecha() que detectan el campo real */
+    const agStr=String(agente).trim();
+    console.log('[Editar v07] Buscando agente='+agStr+' en semana '+emon+' → '+esun);
+    console.log('[Editar v07] Total registros en cache:',allFetched.length);
+
     const match=allFetched.filter(r=>{
-      const aStr=String(r.agente||'').trim();
-      const aStr2=String(agente).trim();
-      const aMatch=aStr===aStr2;
-      const fStr=String(r.fecha||r.Fecha||r.FECHA||'').trim().split('T')[0];
-      const wMatch=sameWeek(fStr, fecha);
-      if(aMatch||wMatch) console.log('[Editar v06] r.agente='+aStr+'(match:'+aMatch+') fecha='+fStr+'(semana:'+wMatch+')');
+      const rAg=String(getAgente(r)||'').trim();
+      const rFe=getFecha(r);
+      const aMatch=rAg===agStr;
+      const wMatch=sameWeek(rFe, fecha);
+      /* Log de todos los registros para debug */
+      console.log('[Editar v07] rec agente='+rAg+'(match:'+aMatch+') fecha='+rFe+'(semana:'+wMatch+')');
       return aMatch&&wMatch;
     });
     editExistingRecord=match[0]||null;
-    console.log('[Editar v06] Registro encontrado:',editExistingRecord?'SÍ id='+editExistingRecord.vv_Clave_Primaria_Entidad:'NO');
+    console.log('[Editar v07] Resultado:',editExistingRecord?'ENCONTRADO pk='+editExistingRecord.vv_Clave_Primaria_Entidad:'NO ENCONTRADO');
 
     const rec=editExistingRecord||{};
     g('mEditContent').innerHTML=`
@@ -963,6 +969,29 @@ function sameWeek(fechaStr, refDateStr){
   return d>=monD && d<=sunD;
 }
 
+/* v07: campos reales detectados dinámicamente del primer registro */
+let _fieldAgente='agente', _fieldFecha='fecha';  /* defaults, se corrigen en autodetect */
+
+function autodetectFields(sample){
+  if(!sample) return;
+  const keys=Object.keys(sample);
+  console.log('[v07] Campos reales del registro:', keys);
+  const ag=keys.find(k=>/agente|agent|vendedor|sales/i.test(k));
+  const fe=keys.find(k=>/fecha|date|fech/i.test(k));
+  if(ag){ _fieldAgente=ag; console.log('[v07] Campo agente detectado:',ag); }
+  if(fe){ _fieldFecha=fe; console.log('[v07] Campo fecha detectado:',fe); }
+}
+
+/* Obtiene el valor del agente de un registro, probando variantes */
+function getAgente(r){
+  return r[_fieldAgente]??r.agente??r.Agente??r.AGENTE??r.agente_id??r.AgentId??'';
+}
+/* Obtiene el valor de la fecha de un registro, probando variantes */
+function getFecha(r){
+  const v=r[_fieldFecha]??r.fecha??r.Fecha??r.FECHA??r.date??r.Date??'';
+  return String(v).trim().split('T')[0];  /* siempre YYYY-MM-DD */
+}
+
 function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
 function isoWeekStr(d){ return d.getFullYear()+'-W'+String(isoWeek(d)).padStart(2,'0'); }
 
@@ -980,8 +1009,8 @@ async function fetchAllRecordsForModal(){
   const json=await res.json();
   _modalCache=json.Result||json.result||[];
   _modalCacheTs=now;
-  console.log('[Modal v06] Registros totales obtenidos:',_modalCache.length);
-  if(_modalCache.length>0) console.log('[Modal v06] Muestra primer registro:',_modalCache[0]);
+  console.log('[Modal v07] Registros totales:',_modalCache.length);
+  if(_modalCache.length>0){ console.log('[Modal v07] Primer registro completo:',_modalCache[0]); autodetectFields(_modalCache[0]); }
   return _modalCache;
 }
 
