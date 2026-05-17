@@ -75,9 +75,9 @@ var NAV_MENUS = {
   // ── SALES — equipo comercial ─────────────────────────────────
   //    Aplica a: Role = "sales" | "comercial"
   sales: [
-    { label: 'Ocupación',  url: 'listado-ocupacion.html', icon: '📅' },
-    { label: 'Villas',     url: 'buscar-villa.html',      icon: '🏡' },
-    { label: 'Contactos',  url: 'contactos.html',         icon: '👥' },
+    { label: 'Report Semanal',  url: 'reports-ventas.html', icon: '📅' },
+    { label: 'Contactos vacacional',  url: 'contactos.html',         icon: '👥' },
+    { label: 'Villas vacacional',     url: 'buscar-villa.html',      icon: '🏡' },
     { label: 'Login',      url: 'login.html',             icon: '🔑' },
   ],
 
