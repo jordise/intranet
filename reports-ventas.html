@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v11 — 3Villas</title>
+<title>Reports Ventas v12 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -188,11 +188,11 @@ td:first-child,td:nth-child(2){text-align:left}
     <!-- Desde / Hasta -->
     <div class="f-group narrow">
       <label class="f-label">Desde</label>
-      <input type="date" id="fDesde" class="f-input" onchange="quickMode=null;clearQuickSel();schedule(400)">
+      <input type="date" id="fDesde" class="f-input" onchange="setQuickModeNull();clearQuickSel();schedule(400)">
     </div>
     <div class="f-group narrow">
       <label class="f-label">Hasta</label>
-      <input type="date" id="fHasta" class="f-input" onchange="quickMode=null;clearQuickSel();schedule(400)">
+      <input type="date" id="fHasta" class="f-input" onchange="setQuickModeNull();clearQuickSel();schedule(400)">
     </div>
 
     <!-- Agente -->
@@ -397,6 +397,10 @@ let _modalCache=null, _modalCacheTs=0;  /* v06: cache de todos los registros par
 let selAgentes=new Set();
 let selCampos=new Set(FIELDS.map(f=>f.key));
 let vista='list', quickMode='trimestre';
+  /* v12: exponer quickMode al window — los onchange del HTML necesitan acceso */
+  Object.defineProperty(window,'_qm',{get:()=>quickMode,set:(v)=>{quickMode=v;}});
+  /* Alias: cuando el HTML pone quickMode=null, asignamos al IIFE variable */
+  window.setQuickModeNull=()=>{ quickMode=null; };
 let chartInstances={};
 let timer=null, reqId=0;
 let editExistingRecord=null; // para modal editar
@@ -575,8 +579,12 @@ async function loadData(){
     g('statsBar').style.display='none';
     g('stEmpty').style.display='block';
     g('emptyMsg').textContent='Selecciona al menos un agente';
+    console.warn('[v12] selAgentes vacío — salesAgents:',salesAgents.length,'selAgentes:',selAgentes.size);
     return;
   }
+  /* v12: log diagnóstico para comparar botón rápido vs fecha manual */
+  const _d=val('fDesde'),_h=val('fHasta');
+  console.log('[v12 loadData] INICIO — desde:'+_d+' hasta:'+_h+' _fieldFecha:'+_fieldFecha+' _fieldAgente:'+_fieldAgente+' selAgentes.size:'+selAgentes.size+' salesAgents.length:'+salesAgents.length);
   g('stLoad').style.display='block'; g('stErr').style.display='none';
   g('stEmpty').style.display='none'; g('listView').style.display='none';
   g('chartView').style.display='none'; g('statsBar').style.display='none';
@@ -597,14 +605,18 @@ async function loadData(){
     }
     const where=parts.join(' AND ');
     const qs=where?'&where='+encodeURIComponent(where):'';
-    const url=WORKER+'?action=data&table='+TABLE+qs+'&orderBy=fecha%20DESC&limit=2000';
-    console.log('[RV v03] url:', url);
+    /* v12: orderBy usa el campo real detectado por autodetectFields */
+    const orderField=_fieldFecha||'Fecha';
+    const url=WORKER+'?action=data&table='+TABLE+qs+'&orderBy='+encodeURIComponent(orderField+' DESC')+'&limit=2000';
+    console.log('[v12 loadData] URL completa:', url);
+    console.log('[v12 loadData] WHERE:', where||'(sin filtro)');
     const res=await fetch(Auth.url(url));
     const json=await res.json();
     if(myId!==reqId)return;
     if(json.error)throw new Error(json.error);
     allRows=json.Result||json.result||[];
-    console.log('[RV v03] registros:', allRows.length, allRows[0]||'(vacío)');
+    console.log('[v12 loadData] RESPUESTA — registros:',allRows.length,' json.error:',json.error);
+    if(allRows.length>0) console.log('[v12 loadData] Primer registro RAW:', JSON.stringify(allRows[0]));
     if(allRows.length){ console.log('[v09] allRows[0] keys:',Object.keys(allRows[0]).join(',')); autodetectFields(allRows[0]); }
     allRows.forEach(r=>{ const av=String(getAgente(r)||'').trim(); r._agente=av&&userMap[av]?userMap[av]:(av||'—'); });
     /* v07: ordenar por fecha DESC client-side como seguro */
