@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v13 — 3Villas</title>
+<title>Reports Ventas v14 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -195,22 +195,6 @@ td:first-child,td:nth-child(2){text-align:left}
       <input type="date" id="fHasta" class="f-input" onchange="setQuickModeNull();clearQuickSel();schedule(400)">
     </div>
 
-    <!-- Agente -->
-    <div class="f-group wide dd-wrap">
-      <label class="f-label">Agente <span style="font-weight:400;opacity:.6">(rol: sales)</span></label>
-      <button id="agenteBtn" class="f-input dd-btn" onclick="toggleDD(event,'agentePanel')">
-        <span id="agenteLbl">Cargando…</span><span style="font-size:10px;color:var(--gray-4)">▾</span>
-      </button>
-      <div id="agentePanel" class="dd-panel">
-        <div class="dd-search"><input id="agSearch" type="text" placeholder="Buscar agente…" oninput="filterDD('agList',this.value)"></div>
-        <div class="dd-list" id="agList"></div>
-        <div class="dd-footer">
-          <button onclick="ddSelAll('ag')">Todos</button>
-          <button onclick="ddSelNone('ag')">Ninguno</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Vista -->
     <div class="pill-group">
       <span class="pill-label">Vista</span>
@@ -225,11 +209,29 @@ td:first-child,td:nth-child(2){text-align:left}
       <span>Más filtros</span><span class="arr">▾</span>
     </button>
     <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
+    <button class="btn-act green" onclick="openModalAnadir()" style="height:36px;padding:0 12px;font-size:11px">➕ Añadir</button>
+    <button class="btn-act red"   onclick="openModalEditar()" style="height:36px;padding:0 12px;font-size:11px">✏️ Editar</button>
   </div>
 
   <!-- MÁS FILTROS -->
   <div id="masFiltros">
     <div class="mas-inner">
+
+      <!-- Agente (movido aquí en v14) -->
+      <div class="f-group wide dd-wrap">
+        <label class="f-label">Agente <span style="font-weight:400;opacity:.6">(sales)</span></label>
+        <button id="agenteBtn" class="f-input dd-btn" onclick="toggleDD(event,'agentePanel')">
+          <span id="agenteLbl">Cargando…</span><span style="font-size:10px;color:var(--gray-4)">▾</span>
+        </button>
+        <div id="agentePanel" class="dd-panel">
+          <div class="dd-search"><input id="agSearch" type="text" placeholder="Buscar agente…" oninput="filterDD('agList',this.value)"></div>
+          <div class="dd-list" id="agList"></div>
+          <div class="dd-footer">
+            <button onclick="ddSelAll('ag')">Todos</button>
+            <button onclick="ddSelNone('ag')">Ninguno</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Comparativa -->
       <div class="f-group narrow">
@@ -269,9 +271,7 @@ td:first-child,td:nth-child(2){text-align:left}
         </div>
       </div>
 
-      <!-- Acciones -->
-      <button class="btn-act green" onclick="openModalAnadir()">➕ Añadir registros</button>
-      <button class="btn-act red"   onclick="openModalEditar()">✏️ Editar registro</button>
+
 
     </div>
   </div>
@@ -821,13 +821,22 @@ async function loadMissingAgents(){
 
     /* Un registro cuenta si: tiene agente reconocible O si algún campo métrico > 0 */
     /* v11: comparación de agentes con múltiples estrategias */
-    const existing=new Set();
+    const existing=new Set();        /* agentes con registro y datos */
+    const existingEmpty=new Set();   /* v14: agentes con registro pero todos a 0 */
     const METRIC_KEYS=FIELDS.map(f=>f.key);
-    console.log('[Añadir v11] inWeek registros:',inWeek.length);
+    console.log('[Añadir v14] inWeek registros:',inWeek.length);
     inWeek.forEach(r=>{
       const ag=String(getAgente(r)||'').trim();
-      console.log('[Añadir v11] registro → agente raw:',JSON.stringify(ag),'fecha:',getFecha(r));
-      if(ag){ existing.add(ag); return; }
+      if(!ag) return;
+      /* v14: ¿tiene algún valor mayor que 0? */
+      const hasData=METRIC_KEYS.some(k=>parseFloat(r[k]||r[k.toLowerCase()]||0)>0);
+      if(hasData){
+        existing.add(ag);
+        console.log('[Añadir v14] ✅ con datos → agente:',ag);
+      } else {
+        existingEmpty.add(ag);  /* tiene registro pero todo a 0 */
+        console.log('[Añadir v14] ⭕ registro vacío → agente:',ag);
+      }
       /* Fallback: si tiene algún campo métrico > 0, buscar a qué agente pertenece */
       const hasMetric=METRIC_KEYS.some(k=>parseFloat(r[k]||r[k.toLowerCase()]||0)>0);
       if(hasMetric){
@@ -841,18 +850,13 @@ async function loadMissingAgents(){
     console.log('[Añadir v09] Agentes CON registro:',[...existing]);
     console.log('[Añadir v09] IDs salesAgents:',salesAgents.map(u=>u.id));
 
-    console.log('[Añadir v11] existing (agentes con registro):',JSON.stringify([...existing]));
-    console.log('[Añadir v11] salesAgents ids:',salesAgents.map(u=>u.id));
+    console.log('[Añadir v14] con datos:',JSON.stringify([...existing]),' vacíos:',[...existingEmpty]);
+    /* v14: missing = sin registro + registro con todos 0 (los vacíos también se muestran) */
     const missing=salesAgents.filter(u=>{
       const uid=String(u.id).trim();
-      /* Exact, case-insensitive, numeric, por nombre en userMap inverso */
-      const found=[...existing].some(ex=>{
-        return ex===uid || ex.toLowerCase()===uid.toLowerCase() ||
-               (Number(ex)===Number(uid)&&!isNaN(Number(ex))) ||
-               (userMap[ex]&&userMap[ex]===u.name);
-      });
-      if(found) console.log('[Añadir v11] '+u.name+' YA tiene registro');
-      return !found;
+      const inExist=[...existing].some(ex=>ex===uid||ex.toLowerCase()===uid.toLowerCase()||(userMap[ex]&&userMap[ex]===u.name));
+      if(inExist){ console.log('[Añadir v14] ✅ '+u.name+' tiene datos, no aparece'); return false; }
+      return true; /* aparece si: sin registro ó registro vacío */
     });
     console.log('[Añadir v09] Agentes SIN registro:',missing.map(u=>u.id+':'+u.name));
 
@@ -895,8 +899,16 @@ async function saveNewRecords(){
     const record={[_fieldAgente||'agente']:uid,[_fieldFecha||'fecha']:fecha+'T00:00:00'};
     tr.querySelectorAll('input').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
     try{
-      const res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
-        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      let res;
+      if(inWeekExisting[uid]){
+        /* v14: ya tiene registro vacío → PUT */
+        const wh=`${ff}='${inWeekExisting[uid]}' AND ${fa}='${uid}'`;
+        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT'),
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      } else {
+        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      }
       if(!res.ok)throw new Error('HTTP '+res.status);
       ok++;
       tr.querySelector('td').innerHTML=`<span class="saved-ok">✓ ${tr.querySelector('td').textContent}</span>`;
@@ -990,18 +1002,27 @@ async function saveEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
   if(!fecha||!agente)return;
   const btn=g('mEditSaveBtn'); btn.disabled=true; btn.textContent='Guardando…';
-  const record={agente,fecha:fecha+'T00:00:00'};
+  const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
+  /* v14: usar la fecha REAL del registro, no la fecha seleccionada en el picker
+     (el usuario puede elegir cualquier día de la semana, pero el registro está en otro día) */
+  const actualFecha = editExistingRecord ? getFecha(editExistingRecord) : fecha;
+  const record={[fa]:agente,[ff]:actualFecha};
   g('mEditContent').querySelectorAll('input.ne').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
+  console.log('[Guardar v14] record:',JSON.stringify(record),' actualFecha:',actualFecha);
   try{
     let res;
-    if(editExistingRecord&&editExistingRecord.vv_Clave_Primaria_Entidad){
-      res=await fetch(Auth.url(WORKER+'?action=update&table='+TABLE+'&id='+editExistingRecord.vv_Clave_Primaria_Entidad),
-        {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+    if(editExistingRecord){
+      /* v14 FIX: action=save&method=PUT&where= (action=update no existe en el proxy) */
+      const whereUpd=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
+      console.log('[Guardar v14] PUT WHERE:',whereUpd);
+      res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whereUpd)+'&method=PUT'),
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
     }else{
+      console.log('[Guardar v14] POST nuevo registro');
       res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
         {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
     }
-    if(!res.ok)throw new Error('HTTP '+res.status);
+    if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,120)); }
     btn.textContent='✓ Guardado'; btn.style.background='var(--green)'; _modalCache=null;
     setTimeout(()=>{ closeModal('modalEditar'); loadData(); },800);
   }catch(e){ btn.disabled=false; btn.textContent='💾 Guardar'; alert('Error: '+e.message); }
