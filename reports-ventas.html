@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v18 — 3Villas</title>
+<title>Reports Ventas v19 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -375,8 +375,11 @@ td:first-child,td:nth-child(2){text-align:left}
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 const TABLE  = 'Ta_raport_ventas';
 
+/* v19: nombres EXACTOS de Ta_raport_ventas según imagen Caspio.
+   registro_id=RandomID(PK), Fecha=Text(255), Agente=Text(255), resto=Number.
+   Sin prefijo 'l'. Añadidos Facturado_Ciu y Facturado_Mao. */
 const FIELDS = [
-  {key:'lCaptacion_Inmobiliaria',        label:'Captación Inmobiliaria'},
+  {key:'Captacion_Inmobiliaria',         label:'Captación Inmobiliaria'},
   {key:'Captacion_Inmobiliaria_Exclusiva',label:'Captación Exclusiva'},
   {key:'Visitas_Ventas',                 label:'Visitas Ventas'},
   {key:'Firma_Arras',                    label:'Firma de Arras'},
@@ -388,6 +391,8 @@ const FIELDS = [
   {key:'Captacion_Alquiler_LAU',         label:'Captación Alquiler LAU'},
   {key:'Alquiler_LAU',                   label:'Alquiler LAU'},
   {key:'Fincas_Actuales',               label:'Fincas Actuales'},
+  {key:'Facturado_Ciu',                  label:'Facturado Ciu'},
+  {key:'Facturado_Mao',                  label:'Facturado Mao'},
 ];
 
 const PALETTE=['#C8102E','#1967d2','#1e9e4e','#e07b00','#9c27b0','#00acc1','#ff5722','#78909c','#8bc34a','#f59e0b','#795548','#e91e63'];
@@ -928,8 +933,10 @@ async function saveNewRecords(){
       if(inWeekExisting[uid]){
         const existRec=inWeekExisting[uid];
         const rid2=existRec.rid??null;
-        if(rid2!=null){
-          await saveWithFieldFix(WORKER+'?action=update&table='+TABLE+'&id='+rid2, record);
+        /* v19: usar WHERE por registro_id (string Random ID) en vez de action=update */
+        if(rid2!=null&&String(rid2).trim()!==''){
+          const whRid2=`registro_id='${String(rid2).trim()}'`;
+          await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whRid2)+'&method=PUT', record);
         } else {
           const wh=`${ff2}='${existRec.fecha}' AND ${fa2}='${uid}'`;
           await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT', record);
@@ -1025,9 +1032,9 @@ async function loadEditRecord(){
     g('mEditSaveBtn').textContent=editExistingRecord?'💾 Guardar cambios':'💾 Crear registro';
   }catch(e){ g('mEditContent').innerHTML=`<div class="info-box orange">Error: ${e.message}</div>`; }
 }
-/* v18: guardar con corrección automática de nombres de campo
-   Caspio acepta 'lCaptacion_Inmobiliaria' en lectura pero a veces lo rechaza en escritura.
-   Si detecta ColumnNotFound, quita la 'l' minúscula inicial y reintenta. */
+/* v19: saveWithFieldFix — los FIELDS ya tienen nombres correctos.
+   Función de seguridad: si Caspio devuelve ColumnNotFound, lo registra y reintenta.
+   También aplica _caspioWriteMap si hay mapeos previos aprendidos. */
 async function saveWithFieldFix(url, body, isPost=false){
   const method=isPost?'POST':'PUT';
   console.log('[v18 saveWithFieldFix] URL:',url,' body:',JSON.stringify(body));
@@ -1087,19 +1094,27 @@ async function saveEditRecord(){
   console.log('[Guardar v16] record con campos reales:',JSON.stringify(record));
   try{
     if(editExistingRecord){
+      /* v19 FIX: action=update usa 'taskid' hardcoded en el proxy (diseñado para TaTasks).
+         Para Ta_raport_ventas usar WHERE por registro_id (Random ID = string → entrecomillar).
+         Si no hay registro_id, fallback por Fecha+Agente. */
       const rid=editExistingRecord.registro_id??editExistingRecord.Registro_id??editExistingRecord.REGISTRO_ID??null;
-      console.log('[Guardar v18] registro_id:',rid);
-      if(rid!=null){
-        await saveWithFieldFix(WORKER+'?action=update&table='+TABLE+'&id='+rid, record);
+      console.log('[Guardar v19] registro_id:',rid,' tipo:',typeof rid);
+      if(rid!=null&&String(rid).trim()!==''){
+        /* Random ID es string → WHERE con comillas simples */
+        const whereRid=`registro_id='${String(rid).trim()}'`;
+        console.log('[Guardar v19] PUT WHERE por registro_id:',whereRid);
+        await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whereRid)+'&method=PUT', record);
       } else {
         const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
         const actualFecha=getFecha(editExistingRecord);
         const wh=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
+        console.warn('[Guardar v19] Sin registro_id, usando WHERE fecha+agente:',wh);
         await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT', record);
       }
     }else{
       const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
       record[fa]=agente; record[ff]=fecha;
+      console.log('[Guardar v19] POST nuevo registro');
       await saveWithFieldFix(WORKER+'?action=save&table='+TABLE+'&method=POST', record, true);
     }
     btn.textContent='✓ Guardado'; btn.style.background='var(--green)'; _modalCache=null;
