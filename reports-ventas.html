@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v15 — 3Villas</title>
+<title>Reports Ventas v16 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -641,7 +641,7 @@ function renderList(){
   g('listView').style.display='block'; g('chartView').style.display='none';
   g('tblHead').innerHTML='<th>Fecha</th><th>Agente</th>'+FIELDS.map(f=>`<th>${f.label}</th>`).join('')+'<th></th>';
   g('tblBody').innerHTML=allRows.map(r=>{
-    const nums=FIELDS.map(f=>{ const n=parseFloat(r[f.key])||0; return`<td><span class="${n>0?'num-val':'num-zero'}">${n>0?n:0}</span></td>`; }).join('');
+    const nums=FIELDS.map(f=>{ const n=parseFloat(r[realField(f.key)]??r[f.key]??0)||0; return`<td><span class="${n>0?'num-val':'num-zero'}">${n>0?n:0}</span></td>`; }).join('');
     return`<tr><td class="td-fecha">${fmtDate(r.fecha||r.Fecha)}</td><td class="td-agente">${r._agente}</td>${nums}<td></td></tr>`;
   }).join('');
 }
@@ -905,9 +905,21 @@ async function saveNewRecords(){
     const uid=tr.dataset.uid;
     const actualFecha=(inWeekExisting[uid]?.fecha)||fecha;
     /* Solo campos métricos para PUT; agente+fecha para POST */
+    /* v16: usar campos reales + SALTAR filas sin datos */
     const metricRecord={};
-    tr.querySelectorAll('input[data-field]').forEach(inp=>{ metricRecord[inp.dataset.field]=parseInt(inp.value)||0; });
-    const fullRecord={[fa]:uid,[ff]:actualFecha,...metricRecord};
+    let hasData=false;
+    tr.querySelectorAll('input[data-field]').forEach(inp=>{
+      const v=parseInt(inp.value)||0;
+      if(v>0) hasData=true;
+      metricRecord[realField(inp.dataset.field)]=v;
+    });
+    if(!hasData&&!inWeekExisting[uid]){
+      console.log('[Añadir v16] Saltando fila sin datos para uid:',uid);
+      continue; /* no guardar registros completamente vacíos (solo para nuevos) */
+    }
+    const ff2=_fieldFecha||'Fecha', fa2=_fieldAgente||'Agente';
+    const fullRecord={[fa2]:uid,[ff2]:actualFecha,...metricRecord};
+    /* NO incluir registro_id — se genera automáticamente */
     const record=inWeekExisting[uid]?metricRecord:fullRecord;
     try{
       let res;
@@ -919,7 +931,7 @@ async function saveNewRecords(){
           res=await fetch(Auth.url(WORKER+'?action=update&table='+TABLE+'&id='+rid2),
             {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
         } else {
-          const wh=`${ff}='${existRec.fecha}' AND ${fa}='${uid}'`;
+          const wh=`${ff2}='${existRec.fecha}' AND ${fa2}='${uid}'`;
           res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT'),
             {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
         }
@@ -1022,8 +1034,12 @@ async function saveEditRecord(){
   const btn=g('mEditSaveBtn'); btn.disabled=true; btn.textContent='Guardando…';
   /* v15: solo actualizar los campos métricos (no incluir agente/fecha en el body del PUT) */
   const record={};
-  g('mEditContent').querySelectorAll('input.ne').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
-  console.log('[Guardar v15] campos a actualizar:',Object.keys(record));
+  /* v16: usar nombre REAL del campo según Caspio */
+  g('mEditContent').querySelectorAll('input.ne').forEach(inp=>{
+    const realKey=realField(inp.dataset.field);
+    record[realKey]=parseInt(inp.value)||0;
+  });
+  console.log('[Guardar v16] record con campos reales:',JSON.stringify(record));
   try{
     let res;
     if(editExistingRecord){
@@ -1126,6 +1142,7 @@ function sameWeek(fechaStr, refDateStr){
 
 /* v07: campos reales detectados dinámicamente del primer registro */
 let _fieldAgente='agente', _fieldFecha='fecha';  /* defaults, se corrigen en autodetect */
+let _caspioFieldMap={};  /* v16: mapping FIELDS.key → nombre real Caspio */
 
 function autodetectFields(sample){
   if(!sample) return;
@@ -1135,6 +1152,13 @@ function autodetectFields(sample){
   const fe=keys.find(k=>/fecha|date|fech/i.test(k));
   if(ag){ _fieldAgente=ag; console.log('[v07] Campo agente detectado:',ag); }
   if(fe){ _fieldFecha=fe; console.log('[v07] Campo fecha detectado:',fe); }
+  /* v16: mapear cada FIELDS.key al nombre real que devuelve Caspio */
+  FIELDS.forEach(f=>{
+    const match=keys.find(k=>k.toLowerCase()===f.key.toLowerCase());
+    if(match) _caspioFieldMap[f.key]=match;
+    else _caspioFieldMap[f.key]=f.key; /* fallback */
+  });
+  console.log('[v16] _caspioFieldMap:',JSON.stringify(_caspioFieldMap));
 }
 
 /* Obtiene el valor del agente de un registro */
@@ -1171,6 +1195,9 @@ function getAgenteRaw(r){
   if(!_logAgenteFmt){ console.warn('[v09] ⚠️ No se encontró campo agente. Keys del registro:',Object.keys(r).join(',')); _logAgenteFmt=true; }
   return '';
 }
+
+/* v16: obtener nombre de campo real según Caspio */
+function realField(key){ return _caspioFieldMap[key]||key; }
 
 function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
 function isoWeekStr(d){ return d.getFullYear()+'-W'+String(isoWeek(d)).padStart(2,'0'); }
