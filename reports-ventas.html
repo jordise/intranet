@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v14 — 3Villas</title>
+<title>Reports Ventas v15 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -784,8 +784,8 @@ function getQ1Week(year,q){ /* semana de inicio del trimestre */ return[1,14,27,
 
 /* ══ MODAL AÑADIR ══ */
 function openModalAnadir(){
-  const friday=getFriday();
-  g('mAddFecha').value=friday;
+  /* v15: fecha por defecto = hoy */
+  const today=new Date(); g('mAddFecha').value=toDateStr(today);
   g('mAddContent').innerHTML='';
   g('mAddSaveBtn').disabled=true;
   g('modalAnadir').classList.add('open');
@@ -893,18 +893,36 @@ async function saveNewRecords(){
   const btn=g('mAddSaveBtn'); btn.disabled=true; btn.textContent='Guardando…';
   const rows=g('mAddContent').querySelectorAll('tbody tr');
   let ok=0,errors=[];
+  const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
+  /* v15: detectar registros vacíos existentes y capturar registro_id */
+  const inWeekExisting={};
+  (await fetchAllRecordsForModal()).filter(r=>sameWeek(getFecha(r),fecha)).forEach(r=>{
+    const ag=String(getAgente(r)||'').trim();
+    const rid=r.registro_id??r.Registro_id??r.REGISTRO_ID??null;
+    if(ag) inWeekExisting[ag]={fecha:getFecha(r), rid};
+  });
   for(const tr of rows){
     const uid=tr.dataset.uid;
-    /* v10: usar campo real para el POST */
-    const record={[_fieldAgente||'agente']:uid,[_fieldFecha||'fecha']:fecha+'T00:00:00'};
-    tr.querySelectorAll('input').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
+    const actualFecha=(inWeekExisting[uid]?.fecha)||fecha;
+    /* Solo campos métricos para PUT; agente+fecha para POST */
+    const metricRecord={};
+    tr.querySelectorAll('input[data-field]').forEach(inp=>{ metricRecord[inp.dataset.field]=parseInt(inp.value)||0; });
+    const fullRecord={[fa]:uid,[ff]:actualFecha,...metricRecord};
+    const record=inWeekExisting[uid]?metricRecord:fullRecord;
     try{
       let res;
       if(inWeekExisting[uid]){
-        /* v14: ya tiene registro vacío → PUT */
-        const wh=`${ff}='${inWeekExisting[uid]}' AND ${fa}='${uid}'`;
-        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT'),
-          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        /* v15: usar registro_id si existe, si no WHERE */
+        const existRec=inWeekExisting[uid];
+        const rid2=existRec.rid??null;
+        if(rid2!=null){
+          res=await fetch(Auth.url(WORKER+'?action=update&table='+TABLE+'&id='+rid2),
+            {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        } else {
+          const wh=`${ff}='${existRec.fecha}' AND ${fa}='${uid}'`;
+          res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(wh)+'&method=PUT'),
+            {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+        }
       } else {
         res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
           {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
@@ -1002,23 +1020,35 @@ async function saveEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
   if(!fecha||!agente)return;
   const btn=g('mEditSaveBtn'); btn.disabled=true; btn.textContent='Guardando…';
-  const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
-  /* v14: usar la fecha REAL del registro, no la fecha seleccionada en el picker
-     (el usuario puede elegir cualquier día de la semana, pero el registro está en otro día) */
-  const actualFecha = editExistingRecord ? getFecha(editExistingRecord) : fecha;
-  const record={[fa]:agente,[ff]:actualFecha};
+  /* v15: solo actualizar los campos métricos (no incluir agente/fecha en el body del PUT) */
+  const record={};
   g('mEditContent').querySelectorAll('input.ne').forEach(inp=>{ record[inp.dataset.field]=parseInt(inp.value)||0; });
-  console.log('[Guardar v14] record:',JSON.stringify(record),' actualFecha:',actualFecha);
+  console.log('[Guardar v15] campos a actualizar:',Object.keys(record));
   try{
     let res;
     if(editExistingRecord){
-      /* v14 FIX: action=save&method=PUT&where= (action=update no existe en el proxy) */
-      const whereUpd=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
-      console.log('[Guardar v14] PUT WHERE:',whereUpd);
-      res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whereUpd)+'&method=PUT'),
-        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      /* v15: usar registro_id para action=update (mismo patrón que tareas) */
+      const rid=editExistingRecord.registro_id??editExistingRecord.Registro_id??editExistingRecord.REGISTRO_ID??null;
+      console.log('[Guardar v15] registro_id encontrado:',rid,' record:',JSON.stringify(editExistingRecord));
+      if(rid!=null){
+        const url=WORKER+'?action=update&table='+TABLE+'&id='+rid;
+        console.log('[Guardar v15] PUT URL:',url);
+        res=await fetch(Auth.url(url),
+          {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      } else {
+        /* Fallback: WHERE por agente+fecha actual */
+        const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
+        const actualFecha=getFecha(editExistingRecord);
+        const whereUpd=`${ff}='${actualFecha}' AND ${fa}='${agente}'`;
+        console.warn('[Guardar v15] Sin registro_id, usando WHERE:',whereUpd);
+        res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&where='+encodeURIComponent(whereUpd)+'&method=PUT'),
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+      }
     }else{
-      console.log('[Guardar v14] POST nuevo registro');
+      /* POST nuevo */
+      const ff=_fieldFecha||'Fecha', fa=_fieldAgente||'Agente';
+      record[fa]=agente; record[ff]=fecha;
+      console.log('[Guardar v15] POST nuevo registro');
       res=await fetch(Auth.url(WORKER+'?action=save&table='+TABLE+'&method=POST'),
         {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
     }
