@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v04 — 3Villas</title>
+<title>Reports Ventas v05 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -775,27 +775,46 @@ async function loadMissingAgents(){
   const fecha=val('mAddFecha'); if(!fecha)return;
   g('mAddLoading').style.display='block'; g('mAddContent').innerHTML=''; g('mAddSaveBtn').disabled=true;
   try{
-    /* v04: calcular bounds directamente desde la fecha elegida */
     const {mon,sun}=getWeekBounds(fecha);
-    const weekStr=`${mon} → ${sun}`;
-    const w=`fecha>='${mon}T00:00:00' AND fecha<='${sun}T23:59:59'`;
-    console.log('[Modal Añadir] Buscando registros semana:',mon,'→',sun,'WHERE:',w);
+
+    /* v05: buscar con rango amplio (±8 días) para evitar problemas de zona horaria o formato,
+       luego filtrar client-side por semana exacta usando sameWeek() */
+    const monD=parseFechaStr(mon); monD.setDate(monD.getDate()-8);
+    const sunD=parseFechaStr(sun); sunD.setDate(sunD.getDate()+8);
+    const monSafe=toDateStr(monD), sunSafe=toDateStr(sunD);
+
+    const w=`fecha>='${monSafe}T00:00:00' AND fecha<='${sunSafe}T23:59:59'`;
+    console.log('[Añadir v05] Semana real:',mon,'→',sun,' | Query amplio:',monSafe,'→',sunSafe);
+
     const url=WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=500';
     const res=await fetch(Auth.url(url));
     const json=await res.json();
-    const rows=json.Result||json.result||[];
-    console.log('[Modal Añadir] Registros encontrados esa semana:',rows.length, rows.map(r=>r.agente));
-    /* Normalizar agente a String para comparar correctamente */
-    const existing=new Set(rows.map(r=>String(r.agente||'').trim()));
-    console.log('[Modal Añadir] Agentes con registro:',[...existing]);
+    const allFetched=json.Result||json.result||[];
+    console.log('[Añadir v05] Total registros en rango amplio:',allFetched.length);
+
+    /* Filtrar client-side: solo los que caen en la semana exacta (Lun-Dom) */
+    const inWeek=allFetched.filter(r=>{
+      const f=r.fecha||r.Fecha||r.FECHA||'';
+      const ok=sameWeek(String(f).split('T')[0], fecha);
+      console.log('[Añadir v05] Registro agente',r.agente,'fecha',f,'→ en semana?',ok);
+      return ok;
+    });
+    console.log('[Añadir v05] Registros en semana exacta:',inWeek.length, inWeek.map(r=>r.agente));
+
+    /* Set de agentes que YA tienen registro esta semana */
+    const existing=new Set(inWeek.map(r=>String(r.agente||'').trim()));
+    console.log('[Añadir v05] Agentes con registro:',[...existing]);
+
     const missing=salesAgents.filter(u=>!existing.has(String(u.id).trim()));
-    console.log('[Modal Añadir] Agentes sin registro:',missing.map(u=>u.name));
+    console.log('[Añadir v05] Agentes sin registro:',missing.map(u=>u.name));
+
     g('mAddLoading').style.display='none';
     if(!missing.length){
-      g('mAddContent').innerHTML='<div class="info-box orange">✅ Todos los agentes ya tienen registro esta semana ('+weekStr+')</div>'; return;
+      g('mAddContent').innerHTML='<div class="info-box orange">✅ Todos los agentes ya tienen registro esta semana ('+mon+' → '+sun+')</div>';
+      return;
     }
     g('mAddContent').innerHTML=`
-      <div class="info-box blue">Semana <strong>${weekStr}</strong> — ${missing.length} agente(s) sin registro:</div>
+      <div class="info-box blue">Semana <strong>${mon} → ${sun}</strong> — ${missing.length} agente(s) sin registro:</div>
       <div style="overflow-x:auto">
       <table class="modal-table">
         <thead><tr><th>Agente</th>${FIELDS.map(f=>`<th>${f.label}</th>`).join('')}</tr></thead>
@@ -808,7 +827,11 @@ async function loadMissingAgents(){
         </tbody>
       </table></div>`;
     g('mAddSaveBtn').disabled=false;
-  }catch(e){ g('mAddLoading').style.display='none'; g('mAddContent').innerHTML=`<div class="info-box orange">Error: ${e.message}</div>`; }
+  }catch(e){
+    g('mAddLoading').style.display='none';
+    g('mAddContent').innerHTML=`<div class="info-box orange">Error: ${e.message}</div>`;
+    console.error('[Añadir v05]',e);
+  }
 }
 async function saveNewRecords(){
   const fecha=val('mAddFecha'); if(!fecha)return;
@@ -844,18 +867,35 @@ async function loadEditRecord(){
   const fecha=val('mEditFecha'), agente=val('mEditAgente');
   if(!fecha||!agente){ g('mEditContent').innerHTML=''; g('mEditSaveBtn').disabled=true; return; }
   g('mEditContent').innerHTML='<p style="color:var(--gray-4);font-size:13px">Buscando…</p>';
+
   const {mon:emon,sun:esun}=getWeekBounds(fecha);
-  const w=`fecha>='${emon}T00:00:00' AND fecha<='${esun}T23:59:59' AND agente='${agente}'`;
-  console.log('[Modal Editar] Buscando:',w);
+  /* v05: rango amplio + filtro client-side */
+  const monD2=parseFechaStr(emon); monD2.setDate(monD2.getDate()-8);
+  const sunD2=parseFechaStr(esun); sunD2.setDate(sunD2.getDate()+8);
+  const w=`fecha>='${toDateStr(monD2)}T00:00:00' AND fecha<='${toDateStr(sunD2)}T23:59:59'`;
+  console.log('[Editar v05] Semana:',emon,'→',esun,' agente:',agente,' query:',w);
+
   try{
-    const res=await fetch(Auth.url(WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=1'));
+    const res=await fetch(Auth.url(WORKER+'?action=data&table='+TABLE+'&where='+encodeURIComponent(w)+'&limit=200'));
     const json=await res.json();
-    const rows=json.Result||json.result||[];
-    editExistingRecord=rows[0]||null;
+    const allFetched=json.Result||json.result||[];
+    console.log('[Editar v05] Registros en rango amplio:',allFetched.length);
+
+    /* Filtrar: mismo agente + misma semana */
+    const match=allFetched.filter(r=>{
+      const aMatch=String(r.agente||'').trim()===String(agente).trim();
+      const fStr=String(r.fecha||r.Fecha||r.FECHA||'').split('T')[0];
+      const wMatch=sameWeek(fStr, fecha);
+      console.log('[Editar v05] r.agente=',r.agente,'aMatch=',aMatch,'fecha=',fStr,'wMatch=',wMatch);
+      return aMatch&&wMatch;
+    });
+    editExistingRecord=match[0]||null;
+    console.log('[Editar v05] Registro encontrado:',editExistingRecord);
+
     const rec=editExistingRecord||{};
     g('mEditContent').innerHTML=`
       <div class="info-box ${editExistingRecord?'blue':'orange'}" style="margin-bottom:14px">
-        ${editExistingRecord?'✏️ Editando registro existente de la semana <strong>'+weekStr+'</strong>':'⚠️ No hay registro esta semana — se creará uno nuevo para <strong>'+weekStr+'</strong>'}
+        ${editExistingRecord?'✏️ Editando registro existente — semana <strong>'+emon+' → '+esun+'</strong>':'⚠️ Sin registro esta semana — se creará nuevo para <strong>'+emon+' → '+esun+'</strong>'}
       </div>
       <div style="overflow-x:auto">
       <table class="modal-table">
@@ -897,19 +937,44 @@ document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-ove
 /* ══ HELPERS ══ */
 function fmtDate(s){ if(!s)return'—'; const d=parseDate(s); return d?d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}):s; }
 function getFriday(){ const d=new Date(); d.setDate(d.getDate()+(5-d.getDay()+7)%7); return d.toISOString().split('T')[0]; }
-function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
-function isoWeekStr(d){ return`${d.getFullYear()}-W${String(isoWeek(d)).padStart(2,'0')}`; }
-/* v04: cálculo de límites de semana directamente desde una fecha (sin pasar por ISO week string) */
+/* ══ v05: FUNCIONES DE SEMANA ROBUSTAS ══
+   Usa solo aritmética de días, sin dependencias de zona horaria */
+
+/* Parsea cualquier string de fecha (con o sin hora, con T o espacio) → Date o null */
+function parseFechaStr(s){
+  if(!s) return null;
+  const clean=String(s).trim().replace(' ','T').split('T')[0]; // solo YYYY-MM-DD
+  const [y,m,d]=clean.split('-').map(Number);
+  if(!y||!m||!d) return null;
+  return new Date(y, m-1, d, 12, 0, 0); // mediodía local, evita DST
+}
+
+/* Devuelve string YYYY-MM-DD de un Date (usando fecha local) */
+function toDateStr(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* Dado un string de fecha, devuelve {mon, sun} Lunes y Domingo de esa semana */
 function getWeekBounds(dateStr){
-  const d=new Date(dateStr+'T12:00:00'); // mediodía evita problemas DST
-  const dow=(d.getDay()+6)%7;           // 0=Lun, 6=Dom
+  const d=parseFechaStr(dateStr);
+  if(!d) return{mon:dateStr,sun:dateStr};
+  const dow=(d.getDay()+6)%7;  // 0=Lun … 6=Dom
   const mon=new Date(d); mon.setDate(d.getDate()-dow);
   const sun=new Date(mon); sun.setDate(mon.getDate()+6);
-  return{mon:mon.toISOString().split('T')[0], sun:sun.toISOString().split('T')[0]};
+  return{mon:toDateStr(mon), sun:toDateStr(sun)};
 }
-/* weekMonday/weekFriday mantenidas por compatibilidad */
-function weekMonday(ws){ const [y,w]=ws.split('-W').map(Number); const d=new Date(Date.UTC(y,0,4)+7*(w-1)*86400000); return new Date(d-((d.getUTCDay()||7)-1)*86400000).toISOString().split('T')[0]; }
-function weekFriday(ws){ const m=new Date(weekMonday(ws)+'T12:00:00'); m.setDate(m.getDate()+4); return m.toISOString().split('T')[0]; }
+
+/* Dado un string de fecha, devuelve true si cae en la misma semana que refDateStr */
+function sameWeek(fechaStr, refDateStr){
+  const ref=parseFechaStr(refDateStr); if(!ref) return false;
+  const d=parseFechaStr(fechaStr);     if(!d)   return false;
+  const {mon, sun}=getWeekBounds(refDateStr);
+  const monD=parseFechaStr(mon), sunD=parseFechaStr(sun);
+  return d>=monD && d<=sunD;
+}
+
+function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/86400000+1)/7); }
+function isoWeekStr(d){ return d.getFullYear()+'-W'+String(isoWeek(d)).padStart(2,'0'); }
 
 /* Exponer globales */
 Object.assign(window,{setQuick,clearQuickSel,schedule,toggleMas,clearAll,setVista,
