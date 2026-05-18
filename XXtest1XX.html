@@ -803,26 +803,38 @@ function toggleDesc(btn){
 
   // ── WHERE ──
   function loadMultiunitsFirst(){
-    /* v60: código IDÉNTICO a entradas-equipo — Map con prefijos name_/short_/villa_ */
+    /* v62: código IDÉNTICO a entradas-equipo — Map con prefijos name_/short_/villa_
+       ADEMÁS indexado por ListingID_pms porque TaTasks.PMSmultiunitID puede contener
+       el ID del PMS (ListingID_pms) en vez del ID interno de Caspio (multiunitID) */
     fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
       .then(function(r){return r.json();})
       .then(function(json){
         var rows=json.Result||json.result||[];
         rows.forEach(function(r){
           var id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();
-          var vid=String(r['VillaID_caspio']||r['VillalDcaspio']||r['VillaDcaspio']||r['villaid']||'').trim();
+          var listingId=String(r['ListingID_pms']||r['listingID_pms']||r['ListingId_pms']||'').trim();
+          var vid=String(r['VillaID_caspio']||r['VillaIdcaspio']||r['VillalDcaspio']||r['villaid']||'').trim();
           var key=String(r['Keybox']||r['keybox']||'').trim();
-          var muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();
+          var muName=String(r['descripcion']||r['Descripcion']||r['nombre_listing_manual']||r['name']||r['Name']||id).trim();
           var muShort=String(r['descripcion_corta']||r['Descripcion_corta']||'').trim();
+          /* indexar por multiunitID (ID interno Caspio) */
           if(id){
             multiunitsMap.set(id,key);
             multiunitsMap.set('name_'+id,muName);
             multiunitsMap.set('short_'+id,muShort);
             if(vid)multiunitsMap.set('villa_'+id,vid);
           }
+          /* indexar TAMBIÉN por ListingID_pms (ID del PMS/Hostaway)
+             porque TaTasks.PMSmultiunitID puede contener este valor */
+          if(listingId&&listingId!==id){
+            multiunitsMap.set(listingId,key);
+            multiunitsMap.set('name_'+listingId,muName);
+            multiunitsMap.set('short_'+listingId,muShort);
+            if(vid)multiunitsMap.set('villa_'+listingId,vid);
+          }
         });
-        console.log('[Multiunits v60] cargados:',(multiunitsMap.size/4|0),
-          'IDs:',Array.from(multiunitsMap.keys()).filter(function(k){return k.indexOf('_')<0;}).slice(0,3));
+        console.log('[Multiunits v62] total map size:',multiunitsMap.size,
+          '| IDs (multiunitID):',Array.from(multiunitsMap.keys()).filter(function(k){return k.indexOf('_')<0;}).slice(0,4));
       })
       .catch(function(e){console.warn('[Multiunits]',e);})
       .then(function(){ loadData(); });
@@ -1154,6 +1166,14 @@ function toggleDesc(btn){
     /* v55: columna Tarea — villa + multiunit pill + nombre + fecha vencimiento */
     var _muId=String(t.PMSmultiunitID||'').trim();
     var _muName=_muId?(multiunitsMap.get('name_'+_muId)||''):'';
+    /* v61 DEBUG: log para ver qué pasa con el multiunit */
+    if(_muId){
+      console.log('[Multiunit debug] taskid:',t.taskid,
+        '| PMSmultiunitID:',JSON.stringify(_muId),
+        '| name_ key existe:',multiunitsMap.has('name_'+_muId),
+        '| nombre encontrado:',JSON.stringify(_muName),
+        '| total keys map:',multiunitsMap.size);
+    }
     /* villa sin el multiunit concatenado (usar villaNameMap directo) */
     var _villaOnly=villaNameMap[String(t.villaid||'')]||('Villa '+String(t.villaid||''));
     /* pill de multiunit */
