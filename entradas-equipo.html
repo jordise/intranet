@@ -2,14 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- entradas-equipo.html v34 — 17/05/2026
-       v34: 0OOOM335 NUNCA en selectedManagers (filtro de reservas).
-            Solo aparece en el panel de tareas pendientes (ids) cuando Grupo=102.
-       v33: nombre usuario en tareas del panel solo para 0OOOM335
-       v32: Grupo=102 → tareas de 0OOOM335 en panel
-       v29 (anterior): base
-       v22: botón Info Villa + links contactos
-       v23: fix URL villa-info.html → villa.html
+  <!-- entradas-equipo.html v35 — 17/05/2026
+       v35: RESTAURAR dos fixes de v30+v31 que se perdieron en v55:
+            1. taskid normalizado a String() en primera query (villaid)
+               → dedup 2ª query (PMSmultiunitID) funciona correctamente con ===
+            2. Filtro multiunit en updateVillaTasksInDOM()
+               → cada card muestra solo tareas de su muId o sin muId
+       v34: 0OOOM335 NUNCA en selectedManagers
   -->
   <!-- FIX v20 (heredado): Duplicados en vista semanal — una reserva con check-in Y check-out
        en la misma semana aparecía dos veces en el mismo día. Causa: renderWeekly
@@ -35,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v55 — 3Villas</title>
+  <title>Entradas Equipo v56 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -755,7 +754,7 @@ async function loadVillaPendingTasks(villaIds,muVillaMap){
         const key=String(parseInt(t.villaid)||0);
         if(villaPendingMap[key]===undefined)continue;
         if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:t.taskid||'',reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),/* v35 FIX (restaura v31): String() → dedup === con 2ª query funciona */reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
         }
       }
     }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
@@ -796,8 +795,20 @@ function updateVillaTasksInDOM(){
     const vKey=cardEl.getAttribute('data-villaid');
     const coStr=cardEl.getAttribute('data-checkout')||'';
     const _limit=coStr?new Date(coStr+'T23:59:59'):null;
+    /* v35 FIX (restaura v30): leer el multiunit de la card */
+    const cardMuId=(cardEl.getAttribute('data-multiunitid')||'').trim();
     const allTasks=villaPendingMap[vKey]||[];
-    const tasksFiltered=allTasks.filter(t=>{if(!t.dueDate||!_limit)return true;const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');return isNaN(d)||d<=_limit;});
+    /* v35 FIX (restaura v30): doble filtro — fecha Y multiunit
+       - Sin muId en la card → mostrar todas (villa sin multiunit)
+       - Con muId en la card → solo tareas de ese muId o sin muId asignado */
+    const tasksFiltered=allTasks.filter(t=>{
+      const dateOk=!t.dueDate||!_limit||(()=>{
+        const d=new Date(String(t.dueDate).split('T')[0]+'T00:00:00');
+        return isNaN(d)||d<=_limit;
+      })();
+      const muOk=!cardMuId||t.muId===''||t.muId===cardMuId;
+      return dateOk&&muOk;
+    });
     /* v49: separar y ordenar por prioridad igual que tareas */
     const _now=new Date();_now.setHours(0,0,0,0);
     const vtImp=[], vtUrg=[], vtNorm=[];
