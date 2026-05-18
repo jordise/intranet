@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- entradas-desviar.html v03 — 12/05/2026 -->
+  <!-- entradas-desviar.html v04 — 17/05/2026 -->
   <!--
   ╔══════════════════════════════════════════════════════════════════╗
   ║  entradas-desviar.html — Página despachadora de entradas        ║
@@ -44,7 +44,7 @@
     }
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Desviar — 3Villas v03</title>
+  <title>Entradas Desviar — 3Villas v04</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root { --red: #C8102E; }
@@ -119,7 +119,6 @@
     <button onclick="location.href='login.html'">Ir al login</button>
   </div>
 
-  <!-- auth.js debe cargarse ANTES del script principal para que Auth esté disponible -->
   <script src="auth.js"></script>
 
   <script>
@@ -127,41 +126,45 @@
        CONFIGURACIÓN GENERAL
        ════════════════════════════════════════════════════════════════ */
 
-    /* URL del proxy Cloudflare que conecta con Caspio */
     const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
 
     /* ════════════════════════════════════════════════════════════════
        ▼▼▼  TABLA DE REDIRECCIÓN POR ROL  ▼▼▼
 
-       Aquí defines qué página abre cada rol.
-       - La clave es el rol tal como está escrito en Caspio (TaUsers → Role).
-         Siempre en minúsculas (el código ya lo convierte).
-       - El valor es el nombre del archivo HTML al que se redirige.
+       Define qué página abre cada rol.
+       - La clave es el rol tal como está en Caspio (TaUsers → Role),
+         siempre en minúsculas (el código ya lo convierte).
+       - El valor es el archivo HTML de destino.
 
-       PÁGINA DE DESTINO A:  entradas-cleaner.html
-         Roles que van aquí:
-    */
+       ┌─────────────────────┬──────────────────────────────────┐
+       │ Rol (en Caspio)     │ Página de destino                │
+       ├─────────────────────┼──────────────────────────────────┤
+       │ cleaner             │ entradas-cleaner.html            │
+       │ sales               │ reports-ventas.html             │
+       │ cualquier otro      │ entradas-equipo.html             │
+       │ (admin, manager,    │                                  │
+       │  staff, owner…)     │                                  │
+       └─────────────────────┴──────────────────────────────────┘
+
+       Para añadir más destinos: crea un nuevo array y un nuevo
+       bloque "else if" en la función redirigir() más abajo.
+    ════════════════════════════════════════════════════════════════ */
+
     const ROLES_CLEANER = [
-      'cleaner'
-      // Añade aquí más roles si también deben ver entradas-cleaner:
+      'cleaner',
       // 'limpieza',
       // 'housekeeper',
     ];
 
-    /*
-       PÁGINA DE DESTINO B:  entradas-equipo.html
-         Cualquier rol que NO esté en ROLES_CLEANER irá aquí.
-         Eso incluye: admin, manager, staff, owner, y cualquier otro.
-         No hay que listarlos; el código los recoge automáticamente.
+    const ROLES_SALES = [
+      'sales',
+      // 'comercial',
+    ];
 
-       Si en el futuro quisieras añadir una TERCERA página de destino,
-       crea un nuevo array (ej. ROLES_OWNER = ['owner']) y añade
-       un nuevo bloque "else if" en la función redirigir() más abajo.
-    ════════════════════════════════════════════════════════════════ */
-
-    const DEST_CLEANER = 'entradas-cleaner.html';  // página para roles en ROLES_CLEANER
-    const DEST_EQUIPO  = 'entradas-equipo.html';   // página para todos los demás roles
+    const DEST_CLEANER  = 'entradas-cleaner.html';   // roles en ROLES_CLEANER
+    const DEST_SALES    = 'reports-ventas.html';     // roles en ROLES_SALES
+    const DEST_EQUIPO   = 'entradas-equipo.html';    // todos los demás roles
 
 
     /* ════════════════════════════════════════════════════════════════
@@ -169,54 +172,47 @@
        ════════════════════════════════════════════════════════════════ */
 
     function redirigir(role) {
-      /* Comprueba si el rol está en la lista de cleaners */
       if (ROLES_CLEANER.includes(role)) {
         location.replace(DEST_CLEANER);
+      } else if (ROLES_SALES.includes(role)) {
+        location.replace(DEST_SALES);
       } else {
-        /* Cualquier otro rol (admin, manager, staff, owner…) */
+        /* admin, manager, staff, owner y cualquier otro rol */
         location.replace(DEST_EQUIPO);
       }
     }
 
     async function init() {
       try {
-        /* 1. Verificar sesión activa. Si no hay sesión, auth.js redirige al login */
         if (typeof Auth === 'undefined') throw new Error('auth.js no cargado');
         if (typeof Auth.require === 'function') Auth.require('entradas');
 
-        /* 2. Obtener el email del usuario con sesión */
         const email = Auth.email ? Auth.email() : '';
         if (!email) throw new Error('Sin email de sesión');
 
         document.getElementById('msg').textContent = 'Cargando perfil…';
 
-        /* 3. Buscar el usuario en TaUsers para leer su rol */
         const url  = Auth.url(`${WORKER}?action=data&table=TaUsers&limit=500`);
         const res  = await fetch(url);
         if (!res.ok) throw new Error(`Error al cargar usuarios (HTTP ${res.status})`);
         const json = await res.json();
         const rows = json.Result || json.result || [];
 
-        /* Buscar la fila cuyo Email coincide con el usuario en sesión */
         const me = rows.find(u =>
           String(u.Email || u.email || '').toLowerCase() === email.toLowerCase()
         );
 
-        /* 4. Leer el campo Role (prueba los nombres más comunes por si Caspio lo llama distinto) */
         const role = String(
           (me && (me.Role || me.role || me.Rol || me.rol || ''))
         ).trim().toLowerCase();
 
-        /* Log de depuración — visible en consola del navegador */
         console.log('[desviar] email:', email, '| rol detectado:', role || '(vacío)');
 
         document.getElementById('msg').textContent = 'Redirigiendo…';
 
-        /* 5. Redirigir según el rol */
         redirigir(role);
 
       } catch (err) {
-        /* Si algo falla, mostrar error en pantalla */
         console.error('[desviar] Error:', err);
         document.getElementById('spinner').style.display = 'none';
         document.getElementById('msg').style.display     = 'none';
@@ -225,7 +221,6 @@
       }
     }
 
-    /* Arrancar cuando el DOM esté listo */
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', init);
     } else {
