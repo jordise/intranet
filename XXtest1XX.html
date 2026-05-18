@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v57 — 3Villas</title>
+  <title>Entradas Equipo v58 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -608,7 +608,23 @@ async function loadManagers(){
     $('dbBox').textContent=`TaUsers: ${users.length}\nManagers: ${managers.length}`;
   }catch(e){if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}$('dbBox').textContent='Error TaUsers: '+e.message;}
 }
-function renderManagerList(filter=''){const list=$('managerList');if(!list)return;const q=filter.toLowerCase();const filtered=q?allManagersList.filter(m=>m.name.toLowerCase().includes(q)):allManagersList;list.innerHTML=filtered.map(m=>`<div class="manager-item" onclick="toggleManager('${m.id}')"><input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''}><label for="mc_${m.id}">${m.name}</label></div>`).join('');}
+function renderManagerList(filter=''){
+  const list=$('managerList');if(!list)return;
+  const q=(filter||'').toLowerCase();
+  /* v58: A→Z con manager actual primero + ← tú */
+  const myMgrId=currentUserId||'';
+  let items=allManagersList.slice().sort((a,b)=>{
+    if(a.id===myMgrId)return -1;if(b.id===myMgrId)return 1;
+    return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+  });
+  if(q)items=items.filter(m=>m.name.toLowerCase().includes(q));
+  list.innerHTML=items.map(m=>{
+    const isCurrent=(m.id===myMgrId);
+    const style=isCurrent?'background:var(--red-light)':'';
+    const marker=isCurrent?'<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:6px">← tú</span>':'';
+    return `<div class="manager-item" style="${style}" onclick="toggleManager('${m.id}')"><input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''}><label for="mc_${m.id}">${m.name}${marker}</label></div>`;
+  }).join('');
+}
 function filterManagerList(){const q=($('managerSearch')||{}).value||'';renderManagerList(q);}
 function toggleManager(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);loadPendingTasksPanel().catch(()=>{});}
 function selectAllManagers(){allManagersList.forEach(m=>selectedManagers.add(m.id));renderManagerList();updateManagerBtn();}
