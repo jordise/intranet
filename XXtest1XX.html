@@ -529,7 +529,7 @@ function toggleDesc(btn){
   var allUsersList  = [];
   var currentUserId = '';
   var villaNameMap  = {};
-  var multiunitsMap = {}; /* v12: {muId:{name,villaId}} */
+  var multiunitsMap = new Map(); /* v60: igual que entradas-equipo — Map con prefijos 'name_' y 'short_' */
   var allVillas     = [];
   var tasktypeSet   = {};
   var allRows       = [];
@@ -803,23 +803,29 @@ function toggleDesc(btn){
 
   // ── WHERE ──
   function loadMultiunitsFirst(){
+    /* v60: código IDÉNTICO a entradas-equipo — Map con prefijos name_/short_/villa_ */
     fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
       .then(function(r){return r.json();})
       .then(function(json){
         var rows=json.Result||json.result||[];
-        rows.forEach(function(m){
-          /* v59 FIX: mismos fallbacks de campo que entradas-equipo para no perder datos
-             si Caspio devuelve MultiunitID, Descripcion, etc. en vez de minúsculas */
-          var id=String(m.multiunitID||m.MultiunitID||m.MultiUnitID||'').trim();
-          var vid=String(m.VillaID_caspio||m.VillalDcaspio||m.VillaDcaspio||m.villaid||'').trim();
-          var name=String(m.descripcion||m.Descripcion||m.nombre_listing_manual||m.name||m.Name||id).trim();
-          if(id)multiunitsMap[id]={name:name,villaId:vid};
+        rows.forEach(function(r){
+          var id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();
+          var vid=String(r['VillaID_caspio']||r['VillalDcaspio']||r['VillaDcaspio']||r['villaid']||'').trim();
+          var key=String(r['Keybox']||r['keybox']||'').trim();
+          var muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();
+          var muShort=String(r['descripcion_corta']||r['Descripcion_corta']||'').trim();
+          if(id){
+            multiunitsMap.set(id,key);
+            multiunitsMap.set('name_'+id,muName);
+            multiunitsMap.set('short_'+id,muShort);
+            if(vid)multiunitsMap.set('villa_'+id,vid);
+          }
         });
-        console.log('[Multiunits tareas] cargados:',Object.keys(multiunitsMap).length,
-          'ejemplo:',Object.entries(multiunitsMap).slice(0,2));
+        console.log('[Multiunits v60] cargados:',(multiunitsMap.size/4|0),
+          'IDs:',Array.from(multiunitsMap.keys()).filter(function(k){return k.indexOf('_')<0;}).slice(0,3));
       })
-      .catch(function(){})
-      .then(function(){ loadData(); }); /* cargar tareas después */
+      .catch(function(e){console.warn('[Multiunits]',e);})
+      .then(function(){ loadData(); });
   }
 
     /* v12: actualizar filtro multiunit al cambiar villa */
@@ -832,9 +838,9 @@ function toggleDesc(btn){
     var matchVid=null;
     Object.keys(villaNameMap).forEach(function(vid){if(villaNameMap[vid].toLowerCase()===vText)matchVid=vid;});
     if(!matchVid){if(mg)mg.style.display='none';return;}
-    var mus=Object.keys(multiunitsMap).filter(function(id){return multiunitsMap[id].villaId===matchVid;});
+    var mus=[];multiunitsMap.forEach(function(v,k){if(k.indexOf('_')<0&&multiunitsMap.get('villa_'+k)===matchVid)mus.push(k);});
     if(!mus.length){if(mg)mg.style.display='none';return;}
-    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+multiunitsMap[id].name+'</option>';}).join('');
+    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+( multiunitsMap.get('name_'+id)||id)+'</option>';}).join('');
     if(mg)mg.style.display='';
   }
     /* v32: buildWhereForUser acepta array de userIds específico */
@@ -920,7 +926,7 @@ function toggleDesc(btn){
     var _tid=(val('fTaskId')||'').trim(); if(_tid) html+=chip('Tarea #'+_tid,'taskid');
     if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
     if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
-    if(val('fMultiunit').trim()){var _mn=multiunitsMap[val('fMultiunit')]?multiunitsMap[val('fMultiunit')].name:val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
+    if(val('fMultiunit').trim()){var _mn=multiunitsMap.get('name_'+val('fMultiunit'))||val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
     var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
     if(bt) html+=chip(btL[bt]||bt,'booking');
     if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
@@ -1147,7 +1153,7 @@ function toggleDesc(btn){
       + (editUrl?'</a>':'</div>');
     /* v55: columna Tarea — villa + multiunit pill + nombre + fecha vencimiento */
     var _muId=String(t.PMSmultiunitID||'').trim();
-    var _muName=_muId&&multiunitsMap[_muId]?multiunitsMap[_muId].name:'';
+    var _muName=_muId?(multiunitsMap.get('name_'+_muId)||''):'';
     /* villa sin el multiunit concatenado (usar villaNameMap directo) */
     var _villaOnly=villaNameMap[String(t.villaid||'')]||('Villa '+String(t.villaid||''));
     /* pill de multiunit */
@@ -1237,7 +1243,7 @@ function toggleDesc(btn){
       return true;
     }).map(function(t){
       return Object.assign({},t,{
-        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu].name:vn;})(), /* v12 */
+        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();var muNm=mu?multiunitsMap.get('name_'+mu):'';return muNm?vn+' / '+muNm:vn;})(), /* v12 */
         _userName:  allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),
         _done:      isDone(t)?1:0,
       });
