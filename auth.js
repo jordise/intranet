@@ -49,7 +49,7 @@ const Auth = (function () {
     // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
     // entradas.html        → Auth.require('entradas')
     // entradas-equipo.html → Auth.require('entradas')
-    'entradas'              : ['admin', 'manager', 'staff', 'cleaner'],
+    'entradas'              : ['admin', 'manager', 'staff', 'cleaner', 'sales'],
     // salidas — clave de reserva (no hay salidas.html propio, se gestiona en entradas)
     'salidas'               : ['admin', 'manager', 'staff', 'cleaner'],
 
