@@ -10,7 +10,7 @@
                → cada card muestra solo tareas de su muId o sin muId
        v34: 0OOOM335 NUNCA en selectedManagers
   -->
-  <!-- FIX v20            (heredado): Duplicados en vista semanal — una reserva con check-in Y check-out
+  <!-- FIX v20 (heredado): Duplicados en vista semanal — una reserva con check-in Y check-out
        en la misma semana aparecía dos veces en el mismo día. Causa: renderWeekly
        filtraba con (ci===ds || co===ds) sobre _allRecs que ya tiene dos entradas
        (una como 'entrada' y otra como 'salida') compartiendo el mismo objeto r.
@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v56 — 3Villas</title>
+  <title>Entradas Equipo v59 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -587,7 +587,7 @@ async function loadManagers(){
     if(myUser){
       const _kpd=String(myUser['Keyholder_por_defecto']||'').trim();const _uid=String(myUser[U.id]||'').trim();
       window.__myUserAllIds=[...(new Set([_kpd,_uid].filter(Boolean)))];
-      currentUserId=_kpd||_uid;
+      currentUserId=_uid; /* FIX v58-EE: UserID directo, no KPD (igual que tareas v58) */
       if($('mgrName'))$('mgrName').value=myUser[U.name]||Auth.name()||'';
       /* v32: guardar Grupo para reglas especiales */
       window.__myUserGrupo=String(myUser['Grupo']||myUser['grupo']||'').trim();
@@ -608,7 +608,38 @@ async function loadManagers(){
     $('dbBox').textContent=`TaUsers: ${users.length}\nManagers: ${managers.length}`;
   }catch(e){if(btn){$('fManagerLabel').textContent='Error';btn.disabled=false;}$('dbBox').textContent='Error TaUsers: '+e.message;}
 }
-function renderManagerList(filter=''){const list=$('managerList');if(!list)return;const q=filter.toLowerCase();const filtered=q?allManagersList.filter(m=>m.name.toLowerCase().includes(q)):allManagersList;list.innerHTML=filtered.map(m=>`<div class="manager-item" onclick="toggleManager('${m.id}')"><input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''}><label for="mc_${m.id}">${m.name}</label></div>`).join('');}
+function renderManagerList(filter=''){
+  const list=$('managerList');if(!list)return;
+  const q=(filter||'').toLowerCase();
+  /* v58: A→Z con manager actual primero + ← tú */
+  const myMgrId=currentUserId||'';
+  let items=allManagersList.slice().sort((a,b)=>{
+    if(a.id===myMgrId)return -1;if(b.id===myMgrId)return 1;
+    return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+  });
+  if(q)items=items.filter(m=>m.name.toLowerCase().includes(q));
+  /* v59 FIX: conservar scroll antes de re-render */
+  const prevScroll=list.scrollTop;
+  list.innerHTML=items.map(m=>{
+    const isCurrent=(m.id===myMgrId);
+    const style=isCurrent?'background:var(--red-light)':'';
+    const marker=isCurrent?'<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:6px">← tú</span>':'';
+    return `<div class="manager-item" data-mid="${m.id}" style="${style}"><input type="checkbox" id="mc_${m.id}" ${selectedManagers.has(m.id)?'checked':''}><label for="mc_${m.id}">${m.name}${marker}</label></div>`;
+  }).join('');
+  /* v59 FIX: stopPropagation para que el panel NO se cierre al seleccionar */
+  list.querySelectorAll('.manager-item').forEach(function(item){
+    item.addEventListener('click',function(e){
+      e.stopPropagation(); /* evita que document.click cierre el panel */
+      const mid=item.dataset.mid;
+      if(selectedManagers.has(mid))selectedManagers.delete(mid);else selectedManagers.add(mid);
+      const scrollTop=list.scrollTop;
+      renderManagerList(($('managerSearch')||{}).value||'');
+      list.scrollTop=scrollTop;
+      updateManagerBtn();scheduleSearch(300);loadPendingTasksPanel().catch(()=>{});
+    });
+  });
+  list.scrollTop=prevScroll;
+}
 function filterManagerList(){const q=($('managerSearch')||{}).value||'';renderManagerList(q);}
 function toggleManager(id){if(selectedManagers.has(id))selectedManagers.delete(id);else selectedManagers.add(id);renderManagerList(($('managerSearch')||{}).value||'');updateManagerBtn();scheduleSearch(300);loadPendingTasksPanel().catch(()=>{});}
 function selectAllManagers(){allManagersList.forEach(m=>selectedManagers.add(m.id));renderManagerList();updateManagerBtn();}
