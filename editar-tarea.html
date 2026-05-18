@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v46 — 3Villas</title>
+  <title>Editar Tarea v51 — 3Villas</title>
   <!-- v29 —— editar-tarea.html —— 12/05/2026
        v28:
          - Campo "Cambiar villa" sacado de "Más opciones" → visible siempre
@@ -85,16 +85,26 @@
     /* v39: toggles urgente / importante */
     .flag-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .flag-toggle{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--gray-2);border-radius:10px;cursor:pointer;transition:all .2s;user-select:none}
-    .flag-toggle:hover.urg{border-color:var(--red)}
-    .flag-toggle:hover.imp{border-color:var(--orange)}
-    .flag-toggle.on.urg{border-color:var(--red);background:var(--red-light)}
-    .flag-toggle.on.imp{border-color:var(--orange);background:var(--orange-light)}
+    .flag-toggle:hover.urg{border-color:#bbb}
+    .flag-toggle:hover.imp{border-color:var(--red)}
+    /* URGENTE activado: bandera de cuadros de carrera diagonal 45° — gris+claro, fino */
+    .flag-toggle.on.urg{
+      border-color:#bbb;
+      background-color:#ebebeb;
+      background-image:
+        linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%),
+        linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%);
+      background-size:24px 24px;
+      background-position:0 0,12px 12px;
+    }
+    /* IMPORTANTE activado: rojo (el que antes tenía urgente) */
+    .flag-toggle.on.imp{border-color:var(--red);background:var(--red-light)}
     .ft-circle{width:24px;height:24px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;background:#fff;color:transparent}
-    .flag-toggle.on.urg .ft-circle{border-color:var(--red);background:var(--red);color:#fff}
-    .flag-toggle.on.imp .ft-circle{border-color:var(--orange);background:var(--orange);color:#fff}
+    .flag-toggle.on.urg .ft-circle{border-color:#666;background:#555;color:#fff}
+    .flag-toggle.on.imp .ft-circle{border-color:var(--red);background:var(--red);color:#fff}
     .ft-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-4);transition:color .2s}
-    .flag-toggle.on.urg .ft-label{color:var(--red-dark);font-weight:800}
-    .flag-toggle.on.imp .ft-label{color:var(--orange);font-weight:800}
+    .flag-toggle.on.urg .ft-label{color:#222;font-weight:800;text-shadow:0 0 4px rgba(255,255,255,.7)}
+    .flag-toggle.on.imp .ft-label{color:var(--red-dark);font-weight:800}
     .terminada-toggle:hover{border-color:var(--green)}
     .terminada-toggle.on{border-color:var(--green);background:var(--green-light)}
     .tt-circle{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;background:#fff;color:transparent}
@@ -589,6 +599,29 @@ function isTruthy(v){ if(v===null||v===undefined||v==='')return false; if(typeof
 
 
 // ── Usuario search (v33) ──
+
+  /* v47: helper de render del dropdown usuarios — A→Z con usuario actual primero */
+  function _renderUsuarioItems(users, q, currentId) {
+    /* Ordenar: usuario actual primero, resto A→Z */
+    var sorted = users.slice().sort(function(a,b){
+      if(a.id === currentId) return -1;
+      if(b.id === currentId) return 1;
+      return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+    });
+    return sorted.map(function(u){
+      var safe = u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      if(q){
+        var rx = new RegExp('('+q.replace(/[.+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+        safe = safe.replace(rx,'<mark>$1</mark>');
+      }
+      var marker = (u.id===currentId)
+        ? '<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:6px">← tú</span>'
+        : '';
+      var style  = (u.id===currentId) ? 'background:var(--red-light)' : '';
+      return '<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'" style="'+style+'">'+safe+marker+'</div>';
+    }).join('');
+  }
+
 function initUsuarioSearch(){
   var inp=g('fAsignadoSearch'),drop=g('usuarioDropdown'),hidden=g('fAsignado');
   if(!inp||!drop)return;
@@ -600,19 +633,13 @@ function initUsuarioSearch(){
     cl.textContent=msg;cl.className='villa-current'+(ok===true?' ok':ok===false?' warn':'');
   }
 
-  inp.addEventListener('input',function(){
-    var q=inp.value.trim().toLowerCase();
-    selectedUserId='';if(hidden)hidden.value='';
-    confirmedName='';setStatus(null,'');
-    drop.innerHTML='';drop.style.display='none';
-    if(!q)return;
-    var matches=allUsers.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;}).slice(0,12);
-    if(!matches.length)return;
-    drop.innerHTML=matches.map(function(u){
-      var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      var re=new RegExp('('+q.replace(/[.+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-      return '<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+safe.replace(re,'<mark>$1</mark>')+'</div>';
-    }).join('');
+  /* v47: función helper para mostrar dropdown con orden */
+  function _showUsuarioDrop(q) {
+    var filtered = q
+      ? allUsers.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;})
+      : allUsers;
+    if(!filtered.length){drop.style.display='none';return;}
+    drop.innerHTML = _renderUsuarioItems(filtered, q, selectedUserId||'');
     drop.querySelectorAll('.villa-opt').forEach(function(opt){
       opt.addEventListener('mousedown',function(e){
         e.preventDefault();
@@ -625,6 +652,20 @@ function initUsuarioSearch(){
     var rect=inp.getBoundingClientRect();
     drop.style.top=(rect.bottom+4)+'px';drop.style.left=rect.left+'px';drop.style.width=rect.width+'px';
     drop.style.display='block';
+  }
+
+  inp.addEventListener('input',function(){
+    var q=inp.value.trim().toLowerCase();
+    selectedUserId='';if(hidden)hidden.value='';
+    confirmedName='';setStatus(null,'');
+    drop.innerHTML='';drop.style.display='none';
+    _showUsuarioDrop(q);
+  });
+
+  /* v47: al enfocar vacío → mostrar TODOS los usuarios ordenados A→Z con ← tú */
+  inp.addEventListener('focus',function(){
+    var q=inp.value.trim().toLowerCase();
+    _showUsuarioDrop(q);
   });
 
   inp.addEventListener('blur',function(){
@@ -1059,9 +1100,17 @@ function onDone(){
   setBusy(false);
   clearState();
   toast('¡Tarea actualizada!','ok');
-  /* v45: navegar atrás inmediatamente — pageshow en la página anterior recarga datos */
   sessionStorage.setItem('taskSaved','1');
-  setTimeout(function(){ history.back(); }, 600);
+  setTimeout(function(){
+    /* v48 FIX: usar document.referrer para forzar recarga completa de la página anterior.
+       history.back() devuelve la página desde caché sin ejecutar doSearch() en iOS/móvil. */
+    var ref=document.referrer;
+    if(ref&&ref.indexOf(window.location.hostname)!==-1&&ref!==window.location.href){
+      window.location.href=ref; /* recarga completa → entradas/tareas ejecuta doSearch() */
+    } else {
+      history.back(); /* fallback */
+    }
+  }, 600);
 }
 
 })();
