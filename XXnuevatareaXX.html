@@ -298,14 +298,23 @@
     var inp=g('fAsignadoSearch'),dd=g('userDd'),hidden=g('fAsignado');
     if(!inp||!dd)return;
     function reposUserDD(){var r=inp.getBoundingClientRect();dd.style.top=(r.bottom+2)+'px';dd.style.left=r.left+'px';dd.style.width=r.width+'px';}
+    /* v33: render con A→Z + usuario actual primero + ← tú */
     function renderUserDD(q){
-      var ql=q.toLowerCase();
-      var res=allUsers_.filter(function(u){return u.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);
+      var currentId=selectedUserId_||myUserId||'';
+      var ql=(q||'').toLowerCase();
+      /* filtrar + ordenar: usuario actual primero, resto A→Z */
+      var pool=ql?allUsers_.filter(function(u){return u.name.toLowerCase().indexOf(ql)!==-1;}):allUsers_;
+      var res=pool.slice().sort(function(a,b){
+        if(a.id===currentId)return -1;if(b.id===currentId)return 1;
+        return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+      });
       if(!res.length){dd.style.display='none';return;}
       dd.innerHTML=res.map(function(u){
-        var idx=u.name.toLowerCase().indexOf(ql);
-        var hi=u.name.slice(0,idx)+'<span class="villa-match">'+u.name.slice(idx,idx+q.length)+'</span>'+u.name.slice(idx+q.length);
-        return'<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+hi+'</div>';
+        var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        if(ql){var idx=safe.toLowerCase().indexOf(ql);if(idx!==-1)safe=safe.slice(0,idx)+'<span class="villa-match">'+safe.slice(idx,idx+q.length)+'</span>'+safe.slice(idx+q.length);}
+        var marker=(u.id===currentId)?'<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:6px">\u2190 t\u00fa</span>':'';
+        var style=(u.id===currentId)?'background:var(--red-light)':'';
+        return'<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'" style="'+style+'">'+safe+marker+'</div>';
       }).join('');
       dd.querySelectorAll('.villa-opt').forEach(function(opt){
         opt.addEventListener('mousedown',function(e){
@@ -330,9 +339,10 @@
         toast('⚠️ Selecciona un usuario de la lista','err');
       } else { inp.classList.remove('err'); }
     });
+    /* v33: al enfocar → mostrar TODOS A→Z con usuario actual arriba */
     inp.addEventListener('focus',function(){
       inp.classList.remove('err');
-      if(inp.value.trim())renderUserDD(inp.value.trim());
+      renderUserDD(inp.value.trim());
     });
     document.addEventListener('click',function(e){
       if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
