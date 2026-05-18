@@ -44,6 +44,13 @@ var NAV_MENUS = {
     { label: 'Ocupación',          url: 'listado-ocupacion.html',   icon: '📅' },
     { label: 'WelcomePacks',       url: 'pedir-wellcomepacks.html', icon: '📦' },
     {
+      label: 'Listados',
+      icon: '📖',
+      children: [
+        { label: 'Reporte ventas semanal',       url: 'reports-ventas.html',                     icon: '📄' },
+      ]
+    },
+    {
       label: 'Manuales',
       icon: '📖',
       children: [
@@ -79,19 +86,26 @@ var NAV_MENUS = {
   // ── SALES — equipo comercial ─────────────────────────────────
   //    Aplica a: Role = "sales" | "comercial"
   sales: [
-    { label: 'Ocupación',  url: 'listado-ocupacion.html', icon: '📅' },
-    { label: 'Villas',     url: 'buscar-villa.html',      icon: '🏡' },
-    { label: 'Contactos',  url: 'contactos.html',         icon: '👥' },
+    { label: 'Reporte Semanal ',  url: 'reports-ventas.html', icon: '📅' },
+      {
+      label: 'Vacacional',
+      icon: '📖',
+      children: [
+        { label: 'Villas',     url: 'buscar-villa.html',      icon: '🏡' },
+        { label: 'Contactos',  url: 'contactos.html',         icon: '👥' },
+      ]
+    },
+   
     { label: 'Login',      url: 'login.html',             icon: '🔑' },
   ],
 
   // ── CLEANER — equipo de limpieza ─────────────────────────────
   //    Aplica a: Role = "cleaner" | "limpieza"
   cleaner: [
-    { label: 'Mis tareas',         url: 'tareas.html',            icon: '✅' },
-    { label: 'Entradas y Salidas', url: 'entradas.html',          icon: '🚪' },
-    { label: 'Villas',             url: 'buscar-villa.html',      icon: '🏡' },
-    { label: 'Login',              url: 'login.html',             icon: '🔑' },
+     { label: 'Entradas y Salidas', url: 'entradas.html',          icon: '🚪' },
+     { label: 'Mis tareas',         url: 'tareas.html',            icon: '✅' },
+     { label: 'Villas',             url: 'buscar-villa.html',      icon: '🏡' },
+     { label: 'Login',              url: 'login.html',             icon: '🔑' },
   ],
 
   // ── DEFAULT — fallback ────────────────────────────────────────
