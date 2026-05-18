@@ -14,6 +14,19 @@
 
 const Auth = (function () {
 
+  // ── Favicon automático ────────────────────────────────────────
+  // Se inyecta en todas las páginas que carguen auth.js.
+  // Las páginas públicas (login, reset-password) deben añadirlo manualmente.
+  (function () {
+    if (!document.querySelector('link[rel~="icon"]')) {
+      var lnk  = document.createElement('link');
+      lnk.rel  = 'icon';
+      lnk.type = 'image/png';
+      lnk.href = 'icon-corazon-rojo-fondo-transparente.png';
+      document.head.appendChild(lnk);
+    }
+  })();
+
   const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
   const LOGIN  = '/3villas-manuals/login.html';
 
