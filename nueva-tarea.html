@@ -20,7 +20,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v31 — 3Villas</title>
+  <title>Nueva Tarea v37 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -53,15 +53,25 @@
     /* ── Toggles urgente/importante ── */
     .flag-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .flag-toggle{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--gray-2);border-radius:10px;cursor:pointer;transition:all .2s;user-select:none}
-    .flag-toggle:hover.urg{border-color:var(--red)}.flag-toggle:hover.imp{border-color:var(--orange)}
-    .flag-toggle.on.urg{border-color:var(--red);background:var(--red-light)}
-    .flag-toggle.on.imp{border-color:var(--orange);background:var(--orange-light)}
+    .flag-toggle:hover.urg{border-color:#bbb}.flag-toggle:hover.imp{border-color:var(--red)}
+    /* URGENTE activado: bandera de cuadros de carrera diagonal 45° — gris+claro, fino */
+    .flag-toggle.on.urg{
+      border-color:#bbb;
+      background-color:#ebebeb;
+      background-image:
+        linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%),
+        linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%);
+      background-size:24px 24px;
+      background-position:0 0,12px 12px;
+    }
+    /* IMPORTANTE activado: rojo (el que antes tenía urgente) */
+    .flag-toggle.on.imp{border-color:var(--red);background:var(--red-light)}
     .ft-circle{width:22px;height:22px;border-radius:50%;border:2px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s;background:#fff;color:transparent}
-    .flag-toggle.on.urg .ft-circle{border-color:var(--red);background:var(--red);color:#fff}
-    .flag-toggle.on.imp .ft-circle{border-color:var(--orange);background:var(--orange);color:#fff}
+    .flag-toggle.on.urg .ft-circle{border-color:#666;background:#555;color:#fff}
+    .flag-toggle.on.imp .ft-circle{border-color:var(--red);background:var(--red);color:#fff}
     .ft-label{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-4);transition:color .2s}
-    .flag-toggle.on.urg .ft-label{color:var(--red-dark);font-weight:800}
-    .flag-toggle.on.imp .ft-label{color:var(--orange);font-weight:800}
+    .flag-toggle.on.urg .ft-label{color:#222;font-weight:800;text-shadow:0 0 4px rgba(255,255,255,.7)}
+    .flag-toggle.on.imp .ft-label{color:var(--red-dark);font-weight:800}
     .field{display:flex;flex-direction:column;gap:5px}
     .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
@@ -298,14 +308,23 @@
     var inp=g('fAsignadoSearch'),dd=g('userDd'),hidden=g('fAsignado');
     if(!inp||!dd)return;
     function reposUserDD(){var r=inp.getBoundingClientRect();dd.style.top=(r.bottom+2)+'px';dd.style.left=r.left+'px';dd.style.width=r.width+'px';}
+    /* v33: render con A→Z + usuario actual primero + ← tú */
     function renderUserDD(q){
-      var ql=q.toLowerCase();
-      var res=allUsers_.filter(function(u){return u.name.toLowerCase().indexOf(ql)!==-1;}).slice(0,12);
+      var currentId=selectedUserId_||myUserId||'';
+      var ql=(q||'').toLowerCase();
+      /* filtrar + ordenar: usuario actual primero, resto A→Z */
+      var pool=ql?allUsers_.filter(function(u){return u.name.toLowerCase().indexOf(ql)!==-1;}):allUsers_;
+      var res=pool.slice().sort(function(a,b){
+        if(a.id===currentId)return -1;if(b.id===currentId)return 1;
+        return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+      });
       if(!res.length){dd.style.display='none';return;}
       dd.innerHTML=res.map(function(u){
-        var idx=u.name.toLowerCase().indexOf(ql);
-        var hi=u.name.slice(0,idx)+'<span class="villa-match">'+u.name.slice(idx,idx+q.length)+'</span>'+u.name.slice(idx+q.length);
-        return'<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'">'+hi+'</div>';
+        var safe=u.name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        if(ql){var idx=safe.toLowerCase().indexOf(ql);if(idx!==-1)safe=safe.slice(0,idx)+'<span class="villa-match">'+safe.slice(idx,idx+q.length)+'</span>'+safe.slice(idx+q.length);}
+        var marker=(u.id===currentId)?'<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:6px">\u2190 t\u00fa</span>':'';
+        var style=(u.id===currentId)?'background:var(--red-light)':'';
+        return'<div class="villa-opt" data-id="'+u.id+'" data-name="'+u.name.replace(/"/g,'&quot;')+'" style="'+style+'">'+safe+marker+'</div>';
       }).join('');
       dd.querySelectorAll('.villa-opt').forEach(function(opt){
         opt.addEventListener('mousedown',function(e){
@@ -330,9 +349,10 @@
         toast('⚠️ Selecciona un usuario de la lista','err');
       } else { inp.classList.remove('err'); }
     });
+    /* v33: al enfocar → mostrar TODOS A→Z con usuario actual arriba */
     inp.addEventListener('focus',function(){
       inp.classList.remove('err');
-      if(inp.value.trim())renderUserDD(inp.value.trim());
+      renderUserDD(inp.value.trim());
     });
     document.addEventListener('click',function(e){
       if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
