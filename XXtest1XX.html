@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v65 — 3Villas</title>
+  <title>Tareas v66 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -806,11 +806,17 @@ function toggleDesc(btn){
   // ── WHERE ──
   // ── cargar multiunits antes que tareas ──
   function loadMultiunitsFirst(){
-    /* v64: simple — id (multiunitID o ListingID_pms) → descripcion */
+    /* v66: mostrar error raw en panel debug para diagnosticar fetch TaMultiunits */
     fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
-      .then(function(r){return r.json();})
+      .then(function(r){
+        if(!r.ok){throw new Error('HTTP '+r.status);}
+        return r.json();
+      })
       .then(function(json){
         var rows=json.Result||json.result||[];
+        var dbEl=g('dbBox');
+        var firstKeys=rows[0]?Object.keys(rows[0]).join(','):'(vacio)';
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\n[MU rows:'+rows.length+' keys:'+firstKeys+']';
         rows.forEach(function(row){
           var desc=String(row.descripcion||row.Descripcion||row.nombre_listing_manual||'').trim();
           var muId=String(row.multiunitID||row.MultiunitID||'').trim();
@@ -818,11 +824,12 @@ function toggleDesc(btn){
           if(muId)multiunitsMap[muId]=desc;
           if(lid&&lid!==muId)multiunitsMap[lid]=desc;
         });
-        var ids=Object.keys(multiunitsMap);
-        var dbEl=g('dbBox');
-        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\nMultiunits:'+ids.length+' ej:'+ids.slice(0,2).join(',');
+        if(dbEl)dbEl.textContent+='\nmap:'+Object.keys(multiunitsMap).length+' ej:'+Object.keys(multiunitsMap).slice(0,3).join(',');
       })
-      .catch(function(e){console.warn('[Multiunits]',e);})
+      .catch(function(e){
+        var dbEl=g('dbBox');
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\n[MU ERROR: '+e.message+']';
+      })
       .then(function(){loadData();});
   }
 
