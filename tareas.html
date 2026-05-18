@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v58 — 3Villas</title>
+  <title>Tareas v67 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -529,7 +529,7 @@ function toggleDesc(btn){
   var allUsersList  = [];
   var currentUserId = '';
   var villaNameMap  = {};
-  var multiunitsMap = {}; /* v12: {muId:{name,villaId}} */
+  var multiunitsMap = {}; /* v64 */
   var allVillas     = [];
   var tasktypeSet   = {};
   var allRows       = [];
@@ -626,10 +626,12 @@ function toggleDesc(btn){
     g('fDesde').value = '2020-01-01';
     g('fHasta').value = '2029-12-31';
 
-    Promise.allSettled([loadUsers(), loadVillas()]).then(function(){
-      setEstado('pend', false);
-      doSearch();
-    });
+    /* v67 FIX: incluir loadMultiunitsFirst en el init — antes nunca se llamaba */
+    Promise.allSettled([loadUsers(), loadVillas(), loadMultiunitsFirst()])
+      .then(function(){
+        setEstado('pend', false);
+        doSearch();
+      });
   });
 
   window.addEventListener('pageshow', function(e){
@@ -677,7 +679,9 @@ function toggleDesc(btn){
         if (currentUserId) selectedUsers[currentUserId] = true;
         renderUserList(''); updateUserBtn();
         if (btn) btn.disabled = false;
-        g('dbBox').textContent = 'Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
+        /* v63: guardar info base, se amplía cuando carguen los multiunits */
+        g('dbBox').dataset.usersInfo = 'Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
+        g('dbBox').textContent = g('dbBox').dataset.usersInfo+'\n[Multiunits: cargando...]';
       })
       .catch(function(e){
         if(btn){g('fUserLabel').textContent='Error';btn.disabled=false;}
@@ -802,20 +806,32 @@ function toggleDesc(btn){
   };
 
   // ── WHERE ──
+  // ── cargar multiunits antes que tareas ──
   function loadMultiunitsFirst(){
-    fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
-      .then(function(r){return r.json();})
+    /* v67 FIX CRÍTICO: return la promesa — sin return, Promise.allSettled descarta la promesa
+       y doSearch() corre inmediatamente con multiunitsMap vacío */
+    return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
+      .then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
+      })
       .then(function(json){
         var rows=json.Result||json.result||[];
-        rows.forEach(function(m){
-          var id=String(m.multiunitID||'').trim();
-          var vid=String(m.VillaID_caspio||m.VillalDcaspio||m.VillaDcaspio||'').trim();
-          var name=m.descripcion||m.nombre_listing_manual||id;
-          if(id)multiunitsMap[id]={name:name,villaId:vid};
+        rows.forEach(function(row){
+          var desc=String(row.descripcion||row.Descripcion||row.nombre_listing_manual||'').trim();
+          var muId=String(row.multiunitID||row.MultiunitID||'').trim();
+          var lid=String(row.ListingID_pms||row.listingID_pms||'').trim();
+          if(muId)multiunitsMap[muId]=desc;
+          if(lid&&lid!==muId)multiunitsMap[lid]=desc;
         });
+        var dbEl=g('dbBox');
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\nMultiunits:'+Object.keys(multiunitsMap).length;
       })
-      .catch(function(){})
-      .then(function(){ loadData(); }); /* cargar tareas después */
+      .catch(function(e){
+        var dbEl=g('dbBox');
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\n[MU ERROR:'+e.message+']';
+      });
+      /* sin .then(loadData) — lo gestiona Promise.allSettled en el init */
   }
 
     /* v12: actualizar filtro multiunit al cambiar villa */
@@ -828,9 +844,9 @@ function toggleDesc(btn){
     var matchVid=null;
     Object.keys(villaNameMap).forEach(function(vid){if(villaNameMap[vid].toLowerCase()===vText)matchVid=vid;});
     if(!matchVid){if(mg)mg.style.display='none';return;}
-    var mus=Object.keys(multiunitsMap).filter(function(id){return multiunitsMap[id].villaId===matchVid;});
+    var mus=Object.keys(multiunitsMap);
     if(!mus.length){if(mg)mg.style.display='none';return;}
-    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+multiunitsMap[id].name+'</option>';}).join('');
+    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+(multiunitsMap[id]||id)+'</option>';}).join('');
     if(mg)mg.style.display='';
   }
     /* v32: buildWhereForUser acepta array de userIds específico */
@@ -903,26 +919,29 @@ function toggleDesc(btn){
   function renderChips() {
     var html='';
     var keys=selUsersKeys();
-    // Chip usuario: solo si hay selección no-default (más de 1 usuario, o un usuario distinto al actual)
-    var isDefaultUser=(keys.length===1&&selectedUsers[currentUserId]===true);
-    if(keys.length>0 && !isDefaultUser){
+    /* v63 FIX chips: mostrar SIEMPRE los filtros activos "siempre que se pueda" */
+    /* Chip usuario: SIEMPRE que haya selección */
+    if(keys.length>0){
       var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');
-      html+=chip((keys.length===1?'Asignado: ':'Asignados: ')+names,'users');
+      html+=chip((keys.length===1?'👤 ':'👥 ')+names,'users');
     }
-    // Chip fecha: solo si difiere del default
+    /* Chip estado: SIEMPRE (incluso Pendientes = el default) */
+    var estadoLabel={pend:'Pendientes',done:'Terminadas',all:'Todas'}[estadoFilter]||estadoFilter;
+    html+=chip('📋 '+estadoLabel,'estado');
+    /* Chip fecha */
     var d=val('fDesde'), h=val('fHasta');
     if(d && d!==DEFAULT_DESDE) html+=chip('Desde: '+fmtDate(d),'desde');
     if(h && h!==DEFAULT_HASTA) html+=chip('Hasta: '+fmtDate(h),'hasta');
+    /* Chip taskid, reserva, villa, multiunit */
     var _tid=(val('fTaskId')||'').trim(); if(_tid) html+=chip('Tarea #'+_tid,'taskid');
     if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
     if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
-    if(val('fMultiunit').trim()){var _mn=multiunitsMap[val('fMultiunit')]?multiunitsMap[val('fMultiunit')].name:val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
+    if(val('fMultiunit').trim()){var _mn=multiunitsMap[val('fMultiunit')]||val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
+    /* Chip tipo */
     var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
     if(bt) html+=chip(btL[bt]||bt,'booking');
     if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
-    // Chip estado: solo si es Terminadas (Pendientes es el default)
-    if(estadoFilter==='done') html+=chip('Terminadas','estado');
-    if(estadoFilter==='all')  html+=chip('Todas','estado');
+    /* Chip prioridad */
     if(filterUrgente)    html+=chip('🏁 Urgente','urgente');
     if(filterImportante) html+=chip('🚩 Importante','importante');
     g('chips').innerHTML=html;
@@ -997,7 +1016,12 @@ function toggleDesc(btn){
           '\n\nResultados: '+tasks.length+
           '\nUserID_asigned_alfanum en resultados: '+dbAssignedVals+
           '\n\nallUsersList IDs: '+dbUsersList+
-          '\n\n'+JSON.stringify(tasks[0]||{},null,2);
+          /* v65: mostrar primera tarea CON PMSmultiunitID (no siempre la primera) */
+          '\n\nMultiunits map keys('+Object.keys(multiunitsMap).length+'): '+Object.keys(multiunitsMap).slice(0,5).join(',')+
+          '\n\n'+(function(){
+            var tMu=tasks.find(function(t){return String(t.PMSmultiunitID||'').trim()!='';});
+            return JSON.stringify(tMu||tasks[0]||{},null,2);
+          })();
         tasks.forEach(function(t){ if(t.Tasktype) tasktypeSet[String(t.Tasktype).trim()]=true; });
         var selTT=g('fTasktype'), curTT=selTT.value;
         selTT.innerHTML='<option value="">— Todos —</option>'+
@@ -1143,7 +1167,13 @@ function toggleDesc(btn){
       + (editUrl?'</a>':'</div>');
     /* v55: columna Tarea — villa + multiunit pill + nombre + fecha vencimiento */
     var _muId=String(t.PMSmultiunitID||'').trim();
-    var _muName=_muId&&multiunitsMap[_muId]?multiunitsMap[_muId].name:'';
+    var _muName=_muId?(multiunitsMap[_muId]||''):'';
+    /* v63 DEBUG: si hay _muId y no se encuentra nombre, añadir al panel visible */
+    if(_muId&&!_muName&&!window._muDebugDone){
+      window._muDebugDone=true; /* solo mostrar una vez */
+      var _dbEl=g('dbBox');
+      if(_dbEl) _dbEl.textContent+=('\n[MU MISS] taskid:'+t.taskid+' PMSmultiunitID='+JSON.stringify(_muId)+'\nmap.has(name_+id)='+JSON.stringify(multiunitsMap[_muId])+'\nkeys:'+Object.keys(multiunitsMap).length);
+    }
     /* villa sin el multiunit concatenado (usar villaNameMap directo) */
     var _villaOnly=villaNameMap[String(t.villaid||'')]||('Villa '+String(t.villaid||''));
     /* pill de multiunit */
@@ -1233,7 +1263,7 @@ function toggleDesc(btn){
       return true;
     }).map(function(t){
       return Object.assign({},t,{
-        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu].name:vn;})(), /* v12 */
+        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu]:vn;})(), /* v12 */
         _userName:  allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),
         _done:      isDone(t)?1:0,
       });
