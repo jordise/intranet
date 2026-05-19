@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v59 — 3Villas</title>
+  <title>Entradas Equipo v60 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -872,10 +872,10 @@ function togglePendTasks(){const body=$('ptBody');const arr=$('ptArr');if(!body)
 async function loadPendingTasksPanel(){
   const myIds=window.__myUserAllIds||(currentUserId?[currentUserId]:[]);
   let ids=[...new Set([...myIds,...selectedManagers])];
-  /* v32: si el usuario tiene Grupo=102, incluir también las tareas del usuario 0OOOM335 */
-  if(window.__myUserGrupo==='102'&&!ids.includes('0OOOM335')){
+  /* v60: si el usuario tiene Grupo=101, incluir también las tareas del usuario 0OOOM335 */
+  if(window.__myUserGrupo==='101'&&!ids.includes('0OOOM335')){
     ids.push('0OOOM335');
-    console.log('[v32] Grupo=102 → incluyendo tareas de 0OOOM335 en panel');
+    console.log('[v60] Grupo=101 → incluyendo tareas de 0OOOM335 en panel');
   }
   const bar=$('pendTasksBar');if(bar)bar.style.display='block';
   if($('ptCount'))$('ptCount').textContent='…';
@@ -919,11 +919,10 @@ async function loadPendingTasksPanel(){
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff<0){dateStr='Atrasada';dateCls='pt-tc-date overdue';}else if(diff===0){dateStr='Hoy';dateCls='pt-tc-date today';}else{dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
         const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
-        /* v33: mostrar nombre del usuario solo cuando la tarea es de 0OOOM335 */
+        /* v60: mostrar nombre del usuario asignado en TODAS las tareas */
         const _assignedUID=String(t.UserID_asigned_alfanum||'').trim();
-        const _showUser=_assignedUID==='0OOOM335';
-        const _userName=_showUser?(allUsersMap.get('0OOOM335')||'0OOOM335'):'';
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''  }${_showUser?`<span style="display:block;font-size:9px;font-weight:700;color:var(--gray-4);letter-spacing:.2px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">👤 ${_userName}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const _userName=_assignedUID?(allUsersMap.get(_assignedUID)||_assignedUID):'';
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''  }${_userName?`<span style="display:block;font-size:9px;font-weight:700;color:var(--gray-4);letter-spacing:.2px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">👤 ${_userName}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="${dateCls}">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
     } else {html+='<div class="pt-empty" style="display:block">No hay tareas urgentes ✓</div>';}
     if(tasksFuture.length){
@@ -932,11 +931,10 @@ async function loadPendingTasksPanel(){
         if(rawDate){const d=new Date(rawDate.split('T')[0]+'T00:00:00');const diff=Math.round((d-_today)/86400000);if(diff===1)dateStr='Mañana';else dateStr=rawDate.split('T')[0].split('-').reverse().join('/');}
         const tid=t.taskid||'';const res=t.Idreserva||t.idreserva||'';const mu=String(t.PMSmultiunitID||''); /* v41 */
         const muNm=mu?(multiunitsMap.get('name_'+mu)||''):''; /* v43 */
-        /* v33: nombre usuario solo para 0OOOM335 (también en futuras) */
+        /* v60: nombre usuario asignado en TODAS las tareas futuras */
         const _aUID=String(t.UserID_asigned_alfanum||'').trim();
-        const _sU=_aUID==='0OOOM335';
-        const _uNm=_sU?(allUsersMap.get('0OOOM335')||'0OOOM335'):'';
-        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''  }${_sU?`<span style="display:block;font-size:9px;font-weight:700;color:var(--gray-4);letter-spacing:.2px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">👤 ${_uNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
+        const _uNm=_aUID?(allUsersMap.get(_aUID)||_aUID):'';
+        return`<div class="pt-task-card" onclick="openEditTask('${tid}','${res}','${mu}')" title="${taskName}"><div class="pt-tc-villa">${villaName}${muNm?`<span style="display:block;font-size:9px;font-weight:600;color:var(--orange);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${muNm}</span>`:''  }${_uNm?`<span style="display:block;font-size:9px;font-weight:700;color:var(--gray-4);letter-spacing:.2px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">👤 ${_uNm}</span>`:''}</div><div class="pt-tc-name">${taskName}</div>${dateStr?`<div class="pt-tc-date">${dateStr}</div>`:''}<div class="pt-tc-arr">›</div></div>`;
       }).join('');
       html+=`<div class="pt-task-card" style="cursor:pointer;background:var(--gray-1);border-top:2px dashed var(--gray-3)" onclick="(function(btn){var list=document.getElementById('futureTasksBlock');var arr=btn.querySelector('.pt-tc-arr');if(!list)return;var open=list.style.display!=='none';list.style.display=open?'none':'block';arr.style.transform=open?'':'rotate(90deg)';})(this)"><span style="font-size:14px;flex-shrink:0">🗓️</span><div class="pt-tc-name" style="color:var(--gray-4)">Próximamente: <strong style="color:var(--gray-5)">${tasksFuture.length}</strong> tarea${tasksFuture.length>1?'s':''}</div><div class="pt-tc-arr" style="transition:transform .2s">›</div></div><div id="futureTasksBlock" style="display:none">${futureCardsHtml}</div>`;
     }
