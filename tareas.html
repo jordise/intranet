@@ -20,7 +20,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v71 — 3Villas</title>
+  <title>Tareas v73 — 3Villas</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -630,7 +630,8 @@ function toggleDesc(btn){
     /* v67 FIX: incluir loadMultiunitsFirst en el init — antes nunca se llamaba */
     Promise.allSettled([loadUsers(), loadVillas(), loadMultiunitsFirst()])
       .then(function(){
-        setEstado('pend', false);
+        restoreFiltersFromURL(); /* v72: restaurar filtros desde URL si los hay */
+        _initDone = true; /* v73: permitir replaceState a partir de ahora */
         doSearch();
       });
   });
@@ -640,6 +641,12 @@ function toggleDesc(btn){
       sessionStorage.removeItem('taskSaved');
       doSearch();
     }
+  });
+
+  /* v72: al usar botones back/forward del navegador, restaurar filtros */
+  window.addEventListener('popstate', function(e){
+    restoreFiltersFromURL();
+    doSearch();
   });
 
   // ── CARGAR USUARIOS ──
@@ -915,8 +922,6 @@ function toggleDesc(btn){
   }
 
   // ── CHIPS ──
-  var DEFAULT_DESDE='2020-01-01', DEFAULT_HASTA='2029-12-31';
-
   function renderChips() {
     var html='';
     var keys=selUsersKeys();
@@ -970,6 +975,8 @@ function toggleDesc(btn){
   // ── BUSCAR ──
   function doSearch() {
     var myId=++searchId; proxOpen=false; renderChips();
+    /* v73: pushStateFromFilters se llama AL FINAL (en renderTable), no aquí.
+       Llamarlo al inicio causaba que replaceState() interrumpiera la carga en algunos navegadores */
     g('tableWrap').style.display='none'; g('stInit').style.display='none';
     g('stLoad').style.display='block';   g('stErr').style.display='none';
     g('statsBar').style.display='none';  if(g('hCount'))g('hCount').textContent='';
@@ -1336,7 +1343,94 @@ function toggleDesc(btn){
     doneRows.forEach(function(t){ html+=buildRow(t,''); });
     tbody.innerHTML=html;
     g('tableWrap').style.display='block';
+    pushStateFromFilters(); /* v73: actualizar URL al terminar de renderizar */
   }
+
+  // ── URL PERSISTENCE v72: filtros ↔ URL params ──────────────
+  var DEFAULT_DESDE = '2020-01-01', DEFAULT_HASTA = '2029-12-31';
+
+  var _initDone = false; /* v73: no actualizar URL hasta que la página esté inicializada */
+
+  /* Serializa el estado actual de filtros en la URL (replaceState) */
+  function pushStateFromFilters() {
+    if(!_initDone) return; /* v73: evitar replaceState durante la carga inicial */
+    try {
+      var p = new URLSearchParams();
+      var keys = selUsersKeys();
+      if(keys.length) p.set('u', keys.join(','));
+      if(estadoFilter && estadoFilter !== 'pend') p.set('est', estadoFilter);
+      var desde = val('fDesde');
+      if(desde && desde !== DEFAULT_DESDE) p.set('fd', desde);
+      var hasta = val('fHasta');
+      if(hasta && hasta !== DEFAULT_HASTA) p.set('fh', hasta);
+      var villa = val('fVilla').trim();
+      if(villa) p.set('vi', villa);
+      var mu = val('fMultiunit').trim();
+      if(mu) p.set('mu', mu);
+      var reserva = val('fReserva').trim();
+      if(reserva) p.set('re', reserva);
+      var taskid = (val('fTaskId')||'').trim();
+      if(taskid) p.set('tid', taskid);
+      var tt = val('fTasktype');
+      if(tt) p.set('tt', tt);
+      var bt = val('fBookingType');
+      if(bt) p.set('bt', bt);
+      if(filterUrgente)    p.set('urg', '1');
+      if(filterImportante) p.set('imp', '1');
+      var qs = p.toString();
+      history.replaceState({f:qs}, '', location.pathname+(qs?'?'+qs:''));
+    } catch(e) { /* replaceState no crítico — ignorar errores */ }
+  }
+  /* Restaura el estado de filtros desde la URL actual */
+  function restoreFiltersFromURL() {
+    var p = new URLSearchParams(location.search);
+    if(!p.toString()) {
+      setEstado('pend', false); /* default */
+      return;
+    }
+    /* Estado */
+    setEstado(p.get('est') || 'pend', false);
+    /* Usuarios */
+    if(p.has('u')) {
+      selectedUsers = {};
+      p.get('u').split(',').forEach(function(id){ if(id.trim()) selectedUsers[id.trim()] = true; });
+      renderUserList(''); updateUserBtn();
+    }
+    /* Fechas */
+    if(p.has('fd')) g('fDesde').value = p.get('fd');
+    if(p.has('fh')) g('fHasta').value = p.get('fh');
+    /* Villa + multiunit */
+    if(p.has('vi')) {
+      g('fVilla').value = p.get('vi');
+      /* Abrir el panel de filtros si hay filtros avanzados */
+      var bMas = g('btnMas'), mFil = g('masFiltros');
+      if(bMas && !bMas.classList.contains('on')){ bMas.classList.add('on'); if(mFil)mFil.classList.add('open'); }
+    }
+    if(p.has('mu')) {
+      if(g('fMultiunit')) g('fMultiunit').value = p.get('mu');
+      if(g('multiunitFilterGroup')) g('multiunitFilterGroup').style.display = '';
+    }
+    if(p.has('re')) { g('fReserva').value = p.get('re'); }
+    if(p.has('tid') && g('fTaskId')) g('fTaskId').value = p.get('tid');
+    if(p.has('tt')) g('fTasktype').value = p.get('tt');
+    if(p.has('bt')) g('fBookingType').value = p.get('bt');
+    /* Prioridad */
+    if(p.get('urg') === '1') {
+      filterUrgente = true;
+      var bUrg = g('fUrgente'); if(bUrg) bUrg.classList.add('on-urg');
+    }
+    if(p.get('imp') === '1') {
+      filterImportante = true;
+      var bImp = g('fImportante'); if(bImp) bImp.classList.add('on-imp');
+    }
+    /* Abrir panel si hay algún filtro avanzado activo */
+    if(p.has('re')||p.has('tid')||p.has('tt')||p.has('bt')||p.has('mu')||p.has('fd')||p.has('fh')) {
+      var bMas2 = g('btnMas'), mFil2 = g('masFiltros');
+      if(bMas2 && !bMas2.classList.contains('on')){ bMas2.classList.add('on'); if(mFil2)mFil2.classList.add('open'); }
+    }
+  }
+  // ── FIN URL PERSISTENCE ────────────────────────────────────
+
 
 })();
 </script>
