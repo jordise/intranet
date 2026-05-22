@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v05 — 3Villas</title>
+  <title>Valores por defecto v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -511,8 +511,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
 });
 
 function applyPrefs(p){
-  // Modo noche
-  $('fModoNoche').checked=!!(p.todas_modo_noche===true||p.todas_modo_noche===1||String(p.todas_modo_noche||'').toLowerCase()==='yes');
+  // Modo noche — Caspio guarda -1 (sí) ó 0 (no)
+  $('fModoNoche').checked=(p.todas_modo_noche===-1||p.todas_modo_noche===true||String(p.todas_modo_noche)==='true'||String(p.todas_modo_noche)==='-1');
   // Pills
   if(p.entradas_filtro_mostrar)   setPillByVal('pgMostrar',p.entradas_filtro_mostrar);
   if(p.entradas_filtro_welcomepack) setPillByVal('pgWP',p.entradas_filtro_welcomepack);
@@ -562,7 +562,8 @@ function restablecerDefectos(){
 function leerFormulario(){
   return{
     Iduser:currentUserId,
-    todas_modo_noche:$('fModoNoche').checked,
+    /* Caspio Yes/No requiere -1 (sí) ó 0 (no), no true/false */
+    todas_modo_noche:$('fModoNoche').checked?-1:0,
     entradas_filtro_mostrar:getPillVal('pgMostrar'),
     entradas_filtro_welcomepack:getPillVal('pgWP'),
     entradas_filtro_cierre:getPillVal('pgCierre'),
@@ -581,8 +582,6 @@ async function guardar(){
   btn.disabled=true;sp.style.display='block';lbl.textContent='Guardando…';
   try{
     const data=leerFormulario();
-    console.log('[Guardar] datos a enviar:', JSON.stringify(data,null,2));
-    console.log('[Guardar] existingRecordId:', existingRecordId);
 
     let url;
     if(existingRecordId){
