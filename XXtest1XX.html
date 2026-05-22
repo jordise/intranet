@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v04 — 3Villas</title>
+  <title>Valores por defecto v05 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -345,6 +345,9 @@
   </div>
   <div class="saved-badge" id="savedBadge">✓ Guardado correctamente</div>
 
+  <!-- Panel de diagnóstico de errores -->
+  <div id="debugPanel" style="display:none;margin-top:16px;padding:14px;background:#1e1e2e;color:#a6e3a1;border-radius:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:350px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.2)"></div>
+
 </main>
 
 <script>
@@ -578,28 +581,53 @@ async function guardar(){
   btn.disabled=true;sp.style.display='block';lbl.textContent='Guardando…';
   try{
     const data=leerFormulario();
-    let url,method;
+    console.log('[Guardar] datos a enviar:', JSON.stringify(data,null,2));
+    console.log('[Guardar] existingRecordId:', existingRecordId);
+
+    let url;
     if(existingRecordId){
-      // PUT — actualizar
       const where=encodeURIComponent("Iduser='"+currentUserId+"'");
       url=Auth.url(`${WORKER}?action=save&table=${TABLE}&where=${where}&method=PUT`);
+      console.log('[Guardar] PUT url:', url);
     } else {
-      // POST — crear
       url=Auth.url(`${WORKER}?action=save&table=${TABLE}&method=POST`);
+      console.log('[Guardar] POST url:', url);
     }
+
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-    if(!res.ok){const t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
-    const json=await res.json();
+    const bodyText=await res.text();
+    console.log('[Guardar] respuesta HTTP', res.status,':', bodyText);
+
+    if(!res.ok){
+      // Mostrar error completo con los datos enviados
+      let errDetail='';
+      try{const je=JSON.parse(bodyText);errDetail=je.Message||je.error||bodyText;}
+      catch(e){errDetail=bodyText;}
+      // Mostrar en panel debug visible
+      const dbg=document.getElementById('debugPanel');
+      if(dbg){
+        dbg.style.display='block';
+        dbg.innerHTML='<strong>Error HTTP '+res.status+'</strong><br>'
+          +errDetail+'<br><br>'
+          +'<strong>Datos enviados:</strong><br>'
+          +JSON.stringify(data,null,2).replace(/\n/g,'<br>').replace(/ /g,'&nbsp;');
+      }
+      throw new Error('HTTP '+res.status+': '+errDetail);
+    }
+
+    let json;
+    try{json=JSON.parse(bodyText);}catch(e){json={};}
     if(json.error||json.Message)throw new Error(json.error||json.Message);
-    // Marcar que ya existe
+
     existingRecordId=existingRecordId||json.Id||json.id||true;
     toast('✓ Preferencias guardadas correctamente','ok');
     const badge=$('savedBadge');badge.classList.add('show');setTimeout(()=>badge.classList.remove('show'),3000);
     lbl.textContent='✓ Guardado';btn.style.background='var(--green)';
     setTimeout(()=>{lbl.textContent='💾 Guardar cambios';btn.style.background='';},2500);
+    const dbg=document.getElementById('debugPanel');if(dbg)dbg.style.display='none';
   }catch(e){
-    console.error(e);
-    toast('Error al guardar: '+e.message,'err');
+    console.error('[Guardar] Error:',e);
+    toast('Error: '+e.message,'err');
     lbl.textContent='💾 Guardar cambios';
   }finally{
     btn.disabled=false;sp.style.display='none';
