@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v16 — 3Villas</title>
+  <title>Valores por defecto v17 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -371,24 +371,13 @@
 <script>
 'use strict';
 
-/* v16: sessionStorage — captura quién nos llamó al cargar.
-   CRÍTICO: si no hay referrer, limpiar el valor antiguo del sessionStorage
-   (si no, una visita previa desde entradas contamina la siguiente visita). */
-(function(){
-  var ref = document.referrer || '';
-  if(ref && ref.indexOf('usuario-valores-por-defecto') === -1){
-    sessionStorage.setItem('uvpd_caller', ref);
-  } else {
-    /* Sin referrer o misma página → borrar valor stale de visitas anteriores */
-    sessionStorage.removeItem('uvpd_caller');
-  }
-})();
-
+/* v17: localStorage — cada página registra su propia URL al cargar.
+   No depende de referrer (poco fiable). No depende del historial.
+   Funciona en cualquier browser, cualquier tipo de navegación. */
 function _volverAtras(){
-  var caller = sessionStorage.getItem('uvpd_caller');
-  sessionStorage.removeItem('uvpd_caller');
-  if(caller){
-    window.location.href = caller;
+  var prev = localStorage.getItem('3v_prev_page');
+  if(prev && prev.indexOf('usuario-valores-por-defecto')===-1){
+    window.location.href = prev;
   } else {
     history.back();
   }
