@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v62 — 3Villas</title>
+  <title>Entradas Equipo v64 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -289,6 +289,21 @@
     #btnCalendar.active{background:#fff5f5;border-color:var(--red);border-width:2.5px;box-shadow:0 0 0 2px rgba(200,16,46,.15)}
     #btnCalendar:hover{border-color:#aaa;background:#fafafa}
 
+    /* ── v64: banner aviso sin prefs ── */
+    #noPrefsMsg{display:none;background:#fff;border:2px solid var(--orange);border-radius:10px;
+      padding:14px 16px;margin:10px 22px 0;box-shadow:var(--shadow-sm);animation:fadeInMsg .3s ease}
+    @keyframes fadeInMsg{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+    .npm-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--orange);
+      margin-bottom:6px;display:flex;align-items:center;gap:7px}
+    .npm-body{font-size:12px;color:var(--gray-5);line-height:1.6;margin-bottom:10px}
+    .npm-body strong{color:var(--gray-5);font-weight:700}
+    .npm-link{display:inline-flex;align-items:center;gap:6px;background:var(--orange);color:#fff;
+      text-decoration:none;padding:7px 16px;border-radius:8px;font-family:Montserrat,sans-serif;
+      font-size:11px;font-weight:800;letter-spacing:.3px;transition:filter .15s}
+    .npm-link:hover{filter:brightness(.88)}
+    .npm-close{float:right;background:none;border:none;color:var(--gray-3);font-size:18px;
+      cursor:pointer;line-height:1;padding:0;transition:color .15s;margin-left:8px}
+    .npm-close:hover{color:var(--orange)}
     /* ── Menú lateral — diseño oscuro nav-component ── */
   </style>
   <script src="auth.js"></script>
@@ -416,6 +431,18 @@
   <div class="stat"><strong id="sCnt">0</strong></div>
   <div class="stat"><strong id="sPax">0</strong> pax</div>
   <div class="stat"><strong id="sNights">—</strong> reservas</div>
+</div>
+
+<div id="noPrefsMsg">
+  <button class="npm-close" onclick="document.getElementById('noPrefsMsg').style.display='none'" title="Cerrar">✕</button>
+  <div class="npm-title">⚙️ No tienes valores por defecto guardados</div>
+  <div class="npm-body">
+    Al pulsar <strong>✕</strong> los filtros se han restablecido a los valores del sistema.<br><br>
+    Para personalizar qué filtros, villa manager, fechas y vista se aplican cada vez que
+    entras en esta pantalla — o cuando pulsas ✕ — guarda tus preferencias en
+    <strong>Valores por defecto</strong>:
+  </div>
+  <a class="npm-link" href="usuario-valores-por-defecto.html">⚙️ Ir a Valores por defecto →</a>
 </div>
 
 <div id="pendTasksBar" style="display:none">
@@ -638,6 +665,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(!hadURLParams){
       /* v62: intentar cargar valores por defecto del usuario desde Caspio */
       const prefs=await loadUserPrefs();
+      window.__userPrefs=prefs; /* v63: cache para clearAll */
+      var _nb=$('noPrefsMsg');if(_nb)_nb.style.display='none'; /* v64 */
       if(prefs){
         applyUserPrefs(prefs);
       } else {
@@ -740,7 +769,33 @@ function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=
 function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
 function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
 function setCierreFilter(mode){fCierre=mode;['tCierreAll','tCierrePend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tCierreAll'?mode==='all':mode==='pending');});scheduleSearch();}
-function clearAll(){clearManagers();try{localStorage.removeItem('3v_eys_filters');}catch(e){}if($('fDesde'))$('fDesde').value=todayStr();if($('fHasta'))$('fHasta').value=todayStr();if($('fCodigo'))$('fCodigo').value='';if($('fVilla'))$('fVilla').value='';if($('fInquilino'))$('fInquilino').value='';setToggle('all');updateSub();renderChips();doSearch();}
+function clearAll(){
+  /* v63: resetear a los valores por defecto del usuario (si los tiene guardados) */
+  try{localStorage.removeItem('3v_eys_filters');}catch(e){}
+  /* Limpiar siempre los campos de texto libres */
+  if($('fCodigo'))$('fCodigo').value='';
+  if($('fVilla'))$('fVilla').value='';
+  if($('fInquilino'))$('fInquilino').value='';
+  if(window.__userPrefs){
+    /* Aplicar valores por defecto del usuario */
+    applyUserPrefs(window.__userPrefs);
+    var _nb=$('noPrefsMsg');if(_nb)_nb.style.display='none'; /* v64 ocultar si había quedado visible */
+  } else {
+    /* Sin prefs guardadas: reset al sistema + mostrar aviso */
+    clearManagers();
+    if($('fDesde'))$('fDesde').value=todayStr();
+    if($('fHasta'))$('fHasta').value=todayStr();
+    fWelcomePack='all';fCierre='all';toggleMode='all';tipoFilter='both';
+    if(window.__isVillaManager){fWelcomePack='pending';fCierre='pending';}
+    /* v64: mostrar banner explicativo */
+    var nb=$('noPrefsMsg');
+    if(nb){nb.style.display='block';nb.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  }
+  /* Actualizar UI con los valores resultantes */
+  setToggle(toggleMode);setTipoFilter(tipoFilter);
+  setWPFilter(fWelcomePack);setCierreFilter(fCierre);
+  updateManagerBtn();updateSub();renderChips();doSearch();
+}
 
 // ════════════════ WHERE ════════════════
 function buildWhere(){const parts=[`${F.status}<>'cancelled'`];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||desde;const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inquilino=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');parts.push(selectedManagers.size===1?`${F.villaManager}='${[...selectedManagers][0]}'`:`${F.villaManager} IN (${ids})`);}if(desde&&hasta){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59'))`);}else if(desde){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${desde}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${desde}T23:59:59'))`);}if(codigo)parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);if(villa)parts.push(`${F.villaName} LIKE '%${villa}%'`);if(inquilino)parts.push(`${F.guestName} LIKE '%${inquilino}%'`);return parts.join(' AND ');}
