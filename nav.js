@@ -120,15 +120,8 @@ var NAV_MENUS = {
 
 // ════════════════════════════════════════════════════════════════
 //  ASIGNACIÓN SÍNCRONA DEL MENÚ
-//  auth.js carga antes que nav.js, por lo que Auth.role() ya tiene
-//  el rol del usuario desde localStorage/sessionStorage.
-//  No se necesita fetch ni esperar a nav-component.js.
 // ════════════════════════════════════════════════════════════════
 
-/**
- * Normaliza el valor del campo Role a uno de los roles conocidos.
- * Ajusta los valores aquí si en Caspio usas nombres distintos.
- */
 function _normalizeRole(raw) {
   if (!raw) return 'default';
   var r = String(raw).trim().toLowerCase();
@@ -139,7 +132,6 @@ function _normalizeRole(raw) {
   return 'default';
 }
 
-// NAV_MENU — se asigna aquí directamente, sin async ni fetch
 var NAV_MENU = (function () {
   try {
     var role = (typeof Auth !== 'undefined') ? _normalizeRole(Auth.role()) : 'default';
@@ -149,4 +141,19 @@ var NAV_MENU = (function () {
     window.__navRole = 'default';
     return NAV_MENUS['default'];
   }
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  v4: TRACKER DE PÁGINA ANTERIOR
+//  Guarda la URL actual en localStorage para que
+//  usuario-valores-por-defecto pueda volver aquí al guardar.
+//  Se ejecuta en TODAS las páginas que incluyan nav.js,
+//  excepto en la propia página de valores-por-defecto.
+// ════════════════════════════════════════════════════════════════
+(function () {
+  try {
+    if (location.pathname.indexOf('usuario-valores-por-defecto') === -1) {
+      localStorage.setItem('3v_prev_page', location.href);
+    }
+  } catch (e) { /* localStorage no disponible */ }
 })();
