@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v64 — 3Villas</title>
+  <title>Entradas Equipo v65 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -615,13 +615,25 @@ function applyUserPrefs(prefs){
   const vmIds=String(prefs.entradas_villamanager||'').split(',').map(s=>s.trim()).filter(Boolean);
   if(vmIds.length){selectedManagers.clear();vmIds.forEach(id=>selectedManagers.add(id));}
 
-  /* Días: desde=hoy, hasta=hoy+(dias-1) */
+  /* Días: desde=hoy, hasta=hoy+(dias-1)
+     dias=1 → hasta=desde | dias=2 → hasta=desde+1 | dias=3 → hasta=desde+2...
+     Usamos aritmética local (no toISOString) para evitar el bug de zona horaria UTC+2 */
   const dias=parseInt(prefs.entrada_dias)||1;
   const hoy=todayStr();
   if($('fDesde'))$('fDesde').value=hoy;
   if($('fHasta')){
-    if(dias<=1){$('fHasta').value=hoy;}
-    else{const h=new Date(hoy+'T00:00:00');h.setDate(h.getDate()+dias-1);$('fHasta').value=h.toISOString().split('T')[0];}
+    if(dias<=1){
+      $('fHasta').value=hoy;
+    } else {
+      /* Construir fecha con partes locales para evitar salto de día por UTC */
+      const pts=hoy.split('-');
+      const h=new Date(parseInt(pts[0]),parseInt(pts[1])-1,parseInt(pts[2]));
+      h.setDate(h.getDate()+(dias-1));
+      const yy=h.getFullYear();
+      const mm=String(h.getMonth()+1).padStart(2,'0');
+      const dd=String(h.getDate()).padStart(2,'0');
+      $('fHasta').value=yy+'-'+mm+'-'+dd;
+    }
   }
 
   /* Vista semanal */
@@ -662,15 +674,16 @@ window.addEventListener('DOMContentLoaded',async()=>{
     updateSub();
     /* v62: cargar managers primero (necesitamos currentUserId para las prefs) */
     await Promise.allSettled([loadManagers(),loadContacts(),loadMultiunits()]);
+    /* v65: cargar prefs SIEMPRE para que clearAll() las tenga disponibles
+       aunque la página se haya abierto con parámetros URL */
+    const prefs=await loadUserPrefs();
+    window.__userPrefs=prefs;
     if(!hadURLParams){
-      /* v62: intentar cargar valores por defecto del usuario desde Caspio */
-      const prefs=await loadUserPrefs();
-      window.__userPrefs=prefs; /* v63: cache para clearAll */
-      var _nb=$('noPrefsMsg');if(_nb)_nb.style.display='none'; /* v64 */
+      /* Aplicar solo si no hay URL params — los URL params tienen prioridad */
       if(prefs){
         applyUserPrefs(prefs);
       } else {
-        /* Fallback si no hay prefs guardadas: villa managers ven Pendiente por defecto */
+        /* Fallback sin prefs: villa managers ven Pendiente por defecto */
         if(window.__isVillaManager){fWelcomePack='pending';fCierre='pending';}
       }
     }
