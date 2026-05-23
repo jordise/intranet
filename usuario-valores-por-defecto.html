@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v13 — 3Villas</title>
+  <title>Valores por defecto v15 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -371,10 +371,26 @@
 <script>
 'use strict';
 
-/* v13: volver a la página anterior del historial — history.back() es el único
-   método 100% fiable. document.referrer puede mostrar páginas incorrectas
-   (ej: entradas en vez de test.html) porque depende de la cadena de navegación. */
-function _volverAtras(){ history.back(); }
+/* v15: sessionStorage — al cargar la página, guardamos quién nos llamó.
+   Es el método más fiable: no depende de history, referrer ni parámetros URL.
+   Funciona desde cualquier página sin modificar nada en la página llamante. */
+(function(){
+  var ref = document.referrer || '';
+  /* Solo guardar si viene de una página diferente a esta */
+  if(ref && ref.indexOf('usuario-valores-por-defecto') === -1){
+    sessionStorage.setItem('uvpd_caller', ref);
+  }
+})();
+
+function _volverAtras(){
+  var caller = sessionStorage.getItem('uvpd_caller');
+  sessionStorage.removeItem('uvpd_caller');
+  if(caller){
+    window.location.href = caller;
+  } else {
+    history.back();
+  }
+}
 
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 const TABLE='TaUsers_valores_pordefecto';
