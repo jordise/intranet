@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v28 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v28 — 12/05/2026 -->
+  <title>Notas Equipo Reservas v29 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v29 — 23/05/2026 -->
   <!--
     FIX v28:
     1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
@@ -15,6 +15,10 @@
        - populateForm() se mueve al Promise.all.then() para garantizar que
          window.__mu esté disponible al filtrar por villaid de la reserva
        - populateMultiunitSelect() filtra por TaVillas_villaid de la reserva
+    FIX v29:
+    3. PMSmultiunitID (Text 255 en TaBookings2021): se guardaba con parseInt()
+       que convertía IDs numéricos a integer, causando fallo en Caspio.
+       Fix: String(newMUID) — siempre string, nunca parseInt.
   -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
@@ -916,7 +920,8 @@ window.guardar=function(){
     Upselling3_text:g('fUp3Text').value.trim()||null,
     Upselling3_EUR:g('fUp3EUR').value||null,
   };
-  if(newMUID)record['PMSmultiunitID']=parseInt(newMUID)||newMUID;
+  /* v29 FIX: PMSmultiunitID es Text(255) — guardar SIEMPRE como string, nunca parseInt */
+  if(newMUID)record['PMSmultiunitID']=String(newMUID);
   var where="FS_confirmation_code='"+confCode+"'";
   fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT'),
     {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
