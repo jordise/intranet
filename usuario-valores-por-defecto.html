@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v10 — 3Villas</title>
+  <title>Valores por defecto v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -127,6 +127,18 @@
     .saved-badge{display:none;align-items:center;gap:5px;color:var(--green);font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;margin-top:8px}
     .saved-badge.show{display:flex}
 
+    body{padding-bottom:76px}
+    .save-bar-fixed{position:fixed;bottom:0;left:0;right:0;background:#fff;
+      border-top:1.5px solid var(--gray-2);padding:10px 16px;
+      display:flex;align-items:center;gap:10px;
+      box-shadow:0 -4px 20px rgba(0,0,0,.1);z-index:400}
+    .btn-volver{height:44px;padding:0 16px;background:var(--gray-2);color:var(--gray-5);
+      border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;
+      font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s}
+    .btn-volver:hover{background:var(--gray-3)}
+    .btn-save{flex:1;min-width:0}
+    .btn-reset{height:44px;padding:0 14px;flex-shrink:0;white-space:nowrap}
+
     @media(max-width:600px){
       .user-search-wrap{width:180px}
       .field-row{flex-direction:column;gap:10px}
@@ -138,6 +150,16 @@
   <script src="nav-component.js"></script>
 </head>
 <body>
+<!-- Barra de acciones fija -->
+<div class="save-bar-fixed">
+  <button class="btn-volver" onclick="_volverAtras()">← Volver</button>
+  <button class="btn-save" id="btnSave" onclick="guardar()">
+    <div class="spinner" id="saveSpinner"></div>
+    <span id="saveLabel">💾 Guardar cambios</span>
+  </button>
+  <button class="btn-reset" onclick="restablecerDefectos()">↺ Restablecer</button>
+</div>
+
 <script>Auth.require('entradas');</script>
 
 <div id="loadWrap">
@@ -156,7 +178,6 @@
   <div class="wp-nav-btns">
     <div class="wp-nav-user">👤 <span id="navUserName"></span></div>
     <button class="wp-nav-menu" onclick="NavComponent.open()" title="Menú">☰</button>
-    <a class="wp-nav-back" href="entradas-equipo.html">← Entradas</a>
   </div>
 </nav>
 
@@ -341,16 +362,7 @@
 
   </div>
 
-  <!-- ── Botones ── -->
-  <div class="save-bar">
-    <button class="btn-save" id="btnSave" onclick="guardar()">
-      <div class="spinner" id="saveSpinner"></div>
-      <span id="saveLabel">💾 Guardar cambios</span>
-    </button>
-    <button class="btn-reset" onclick="restablecerDefectos()">↺ Restablecer valores iniciales</button>
-  </div>
   <div class="saved-badge" id="savedBadge">✓ Guardado correctamente</div>
-
   <!-- Panel de diagnóstico de errores -->
   <div id="debugPanel" style="display:none;margin-top:16px;padding:14px;background:#1e1e2e;color:#a6e3a1;border-radius:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:350px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.2)"></div>
 
@@ -358,6 +370,24 @@
 
 <script>
 'use strict';
+
+/* v12: navegación robusta — 3 niveles de fallback */
+var _backTarget = (function(){
+  /* 1. Parámetro URL ?back=URL */
+  var urlBack = new URLSearchParams(location.search).get('back');
+  if(urlBack) return decodeURIComponent(urlBack);
+  /* 2. document.referrer (puede estar vacío en algunos navegadores/CSP) */
+  var ref = document.referrer || '';
+  if(ref && ref.indexOf('usuario-valores-por-defecto') === -1) return ref.split('?')[0];
+  /* 3. null → usaremos history.back() */
+  return null;
+})();
+
+function _volverAtras(){
+  if(_backTarget) window.location.href = _backTarget;
+  else            history.back();
+}
+
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 const TABLE='TaUsers_valores_pordefecto';
 
@@ -444,16 +474,32 @@ function updateMsBtn(prefix){
   else{lbl.textContent=set.size+' seleccionados';if(btn)btn.classList.add('active');}
 }
 
+function _closeAllPanels(){
+  ['vm','tg'].forEach(p=>{const pp=$(p+'Panel');if(pp)pp.classList.remove('open');});
+}
+
 function togglePanel(prefix,e){
   e&&e.stopPropagation();
-  const panel=$(prefix+'Panel'), btn=$(prefix+'Btn');
+  const panel=$(prefix+'Panel'),btn=$(prefix+'Btn');
   if(!panel||!btn)return;
   const isOpen=panel.classList.contains('open');
-  // cerrar ambos paneles primero
-  ['vm','tg'].forEach(p=>{const pp=$(p+'Panel');if(pp)pp.classList.remove('open');});
+  _closeAllPanels();
   if(!isOpen){
     const rect=btn.getBoundingClientRect();
-    panel.style.top=(rect.bottom+4)+'px';
+    const vh=window.innerHeight;
+    const BARRA=76; /* altura barra fija inferior */
+    const spaceBelow=vh-rect.bottom-BARRA-8;
+    const spaceAbove=rect.top-60; /* 60: nav superior */
+    /* Abrir hacia arriba si hay más espacio o no cabe abajo */
+    if(spaceBelow>=180||spaceBelow>=spaceAbove){
+      panel.style.top=(rect.bottom+4)+'px';
+      panel.style.bottom='auto';
+      panel.style.maxHeight=Math.max(160,spaceBelow)+'px';
+    } else {
+      panel.style.top='auto';
+      panel.style.bottom=(vh-rect.top+4)+'px';
+      panel.style.maxHeight=Math.max(160,spaceAbove)+'px';
+    }
     panel.style.left=rect.left+'px';
     panel.style.width=Math.max(260,rect.width)+'px';
     panel.classList.add('open');
@@ -461,6 +507,8 @@ function togglePanel(prefix,e){
     renderMsList(prefix);
   }
 }
+/* Cerrar panel al hacer scroll (evita que quede descolocado) */
+window.addEventListener('scroll',_closeAllPanels,true);
 
 function selAll(prefix){const set=_getSet(prefix);allUsers.forEach(u=>set.add(u.id));renderMsList(prefix);updateMsBtn(prefix);}
 function selNone(prefix){_getSet(prefix).clear();renderMsList(prefix);updateMsBtn(prefix);}
@@ -473,6 +521,7 @@ document.addEventListener('click',function(e){
       panel.classList.remove('open');
   });
 });
+/* Enlace de entradas-equipo puede pasar ?back= para navegación garantizada */
 
 // ── Load data ──
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -628,12 +677,8 @@ async function guardar(){
     toast('✓ Preferencias guardadas. Volviendo a Entradas…','ok');
     const badge=$('savedBadge');badge.classList.add('show');
     const dbg=document.getElementById('debugPanel');if(dbg)dbg.style.display='none';
-    /* v10: volver a la página anterior sin parámetros URL para que cargue con las nuevas prefs
-       document.referrer = URL completa de la página anterior (con o sin params)
-       .split('?')[0]    = solo la parte base, sin query string
-       fallback          = entradas-equipo.html si no hay referrer */
-    const paginaAnterior = document.referrer ? document.referrer.split('?')[0] : 'entradas-equipo.html';
-    setTimeout(()=>{ window.location.href = paginaAnterior; }, 1200);
+    /* v09: volver a entradas sin parámetros URL para que cargue con las nuevas prefs */
+    setTimeout(()=>{ window.location.href='entradas-equipo.html'; }, 1200);
   }catch(e){
     console.error('[Guardar] Error:',e);
     toast('Error: '+e.message,'err');
