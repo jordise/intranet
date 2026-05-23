@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v18 — 3Villas</title>
+  <title>Valores por defecto v19 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -533,8 +533,15 @@ document.addEventListener('click',function(e){
 // ── Load data ──
 document.addEventListener('DOMContentLoaded',async()=>{
   try{
+    /* v19: fetch con timeout de 12s para evitar espera infinita */
+    async function fetchTimeout(url, ms=12000){
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),ms);
+      try{ const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t); return r; }
+      catch(e){ clearTimeout(t); throw e; }
+    }
     // 1. Cargar usuarios
-    const uRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaUsers&limit=200`));
+    const uRes=await fetchTimeout(Auth.url(`${WORKER}?action=data&table=TaUsers&limit=200`));
     const uJson=await uRes.json();
     const users=uJson.Result||uJson.result||[];
     const myEmail=Auth.email?Auth.email():'';
@@ -552,7 +559,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     // 2. (Los paneles multi-select se inicializan al abrirse)
     // 3. Cargar preferencias guardadas
     if(currentUserId){
-      const pRes=await fetch(Auth.url(`${WORKER}?action=data&table=${TABLE}&where=${encodeURIComponent("Iduser='"+currentUserId+"'")}&limit=1`));
+      const pRes=await fetchTimeout(Auth.url(`${WORKER}?action=data&table=${TABLE}&where=${encodeURIComponent("Iduser='"+currentUserId+"'")}&limit=1`));
       const pJson=await pRes.json();
       const prefs=(pJson.Result||pJson.result||[])[0];
       if(prefs){
@@ -568,13 +575,13 @@ document.addEventListener('DOMContentLoaded',async()=>{
     $('mainContent').style.display='block';
   }catch(e){
     console.error(e);
-    $('loadWrap').innerHTML=`<div style="text-align:center;padding:30px"><div style="font-size:40px">⚠️</div><p style="color:var(--red);font-weight:700;margin-top:12px">Error al cargar: ${e.message}</p></div>`;
+    $('loadWrap').innerHTML=`<div style="text-align:center;padding:30px"><div style="font-size:40px">⚠️</div><p style="color:var(--red);font-weight:700;margin-top:12px">Error al cargar: ${e.message}</p><p style="font-size:12px;color:var(--gray-4);margin-top:8px">Puede que el servidor tarde en responder.<br>Espera unos segundos e inténtalo de nuevo.</p><button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">↺ Reintentar</button></div>`; 
   }
 });
 
 function applyPrefs(p){
-  // Modo noche — Caspio guarda -1 (sí) ó 0 (no)
-  $('fModoNoche').checked=(p.todas_modo_noche===-1||p.todas_modo_noche===true||String(p.todas_modo_noche)==='true'||String(p.todas_modo_noche)==='-1');
+  /* v19: Caspio REST devuelve true/false; aceptamos también -1 por legado */
+  $('fModoNoche').checked=!!(p.todas_modo_noche===true||p.todas_modo_noche===1||p.todas_modo_noche===-1||String(p.todas_modo_noche)==='true'||String(p.todas_modo_noche)==='-1');
   // Pills
   if(p.entradas_filtro_mostrar)   setPillByVal('pgMostrar',p.entradas_filtro_mostrar);
   if(p.entradas_filtro_welcomepack) setPillByVal('pgWP',p.entradas_filtro_welcomepack);
@@ -624,8 +631,8 @@ function restablecerDefectos(){
 function leerFormulario(){
   return{
     Iduser:currentUserId,
-    /* Caspio Yes/No requiere -1 (sí) ó 0 (no), no true/false */
-    todas_modo_noche:$('fModoNoche').checked?-1:0,
+    /* Caspio Yes/No API acepta true/false (boolean JSON) */
+    todas_modo_noche:$('fModoNoche').checked,  /* v19: true/false, no -1/0 */
     entradas_filtro_mostrar:getPillVal('pgMostrar'),
     entradas_filtro_welcomepack:getPillVal('pgWP'),
     entradas_filtro_cierre:getPillVal('pgCierre'),
