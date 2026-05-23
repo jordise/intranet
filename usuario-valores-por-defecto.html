@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v17 — 3Villas</title>
+  <title>Valores por defecto v18 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -371,16 +371,28 @@
 <script>
 'use strict';
 
-/* v17: localStorage — cada página registra su propia URL al cargar.
-   No depende de referrer (poco fiable). No depende del historial.
-   Funciona en cualquier browser, cualquier tipo de navegación. */
+/* v18: para volver a la página anterior se comprueban 3 fuentes en orden:
+   1. document.referrer — la URL real y directa del navegador (la más fiable si está disponible)
+   2. localStorage['3v_prev_page'] — guardada por nav.js en cada página (respaldo)
+   3. history.back() — último recurso
+*/
 function _volverAtras(){
-  var prev = localStorage.getItem('3v_prev_page');
-  if(prev && prev.indexOf('usuario-valores-por-defecto')===-1){
-    window.location.href = prev;
-  } else {
-    history.back();
-  }
+  try {
+    /* 1. referrer directo del navegador — excluir si apunta a esta misma página */
+    var ref = document.referrer || '';
+    if(ref && ref.indexOf('usuario-valores-por-defecto') === -1){
+      window.location.href = ref;
+      return;
+    }
+    /* 2. localStorage guardado por nav.js */
+    var prev = localStorage.getItem('3v_prev_page') || '';
+    if(prev && prev.indexOf('usuario-valores-por-defecto') === -1){
+      window.location.href = prev;
+      return;
+    }
+  } catch(e) { /* localStorage no disponible */ }
+  /* 3. historial del navegador */
+  history.back();
 }
 
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
