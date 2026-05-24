@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="google" content="notranslate">
   <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v08 — 3Villas</title>
+  <title>Check-in Online v09 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -457,92 +457,134 @@ function applyLang(lang){
   return supported.includes(nav)?nav:'en';
 }
 
-/* ── Fetch con timeout manual (sin Promise.any ni Promise.race) ── */
-function fetchWithTimeout(url, ms){
+/* ── Debug visual en pantalla ── */
+var _log = [];
+function dbgLog(msg){
+  _log.push(msg);
+  console.log('[ci-v09]', msg);
+  var el = document.getElementById('stMsg');
+  if(el) el.innerHTML = _log.slice(-3).map(function(l){
+    return '<span style="display:block;font-size:11px;color:#888;margin-top:2px">'+l+'</span>';
+  }).join('');
+}
+
+/* ── Fetch con timeout duro ── */
+function doFetch(url, ms){
   return new Promise(function(resolve, reject){
     var done = false;
-    var timer = setTimeout(function(){
-      if(!done){ done=true; reject(new Error('timeout '+ms+'ms')); }
+    var t = setTimeout(function(){
+      if(!done){ done=true; reject(new Error('Timeout '+ms+'ms')); }
     }, ms);
     fetch(url)
       .then(function(r){ return r.json(); })
-      .then(function(j){ if(!done){ done=true; clearTimeout(timer); resolve(j); } })
-      .catch(function(e){ if(!done){ done=true; clearTimeout(timer); reject(e); } });
+      .then(function(j){ if(!done){ done=true; clearTimeout(t); resolve(j); }})
+      .catch(function(e){ if(!done){ done=true; clearTimeout(t); reject(e); }});
   });
 }
 
 /* ── Init ── */
 async function init(){
-  if(_started)return;
-  _started=true;
+  if(_started) return;
+  _started = true;
+  dbgLog('init() started');
 
   var code = getP('TaBookings2021_FS_confirmation_code')
-            ||getP('FS_confirmation_code')
-            ||getP('code');
+            || getP('FS_confirmation_code')
+            || getP('code');
   if(!code){
     showErr('No booking code in URL',
             'Add ?TaBookings2021_FS_confirmation_code=CODE to the URL');
     return;
   }
-  $('stMsg').textContent = 'Loading…';
+  dbgLog('Code: ' + code);
 
-  /* ── ESTRATEGIA: tabla directa primero (rápida), luego view si falla ── */
-  var r = null;
-  var fromView = false;
-
-  /* Intento A: TaBookings2021 sin comillas (campo numérico) */
-  setMsg('Connecting…');
-  try{
-    var urlA = WORKER+"?action=data&table=TaBookings2021&where="
-              +encodeURIComponent("FS_confirmation_code="+code)+"&limit=1";
-    var jA = await fetchWithTimeout(Auth.url(urlA), 10000);
-    console.log('[ci-v08] A (num):', jA);
-    var rowsA = jA.Result||jA.result||[];
-    if(rowsA.length){ r = rowsA[0]; console.log('[ci-v08] OK via tabla num'); }
-  }catch(eA){ console.warn('[ci-v08] A failed:',eA.message); }
-
-  /* Intento B: TaBookings2021 con comillas (campo texto) */
-  if(!r){
-    try{
-      var urlB = WORKER+"?action=data&table=TaBookings2021&where="
-                +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
-      var jB = await fetchWithTimeout(Auth.url(urlB), 10000);
-      console.log('[ci-v08] B (str):', jB);
-      var rowsB = jB.Result||jB.result||[];
-      if(rowsB.length){ r = rowsB[0]; console.log('[ci-v08] OK via tabla str'); }
-    }catch(eB){ console.warn('[ci-v08] B failed:',eB.message); }
-  }
-
-  /* Intento C: view (lento, pero tiene datos de villa) */
-  if(!r){
-    setMsg('Trying view…');
-    try{
-      var urlC = WORKER+'?action=view&view='+encodeURIComponent(VIEW)
-                +'&where='+encodeURIComponent("TaBookings2021_FS_confirmation_code='"+code+"'")
-                +'&limit=1';
-      var jC = await fetchWithTimeout(Auth.url(urlC), 15000);
-      console.log('[ci-v08] C (view):', jC);
-      var rowsC = jC.Result||jC.result||[];
-      if(rowsC.length){ r = rowsC[0]; fromView = true; console.log('[ci-v08] OK via view'); }
-    }catch(eC){ console.warn('[ci-v08] C failed:',eC.message); }
-  }
-
-  if(!r){
-    showErr('Booking not found: '+code,
-            'Code not found in Caspio. Check console (F12) for details.');
-    _started=false;
+  /* Test 1: token disponible? */
+  var tok = (typeof Auth !== 'undefined') ? Auth.token() : '';
+  dbgLog('Token: ' + (tok ? tok.substring(0,12)+'…' : 'EMPTY'));
+  if(!tok){
+    showErr('No session token',
+            'Auth.token() is empty. Try logging out and back in.');
+    _started = false;
     return;
   }
 
+  /* Test 2: Worker responde? (simple test con action=token) */
+  dbgLog('Testing Worker…');
+  try{
+    var testUrl = WORKER + '?action=token';
+    var testJ = await doFetch(testUrl, 8000);
+    dbgLog('Worker OK: ' + JSON.stringify(testJ).substring(0,60));
+  }catch(eTest){
+    dbgLog('Worker test FAILED: ' + eTest.message);
+    showErr('Worker not responding: ' + eTest.message,
+            'URL: ' + WORKER + ' — Check F12 console for CORS or network errors');
+    _started = false;
+    return;
+  }
+
+  /* Test 3: TaBookings2021 (sin comillas) */
+  dbgLog('Query A: table, no quotes…');
+  var r = null, fromView = false;
+  try{
+    var urlA = WORKER + '?action=data&table=TaBookings2021&where='
+              + encodeURIComponent('FS_confirmation_code=' + code) + '&limit=1';
+    var jA = await doFetch(Auth.url(urlA), 10000);
+    dbgLog('Query A response keys: ' + Object.keys(jA).join(','));
+    var rowsA = jA.Result || jA.result || [];
+    if(rowsA.length){ r = rowsA[0]; dbgLog('Query A: ' + rowsA.length + ' row(s) found'); }
+    else{ dbgLog('Query A: 0 rows. Error: ' + (jA.error||jA.Message||'—')); }
+  }catch(eA){ dbgLog('Query A error: ' + eA.message); }
+
+  /* Test 4: TaBookings2021 (con comillas) */
+  if(!r){
+    dbgLog('Query B: table, with quotes…');
+    try{
+      var urlB = WORKER + '?action=data&table=TaBookings2021&where='
+                + encodeURIComponent("FS_confirmation_code='" + code + "'") + '&limit=1';
+      var jB = await doFetch(Auth.url(urlB), 10000);
+      dbgLog('Query B response keys: ' + Object.keys(jB).join(','));
+      var rowsB = jB.Result || jB.result || [];
+      if(rowsB.length){ r = rowsB[0]; dbgLog('Query B: ' + rowsB.length + ' row(s)'); }
+      else{ dbgLog('Query B: 0 rows. Error: ' + (jB.error||jB.Message||'—')); }
+    }catch(eB){ dbgLog('Query B error: ' + eB.message); }
+  }
+
+  /* Test 5: view */
+  if(!r){
+    dbgLog('Query C: view…');
+    try{
+      var urlC = WORKER + '?action=view&view=' + encodeURIComponent(VIEW)
+                + '&where=' + encodeURIComponent("TaBookings2021_FS_confirmation_code='" + code + "'")
+                + '&limit=1';
+      var jC = await doFetch(Auth.url(urlC), 15000);
+      dbgLog('Query C response keys: ' + Object.keys(jC).join(','));
+      var rowsC = jC.Result || jC.result || [];
+      if(rowsC.length){ r = rowsC[0]; fromView = true; dbgLog('Query C: ' + rowsC.length + ' row(s)'); }
+      else{ dbgLog('Query C: 0 rows. Error: ' + (jC.error||jC.Message||'—')); }
+    }catch(eC){ dbgLog('Query C error: ' + eC.message); }
+  }
+
+  if(!r){
+    dbgLog('All queries returned 0 rows');
+    showErr('Booking not found: ' + code,
+            'Logs: ' + _log.slice(-5).join(' | '));
+    _started = false;
+    return;
+  }
+
+  dbgLog('Rendering…');
   render(r, code, fromView);
 }
 
-function setMsg(t){ var el=$('stMsg'); if(el)el.textContent=t; }
 function showErr(msg, detail){
-  $('stLoad').style.display='none';
-  $('stErr').style.display='flex';
-  $('errMsg').textContent=msg;
-  if($('errDetail'))$('errDetail').textContent=detail||'';
+  var stl = document.getElementById('stLoad');
+  var ste = document.getElementById('stErr');
+  var em  = document.getElementById('errMsg');
+  var ed  = document.getElementById('errDetail');
+  if(stl) stl.style.display = 'none';
+  if(ste) ste.style.display = 'flex';
+  if(em)  em.textContent   = msg;
+  if(ed)  ed.textContent   = detail || '';
 }
 
 
@@ -661,14 +703,12 @@ async function loadVillaManager(vmId){
 }
 
 
-/* Capturar cualquier error JS no controlado */
-window.onerror = function(msg,src,line,col,err){
-  console.error('[ci-v08] onerror:',msg,src,line);
-  if($('stLoad')&&$('stLoad').style.display!=='none'){
-    showErr('JS Error: '+msg, src+':'+line);
-  }
+window.onerror = function(msg, src, line, col, err){
+  console.error('[ci-v09] onerror:', msg, src, line);
+  showErr('JS Error: ' + msg, src + ':' + line + ' — ' + _log.slice(-3).join(' | '));
 };
 
+document.addEventListener('DOMContentLoaded', init);
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
