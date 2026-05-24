@@ -493,19 +493,19 @@
         <div class="wm-sec-title">👤 Guardar contacto</div>
         <div class="sc-box">
           <!-- Bloque nombre compuesto -->
-          <div class="sc-group-head">Nombre en agenda <span class="sc-group-hint">— así se ordenará en el móvil</span></div>
+        <div class="sc-group-head">Vista previa del nombre en agenda <span class="sc-group-hint">— así se ordenará en el móvil</span></div>
           <div class="sc-row sc-sub">
             <span class="sc-lbl">Nombre</span>
             <div class="sc-val-wrap">
               <span class="sc-val empty" id="scNombre">—</span>
-              <span class="sc-origin">check-in y checkout</span>
+              <span class="sc-origin">villa corto/multiunit + fechas YYMMDD</span>
             </div>
           </div>
           <div class="sc-row sc-sub">
             <span class="sc-lbl">Apellido</span>
             <div class="sc-val-wrap">
               <span class="sc-val empty" id="scApellido">—</span>
-              <span class="sc-origin">villa + nombre huésped</span>
+              <span class="sc-origin">nombre huésped (fórmula Caspio)</span>
             </div>
           </div>
           <!-- Separador -->
@@ -594,10 +594,13 @@ const VIEW   = 'Vi_villas_and_bookings2021';
 const F = {
   code:         'TaBookings2021_FS_confirmation_code',
   villa:        'TaVillas_Name_villa_para_inquilinos',
+  villaCorto:   'TaVillas_Name_villa_corto_interno',
   ci:           'TaBookings2021_Checkin',
   ciTime:       'TaBookings2021_Checkin_time',
   status:       'TaBookings2021_BookingStatus',
   guestName:    'TaBookings2021_Guest_Full_Name',
+  guestSurename:'TaBookings2021_Guest_Surename',
+  statusFormula:'TaBookings2021_Status_name_formula',
   fiscalName:   'TaBookings2021_Fiscal_guest_name',
   phHost:       'TaBookings2021_Guest_phonenumber',
   phArr:        'TaBookings2021_Segundo_Telefono',
@@ -624,6 +627,7 @@ function toggleDark(){setDarkMode(!document.body.classList.contains('dark'));}
 // ════════════ ESTADO GLOBAL ════════════
 var _sid=0,rango=2,cf='pend',mData=null,_useArr=false;
 var allMgr=[],selMgr=new Set(),usersMap=new Map(),meId='',meName='';
+var multiunitsMap=new Map();  // id → descripcion_guardar_en_tfn
 var _tt;
 
 const $=id=>document.getElementById(id);
@@ -686,6 +690,53 @@ document.addEventListener('click',function(e){
   var p=$('managerPanel'),b=$('fManagerBtn');
   if(p&&p.style.display!=='none'&&b&&!b.contains(e.target)&&!p.contains(e.target))p.style.display='none';
 });
+
+// ════════════ MULTIUNITS ════════════
+async function loadMultiunits(){
+  try{
+    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'));
+    var j=await res.json();var rows=j.Result||j.result||[];
+    rows.forEach(function(r){
+      var id=String(r.multiunitID||r.MultiunitID||r.MultiUnitID||'').trim();
+      var guardar=String(r.descripcion_guardar_en_tfn||'').trim();
+      if(id&&guardar)multiunitsMap.set(id,guardar);
+    });
+    console.log('[Multiunits]',multiunitsMap.size,'cargados');
+  }catch(e){console.warn('[Multiunits]',e.message);}
+}
+
+// Nombre en agenda: [villa_corto/multiunit_guardar] YYMMDD-MMDD o YYMMDD-DD
+function buildNombreAgenda(d){
+  // Villa: usa multiunit guardar_en_tfn si existe, si no Name_villa_corto_interno, si no villa normal
+  var muId=String(d.multiunit||'').trim();
+  var muGuardar=muId?multiunitsMap.get(muId)||'':'';
+  var vlName=muGuardar||(d.villaCorto||d.villa||'');
+  // Fecha compacta
+  var ciPts=(d.ci||'').split('T')[0].split('-');   // [yyyy,mm,dd]
+  var coPts=(d.co||'').split('T')[0].split('-');
+  var dateStr='';
+  if(ciPts.length===3&&coPts.length===3){
+    var yy=ciPts[0].slice(2);   // 26
+    var ciMM=ciPts[1];           // 05
+    var ciDD=ciPts[2];           // 26
+    var coMM=coPts[1];           // 05 ó 06
+    var coDD=coPts[2];           // 28
+    // Mismo mes → YYMMDD-DD, distinto mes → YYMMDD-MMDD
+    dateStr=ciMM===coMM
+      ? yy+ciMM+ciDD+'-'+coDD
+      : yy+ciMM+ciDD+'-'+coMM+coDD;
+  }
+  return (vlName+(dateStr?' '+dateStr:'')).trim();
+}
+
+// Apellido: fórmula igual que entradas-equipo
+function buildApellidoAgenda(d){
+  var rawName=d.rawGuestName||'';
+  var surename=d.guestSurename||'';
+  var formula=d.statusFormula||'';
+  if(formula==='Reserva')return(rawName+(surename?' '+surename:'')).trim();
+  return formula||rawName;
+}
 
 // ════════════ USER PREFS ════════════
 async function loadUserPrefs(){
@@ -848,19 +899,26 @@ function renderResult(recs, fecha){
 function buildCard(e){
   var r=e.r,dias=e.dias,done=e.done,code=e.code,ui=e.ui;
   var villa=r[F.villa]||'Villa';
+  var villaCorto=r[F.villaCorto]||'';
   var ci=r[F.ci]||'',ciTime=r[F.ciTime]||'',arrT=r[F.arrival]||'',co=r[F.co]||'';
-  var name=r[F.fiscalName]||r[F.guestName]||'—';
+  var rawGuestName=r[F.guestName]||'';
+  var guestSurename=String(r[F.guestSurename]||'').trim();
+  var statusFormula=String(r[F.statusFormula]||'').trim();
+  // Nombre para mostrar en la card
+  var displayName=r[F.fiscalName]||rawGuestName||'—';
   var phHost=r[F.phHost]||'',phArr=r[F.phArr]||'',cual=r[F.phCual]||'';
   var usearr=useArr(cual),activePh=usearr?phArr:phHost,noPh=!cleanPh(activePh);
   var vmId=r[F.vmId]||'',vmName=vmId?(usersMap.get(String(vmId))||''):'';
   var email=r[F.guestEmail]||'';
+  var muId=String(r[F.multiunit]||'').trim();
   var mgrN=($('mgrName')||{value:''}).value||meName||Auth.name()||'Villa Manager';
   var tid='t_'+code.replace(/[^a-z0-9]/gi,'_');
 
-  // Datos para el modal
-  var rD={code:code,name:name,phHost:phHost,phArr:phArr,cual:cual,
-    ciTime:ciTime,arrival:arrT,villa:villa,ci:ci,co:co,email:email,
-    done:done,vmName:vmName,mgrN:mgrN};
+  // Datos completos para el modal
+  var rD={code:code,name:displayName,rawGuestName:rawGuestName,guestSurename:guestSurename,
+    statusFormula:statusFormula,phHost:phHost,phArr:phArr,cual:cual,
+    ciTime:ciTime,arrival:arrT,villa:villa,villaCorto:villaCorto,multiunit:muId,
+    ci:ci,co:co,email:email,done:done,vmName:vmName,mgrN:mgrN};
 
   var card=document.createElement('div');
   card.className='pc-card '+(done?'done':'pend');
@@ -872,7 +930,7 @@ function buildCard(e){
     +'<span class="ub '+ui.cls+'">'+ui.label+'</span>'
     +'</div>'
     +'<div class="pc-body">'
-    +'<div class="pc-guest">'+name+'</div>'
+    +'<div class="pc-guest">'+displayName+'</div>'
     +'<div class="pc-phones">'
     +'<div class="pc-ph '+(usearr?'':'active')+'"><span class="ph-tag">HOST</span>'+(phHost||'—')+'</div>'
     +(phArr?'<div class="pc-ph '+(usearr?'active':'')+'"><span class="ph-tag">ARR</span>'+phArr+'</div>':'')
@@ -933,13 +991,11 @@ async function toggleContactado(code,wid){
 function buildVCardUrl(d){
   var ph=cleanPh(_useArr?d.phArr:d.phHost);
   if(!ph)return null;
-  var ciPts=(d.ci||'').split('T')[0].split('-');   // [año, mes, dia]
-  var coPts=(d.co||'').split('T')[0].split('-');   // [año, mes, dia]
-  var nombreStr=ciPts[0]+'-'+ciPts[1]+'-'+ciPts[2]+' a '+coPts[1]+'-'+coPts[2];  // p.ej. "2026-05-26 a 05-28"
-  var apellidoStr=(d.villa||'')+' '+(d.name||'');
+  var nombreStr=buildNombreAgenda(d);       // villa_corto + YYMMDD-MMDD
+  var apellidoStr=buildApellidoAgenda(d);   // fórmula entradas
   return 'https://intranetvcard.jordi-89b.workers.dev/?'
     +'nombre='+encodeURIComponent(nombreStr)
-    +'&apellido='+encodeURIComponent(apellidoStr.trim())
+    +'&apellido='+encodeURIComponent(apellidoStr)
     +'&tel=%2B'+ph
     +'&email='+encodeURIComponent(d.email||'')
     +'&empresa=Inquilino'
@@ -970,11 +1026,10 @@ function setRO(id,v){var e=$(id);if(!e)return;e.textContent=v||'No disponible';e
 function updateScBox(d){
   var ph=_useArr?d.phArr:d.phHost;
   var phClean=cleanPh(ph||'');
-  // Nombre en agenda: "YYYY-MM-DD a MM-DD"
-  var ciPts=(d.ci||'').split('T')[0].split('-');
-  var coPts=(d.co||'').split('T')[0].split('-');
-  var nombreStr=ciPts.length===3?ciPts[0]+'-'+ciPts[1]+'-'+ciPts[2]+' a '+coPts[1]+'-'+coPts[2]:'—';
-  var apellidoStr=((d.villa||'')+' '+(d.name||'')).trim();
+  // Nombre agenda: villa_corto/multiunit + fecha compacta
+  var nombreStr=buildNombreAgenda(d);
+  // Apellido: fórmula entradas (statusFormula → Guest_Full_Name + Surename)
+  var apellidoStr=buildApellidoAgenda(d);
   var notaStr=d.code?'Reserva nro '+d.code:'—';
   function sv(id,v){var e=$(id);if(!e)return;e.textContent=v||'—';e.className='sc-val'+(v?'':' empty');}
   sv('scNombre',nombreStr);
@@ -1072,8 +1127,14 @@ window.addEventListener('DOMContentLoaded',async function(){
   $('fFecha').value=todayStr();
   var btnFM=$('fManagerBtn');if(btnFM){btnFM.disabled=true;$('fManagerLabel').textContent='Cargando…';}
   try{
-    var res=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'));
-    var j=await res.json();var users=j.Result||j.result||[];
+    // Cargar usuarios y multiunits en paralelo
+    var resArr=await Promise.allSettled([
+      fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')),
+      loadMultiunits()
+    ]);
+    var usersRes=resArr[0].status==='fulfilled'?resArr[0].value:null;
+    var j=usersRes?await usersRes.json():{};
+    var users=j.Result||j.result||[];
     var myEmail=Auth.email?Auth.email():'';
     var me=users.find(function(u){return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();});
     users.forEach(function(u){usersMap.set(String(u.UserID||''),String(u.Name||''));});
