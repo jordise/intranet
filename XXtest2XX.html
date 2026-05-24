@@ -679,8 +679,8 @@ async function doSearch(){
   var sid=++_sid;
   setState('load');
   var fecha=($('fFecha')||{value:todayStr()}).value||todayStr();
-  var ciDesde=addDays(fecha,-1);          // incluye "entra hoy" y un día antes
-  var ciHasta=addDays(fecha,rango+1);     // +2 o +3 días adelante
+  var ciDesde=addDays(fecha,-1);          // incluye "entra hoy" y pasadas
+  var ciHasta=addDays(fecha,rango);       // exacto: rango=2→+2d, rango=3→+3d
   var wparts=[
     F.status+"<>'cancelled'",
     F.ci+">='"+ciDesde+"T00:00:00'",
@@ -720,7 +720,7 @@ function setState(s){
 // ════════════ URGENCIA ════════════
 function uInfo(d){
   if(d>=2&&d<=rango)return{cls:'ub-enviar',label:'📅 Enviar hoy',     gk:'enviar'};
-  if(d>rango)       return{cls:'ub-futuro', label:'🗓 En '+d+' días',  gk:'enviar'};
+  if(d>rango)       return{cls:'ub-futuro', label:'🗓 En '+d+' días',  gk:'skip'};  // fuera del rango seleccionado
   if(d===1)         return{cls:'ub-tarde',  label:'⚠️ Tarde',           gk:'tarde'};
   if(d===0)         return{cls:'ub-hoy',    label:'🔴 Entra hoy',       gk:'hoy'};
   return             {cls:'ub-hoy',         label:'❌ '+Math.abs(d)+'d tarde',gk:'hoy'};
@@ -728,34 +728,44 @@ function uInfo(d){
 
 // ════════════ RENDER ════════════
 function renderResult(recs, fecha){
-  // Filtros extra (villa / inquilino / contacto)
+  // Bug fix 1: ocultar siempre el spinner
+  ['stLoad','stInit','stErr'].forEach(function(id){var e=$(id);if(e)e.style.display='none';});
+
   var fv=(($('fVilla')||{value:''}).value||'').toLowerCase();
   var fi=(($('fInquilino')||{value:''}).value||'').toLowerCase();
   var enriched=recs.map(function(r){
     var ci=r[F.ci]||'';
     return{r:r,ci:ci,dias:ci?diasHasta(ci):99,done:isTruthy(r[F.contactado]),code:r[F.code]||''};
   });
-  var filtered=enriched.filter(function(e){
+
+  // Bug fix 3: aplicar villa/inquilino ANTES de calcular stats
+  var baseFiltered=enriched.filter(function(e){
     if(fv&&!(e.r[F.villa]||'').toLowerCase().includes(fv))return false;
     var nm=((e.r[F.fiscalName]||'')+(e.r[F.guestName]||'')).toLowerCase();
     if(fi&&!nm.includes(fi))return false;
+    return true;
+  });
+
+  // Stats correctos (con filtro villa/inquilino, SIN filtro contacto)
+  var tot=baseFiltered.length;
+  var done=baseFiltered.filter(function(e){return e.done;}).length;
+  $('sTot').textContent=tot;$('sDone').textContent=done;$('sPend').textContent=tot-done;
+  $('sFechaEnvio').textContent='Fecha: '+new Date(fecha+'T00:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  $('statsBar').style.display=tot>0?'flex':'none';
+
+  // Ahora aplicar también filtro contacto para el display
+  var filtered=baseFiltered.filter(function(e){
     if(cf==='pend')return!e.done;
     if(cf==='done')return e.done;
     return true;
   });
+  $('hCount').textContent=tot+' entradas · '+(tot-done)+' pendientes';
 
-  // Stats
-  var tot=enriched.length;
-  var done=enriched.filter(function(e){return e.done;}).length;
-  $('sTot').textContent=tot;$('sDone').textContent=done;$('sPend').textContent=tot-done;
-  $('sFechaEnvio').textContent='Fecha: '+new Date(fecha+'T00:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-  $('statsBar').style.display=tot>0?'flex':'none';
-  $('hCount').textContent=filtered.length+' entradas · '+(tot-done)+' pendientes';
-
-  // Separar en 3 grupos
+  // Separar en 3 grupos (skip = fuera del rango, no mostrar)
   var gEnviar=[],gTarde=[],gHoy=[];
   filtered.forEach(function(e){
     var ui=uInfo(e.dias);e.ui=ui;
+    if(ui.gk==='skip')return;
     if(ui.gk==='enviar')gEnviar.push(e);
     else if(ui.gk==='tarde')gTarde.push(e);
     else gHoy.push(e);
