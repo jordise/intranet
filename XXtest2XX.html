@@ -967,12 +967,45 @@ function buildCard(e){
     +'Ver detalles</button>'
     +'</div>';
 
-  // Event listeners
-  var togWrap=card.querySelector('.tog-wrap');
-  if(togWrap)togWrap.addEventListener('click',function(e){
-    if(e.target.closest('label'))return;
-    e.preventDefault();toggleContactado(code,'tw_'+tid);
-  });
+  // ── Event listeners ──
+
+  // Toggle: usar 'change' en el checkbox (el click en la label ya lo activa)
+  // El 'click' en tog-wrap solo para el texto "Pendiente/Enviado" que está fuera del label
+  var cbInput=card.querySelector('input[type=checkbox]');
+  if(cbInput){
+    cbInput.addEventListener('change',function(){
+      var nv=cbInput.checked;      // ya actualizado por el mecanismo de label
+      var w=document.getElementById('tw_'+tid);if(!w)return;
+      w.classList.toggle('on',nv);
+      var lbl=w.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'Enviado':'Pendiente';
+      card.classList.toggle('done',nv);card.classList.toggle('pend',!nv);
+      _localContactado[code]=nv;
+      setTimeout(function(){reRender();},350);
+      fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:nv})})
+      .then(function(res){
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        toast(nv?'✅ Enviado':'Marcado pendiente','ok');
+      })
+      .catch(function(err){
+        // Revertir en caso de error
+        cbInput.checked=!nv;
+        var w2=document.getElementById('tw_'+tid);
+        if(w2){w2.classList.toggle('on',!nv);var l2=w2.querySelector('.tog-lbl');if(l2)l2.textContent=!nv?'Enviado':'Pendiente';}
+        card.classList.toggle('done',!nv);card.classList.toggle('pend',nv);
+        _localContactado[code]=!nv;reRender();
+        toast('Error: '+err.message,'err');
+      });
+    });
+  }
+  // Clic en el texto "Pendiente/Enviado" (fuera del label): forzar toggle del checkbox
+  var togLbl=card.querySelector('.tog-lbl');
+  if(togLbl){
+    togLbl.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(cbInput){cbInput.checked=!cbInput.checked;cbInput.dispatchEvent(new Event('change'));}
+    });
+  }
 
   var waBtn=card.querySelector('.btn-wa');
   if(waBtn)waBtn.addEventListener('click',function(){
