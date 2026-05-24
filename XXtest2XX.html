@@ -698,35 +698,35 @@ async function loadMultiunits(){
     var j=await res.json();var rows=j.Result||j.result||[];
     rows.forEach(function(r){
       var id=String(r.multiunitID||r.MultiunitID||r.MultiUnitID||'').trim();
-      var guardar=String(r.descripcion_guardar_en_tfn||'').trim();
-      if(id&&guardar)multiunitsMap.set(id,guardar);
+      var guardar=String(r.descripcion_guardar_en_tfn||'').trim();  // para vCard Nombre
+      var nombre=String(r.descripcion||r.Descripcion||'').trim();   // para mostrar en cards
+      if(id){
+        if(guardar)multiunitsMap.set(id,guardar);           // id → guardar_en_tfn
+        if(nombre) multiunitsMap.set('name_'+id,nombre);   // 'name_'+id → descripcion
+      }
     });
-    console.log('[Multiunits]',multiunitsMap.size,'cargados');
+    console.log('[Multiunits]',multiunitsMap.size,'entradas cargadas');
   }catch(e){console.warn('[Multiunits]',e.message);}
 }
 
-// Nombre en agenda: [villa_corto/multiunit_guardar] YYMMDD-MMDD o YYMMDD-DD
+// Nombre en agenda: [villa_corto] [multiunit_guardar?] YYMMDD-DD / YYMMDD-MMDD
 function buildNombreAgenda(d){
-  // Villa: usa multiunit guardar_en_tfn si existe, si no Name_villa_corto_interno, si no villa normal
   var muId=String(d.multiunit||'').trim();
   var muGuardar=muId?multiunitsMap.get(muId)||'':'';
-  var vlName=muGuardar||(d.villaCorto||d.villa||'');
-  // Fecha compacta
-  var ciPts=(d.ci||'').split('T')[0].split('-');   // [yyyy,mm,dd]
+  var vlCorto=d.villaCorto||d.villa||'';
+  // SIEMPRE: villa_corto + espacio + multiunit_guardar (si existe), NUNCA sustituir
+  var vlPart=vlCorto+(muGuardar?' '+muGuardar:'');
+  // Fecha compacta YYMMDD-DD (mismo mes) o YYMMDD-MMDD (distinto mes)
+  var ciPts=(d.ci||'').split('T')[0].split('-');
   var coPts=(d.co||'').split('T')[0].split('-');
   var dateStr='';
   if(ciPts.length===3&&coPts.length===3){
-    var yy=ciPts[0].slice(2);   // 26
-    var ciMM=ciPts[1];           // 05
-    var ciDD=ciPts[2];           // 26
-    var coMM=coPts[1];           // 05 ó 06
-    var coDD=coPts[2];           // 28
-    // Mismo mes → YYMMDD-DD, distinto mes → YYMMDD-MMDD
-    dateStr=ciMM===coMM
-      ? yy+ciMM+ciDD+'-'+coDD
-      : yy+ciMM+ciDD+'-'+coMM+coDD;
+    var yy=ciPts[0].slice(2);
+    var ciMM=ciPts[1],ciDD=ciPts[2];
+    var coMM=coPts[1],coDD=coPts[2];
+    dateStr=ciMM===coMM?yy+ciMM+ciDD+'-'+coDD:yy+ciMM+ciDD+'-'+coMM+coDD;
   }
-  return (vlName+(dateStr?' '+dateStr:'')).trim();
+  return(vlPart+(dateStr?' '+dateStr:'')).trim();
 }
 
 // Apellido: fórmula igual que entradas-equipo
@@ -830,6 +830,9 @@ function uInfo(d){
 
 // ════════════ RENDER ════════════
 function renderResult(recs, fecha){
+  // Guardar caché para re-render sin API call
+  _cachedRecs=recs;_cachedFecha=fecha;
+
   // Bug fix 1: ocultar siempre el spinner
   ['stLoad','stInit','stErr'].forEach(function(id){var e=$(id);if(e)e.style.display='none';});
 
@@ -837,7 +840,10 @@ function renderResult(recs, fecha){
   var fi=(($('fInquilino')||{value:''}).value||'').toLowerCase();
   var enriched=recs.map(function(r){
     var ci=r[F.ci]||'';
-    return{r:r,ci:ci,dias:ci?diasHasta(ci):99,done:isTruthy(r[F.contactado]),code:r[F.code]||''};
+    var code=r[F.code]||'';
+    // Usar override local si existe, si no el valor de Caspio
+    var done=code in _localContactado?_localContactado[code]:isTruthy(r[F.contactado]);
+    return{r:r,ci:ci,dias:ci?diasHasta(ci):99,done:done,code:code};
   });
 
   // Bug fix 3: aplicar villa/inquilino ANTES de calcular stats
@@ -895,6 +901,13 @@ function renderResult(recs, fecha){
   $('colWrap').style.display='grid';
 }
 
+// ════════════ CACHÉ Y OVERRIDE LOCAL ════════════
+var _cachedRecs=null,_cachedFecha=null,_localContactado={};
+
+function reRender(){
+  if(_cachedRecs&&_cachedFecha)renderResult(_cachedRecs,_cachedFecha);
+}
+
 // ════════════ BUILD CARD ════════════
 function buildCard(e){
   var r=e.r,dias=e.dias,done=e.done,code=e.code,ui=e.ui;
@@ -911,6 +924,9 @@ function buildCard(e){
   var vmId=r[F.vmId]||'',vmName=vmId?(usersMap.get(String(vmId))||''):'';
   var email=r[F.guestEmail]||'';
   var muId=String(r[F.multiunit]||'').trim();
+  // Villa display: Name_villa_para_inquilinos + (/ descripcion si hay multiunit)
+  var muDisplayName=muId?multiunitsMap.get('name_'+muId)||'':'';
+  var villaDisplay=muDisplayName?villa+' / '+muDisplayName:villa;
   var mgrN=($('mgrName')||{value:''}).value||meName||Auth.name()||'Villa Manager';
   var tid='t_'+code.replace(/[^a-z0-9]/gi,'_');
 
@@ -925,8 +941,8 @@ function buildCard(e){
   card.dataset.code=code;
 
   card.innerHTML='<div class="pc-head">'
-    +'<div><div class="pc-villa">'+villa+'</div>'
-    +'<div class="pc-cidate">📅 '+fmtShort(ci)+(ciTime?' · '+ciTime:'')+'</div></div>'
+    +'<div><div class="pc-villa">'+villaDisplay+'</div>'
+    +'<div class="pc-cidate">Entran el '+fmtShort(ci)+(ciTime?' · '+ciTime:'')+'</div></div>'
     +'<span class="ub '+ui.cls+'">'+ui.label+'</span>'
     +'</div>'
     +'<div class="pc-body">'
@@ -944,7 +960,7 @@ function buildCard(e){
     +'<div class="pc-foot">'
     +'<div class="tog-wrap '+(done?'on':'')+'" id="tw_'+tid+'">'
     +'<label class="tog-sw"><input type="checkbox" id="'+tid+'" '+(done?'checked':'')+'><div class="tog-sl"></div></label>'
-    +'<span class="tog-lbl">'+(done?'✓ Contactado':'Pendiente')+'</span>'
+    +'<span class="tog-lbl">'+(done?'Enviado':'Pendiente')+'</span>'
     +'</div>'
     +'<button class="btn-wa'+(noPh?' noph':'')+'">'
     +'<svg width="16" height="16" viewBox="0 0 120 120"><circle cx="60" cy="60" fill="#fff" r="60"/><path d="M60 28c-17.7 0-32 13.5-32 30.1 0 6.2 2 12 5.5 16.9L30 92l17.6-4.7c4.2 2.3 9.1 3.6 14.4 3.6 17.7 0 32-13.5 32-30.1S77.7 28 60 28z" fill="#25D366"/></svg>'
@@ -973,16 +989,23 @@ async function toggleContactado(code,wid){
   var cb=w.querySelector('input');if(!cb)return;
   var nv=!cb.checked;cb.checked=nv;
   w.classList.toggle('on',nv);
-  var lbl=w.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'✓ Contactado':'Pendiente';
+  var lbl=w.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'Enviado':'Pendiente';
   var card=w.closest('.pc-card');
   if(card){card.classList.toggle('done',nv);card.classList.toggle('pend',!nv);}
+  // Actualizar override local y re-renderizar (para que desaparezca si filtro=pend)
+  _localContactado[code]=nv;
+  // Pequeño delay para que el usuario vea el cambio de estado antes de re-render
+  setTimeout(function(){reRender();},350);
   try{
     var res=await fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
       {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:nv})});
     if(!res.ok)throw new Error('HTTP '+res.status);
-    toast(nv?'✓ Contactado':'Marcado pendiente','ok');
+    toast(nv?'✅ Enviado':'Marcado pendiente','ok');
   }catch(err){
-    cb.checked=!nv;w.classList.toggle('on',!nv);if(lbl)lbl.textContent=!nv?'✓ Contactado':'Pendiente';
+    // Revertir en error
+    _localContactado[code]=!nv;
+    cb.checked=!nv;w.classList.toggle('on',!nv);if(lbl)lbl.textContent=!nv?'Enviado':'Pendiente';
+    reRender();
     toast('Error: '+err.message,'err');
   }
 }
@@ -1106,7 +1129,7 @@ function onWASend(){
 function updateCardDone(code,val){
   var card=document.querySelector('.pc-card[data-code="'+code+'"]');if(!card)return;
   var cb=card.querySelector('input[type=checkbox]'),w=card.querySelector('.tog-wrap'),l=card.querySelector('.tog-lbl');
-  if(cb)cb.checked=val;if(w)w.classList.toggle('on',val);if(l)l.textContent=val?'✓ Contactado':'Pendiente';
+  if(cb)cb.checked=val;if(w)w.classList.toggle('on',val);if(l)l.textContent=val?'Enviado':'Pendiente';
   card.classList.toggle('done',val);card.classList.toggle('pend',!val);
 }
 
@@ -1115,10 +1138,11 @@ async function markC(code,val){
     var res=await fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
       {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:val})});
     if(!res.ok)throw new Error('HTTP '+res.status);
+    _localContactado[code]=val;
     if(mData&&mData.code===code){mData.done=val;updateScBox(mData);}
     updateCardDone(code,val);
-    toast(val?'✓ Contactado':'Marcado pendiente','ok');
-    if(val)closeModal();
+    toast(val?'✅ Enviado':'Marcado pendiente','ok');
+    if(val){closeModal();setTimeout(function(){reRender();},350);}
   }catch(err){toast('Error: '+err.message,'err');}
 }
 
