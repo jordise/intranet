@@ -1,362 +1,283 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v11 — 3Villas</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root{--red:#C8102E;--green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
-      --blue:#2563EB;--blue-lt:#EFF6FF;--blue-bd:#BFDBFE;
-      --amber:#B45309;--amber-lt:#FFFBEB;--amber-bd:#FCD34D;
-      --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
-      --gray-4:#868e96;--gray-5:#212529;--wa:#25D366;}
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Open Sans',sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
-    /* Loading */
-    #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
-      min-height:80vh;gap:10px;text-align:center;padding:40px 20px}
-    .spinner{width:32px;height:32px;border:3px solid var(--gray-3);
-      border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    /* Layout */
-    #content{display:none;max-width:540px;margin:0 auto;padding:0 20px 80px}
-    /* Header */
-    .page-header{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--gray-2);
-      margin-bottom:20px;position:relative}
-    .page-logo{height:24px;display:block;margin:0 auto 12px}
-    .page-title{font-family:Montserrat,sans-serif;font-size:24px;font-weight:900;color:var(--red);margin-bottom:12px}
-    .page-greeting{font-size:15px;font-weight:600;margin-bottom:2px}
-    .page-villa{font-size:13px;color:var(--gray-4)}
-    .page-code{display:inline-block;margin-top:6px;font-size:11px;color:var(--gray-4);
-      background:var(--gray-2);padding:3px 12px;border-radius:20px;
-      font-family:Montserrat,sans-serif;font-weight:700}
-    /* Lang */
-    #langWrap{position:absolute;top:16px;right:0;display:none}
-    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
-      background:#fff;color:var(--gray-5);cursor:pointer;outline:none}
-    /* Key section */
-    #keySection{display:none;margin-bottom:22px}
-    #keySection.visible{display:block}
-    .congrats{background:var(--green-lt);border:1.5px solid var(--green-bd);
-      border-radius:12px;padding:14px;margin-bottom:12px;text-align:center}
-    .congrats-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;color:var(--green);margin-bottom:2px}
-    .congrats-sub{font-size:12px;color:var(--green);opacity:.8}
-    .key-grid{display:flex;flex-direction:column;gap:9px}
-    .key-row{border:1px solid var(--gray-3);border-radius:11px;padding:13px 15px}
-    .key-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);display:block;margin-bottom:4px}
-    .key-val{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800}
-    .key-val.code{font-size:28px;letter-spacing:5px;color:var(--red);
-      background:var(--gray-1);display:inline-block;padding:6px 16px;
-      border-radius:8px;border:1px dashed var(--gray-3)}
-    .key-val.small{font-size:13px;font-weight:600}
-    .wifi-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .btn-maps{display:inline-flex;align-items:center;gap:5px;margin-top:7px;
-      padding:6px 12px;background:var(--gray-2);color:var(--gray-5);border-radius:8px;
-      font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      text-decoration:none;border:1px solid var(--gray-3)}
-    .enter-note{font-size:11px;color:var(--gray-4);margin-top:6px;line-height:1.5}
-    /* VM durante estancia */
-    #duringSection{display:none;border:1px solid var(--green-bd);border-radius:11px;
-      padding:13px 15px;background:var(--green-lt);margin-bottom:22px}
-    .ds-tag{font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.5px;color:var(--green);display:block;margin-bottom:5px}
-    .ds-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;margin-bottom:3px}
-    .ds-desc{font-size:12px;color:var(--gray-4);line-height:1.5;margin-bottom:9px}
-    .btn-wa-vm{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
-      background:var(--wa);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;
-      font-size:12px;font-weight:800;text-decoration:none}
-    /* Pending */
-    .pending-note{display:none;background:var(--amber-lt);border:1px solid var(--amber-bd);
-      border-radius:10px;padding:11px 14px;margin-bottom:20px;
-      font-size:12px;color:var(--amber);align-items:center;gap:8px;
-      font-family:Montserrat,sans-serif;font-weight:700}
-    /* Steps */
-    .steps-section{margin-bottom:22px}
-    .steps-label{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);
-      margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--gray-2)}
-    .progress-track{display:flex;align-items:center;margin-bottom:16px;padding:0 4px}
-    .pt-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto}
-    .pt-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;position:relative}
-    .pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
-    .pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
-    .pt-circle.done::after{content:'✓';position:absolute;top:-6px;right:-5px;
-      font-size:8px;background:#fff;color:var(--green);border-radius:50%;
-      width:14px;height:14px;display:flex;align-items:center;justify-content:center;
-      border:1.5px solid var(--green-bd);font-weight:900;line-height:14px;text-align:center}
-    .pt-label{font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;
-      color:var(--gray-4);text-align:center;max-width:52px;line-height:1.2}
-    .pt-label.done{color:var(--green)}
-    .pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 3px;margin-bottom:18px}
-    .pt-line.done{background:var(--green)}
-    .steps-cards{display:flex;flex-direction:column;gap:8px}
-    .step-card{border:1px solid var(--gray-3);border-radius:12px;padding:14px 15px;
-      display:flex;align-items:center;gap:12px}
-    .step-card.done{border-color:var(--green-bd);background:var(--green-lt)}
-    .sc-ico{width:40px;height:40px;border-radius:10px;flex-shrink:0;
-      display:flex;align-items:center;justify-content:center}
-    .step-card.pend .sc-ico{background:var(--blue-lt)}
-    .step-card.done .sc-ico{background:var(--green-lt);border:1px solid var(--green-bd)}
-    .sc-ico svg{width:20px;height:20px}
-    .step-card.pend .sc-ico svg{stroke:var(--blue)}
-    .step-card.done .sc-ico svg{stroke:var(--green)}
-    .sc-body{flex:1;min-width:0}
-    .sc-step-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-    .step-card.pend .sc-step-label{color:var(--blue)}
-    .step-card.done .sc-step-label{color:var(--green)}
-    .sc-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:2px}
-    .sc-status{font-size:10px;font-family:Montserrat,sans-serif;font-weight:800;
-      padding:2px 8px;border-radius:10px;display:inline-block}
-    .sc-status.pend{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd)}
-    .sc-status.done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
-    .sc-btn{flex-shrink:0;display:inline-flex;align-items:center;padding:7px 14px;
-      border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-size:11px;
-      font-weight:800;cursor:pointer;text-decoration:none;white-space:nowrap}
-    .sc-btn.pend{background:var(--blue);color:#fff}
-    .sc-btn.done{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
-    /* Contact footer */
-    .contact-footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-2);text-align:center}
-    .cf-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--gray-5);margin-bottom:4px}
-    .cf-sub{font-size:12px;color:var(--gray-4);margin-bottom:12px}
-    .cf-btns{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
-      background:var(--wa);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;text-decoration:none}
-    .btn-phone{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
-      background:var(--gray-5);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;text-decoration:none}
-    .btn-email{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;
-      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
-      border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;text-decoration:none}
-    #waFloat{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--wa);
-      width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-      box-shadow:0 4px 14px rgba(37,211,102,.35);text-decoration:none}
-    @media(max-width:420px){
-      .key-val.code{font-size:22px;letter-spacing:3px}
-      .wifi-row{grid-template-columns:1fr}
-      .cf-btns{flex-direction:column;align-items:center}
-    }
-  </style>
-  <script src="checkin-auth.js"></script>
-</head>
-<body>
+/* ═══════════════════════════════════════════════════════════════
+   checkin-auth.js  v2 — Autenticación huéspedes 3Villas
+   
+   Flujo:
+   1. URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
+   2. ¿Verificado en sessionStorage (4h)? → onVerified(booking)
+   3. Si no → pantalla de verificación:
+      a. Introduce email → Worker verifica + Caspio envía código
+      b. Introduce código (últimos 5 dígitos teléfono)
+      c. Worker verifica → devuelve booking → sessionStorage → onVerified(booking)
 
-<div id="stLoad"><div class="spinner"></div></div>
+   Uso en cada página de check-in:
+   ───────────────────────────────
+   <script src="checkin-auth.js"></script>
+   <script>
+     CheckinAuth.init({
+       onVerified: function(booking){ ... }
+     });
+   </script>
+   ═══════════════════════════════════════════════════════════════ */
 
-<div id="content">
-  <div class="page-header">
-    <div id="langWrap">
-      <select id="langSel" onchange="applyLang(this.value)">
-        <option value="en">🌐 EN</option><option value="es">🌐 ES</option>
-        <option value="fr">🌐 FR</option><option value="de">🌐 DE</option>
-        <option value="it">🌐 IT</option><option value="nl">🌐 NL</option>
-        <option value="ru">🌐 RU</option><option value="pt">🌐 PT</option>
-        <option value="ca">🌐 CA</option>
-      </select>
-    </div>
-    <img class="page-logo" src="logo-negro.png" alt="3Villas"
-         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
-    <div class="page-title">Check-in Online</div>
-    <div class="page-greeting" id="pgGreeting"></div>
-    <div class="page-villa" id="pgVilla"></div>
-    <div class="page-code" id="pgCode"></div>
-  </div>
+const CheckinAuth = (function(){
 
-  <!-- Key info (solo si allDone) -->
-  <div id="keySection">
-    <div class="congrats">
-      <div class="congrats-title">🎉 Congratulations!</div>
-      <div class="congrats-sub">You are ready to enjoy your stay.</div>
-    </div>
-    <div class="key-grid">
-      <div class="key-row" style="text-align:center">
-        <span class="key-lbl">🔑 Keybox code</span>
-        <div class="key-val code" id="kiKeybox">—</div>
-        <div id="kiApt" style="display:none;font-size:13px;margin-top:5px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:700"></div>
-        <div class="enter-note">Use this code to open the keybox at the entrance and get the keys.</div>
-      </div>
-      <div class="key-row">
-        <span class="key-lbl">📍 Address</span>
-        <div class="key-val small" id="kiAddr">—</div>
-        <a class="btn-maps" id="kiMaps" href="#" target="_blank" style="display:none">📍 Google Maps</a>
-      </div>
-      <div class="key-row">
-        <div class="wifi-row">
-          <div><span class="key-lbl">📶 WiFi</span><div class="key-val small" id="kiWifi">—</div></div>
-          <div><span class="key-lbl">🔒 Password</span><div class="key-val small" id="kiWifiPw">—</div></div>
+  const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
+  const SESSION_KEY = '3v_checkin_auth';
+  const SESSION_TTL = 4 * 60 * 60 * 1000;  /* 4 horas */
+  const MAX_ATT     = 5;
+
+  /* ── SessionStorage ── */
+  function getSession(code){
+    try{
+      const s = sessionStorage.getItem(SESSION_KEY);
+      if(!s) return null;
+      const obj = JSON.parse(s);
+      if(obj.code !== code || Date.now() > obj.expires) {
+        sessionStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+      return obj;
+    }catch(e){ return null; }
+  }
+  function setSession(code, booking){
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      code, booking, expires: Date.now() + SESSION_TTL
+    }));
+  }
+
+  /* ── URL params ── */
+  function getCode(){
+    const p = new URLSearchParams(location.search);
+    return p.get('TaBookings2021_FS_confirmation_code')
+        || p.get('FS_confirmation_code')
+        || p.get('code') || '';
+  }
+  function getEmailFromUrl(){
+    return (new URLSearchParams(location.search).get('email') || '').toLowerCase().trim();
+  }
+
+  /* ── Worker calls ── */
+  async function wPost(action, body){
+    const r = await fetch(`${WORKER}?action=${action}`, {
+      method : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify(body)
+    });
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || `Error ${r.status}`);
+    return j;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     PANTALLA DE VERIFICACIÓN
+  ══════════════════════════════════════════════════════ */
+  const CSS = `
+    #caOverlay{position:fixed;inset:0;background:#fff;z-index:9999;
+      display:flex;align-items:center;justify-content:center;padding:24px 20px;
+      font-family:'Open Sans',sans-serif}
+    .ca-card{width:100%;max-width:380px}
+    .ca-logo{display:block;height:22px;margin:0 auto 18px;object-fit:contain}
+    .ca-title{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;
+      color:#C8102E;text-align:center;margin-bottom:6px}
+    .ca-sub{font-size:13px;color:#868e96;text-align:center;margin-bottom:22px;line-height:1.5}
+    .ca-lbl{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;color:#495057;display:block;margin-bottom:5px}
+    .ca-inp{width:100%;padding:11px 14px;border:1.5px solid #dee2e6;border-radius:10px;
+      font-size:15px;outline:none;transition:border-color .15s;margin-bottom:10px;
+      font-family:'Open Sans',sans-serif}
+    .ca-inp:focus{border-color:#C8102E}
+    .ca-inp.pin{font-size:26px;letter-spacing:8px;text-align:center;
+      font-weight:800;font-family:Montserrat,sans-serif}
+    .ca-btn{width:100%;padding:12px;background:#C8102E;color:#fff;border:none;
+      border-radius:10px;font-family:Montserrat,sans-serif;font-size:14px;
+      font-weight:800;cursor:pointer;margin-top:4px}
+    .ca-btn:disabled{opacity:.5;cursor:not-allowed}
+    .ca-err{background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;
+      padding:10px 14px;font-size:12px;color:#C8102E;margin-bottom:10px;
+      display:none;font-family:Montserrat,sans-serif;font-weight:600}
+    .ca-back{background:none;border:none;color:#868e96;font-size:12px;cursor:pointer;
+      margin-top:12px;font-family:Montserrat,sans-serif;font-weight:600;
+      text-decoration:underline;width:100%;text-align:center;display:block}
+    .ca-att{font-size:11px;color:#adb5bd;text-align:center;margin-top:8px}
+    .ca-ok{text-align:center;padding:20px 0}
+    .ca-ok-ico{font-size:48px;display:block;margin-bottom:8px}
+    .ca-sp{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.4);
+      border-top-color:#fff;border-radius:50%;animation:casp .6s linear infinite;
+      vertical-align:middle;margin-right:6px}
+    @keyframes casp{to{transform:rotate(360deg)}}
+    .ca-contact{margin-top:20px;padding-top:16px;border-top:1px solid #f1f3f5;
+      text-align:center;font-size:11px;color:#adb5bd;line-height:1.6}
+    .ca-contact a{color:#C8102E;text-decoration:none}
+  `;
+
+  function inject(){
+    const s=document.createElement('style');
+    s.textContent=CSS;
+    document.head.appendChild(s);
+
+    const d=document.createElement('div');
+    d.id='caOverlay';
+    d.innerHTML=`
+      <div class="ca-card">
+        <img class="ca-logo" src="logo-negro.png" alt="3Villas"
+             onerror="this.onerror=null;this.style.display='none'">
+        <div id="caStepEmail">
+          <div class="ca-title">Check-in Online</div>
+          <div class="ca-sub">Enter the email address you used when booking to receive your access code.</div>
+          <div class="ca-err" id="caErrEmail"></div>
+          <label class="ca-lbl">Email address</label>
+          <input class="ca-inp" id="caEmail" type="email" placeholder="your@email.com" autocomplete="email">
+          <button class="ca-btn" id="caBtnEmail" onclick="CheckinAuth._send()">Send access code</button>
+          <div class="ca-contact">
+            Need help? <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
+            · <a href="mailto:bookings@3villas.com">bookings@3villas.com</a>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
+        <div id="caStepPin" style="display:none">
+          <div class="ca-title">Check your email</div>
+          <div class="ca-sub" id="caPinSub"></div>
+          <div class="ca-err" id="caErrPin"></div>
+          <label class="ca-lbl">Access code</label>
+          <input class="ca-inp pin" id="caPin" type="text" inputmode="numeric"
+                 maxlength="5" placeholder="· · · · ·" autocomplete="one-time-code">
+          <button class="ca-btn" id="caBtnPin" onclick="CheckinAuth._verify()">Verify code</button>
+          <div class="ca-att" id="caAtt"></div>
+          <button class="ca-back" onclick="CheckinAuth._back()">← Try a different email</button>
+          <div class="ca-contact">
+            Didn't receive it? Check spam, or contact
+            <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp +34 659 93 34 34</a>
+          </div>
+        </div>
+        <div id="caStepOk" style="display:none">
+          <div class="ca-ok">
+            <span class="ca-ok-ico">✅</span>
+            <div style="font-family:Montserrat,sans-serif;font-weight:800;font-size:16px;color:#16a34a">Verified!</div>
+            <div style="font-size:13px;color:#868e96;margin-top:4px">Loading your check-in…</div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(d);
 
-  <!-- Villa manager durante la estancia -->
-  <div id="duringSection">
-    <span class="ds-tag">During your stay</span>
-    <div class="ds-name" id="vmName"></div>
-    <div class="ds-desc" id="vmDesc"></div>
-    <a class="btn-wa-vm" id="vmWaBtn" href="#" target="_blank">WhatsApp</a>
-  </div>
+    document.getElementById('caEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._send(); });
+    document.getElementById('caPin').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._verify(); });
 
-  <!-- Pending banner -->
-  <div class="pending-note" id="pendNote">
-    <span>⏳</span><span id="pendText"></span>
-  </div>
-
-  <!-- Steps -->
-  <div class="steps-section">
-    <div class="steps-label">Steps</div>
-    <div class="progress-track">
-      <div class="pt-step"><div class="pt-circle pend" id="pd1">1</div><div class="pt-label" id="pdl1">Arrival</div></div>
-      <div class="pt-line" id="pl1"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd2">2</div><div class="pt-label" id="pdl2">Police</div></div>
-      <div class="pt-line" id="pl2"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd3">3</div><div class="pt-label" id="pdl3">Deposit</div></div>
-      <div class="pt-line" id="pl3"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd4">4</div><div class="pt-label" id="pdl4">Tax</div></div>
-    </div>
-    <div class="steps-cards">
-      <div class="step-card pend" id="sc1">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl1">Step 1</div><div class="sc-name">Arrival Form</div><span class="sc-status pend" id="ss1">Pending</span></div>
-        <a class="sc-btn pend" id="btnS1" href="#" target="_blank">Open</a>
-      </div>
-      <div class="step-card pend" id="sc2">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><circle cx="12" cy="13" r="2"/><path d="M9 21v-1a3 3 0 0 1 6 0v1"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl2">Step 2</div><div class="sc-name">Police Report</div><span class="sc-status pend" id="ss2">Pending</span></div>
-        <a class="sc-btn pend" id="btnS2" href="#" target="_blank">Open</a>
-      </div>
-      <div class="step-card pend" id="sc3">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 6v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl3">Step 3</div><div class="sc-name">Security Deposit</div><span class="sc-status pend" id="ss3">Pending</span></div>
-        <a class="sc-btn pend" id="btnS3" href="#" target="_blank">Open</a>
-      </div>
-      <div class="step-card pend" id="sc4">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl4">Step 4</div><div class="sc-name">Tourist Tax</div><span class="sc-status pend" id="ss4">Pending</span></div>
-        <a class="sc-btn pend" id="btnS4" href="#" target="_blank">Open</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="contact-footer">
-    <div class="cf-title">Need help?</div>
-    <div class="cf-sub">If you need any help, do not hesitate to contact us.</div>
-    <div class="cf-btns">
-      <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
-      <a class="btn-phone" href="tel:+34659933434">+34 659 93 34 34</a>
-      <a class="btn-email" href="mailto:bookings@3villas.com">bookings@3villas.com</a>
-    </div>
-  </div>
-</div>
-
-<a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
-  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
-    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
-    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
-  </svg>
-</a>
-
-<script>
-const CASPIO = 'c1abn932.caspio.com';
-const DP = {a:'353f700036ea9d14f6134018b0d3',p:'353f700038fe5bd8229244cea489',
-            d:'353f7000f2d0c28229154bc5b63d',t:'353f70008194047f5b8b4cdc8970'};
-const $=id=>document.getElementById(id);
-
-function truthy(v){if(!v&&v!==0)return false;
-  return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
-function cleanPh(s){return(s||'').replace(/[\s\-()]/g,'').replace(/^\+/,'');}
-
-function render(r, code){
-  function g(a,b){return r[a]||r[b]||'';}
-  var villa   = g('TaVillas_Name_villa_para_inquilinos')||'—';
-  var guest   = g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
-  var nights  = g('TaBookings2021_Nights');
-  var address = g('TaVillas_Address');
-  var maps    = g('TaVillas_Googlemaps_link');
-  var wifiU   = g('TaVillas_Wifi_user');
-  var wifiP   = g('TaVillas_Wifi_password');
-  var keybox  = g('TaVillas_Keybox_code');
-  var s1=truthy(g('TaBookings2021_Arrivalform_done'));
-  var s2=truthy(g('TaBookings2021_Registro_policia_done'));
-  var s3=truthy(g('TaBookings2021_Security_deposit_terminado'));
-  var s4=truthy(g('TaBookings2021_Ecotasa_cobrada'));
-  /* allDone viene del Worker como campo _allDone, o calculamos */
-  var allDone = r._allDone !== undefined ? r._allDone : (s1&&s2&&s3&&s4);
-
-  $('pgGreeting').textContent='Hello, '+guest;
-  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
-  $('pgCode').textContent='Booking ID '+code;
-
-  var ce=encodeURIComponent(code),b='https://'+CASPIO+'/dp/';
-  $('btnS1').href=b+DP.a+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS2').href=b+DP.p+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS3').href=b+DP.d+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS4').href=b+DP.t+'?FS_confirmation_code='+ce+'&cbResetParam=1';
-
-  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(([done,n])=>{
-    $('pd'+n).className='pt-circle '+(done?'done':'pend');
-    $('pdl'+n).className='pt-label'+(done?' done':'');
-    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
-    $('sc'+n).className='step-card '+(done?'done':'pend');
-    $('sl'+n).textContent='Step '+n;
-    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?'Done':'Pending';
-    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');btn.textContent=done?'Revisit':'Open';
-  });
-
-  if(!allDone){
-    var pend=[!s1,!s2,!s3,!s4].filter(Boolean).length;
-    $('pendNote').style.display='flex';
-    $('pendText').textContent=pend+' step'+(pend>1?'s':'')+' still pending.';
-  }
-
-  if(allDone){
-    $('keySection').className='visible';
-    /* Keybox: multiunit override si viene del Worker */
-    $('kiKeybox').textContent=(r._mu_keybox||keybox||'—');
-    $('kiAddr').textContent=address||'—';
-    $('kiWifi').textContent=wifiU||'—';
-    $('kiWifiPw').textContent=wifiP||'—';
-    if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
-    if(r._mu_name){$('kiApt').textContent='Apartment: '+r._mu_name;$('kiApt').style.display='block';}
-
-    /* Villa manager */
-    if(r._vm_name){
-      $('duringSection').style.display='block';
-      $('vmName').textContent=r._vm_name;
-      $('vmDesc').textContent=r._vm_name+' will be your contact during your stay, making sure everything goes as well as possible.';
-      if(r._vm_phone) $('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
-      else $('vmWaBtn').style.display='none';
+    /* Pre-rellenar email si viene en la URL */
+    const urlEmail = getEmailFromUrl();
+    if(urlEmail){
+      const inp = document.getElementById('caEmail');
+      inp.value = urlEmail;
+      /* Cambiar el subtítulo para confirmar, no pedir */
+      const sub = document.querySelector('#caStepEmail .ca-sub');
+      if(sub) sub.textContent = 'We will send your access code to the email below. Click the button to confirm.';
     }
   }
 
-  $('stLoad').style.display='none';
-  $('content').style.display='block';
-  $('langWrap').style.display='block';
-  /* Lang selector */
-  var sup=['en','es','fr','de','it','nl','ru','pt','ca'];
-  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
-  $('langSel').value=sup.includes(nav)?nav:'en';
-}
-
-function applyLang(lang){
-  var tries=0,iv=setInterval(function(){
-    var c=document.querySelector('.goog-te-combo');
-    if(c){clearInterval(iv);c.value=lang;c.dispatchEvent(new Event('change'));return;}
-    if(++tries>60)clearInterval(iv);
-  },100);
-}
-
-/* Iniciar auth — checkin-auth.js lo maneja todo */
-CheckinAuth.init({
-  onVerified: function(booking){
-    var code = CheckinAuth.getCode();
-    render(booking, code);
+  function step(s){
+    ['Email','Pin','Ok'].forEach(n=>{
+      document.getElementById('caStep'+n).style.display = n===s?'block':'none';
+    });
   }
-});
-</script>
-</body>
-</html>
+  function err(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
+  function noErr(id){document.getElementById(id).style.display='none';}
+  function busy(id,on,txt){
+    const b=document.getElementById(id);
+    b.disabled=on;
+    if(!b._orig)b._orig=b.textContent;
+    b.innerHTML=on?`<span class="ca-sp"></span>${txt||'Please wait…'}`:b._orig;
+  }
+
+  /* ── Estado ── */
+  let _code='', _email='', _att=0, _cb=null;
+
+  /* ── Paso 1: enviar código ── */
+  async function send(){
+    noErr('caErrEmail');
+    const email=(document.getElementById('caEmail').value||'').toLowerCase().trim();
+    if(!email||!email.includes('@')){ err('caErrEmail','Please enter a valid email address.'); return; }
+    busy('caBtnEmail',true,'Sending…');
+    try{
+      await wPost('send-checkin-code', { bookingCode:_code, email });
+      _email=email;
+      document.getElementById('caPinSub').textContent=
+        `We've sent a 5-digit code to ${email}. Check your inbox (and spam folder).`;
+      step('Pin');
+    }catch(e){
+      err('caErrEmail', e.message.includes('not found')
+        ? 'This email does not match our records. Please use the email you booked with.'
+        : 'Could not send the code. Please try again or contact us.');
+    }finally{ busy('caBtnEmail',false); }
+  }
+
+  /* ── Paso 2: verificar código ── */
+  async function verify(){
+    noErr('caErrPin');
+    const pin=(document.getElementById('caPin').value||'').replace(/\D/g,'').trim();
+    if(pin.length<4){ err('caErrPin','Please enter the full code.'); return; }
+    busy('caBtnPin',true,'Verifying…');
+    try{
+      const j = await wPost('verify-checkin-code', { bookingCode:_code, pin });
+      step('Ok');
+      setSession(_code, j.booking);
+      setTimeout(()=>{
+        document.getElementById('caOverlay').remove();
+        if(_cb) _cb(j.booking);
+      }, 700);
+    }catch(e){
+      _att++;
+      const left=MAX_ATT-_att;
+      if(left<=0){
+        err('caErrPin','Too many incorrect attempts. Please contact us at bookings@3villas.com');
+        document.getElementById('caBtnPin').disabled=true;
+        document.getElementById('caPin').disabled=true;
+      }else{
+        err('caErrPin',`Incorrect code. ${left} attempt${left>1?'s':''} remaining.`);
+        document.getElementById('caPin').value='';
+        document.getElementById('caAtt').textContent=`${_att} of ${MAX_ATT} attempts used`;
+      }
+    }finally{ busy('caBtnPin',false); }
+  }
+
+  function back(){
+    noErr('caErrPin');
+    document.getElementById('caPin').value='';
+    _att=0;
+    document.getElementById('caAtt').textContent='';
+    document.getElementById('caBtnPin').disabled=false;
+    step('Email');
+    busy('caBtnEmail',false);
+  }
+
+  /* ── API pública ── */
+  return {
+    init(opts){
+      _cb   = opts.onVerified || (()=>{});
+      _code = opts.code || getCode();
+
+      if(!_code){
+        document.body.innerHTML='<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif"><p style="color:#C8102E;font-weight:800">No booking code in URL</p><p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+        return;
+      }
+
+      /* ¿Ya verificado? */
+      const sess = getSession(_code);
+      if(sess){ setTimeout(()=>_cb(sess.booking), 0); return; }
+
+      /* Mostrar overlay */
+      const go=()=>inject();
+      document.readyState==='loading'
+        ? document.addEventListener('DOMContentLoaded',go)
+        : go();
+    },
+
+    /* Llamados desde el HTML */
+    _send:  ()=>send(),
+    _verify:()=>verify(),
+    _back:  ()=>back(),
+
+    /* Utilidades para las páginas */
+    getCode:    ()=>_code,
+    getBooking: ()=>getSession(_code)?.booking || null,
+    isVerified: ()=>!!getSession(_code),
+  };
+
+})();
