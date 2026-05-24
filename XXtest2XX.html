@@ -175,16 +175,15 @@
     .pc-foot{border-top:1px solid var(--gray-2);padding:9px 13px;
       display:flex;align-items:center;gap:8px;background:#fafbff}
 
-    /* Toggle */
-    .tog-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;flex:1}
+    /* Toggle — class-based, sin input/label */
+    .tog-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;user-select:none}
     .tog-sw{position:relative;width:42px;height:23px;flex-shrink:0}
-    .tog-sw input{opacity:0;width:0;height:0;position:absolute}
     .tog-sl{position:absolute;inset:0;background:var(--gray-3);border-radius:23px;
-      transition:background .2s;cursor:pointer}
+      transition:background .2s;pointer-events:none}
     .tog-sl::before{content:'';position:absolute;height:17px;width:17px;left:3px;top:3px;
       background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-    input:checked + .tog-sl{background:var(--wa)}
-    input:checked + .tog-sl::before{transform:translateX(19px)}
+    .tog-wrap.on .tog-sl{background:var(--wa)}
+    .tog-wrap.on .tog-sl::before{transform:translateX(19px)}
     .tog-lbl{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--gray-4)}
     .tog-wrap.on .tog-lbl{color:var(--wa)}
 
@@ -958,8 +957,8 @@ function buildCard(e){
     +'</div>'
     +'</div>'
     +'<div class="pc-foot">'
-    +'<div class="tog-wrap '+(done?'on':'')+'" id="tw_'+tid+'">'
-    +'<label class="tog-sw"><input type="checkbox" id="'+tid+'" '+(done?'checked':'')+'><div class="tog-sl"></div></label>'
+    +'<div class="tog-wrap '+(done?'on':'')+'" id="tw_'+tid+'" onclick="doToggle(\''+code+'\',this)">'
+    +'<div class="tog-sw"><div class="tog-sl"></div></div>'
     +'<span class="tog-lbl">'+(done?'Enviado':'Pendiente')+'</span>'
     +'</div>'
     +'<button class="btn-wa'+(noPh?' noph':'')+'">'
@@ -968,45 +967,6 @@ function buildCard(e){
     +'</div>';
 
   // ── Event listeners ──
-
-  // Toggle: usar 'change' en el checkbox (el click en la label ya lo activa)
-  // El 'click' en tog-wrap solo para el texto "Pendiente/Enviado" que está fuera del label
-  var cbInput=card.querySelector('input[type=checkbox]');
-  if(cbInput){
-    cbInput.addEventListener('change',function(){
-      var nv=cbInput.checked;      // ya actualizado por el mecanismo de label
-      var w=document.getElementById('tw_'+tid);if(!w)return;
-      w.classList.toggle('on',nv);
-      var lbl=w.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'Enviado':'Pendiente';
-      card.classList.toggle('done',nv);card.classList.toggle('pend',!nv);
-      _localContactado[code]=nv;
-      setTimeout(function(){reRender();},350);
-      fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
-        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:nv})})
-      .then(function(res){
-        if(!res.ok)throw new Error('HTTP '+res.status);
-        toast(nv?'✅ Enviado':'Marcado pendiente','ok');
-      })
-      .catch(function(err){
-        // Revertir en caso de error
-        cbInput.checked=!nv;
-        var w2=document.getElementById('tw_'+tid);
-        if(w2){w2.classList.toggle('on',!nv);var l2=w2.querySelector('.tog-lbl');if(l2)l2.textContent=!nv?'Enviado':'Pendiente';}
-        card.classList.toggle('done',!nv);card.classList.toggle('pend',nv);
-        _localContactado[code]=!nv;reRender();
-        toast('Error: '+err.message,'err');
-      });
-    });
-  }
-  // Clic en el texto "Pendiente/Enviado" (fuera del label): forzar toggle del checkbox
-  var togLbl=card.querySelector('.tog-lbl');
-  if(togLbl){
-    togLbl.addEventListener('click',function(e){
-      e.stopPropagation();
-      if(cbInput){cbInput.checked=!cbInput.checked;cbInput.dispatchEvent(new Event('change'));}
-    });
-  }
-
   var waBtn=card.querySelector('.btn-wa');
   if(waBtn)waBtn.addEventListener('click',function(){
     if(noPh){toast('Sin número de teléfono','err');return;}
@@ -1017,30 +977,31 @@ function buildCard(e){
 }
 
 // ════════════ TOGGLE CONTACTADO ════════════
-async function toggleContactado(code,wid){
-  var w=$(wid);if(!w)return;
-  var cb=w.querySelector('input');if(!cb)return;
-  var nv=!cb.checked;cb.checked=nv;
-  w.classList.toggle('on',nv);
-  var lbl=w.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'Enviado':'Pendiente';
-  var card=w.closest('.pc-card');
+// Función global — llamada directamente desde onclick del HTML
+function doToggle(code,wrap){
+  if(!wrap)return;
+  var isOn=wrap.classList.contains('on');
+  var nv=!isOn;
+  wrap.classList.toggle('on',nv);
+  var lbl=wrap.querySelector('.tog-lbl');if(lbl)lbl.textContent=nv?'Enviado':'Pendiente';
+  var card=wrap.closest('.pc-card');
   if(card){card.classList.toggle('done',nv);card.classList.toggle('pend',!nv);}
-  // Actualizar override local y re-renderizar (para que desaparezca si filtro=pend)
   _localContactado[code]=nv;
-  // Pequeño delay para que el usuario vea el cambio de estado antes de re-render
-  setTimeout(function(){reRender();},350);
-  try{
-    var res=await fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
-      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:nv})});
+  setTimeout(function(){reRender();},400);
+  fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")+'&method=PUT'),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactados_1er_whatsapp:nv})})
+  .then(function(res){
     if(!res.ok)throw new Error('HTTP '+res.status);
     toast(nv?'✅ Enviado':'Marcado pendiente','ok');
-  }catch(err){
-    // Revertir en error
-    _localContactado[code]=!nv;
-    cb.checked=!nv;w.classList.toggle('on',!nv);if(lbl)lbl.textContent=!nv?'Enviado':'Pendiente';
-    reRender();
+  })
+  .catch(function(err){
+    // Revertir
+    wrap.classList.toggle('on',!nv);
+    if(lbl)lbl.textContent=!nv?'Enviado':'Pendiente';
+    if(card){card.classList.toggle('done',!nv);card.classList.toggle('pend',nv);}
+    _localContactado[code]=!nv;reRender();
     toast('Error: '+err.message,'err');
-  }
+  });
 }
 
 // ════════════ VCARD (igual que entradas-equipo) ════════════
@@ -1161,8 +1122,8 @@ function onWASend(){
 
 function updateCardDone(code,val){
   var card=document.querySelector('.pc-card[data-code="'+code+'"]');if(!card)return;
-  var cb=card.querySelector('input[type=checkbox]'),w=card.querySelector('.tog-wrap'),l=card.querySelector('.tog-lbl');
-  if(cb)cb.checked=val;if(w)w.classList.toggle('on',val);if(l)l.textContent=val?'Enviado':'Pendiente';
+  var w=card.querySelector('.tog-wrap'),l=card.querySelector('.tog-lbl');
+  if(w)w.classList.toggle('on',val);if(l)l.textContent=val?'Enviado':'Pendiente';
   card.classList.toggle('done',val);card.classList.toggle('pend',!val);
 }
 
