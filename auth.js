@@ -54,17 +54,38 @@ const Auth = (function () {
   //  ℹ️  PÁGINAS TEST (ignoradas):
   //      XXedit-taskXX.html, XXnuevatareaXX.html, XXtest1XX.html
   //
-  //  Última revisión: 17/05/2026
+  //  Última revisión: 24/05/2026
   // ─────────────────────────────────────────────────────────────
 
   const PERMISSIONS = {
 
     // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
-    // entradas.html        → Auth.require('entradas')
-    // entradas-equipo.html → Auth.require('entradas')
+    //
+    //  'entradas' = clave de la PUERTA DE ENTRADA (entradas.html o index
+    //  de entradas) que detecta el rol y redirige a la sub-página correcta.
+    //  Todos los roles que puedan llegar a cualquier sub-página de entradas
+    //  deben figurar aquí.
+    //
     'entradas'              : ['admin', 'manager', 'staff', 'cleaner', 'sales'],
+
+    //  'entradas-equipo' = entradas-equipo.html
+    //  Página avanzada con vista de equipo. Solo personal interno.
+    //  ⚠️  Recuerda poner en entradas-equipo.html:
+    //        Auth.require('entradas-equipo')
+    //
+    'entradas-equipo'       : ['admin', 'manager', 'staff'],
+
     // salidas — clave de reserva (no hay salidas.html propio, se gestiona en entradas)
     'salidas'               : ['admin', 'manager', 'staff', 'cleaner'],
+
+    // ── PRIMER CONTACTO WHATSAPP ────────────────────────────────
+    //
+    //  entradas-primer-contacto-whatsapp.html → Auth.require('entradas-primer-contacto-whatsapp')
+    //  Gestión del primer mensaje WhatsApp 2 días antes del check-in.
+    //  ⚠️  Recuerda poner en entradas-primer-contacto-whatsapp.html:
+    
+    //
+    'entradas-primer-contacto-whatsapp' : ['admin', 'manager', 'staff'],
 
     // ── TAREAS ─────────────────────────────────────────────────
     // tareas.html
@@ -113,7 +134,6 @@ const Auth = (function () {
 
     // ── MANUALES ───────────────────────────────────────────────
     // generar.html + manual-*.html → Auth.require('manuales')
-    // ⚠️ confirmar si generar.html usa 'manuales' o 'generar'
     'manuales'              : ['admin', 'manager'],
     'generar'               : ['admin', 'manager'],
 
