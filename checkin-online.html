@@ -4,144 +4,178 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v04 — 3Villas</title>
+  <title>Check-in Online v05 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
       --red:#C8102E;
       --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
+      --blue:#2563EB;--blue-lt:#EFF6FF;--blue-bd:#BFDBFE;
+      --amber:#B45309;--amber-lt:#FFFBEB;--amber-bd:#FCD34D;
       --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
       --gray-4:#868e96;--gray-5:#212529;
       --wa:#25D366;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
     body{font-family:'Open Sans',sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
 
     /* ── Google Translate ── */
-    .goog-te-banner-frame{display:none!important}
+    .goog-te-banner-frame,.goog-te-gadget-icon,.goog-logo-link{display:none!important}
     body{top:0!important}
-    .goog-te-combo{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;
-      border:1px solid var(--gray-3);border-radius:8px;padding:5px 8px;
-      background:#fff;color:var(--gray-5);cursor:pointer;outline:none}
-    #google_translate_element{display:none} /* usamos el combo directamente */
-    .lang-bar{display:flex;align-items:center;justify-content:flex-end;gap:6px;
-      padding:8px 20px 0;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;
-      color:var(--gray-4);text-transform:uppercase;letter-spacing:.4px}
-    .lang-bar select{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      border:1px solid var(--gray-3);border-radius:6px;padding:4px 8px;
+    #google_translate_element{display:none}
+
+    /* ── Lang bar ── */
+    .lang-bar{display:none;align-items:center;justify-content:flex-end;gap:6px;
+      padding:10px 20px 0;font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif}
+    .lang-bar.show{display:flex}
+    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      border:1px solid var(--gray-3);border-radius:8px;padding:5px 8px 5px 6px;
       background:#fff;color:var(--gray-5);cursor:pointer;outline:none}
 
-    /* ── Spinner ── */
+    /* ── States ── */
     #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
-      min-height:70vh;gap:12px;padding:40px 20px;text-align:center}
-    .spinner{width:34px;height:34px;border:3px solid var(--gray-3);
+      min-height:70vh;gap:10px;text-align:center;padding:40px 20px}
+    .spinner{width:32px;height:32px;border:3px solid var(--gray-3);
       border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-    #stMsg{font-size:13px;color:var(--gray-4);font-family:Montserrat,sans-serif}
-
-    /* ── Error ── */
+    #stMsg{font-size:13px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:600}
     #stErr{display:none;flex-direction:column;align-items:center;justify-content:center;
       min-height:60vh;gap:10px;padding:40px 20px;text-align:center}
     #errMsg{color:var(--red);font-weight:700;font-size:14px;font-family:Montserrat,sans-serif}
-    #errDetail{font-size:11px;color:var(--gray-4);max-width:360px;word-break:break-all;line-height:1.5}
-    .btn-retry{margin-top:6px;padding:9px 22px;background:var(--red);color:#fff;border:none;border-radius:8px;
-      font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer;font-size:13px}
+    #errDetail{font-size:11px;color:var(--gray-4);max-width:340px;word-break:break-all;line-height:1.5}
+    .btn-retry{margin-top:6px;padding:9px 22px;background:var(--red);color:#fff;border:none;
+      border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer;font-size:13px}
 
     /* ── Layout ── */
     #content{display:none;max-width:540px;margin:0 auto;padding:0 20px 80px}
 
     /* ── Header ── */
-    .page-header{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--gray-2);margin-bottom:22px}
-    .page-logo{height:26px;margin-bottom:14px;display:block;margin-left:auto;margin-right:auto}
-    .page-title{font-family:Montserrat,sans-serif;font-size:26px;font-weight:900;color:var(--red);line-height:1.1;margin-bottom:14px}
-    .page-greeting{font-size:15px;color:var(--gray-5);margin-bottom:3px;font-weight:600}
+    .page-header{text-align:center;padding:18px 0 20px;border-bottom:1px solid var(--gray-2);margin-bottom:20px}
+    .page-logo{height:24px;display:block;margin:0 auto 12px}
+    .page-title{font-family:Montserrat,sans-serif;font-size:24px;font-weight:900;color:var(--red);margin-bottom:12px}
+    .page-greeting{font-size:15px;color:var(--gray-5);font-weight:600;margin-bottom:2px}
     .page-villa{font-size:13px;color:var(--gray-4)}
-    .page-code{display:inline-block;margin-top:7px;font-size:11px;color:var(--gray-4);
+    .page-code{display:inline-block;margin-top:6px;font-size:11px;color:var(--gray-4);
       background:var(--gray-2);padding:3px 12px;border-radius:20px;font-family:Montserrat,sans-serif;font-weight:700}
 
     /* ── KEY INFO ── */
-    #keySection{display:none;margin-bottom:26px}
+    #keySection{display:none;margin-bottom:22px}
     #keySection.visible{display:block}
     .congrats{background:var(--green-lt);border:1.5px solid var(--green-bd);
-      border-radius:12px;padding:16px;margin-bottom:14px;text-align:center}
-    .congrats-title{font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:var(--green);margin-bottom:2px}
+      border-radius:12px;padding:14px;margin-bottom:12px;text-align:center}
+    .congrats-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;color:var(--green);margin-bottom:2px}
     .congrats-sub{font-size:12px;color:var(--green);opacity:.8}
-
-    .key-grid{display:flex;flex-direction:column;gap:10px}
-    .key-row{border:1px solid var(--gray-3);border-radius:12px;padding:14px 16px}
+    .key-grid{display:flex;flex-direction:column;gap:9px}
+    .key-row{border:1px solid var(--gray-3);border-radius:11px;padding:13px 15px}
     .key-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);display:block;margin-bottom:5px}
-    .key-val{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);word-break:break-all}
+      text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);display:block;margin-bottom:4px}
+    .key-val{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5)}
     .key-val.code{font-size:28px;letter-spacing:5px;color:var(--red);
       background:var(--gray-1);display:inline-block;padding:6px 16px;border-radius:8px;border:1px dashed var(--gray-3)}
     .key-val.small{font-size:13px;font-weight:600}
-    .key-val.note{font-size:12px;color:var(--gray-4);font-weight:400;font-family:'Open Sans',sans-serif;margin-top:4px}
-    .wifi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .btn-maps{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
-      padding:6px 14px;background:var(--gray-2);color:var(--gray-5);border-radius:8px;
+    .wifi-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .btn-maps{display:inline-flex;align-items:center;gap:5px;margin-top:7px;
+      padding:6px 12px;background:var(--gray-2);color:var(--gray-5);border-radius:8px;
       font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;text-decoration:none;
       border:1px solid var(--gray-3)}
+    .key-enter-note{font-size:11px;color:var(--gray-4);margin-top:6px;line-height:1.5}
 
-    /* ── Contact: before/during ── */
-    .contact-box{border:1px solid var(--gray-3);border-radius:12px;overflow:hidden;margin-bottom:26px}
-    .contact-half{padding:14px 16px}
-    .contact-half+.contact-half{border-top:1px solid var(--gray-2)}
-    .ch-tag{display:inline-block;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:10px;margin-bottom:7px}
-    .ch-tag.before{background:#e0f2fe;color:#0369a1}
-    .ch-tag.during{background:var(--green-lt);color:var(--green)}
-    .ch-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);margin-bottom:3px}
-    .ch-desc{font-size:12px;color:var(--gray-4);line-height:1.5;margin-bottom:8px}
-    .ch-btns{display:flex;gap:7px;flex-wrap:wrap}
-    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;
+    /* ── During stay (VM) ── */
+    #duringSection{display:none;border:1px solid var(--green-bd);border-radius:11px;
+      padding:13px 15px;background:var(--green-lt);margin-bottom:22px}
+    .ds-tag{font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--green);display:block;margin-bottom:5px}
+    .ds-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:3px}
+    .ds-desc{font-size:12px;color:var(--gray-4);line-height:1.5;margin-bottom:9px}
+    .btn-wa-vm{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
       background:var(--wa);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;
-      font-size:11px;font-weight:800;text-decoration:none}
-    .btn-email{display:inline-flex;align-items:center;gap:4px;padding:7px 12px;
-      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
-      border-radius:8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;text-decoration:none}
-    .btn-wa-vm{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;
-      background:var(--wa);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;
-      font-size:11px;font-weight:800;text-decoration:none}
+      font-size:12px;font-weight:800;text-decoration:none}
 
     /* ── Pending note ── */
-    .pending-note{background:var(--gray-1);border:1px solid var(--gray-3);border-radius:10px;
-      padding:11px 14px;margin-bottom:22px;font-size:12px;color:var(--gray-4);
-      display:none;align-items:center;gap:8px;font-family:Montserrat,sans-serif;font-weight:600}
+    .pending-note{display:none;background:var(--amber-lt);border:1px solid var(--amber-bd);
+      border-radius:10px;padding:11px 14px;margin-bottom:20px;
+      font-size:12px;color:var(--amber);align-items:center;gap:8px;
+      font-family:Montserrat,sans-serif;font-weight:700}
 
-    /* ── Steps ── */
-    .steps-section{margin-bottom:10px}
-    .steps-title{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);margin-bottom:14px;
-      padding-bottom:8px;border-bottom:1px solid var(--gray-2)}
+    /* ═══════════════════════════════════════════
+       STEPS SECTION
+    ═══════════════════════════════════════════ */
+    .steps-section{margin-bottom:22px}
+    .steps-label{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);
+      margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--gray-2)}
 
-    /* Dots */
-    .progress-row{display:flex;align-items:center;margin-bottom:18px}
-    .pr-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-size:12px;font-family:Montserrat,sans-serif;font-weight:800;flex-shrink:0}
-    .pr-dot.done{background:var(--green-lt);color:var(--green);font-size:15px}
-    .pr-dot.pend{background:var(--gray-2);color:var(--gray-4)}
-    .pr-line{flex:1;height:2px;background:var(--gray-3);margin:0 5px}
-    .pr-line.done{background:var(--green)}
+    /* ── Progress tracker ── */
+    .progress-track{display:flex;align-items:center;margin-bottom:16px;padding:0 4px}
+    .pt-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto}
+    .pt-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;
+      position:relative;transition:all .2s}
+    /* Pending: borde coloreado, fondo claro, número visible */
+    .pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
+    /* Done: fondo colored, número visible en blanco, tick pequeño arriba */
+    .pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
+    .pt-circle.done::after{content:'✓';position:absolute;top:-6px;right:-5px;
+      font-size:8px;background:#fff;color:var(--green);border-radius:50%;
+      width:14px;height:14px;display:flex;align-items:center;justify-content:center;
+      border:1.5px solid var(--green-bd);font-weight:900;line-height:14px;text-align:center}
+    .pt-label{font-family:Montserrat,sans-serif;font-size:8px;font-weight:700;
+      color:var(--gray-4);text-align:center;max-width:52px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pt-label.done{color:var(--green)}
+    .pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 3px;margin-bottom:18px;min-width:0}
+    .pt-line.done{background:var(--green)}
 
-    /* Step items */
-    .step-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-2)}
-    .step-item:last-child{border-bottom:none}
-    .si-num{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;
-      align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800}
-    .si-num.done{background:var(--green-lt);color:var(--green);font-size:16px}
-    .si-num.pend{background:var(--gray-2);color:var(--gray-4)}
-    .si-body{flex:1;min-width:0}
-    .si-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5)}
-    .si-desc{font-size:12px;color:var(--gray-4);margin-top:1px;line-height:1.4}
-    .si-badge{display:none;font-size:10px;color:var(--green);background:var(--green-lt);
-      padding:2px 8px;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:800;margin-left:6px;vertical-align:middle}
+    /* ── Step cards ── */
+    .steps-cards{display:flex;flex-direction:column;gap:8px}
+    .step-card{border:1px solid var(--gray-3);border-radius:12px;padding:14px 15px;
+      display:flex;align-items:center;gap:12px;transition:border-color .2s}
+    .step-card.done{border-color:var(--green-bd);background:var(--green-lt)}
+    .step-card.pend{border-color:var(--gray-3)}
+
+    /* Icono izquierda */
+    .sc-ico{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;
+      align-items:center;justify-content:center}
+    .step-card.pend .sc-ico{background:var(--blue-lt)}
+    .step-card.done .sc-ico{background:var(--green-lt);border:1px solid var(--green-bd)}
+    .sc-ico svg{width:20px;height:20px}
+    .step-card.pend .sc-ico svg{stroke:var(--blue)}
+    .step-card.done .sc-ico svg{stroke:var(--green)}
+
+    /* Info central */
+    .sc-body{flex:1;min-width:0}
+    .sc-step-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+    .step-card.pend .sc-step-label{color:var(--blue)}
+    .step-card.done .sc-step-label{color:var(--green)}
+    .sc-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:2px}
+    .sc-status{font-size:10px;font-family:Montserrat,sans-serif;font-weight:800;
+      padding:2px 8px;border-radius:10px;display:inline-block}
+    .sc-status.pend{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd)}
+    .sc-status.done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+
+    /* Botón derecha */
     .sc-btn{flex-shrink:0;display:inline-flex;align-items:center;padding:7px 14px;
-      background:var(--gray-5);color:#fff;border:none;border-radius:8px;
-      font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;
-      cursor:pointer;text-decoration:none;white-space:nowrap}
-    .sc-btn:hover{background:#444}
-    .sc-btn.done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+      border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-size:11px;
+      font-weight:800;cursor:pointer;text-decoration:none;white-space:nowrap;transition:filter .15s}
+    .sc-btn.pend{background:var(--blue);color:#fff}
+    .sc-btn.pend:hover{filter:brightness(.9)}
+    .sc-btn.done{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
+    .sc-btn.done:hover{filter:brightness(.95)}
+
+    /* ── Contact (pendiente → al final) ── */
+    .contact-footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-2);text-align:center}
+    .cf-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--gray-5);margin-bottom:4px}
+    .cf-sub{font-size:12px;color:var(--gray-4);margin-bottom:12px;line-height:1.5}
+    .cf-btns{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
+      background:var(--wa);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;
+      font-size:12px;font-weight:800;text-decoration:none}
+    .btn-phone{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
+      background:var(--gray-5);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;
+      font-size:12px;font-weight:800;text-decoration:none}
+    .btn-email{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;
+      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
+      border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;text-decoration:none}
 
     /* WA float */
     #waFloat{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--wa);
@@ -149,13 +183,12 @@
       box-shadow:0 4px 14px rgba(37,211,102,.35);text-decoration:none}
 
     @media(max-width:420px){
-      .page-title{font-size:22px}
       .key-val.code{font-size:22px;letter-spacing:3px}
       .wifi-row{grid-template-columns:1fr}
+      .cf-btns{flex-direction:column;align-items:center}
     }
   </style>
-  <!-- Google Translate -->
-  <script type="text/javascript">
+  <script>
   function googleTranslateElementInit(){
     new google.translate.TranslateElement({
       pageLanguage:'en',
@@ -165,17 +198,17 @@
     },'google_translate_element');
   }
   </script>
-  <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+  <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
   <script src="auth.js"></script>
 </head>
 <body>
 <script>Auth.require('entradas-equipo');</script>
 <div id="google_translate_element"></div>
 
-<!-- Lang bar -->
-<div class="lang-bar" id="langBar" style="display:none">
-  🌐
-  <select id="langSel" onchange="changeLang(this.value)">
+<!-- Lang selector -->
+<div class="lang-bar" id="langBar">
+  <span>🌐</span>
+  <select id="langSel" onchange="applyLang(this.value)">
     <option value="en">English</option>
     <option value="es">Español</option>
     <option value="fr">Français</option>
@@ -191,160 +224,207 @@
 <!-- Loading -->
 <div id="stLoad">
   <div class="spinner"></div>
-  <p id="stMsg">Loading booking…</p>
+  <p id="stMsg">Loading…</p>
 </div>
 
 <!-- Error -->
 <div id="stErr">
-  <div style="font-size:40px">⚠️</div>
+  <div style="font-size:38px">⚠️</div>
   <p id="errMsg"></p>
   <p id="errDetail"></p>
-  <button class="btn-retry" onclick="init()">Retry</button>
+  <button class="btn-retry" onclick="_started=false;init()">Retry</button>
 </div>
 
 <!-- Content -->
 <div id="content">
 
-  <!-- Lang bar visible only when content shows -->
-
   <!-- Header -->
   <div class="page-header">
     <img class="page-logo" src="logo-negro.png" alt="3Villas"
-         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='36px'">
+         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
     <div class="page-title">Check-in Online</div>
     <div class="page-greeting" id="pgGreeting"></div>
     <div class="page-villa" id="pgVilla"></div>
     <div class="page-code" id="pgCode"></div>
   </div>
 
-  <!-- KEY INFO — arriba, solo si allDone -->
+  <!-- KEY INFO arriba si allDone -->
   <div id="keySection">
     <div class="congrats">
-      <div class="congrats-title">🎉 CONGRATULATIONS!</div>
+      <div class="congrats-title">🎉 Congratulations!</div>
       <div class="congrats-sub">You are ready to enjoy your stay.</div>
     </div>
     <div class="key-grid">
-
       <div class="key-row" style="text-align:center">
         <span class="key-lbl">🔑 Keybox code</span>
         <div class="key-val code" id="kiKeybox">—</div>
-        <div class="key-val note" id="kiApt" style="display:none"></div>
-        <div style="font-size:11px;color:var(--gray-4);margin-top:8px;line-height:1.5">
-          Use this code to open the keybox at the property entrance and get the keys.
-        </div>
+        <div id="kiApt" class="key-val" style="display:none;font-size:13px;margin-top:5px;color:var(--gray-4)"></div>
+        <div class="key-enter-note">Use this code to open the keybox at the entrance and get the keys.</div>
       </div>
-
       <div class="key-row">
         <span class="key-lbl">📍 Address</span>
         <div class="key-val small" id="kiAddr">—</div>
         <a class="btn-maps" id="kiMaps" href="#" target="_blank" style="display:none">📍 Google Maps</a>
       </div>
-
       <div class="key-row">
         <div class="wifi-row">
-          <div>
-            <span class="key-lbl">📶 WiFi name</span>
-            <div class="key-val small" id="kiWifi">—</div>
-          </div>
-          <div>
-            <span class="key-lbl">🔒 Password</span>
-            <div class="key-val small" id="kiWifiPw">—</div>
-          </div>
+          <div><span class="key-lbl">📶 WiFi</span><div class="key-val small" id="kiWifi">—</div></div>
+          <div><span class="key-lbl">🔒 Password</span><div class="key-val small" id="kiWifiPw">—</div></div>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- Pending note -->
+  <!-- Villa Manager (durante la estancia, solo si allDone) -->
+  <div id="duringSection">
+    <span class="ds-tag">During your stay</span>
+    <div class="ds-name" id="vmName">—</div>
+    <div class="ds-desc" id="vmDesc"></div>
+    <a class="btn-wa-vm" id="vmWaBtn" href="#" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 120 120" fill="none">
+        <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
+        <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
+      </svg>
+      WhatsApp
+    </a>
+  </div>
+
+  <!-- Pending banner -->
   <div class="pending-note" id="pendNote">
-    <span style="font-size:18px">⏳</span>
-    <span id="pendText">Complete all steps below to receive the villa access information.</span>
+    <span>⏳</span>
+    <span id="pendText"></span>
   </div>
 
-  <!-- Contact: before stay / during stay -->
-  <div class="contact-box">
-    <!-- Before stay — siempre visible -->
-    <div class="contact-half">
-      <span class="ch-tag before">Before your stay</span>
-      <div class="ch-title">Contact our reservations team</div>
-      <div class="ch-desc">We are available to help you with any questions before you arrive in Menorca.</div>
-      <div class="ch-btns">
-        <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
-          <svg width="13" height="13" viewBox="0 0 120 120"><path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/><path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3c-.5.5-.9.6-1.8.2-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5.4-.5.5-.9.8-1.5.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/></svg>
-          +34 659 93 34 34
-        </a>
-        <a class="btn-email" href="mailto:bookings@3villas.com">✉ bookings@3villas.com</a>
-      </div>
-    </div>
-
-    <!-- During stay — solo si allDone y tenemos villa manager -->
-    <div class="contact-half" id="duringSection" style="display:none">
-      <span class="ch-tag during">During your stay</span>
-      <div class="ch-title" id="duringTitle">Your Villa Manager</div>
-      <div class="ch-desc" id="duringDesc"></div>
-      <div class="ch-btns">
-        <a class="btn-wa-vm" id="vmWaBtn" href="#" target="_blank">
-          <svg width="13" height="13" viewBox="0 0 120 120"><path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/><path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3c-.5.5-.9.6-1.8.2-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5.4-.5.5-.9.8-1.5.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/></svg>
-          WhatsApp
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Steps 1-4 -->
+  <!-- ═══ STEPS ═══ -->
   <div class="steps-section">
-    <div class="steps-title">Check-in steps</div>
+    <div class="steps-label">Steps</div>
 
-    <!-- Progress dots -->
-    <div class="progress-row">
-      <div class="pr-dot pend" id="pd1">1</div>
-      <div class="pr-line" id="pl1"></div>
-      <div class="pr-dot pend" id="pd2">2</div>
-      <div class="pr-line" id="pl2"></div>
-      <div class="pr-dot pend" id="pd3">3</div>
-      <div class="pr-line" id="pl3"></div>
-      <div class="pr-dot pend" id="pd4">4</div>
+    <!-- Progress tracker -->
+    <div class="progress-track">
+      <div class="pt-step">
+        <div class="pt-circle pend" id="pd1">1</div>
+        <div class="pt-label" id="pdl1">Arrival</div>
+      </div>
+      <div class="pt-line" id="pl1"></div>
+      <div class="pt-step">
+        <div class="pt-circle pend" id="pd2">2</div>
+        <div class="pt-label" id="pdl2">Police</div>
+      </div>
+      <div class="pt-line" id="pl2"></div>
+      <div class="pt-step">
+        <div class="pt-circle pend" id="pd3">3</div>
+        <div class="pt-label" id="pdl3">Deposit</div>
+      </div>
+      <div class="pt-line" id="pl3"></div>
+      <div class="pt-step">
+        <div class="pt-circle pend" id="pd4">4</div>
+        <div class="pt-label" id="pdl4">Tax</div>
+      </div>
     </div>
 
-    <div style="border:1px solid var(--gray-3);border-radius:12px;padding:0 16px">
+    <!-- Step cards -->
+    <div class="steps-cards">
 
-      <div class="step-item">
-        <div class="si-num pend" id="sn1">1</div>
-        <div class="si-body">
-          <div class="si-name">Arrival Form <span class="si-badge" id="sb1">✓ Done</span></div>
-          <div class="si-desc">Some required info and some info to prepare your stay.</div>
+      <!-- Step 1 -->
+      <div class="step-card pend" id="sc1">
+        <div class="sc-ico">
+          <!-- Arrival form icon: person + clipboard -->
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <path d="M9 12h6M9 16h4"/>
+          </svg>
         </div>
-        <a class="sc-btn" id="btnS1" href="#" target="_blank">Open</a>
+        <div class="sc-body">
+          <div class="sc-step-label" id="sl1">Step 1</div>
+          <div class="sc-name">Arrival Form</div>
+          <span class="sc-status pend" id="ss1">Pending</span>
+        </div>
+        <a class="sc-btn pend" id="btnS1" href="#" target="_blank">Open</a>
       </div>
 
-      <div class="step-item">
-        <div class="si-num pend" id="sn2">2</div>
-        <div class="si-body">
-          <div class="si-name">Police Report <span class="si-badge" id="sb2">✓ Done</span></div>
-          <div class="si-desc">Mandatory info required by the Spanish Police.</div>
+      <!-- Step 2 -->
+      <div class="step-card pend" id="sc2">
+        <div class="sc-ico">
+          <!-- Police / ID card icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 7V5a2 2 0 0 0-4 0v2"/>
+            <circle cx="12" cy="13" r="2"/>
+            <path d="M9 21v-1a3 3 0 0 1 6 0v1"/>
+          </svg>
         </div>
-        <a class="sc-btn" id="btnS2" href="#" target="_blank">Open</a>
+        <div class="sc-body">
+          <div class="sc-step-label" id="sl2">Step 2</div>
+          <div class="sc-name">Police Report</div>
+          <span class="sc-status pend" id="ss2">Pending</span>
+        </div>
+        <a class="sc-btn pend" id="btnS2" href="#" target="_blank">Open</a>
       </div>
 
-      <div class="step-item">
-        <div class="si-num pend" id="sn3">3</div>
-        <div class="si-body">
-          <div class="si-name">Security Deposit <span class="si-badge" id="sb3">✓ Done</span></div>
-          <div class="si-desc">Different options to make the deposit easier.</div>
+      <!-- Step 3 -->
+      <div class="step-card pend" id="sc3">
+        <div class="sc-ico">
+          <!-- Shield / deposit icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L4 6v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V6l-8-4z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
         </div>
-        <a class="sc-btn" id="btnS3" href="#" target="_blank">Open</a>
+        <div class="sc-body">
+          <div class="sc-step-label" id="sl3">Step 3</div>
+          <div class="sc-name">Security Deposit</div>
+          <span class="sc-status pend" id="ss3">Pending</span>
+        </div>
+        <a class="sc-btn pend" id="btnS3" href="#" target="_blank">Open</a>
       </div>
 
-      <div class="step-item">
-        <div class="si-num pend" id="sn4">4</div>
-        <div class="si-body">
-          <div class="si-name">Tourist Tax (Ecotasa) <span class="si-badge" id="sb4">✓ Done</span></div>
-          <div class="si-desc">Mandatory taxes we are required to collect.</div>
+      <!-- Step 4 -->
+      <div class="step-card pend" id="sc4">
+        <div class="sc-ico">
+          <!-- Tax / receipt icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6"/>
+            <path d="M9 13h6M9 17h4"/>
+          </svg>
         </div>
-        <a class="sc-btn" id="btnS4" href="#" target="_blank">Open</a>
+        <div class="sc-body">
+          <div class="sc-step-label" id="sl4">Step 4</div>
+          <div class="sc-name">Tourist Tax</div>
+          <span class="sc-status pend" id="ss4">Pending</span>
+        </div>
+        <a class="sc-btn pend" id="btnS4" href="#" target="_blank">Open</a>
       </div>
 
+    </div><!-- /steps-cards -->
+  </div><!-- /steps-section -->
+
+  <!-- Contact footer (siempre visible al final) -->
+  <div class="contact-footer">
+    <div class="cf-title">Need help?</div>
+    <div class="cf-sub">If you need any help, do not hesitate to contact us.</div>
+    <div class="cf-btns">
+      <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 120 120" fill="none">
+          <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
+          <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
+        </svg>
+        WhatsApp
+      </a>
+      <a class="btn-phone" href="tel:+34659933434">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        +34 659 93 34 34
+      </a>
+      <a class="btn-email" href="mailto:bookings@3villas.com">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        bookings@3villas.com
+      </a>
     </div>
   </div>
 
@@ -352,154 +432,169 @@
 
 <!-- WA float -->
 <a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
-  <svg width="26" height="26" viewBox="0 0 120 120"><path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/><path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3c-.5.5-.9.6-1.8.2-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5.4-.5.5-.9.8-1.5.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/></svg>
+  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
+    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
+    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
+  </svg>
 </a>
 
 <script>
-/* ─────────────────────────────────────────────
-   CONSTANTES
-   ───────────────────────────────────────────── */
-const WORKER  = 'https://caspio-proxy.jordi-89b.workers.dev';
-const VIEW    = 'Vi_villas_and_bookings2021';
-const CASPIO  = 'c1abn932.caspio.com';   /* ← correcto: 932, no 432 */
-const DP = {
-  a:'353f700036ea9d14f6134018b0d3',
-  p:'353f700038fe5bd8229244cea489',
-  d:'353f7000f2d0c28229154bc5b63d',
-  t:'353f70008194047f5b8b4cdc8970'
-};
+const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+const VIEW='Vi_villas_and_bookings2021';
+const CASPIO='c1abn932.caspio.com';
+const DP={a:'353f700036ea9d14f6134018b0d3',p:'353f700038fe5bd8229244cea489',d:'353f7000f2d0c28229154bc5b63d',t:'353f70008194047f5b8b4cdc8970'};
+const $=id=>document.getElementById(id);
+let _started=false;
 
-const $ = id => document.getElementById(id);
-let _started = false;  /* evitar doble ejecución */
+function getP(k){return new URLSearchParams(location.search).get(k)||'';}
+function fmtDate(s){if(!s)return'—';var d=new Date(s.split('T')[0]+'T12:00:00');return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function cleanPh(s){return(s||'').replace(/[\s\-()]/g,'').replace(/^\+/,'');}
+function truthy(v){if(!v&&v!==0)return false;return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
 
-/* ── Helpers ── */
-function getP(k){ return new URLSearchParams(location.search).get(k)||''; }
-function fmtDate(s){ if(!s)return'—'; var d=new Date(s.split('T')[0]+'T12:00:00'); return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
-function cleanPh(s){ return (s||'').replace(/[\s\-()]/g,'').replace(/^\+/,''); }
-function truthy(v){ if(!v&&v!==0)return false; return ['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim()); }
+/* ── Google Translate ── */
+function applyLang(lang){
+  /* Cookie approach — más fiable que manipular el combo directamente */
+  var host=location.hostname;
+  document.cookie='googtrans=/en/'+lang+';path=/;domain='+host;
+  document.cookie='googtrans=/en/'+lang+';path=/';
+  if(lang==='en'){
+    /* Volver a inglés: borrar cookies y recargar */
+    document.cookie='googtrans=;expires='+new Date(0).toUTCString()+';path=/;domain='+host;
+    document.cookie='googtrans=;expires='+new Date(0).toUTCString()+';path=/';
+    location.reload();
+    return;
+  }
+  /* Intentar via combo primero, fallback a reload */
+  var tries=0;
+  var iv=setInterval(function(){
+    var combo=document.querySelector('.goog-te-combo');
+    if(combo){clearInterval(iv);combo.value=lang;combo.dispatchEvent(new Event('change'));return;}
+    if(++tries>30){clearInterval(iv);location.reload();}
+  },100);
+}
 
-/* ── Fetch helpers ── */
+function detectDeviceLang(){
+  var supported=['en','es','fr','de','it','nl','ru','pt','ca'];
+  /* Leer idioma del cookie googtrans si existe */
+  var m=document.cookie.match(/googtrans=\/en\/([a-z]+)/);
+  if(m&&supported.includes(m[1])){return m[1];}
+  /* Si no, idioma del navegador */
+  var nav=(navigator.language||navigator.userLanguage||'en').split('-')[0].toLowerCase();
+  return supported.includes(nav)?nav:'en';
+}
+
+/* ── Fetch data ── */
 async function fetchView(code){
-  var where = "TaBookings2021_FS_confirmation_code='"+code+"'";
-  var url   = WORKER+'?action=view&view='+encodeURIComponent(VIEW)
-             +'&where='+encodeURIComponent(where)
-             +'&orderBy='+encodeURIComponent('TaBookings2021_Checkin')
-             +'&limit=1';
-  console.log('[ci-v04] fetchView →', url);
-  var j = await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v04] view response:', j);
-  if(j.error) throw new Error(j.error);
+  var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)
+    +'&where='+encodeURIComponent("TaBookings2021_FS_confirmation_code='"+code+"'")
+    +'&orderBy='+encodeURIComponent('TaBookings2021_Checkin')+'&limit=1';
+  console.log('[ci-v05] fetchView');
+  var j=await fetch(Auth.url(url)).then(r=>r.json());
+  console.log('[ci-v05] view:',j);
+  if(j.error)throw new Error(j.error);
   return j.Result||j.result||[];
 }
 async function fetchTable(code){
-  var url = WORKER+"?action=data&table=TaBookings2021&where="
-           +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
-  console.log('[ci-v04] fetchTable →', url);
-  var j = await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v04] table response:', j);
-  if(j.error) throw new Error(j.error);
+  var url=WORKER+"?action=data&table=TaBookings2021&where="
+    +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
+  console.log('[ci-v05] fetchTable fallback');
+  var j=await fetch(Auth.url(url)).then(r=>r.json());
+  console.log('[ci-v05] table:',j);
+  if(j.error)throw new Error(j.error);
   return j.Result||j.result||[];
 }
 
 /* ── Init ── */
 async function init(){
-  if(_started){ return; }
-  _started = true;
-
-  var code = getP('TaBookings2021_FS_confirmation_code')
-            ||getP('FS_confirmation_code')
-            ||getP('code');
-
+  if(_started)return;
+  _started=true;
+  var code=getP('TaBookings2021_FS_confirmation_code')||getP('FS_confirmation_code')||getP('code');
   if(!code){
-    $('stLoad').style.display='none';
-    $('stErr').style.display='flex';
+    $('stLoad').style.display='none';$('stErr').style.display='flex';
     $('errMsg').textContent='No booking code in URL';
-    $('errDetail').textContent='Add ?TaBookings2021_FS_confirmation_code=CODE';
+    $('errDetail').textContent='Add ?TaBookings2021_FS_confirmation_code=CODE to the URL';
     return;
   }
-
-  $('stMsg').textContent='Loading booking #'+code+'…';
-
+  $('stMsg').textContent='Loading #'+code+'…';
   try{
-    var rows=[], fromView=true;
-
-    /* Intento 1: view */
-    try{ rows=await fetchView(code); }
-    catch(e1){
-      console.warn('[ci-v04] view failed:',e1.message,'. Trying table…');
-      fromView=false;
-      rows=await fetchTable(code);
-    }
-
+    var rows=[],fromView=true;
+    try{rows=await fetchView(code);}
+    catch(e1){console.warn('[ci-v05] view failed:',e1.message);fromView=false;rows=await fetchTable(code);}
     if(!rows.length){
-      $('stLoad').style.display='none';
-      $('stErr').style.display='flex';
+      $('stLoad').style.display='none';$('stErr').style.display='flex';
       $('errMsg').textContent='Booking not found: '+code;
-      $('errDetail').textContent='Check the code is correct and exists in Caspio.';
-      return;
+      $('errDetail').textContent='Verify the code is correct in Caspio.';
+      _started=false;return;
     }
-
-    /* Mostrar contenido principal INMEDIATAMENTE — sin esperar async lookups */
-    render(rows[0], code, fromView);
-
+    render(rows[0],code);
   }catch(err){
-    console.error('[ci-v04]',err);
-    $('stLoad').style.display='none';
-    $('stErr').style.display='flex';
+    console.error('[ci-v05]',err);
+    $('stLoad').style.display='none';$('stErr').style.display='flex';
     $('errMsg').textContent='Error: '+err.message;
-    $('errDetail').textContent='Code: '+code+' — Open F12 console for details';
-    _started=false; /* permitir retry */
+    $('errDetail').textContent='Open browser console (F12) for details';
+    _started=false;
   }
 }
 
-/* ── Render principal (síncrono) ── */
-function render(r, code, fromView){
-  function g(pref,bare){ return r[pref]||r[bare]||''; }
-
-  var villa   = g('TaVillas_Name_villa_para_inquilinos','Name_villa_para_inquilinos')||'—';
-  var guest   = g('TaBookings2021_Fiscal_guest_name','Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name','Guest_Full_Name')||'';
-  var ci      = g('TaBookings2021_Checkin','Checkin');
-  var ciTime  = g('TaBookings2021_Checkin_time','Checkin_time');
-  var co      = g('TaBookings2021_Checkout','Checkout');
-  var address = g('TaVillas_Address','Address');
-  var maps    = g('TaVillas_Googlemaps_link','Googlemaps_link');
-  var wifiU   = g('TaVillas_Wifi_user','Wifi_user');
-  var wifiP   = g('TaVillas_Wifi_password','Wifi_password');
-  var keybox  = g('TaVillas_Keybox_code','Keybox_code');
-  var vmId    = String(g('TaVillas_KeyHolder_person','KeyHolder_person')).trim();
-  var muId    = String(g('TaBookings2021_PMSmultiunitID','PMSmultiunitID')).trim();
-  var nights  = g('TaBookings2021_Nights','Nights');
+/* ── Render síncrono ── */
+function render(r,code){
+  function g(a,b){return r[a]||r[b]||'';}
+  var villa=g('TaVillas_Name_villa_para_inquilinos','Name_villa_para_inquilinos')||'—';
+  var guest=g('TaBookings2021_Fiscal_guest_name','Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name','Guest_Full_Name')||'';
+  var nights=g('TaBookings2021_Nights','Nights');
+  var address=g('TaVillas_Address','Address');
+  var maps=g('TaVillas_Googlemaps_link','Googlemaps_link');
+  var wifiU=g('TaVillas_Wifi_user','Wifi_user');
+  var wifiP=g('TaVillas_Wifi_password','Wifi_password');
+  var keybox=g('TaVillas_Keybox_code','Keybox_code');
+  var vmId=String(g('TaVillas_KeyHolder_person','KeyHolder_person')).trim();
+  var muId=String(g('TaBookings2021_PMSmultiunitID','PMSmultiunitID')).trim();
   var s1=truthy(g('TaBookings2021_Arrivalform_done','Arrivalform_done'));
   var s2=truthy(g('TaBookings2021_Registro_policia_done','Registro_policia_done'));
   var s3=truthy(g('TaBookings2021_Security_deposit_terminado','Security_deposit_terminado'));
   var s4=truthy(g('TaBookings2021_Ecotasa_cobrada','Ecotasa_cobrada'));
-  var allDone = s1&&s2&&s3&&s4;
+  var allDone=s1&&s2&&s3&&s4;
 
-  /* Header */
-  $('pgGreeting').textContent = 'Hello, '+guest;
-  $('pgVilla').textContent    = villa+(nights?' · '+nights+' nights':'');
-  $('pgCode').textContent     = 'Booking ID '+code;
+  $('pgGreeting').textContent='Hello, '+guest;
+  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
+  $('pgCode').textContent='Booking ID '+code;
 
-  /* Step links — CASPIO correcto: c1abn932 */
-  var ce=encodeURIComponent(code), b='https://'+CASPIO+'/dp/';
+  /* Step links */
+  var ce=encodeURIComponent(code),b='https://'+CASPIO+'/dp/';
   $('btnS1').href=b+DP.a+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
   $('btnS2').href=b+DP.p+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
   $('btnS3').href=b+DP.d+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS4').href=b+DP.t+'?FS_confirmation_code='+ce+'&cbResetParam=1'; /* ← param distinto */
+  $('btnS4').href=b+DP.t+'?FS_confirmation_code='+ce+'&cbResetParam=1';
 
   /* Step states */
   [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(([done,n])=>{
-    var dot=$('pd'+n), num=$('sn'+n), badge=$('sb'+n), btn=$('btnS'+n);
-    if(done){
-      dot.className='pr-dot done'; dot.textContent='✓';
-      num.className='si-num done'; num.textContent='✓';
-      badge.style.display='inline';
-      btn.className='sc-btn done'; btn.textContent='✓ Done';
-    }
-    var pl=$('pl'+n); if(pl) pl.className='pr-line'+(done?' done':'');
+    /* Progress dots: número siempre visible, done = verde + tick en esquina */
+    var dot=$('pd'+n);
+    dot.className='pt-circle '+(done?'done':'pend');
+    /* dot.textContent conserva el número — no lo cambiamos */
+
+    /* Label del dot */
+    var lbl=$('pdl'+n);
+    if(lbl)lbl.className='pt-label'+(done?' done':'');
+
+    /* Línea */
+    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
+
+    /* Step card */
+    $('sc'+n).className='step-card '+(done?'done':'pend');
+    $('sl'+n).textContent='Step '+n;
+    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?'Done':'Pending';
+    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');btn.textContent=done?'Revisit':'Open';
   });
 
-  /* Pending / congrats */
+  /* Pending banner */
+  if(!allDone){
+    var pend=[!s1,!s2,!s3,!s4].filter(Boolean).length;
+    $('pendNote').style.display='flex';
+    $('pendText').textContent=pend+' step'+(pend>1?'s':'')+' still pending.';
+  }
+
+  /* Key info */
   if(allDone){
     $('keySection').className='visible';
     $('kiKeybox').textContent=keybox||'—';
@@ -507,85 +602,53 @@ function render(r, code, fromView){
     $('kiWifi').textContent=wifiU||'—';
     $('kiWifiPw').textContent=wifiP||'—';
     if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
-  } else {
-    var pend=[!s1,!s2,!s3,!s4].filter(Boolean).length;
-    $('pendNote').style.display='flex';
-    $('pendText').textContent=pend+' step'+(pend>1?'s':'')+' still pending — complete them to unlock the villa access details.';
   }
 
-  /* Mostrar página AHORA, sin esperar las queries async */
+  /* Mostrar contenido YA */
   $('stLoad').style.display='none';
   $('content').style.display='block';
-  $('langBar').style.display='flex';
+  $('langBar').className='lang-bar show';
 
-  /* Queries async — no bloquean el render */
+  /* Async lookups sin bloquear el render */
   if(allDone){
-    loadMultiunit(muId, keybox);
-    loadVillaManager(vmId);
+    if(muId)loadMultiunit(muId,keybox);
+    if(vmId)loadVillaManager(vmId);
   }
 
-  /* Init Google Translate con idioma del dispositivo */
-  initLang();
+  /* Idioma */
+  var lang=detectDeviceLang();
+  $('langSel').value=lang;
+  if(lang!=='en')setTimeout(()=>applyLang(lang),2000);
 }
 
-/* ── Multiunit async (CalcField 3) ── */
-async function loadMultiunit(muId, defaultKeybox){
-  if(!muId) return;
+async function loadMultiunit(muId,dflt){
   try{
     var j=await fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&where='+encodeURIComponent("multiunitID='"+muId+"'")+'&limit=1')).then(r=>r.json());
     var mu=(j.Result||j.result||[])[0];
-    if(mu){
-      var k=mu.Keybox||mu.keybox;
-      if(k) $('kiKeybox').textContent=k;
-      var apt=mu.descripcion||mu.Descripcion||mu.name||'';
-      if(apt){$('kiApt').textContent='Apartment: '+apt;$('kiApt').style.display='block';}
-    }
-  }catch(e){console.warn('[multiunit]',e);}
+    if(!mu)return;
+    var k=mu.Keybox||mu.keybox;if(k)$('kiKeybox').textContent=k;
+    var apt=mu.descripcion||mu.Descripcion||mu.name||'';
+    if(apt){$('kiApt').textContent='Apartment: '+apt;$('kiApt').style.display='block';}
+  }catch(e){console.warn('[mu]',e);}
 }
 
-/* ── Villa Manager async (CalcField 7) ── */
 async function loadVillaManager(vmId){
-  if(!vmId) return;
   try{
     var j=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&where='+encodeURIComponent("UserID='"+vmId+"'")+'&limit=1')).then(r=>r.json());
-    var u=(j.Result||j.result||[])[0];
-    if(!u) return;
+    var u=(j.Result||j.result||[])[0];if(!u)return;
     var nm=u.Name||u.name||'';
     var ph=u.phone||u.Phone||u.Telefono||u.telefono||'';
     if(nm){
       $('duringSection').style.display='block';
-      $('duringTitle').textContent=nm+' — Your Villa Manager';
-      $('duringDesc').textContent=nm+' will be your contact during your stay in Menorca, making sure your experience is as good as possible. The best way to reach them is via WhatsApp.';
-      if(ph) $('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(ph);
-      else   $('vmWaBtn').style.display='none';
+      $('vmName').textContent=nm;
+      $('vmDesc').textContent=nm+' will be your contact during your stay, making sure everything goes as well as possible.';
+      if(ph)$('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(ph);
+      else $('vmWaBtn').style.display='none';
     }
   }catch(e){console.warn('[vm]',e);}
 }
 
-/* ── Google Translate — idioma del dispositivo ── */
-function initLang(){
-  var supported=['en','es','fr','de','it','nl','ru','pt','ca'];
-  var dev=(navigator.language||navigator.userLanguage||'en').split('-')[0].toLowerCase();
-  var lang=supported.includes(dev)?dev:'en';
-  $('langSel').value=lang;
-  /* Aplicar idioma del dispositivo si no es en */
-  if(lang!=='en') setTimeout(()=>changeLang(lang),1500);
-}
-function changeLang(lang){
-  /* Usar Google Translate combo si está disponible */
-  var combo=document.querySelector('.goog-te-combo');
-  if(combo){combo.value=lang;combo.dispatchEvent(new Event('change'));return;}
-  /* Fallback: esperar que cargue GT */
-  var tries=0;
-  var iv=setInterval(()=>{
-    var c=document.querySelector('.goog-te-combo');
-    if(c){clearInterval(iv);c.value=lang;c.dispatchEvent(new Event('change'));}
-    if(++tries>20)clearInterval(iv);
-  },300);
-}
-
-/* ── Start ── */
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>
