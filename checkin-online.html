@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v06 — 3Villas</title>
+  <title>Check-in Online v07 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -456,25 +456,46 @@ function applyLang(lang){
   return supported.includes(nav)?nav:'en';
 }
 
-/* ── Fetch data ── */
+/* ── Fetch: Promise.race — view vs tabla, gana el que responda primero ── */
+function withTimeout(promise, ms, label){
+  var t = new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+' timeout '+ms+'ms')),ms));
+  return Promise.race([promise, t]);
+}
+
 async function fetchView(code){
   var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)
     +'&where='+encodeURIComponent("TaBookings2021_FS_confirmation_code='"+code+"'")
-    +'&orderBy='+encodeURIComponent('TaBookings2021_Checkin')+'&limit=1';
-  console.log('[ci-v06] fetchView');
+    +'&limit=1';
   var j=await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v06] view:',j);
-  if(j.error)throw new Error(j.error);
-  return j.Result||j.result||[];
+  console.log('[ci-v07] view:',j);
+  if(j.error) throw new Error('view: '+j.error);
+  var rows=j.Result||j.result||[];
+  if(!rows.length) throw new Error('view: 0 rows');
+  return {rows, source:'view'};
 }
+
 async function fetchTable(code){
-  var url=WORKER+"?action=data&table=TaBookings2021&where="
-    +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
-  console.log('[ci-v06] fetchTable fallback');
-  var j=await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v06] table:',j);
-  if(j.error)throw new Error(j.error);
-  return j.Result||j.result||[];
+  /* Intentamos sin comillas (si es numérico) y con comillas */
+  var tryNum = async()=>{
+    var url=WORKER+"?action=data&table=TaBookings2021&where="
+      +encodeURIComponent("FS_confirmation_code="+code)+"&limit=1";
+    var j=await fetch(Auth.url(url)).then(r=>r.json());
+    var rows=j.Result||j.result||[];
+    if(rows.length) return rows;
+    throw new Error('num 0 rows');
+  };
+  var tryStr = async()=>{
+    var url=WORKER+"?action=data&table=TaBookings2021&where="
+      +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
+    var j=await fetch(Auth.url(url)).then(r=>r.json());
+    var rows=j.Result||j.result||[];
+    if(rows.length) return rows;
+    throw new Error('str 0 rows');
+  };
+  var rows=[];
+  try{ rows=await tryNum(); }catch(e){ rows=await tryStr(); }
+  console.log('[ci-v07] table rows:',rows.length,'fields:',rows[0]?Object.keys(rows[0]).join(','):'—');
+  return {rows, source:'table'};
 }
 
 /* ── Init ── */
@@ -485,140 +506,36 @@ async function init(){
   if(!code){
     $('stLoad').style.display='none';$('stErr').style.display='flex';
     $('errMsg').textContent='No booking code in URL';
-    $('errDetail').textContent='Add ?TaBookings2021_FS_confirmation_code=CODE to the URL';
+    $('errDetail').textContent='Add ?TaBookings2021_FS_confirmation_code=CODE';
     return;
   }
   $('stMsg').textContent='Loading #'+code+'…';
   try{
-    var rows=[],fromView=true;
-    try{rows=await fetchView(code);}
-    catch(e1){console.warn('[ci-v06] view failed:',e1.message);fromView=false;rows=await fetchTable(code);}
-    if(!rows.length){
+    /* Lanzar VIEW y TABLA en paralelo — timeout 12s en view, 8s en tabla */
+    var viewP  = withTimeout(fetchView(code),  12000, 'view');
+    var tableP = withTimeout(fetchTable(code),  8000, 'table');
+
+    /* Usar el primero que responda con datos */
+    var result = await Promise.any([viewP, tableP]);
+
+    console.log('[ci-v07] ganó:', result.source, '— rows:', result.rows.length);
+
+    if(!result.rows.length){
       $('stLoad').style.display='none';$('stErr').style.display='flex';
       $('errMsg').textContent='Booking not found: '+code;
-      $('errDetail').textContent='Verify the code is correct in Caspio.';
-      _started=false;return;
+      $('errDetail').textContent='Verify the code exists in Caspio.';
+      _started=false; return;
     }
-    render(rows[0],code);
+    render(result.rows[0], code, result.source==='view');
+
   }catch(err){
-    console.error('[ci-v06]',err);
+    /* Promise.any falla solo si TODOS fallan */
+    console.error('[ci-v07] all failed:',err);
     $('stLoad').style.display='none';$('stErr').style.display='flex';
-    $('errMsg').textContent='Error: '+err.message;
-    $('errDetail').textContent='Open browser console (F12) for details';
+    $('errMsg').textContent='Could not load booking '+code;
+    $('errDetail').textContent='Both view and table queries failed. Open F12 console for details.';
     _started=false;
   }
-}
-
-/* ── Render síncrono ── */
-function render(r,code){
-  function g(a,b){return r[a]||r[b]||'';}
-  var villa=g('TaVillas_Name_villa_para_inquilinos','Name_villa_para_inquilinos')||'—';
-  var guest=g('TaBookings2021_Fiscal_guest_name','Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name','Guest_Full_Name')||'';
-  var nights=g('TaBookings2021_Nights','Nights');
-  var address=g('TaVillas_Address','Address');
-  var maps=g('TaVillas_Googlemaps_link','Googlemaps_link');
-  var wifiU=g('TaVillas_Wifi_user','Wifi_user');
-  var wifiP=g('TaVillas_Wifi_password','Wifi_password');
-  var keybox=g('TaVillas_Keybox_code','Keybox_code');
-  var vmId=String(g('TaVillas_KeyHolder_person','KeyHolder_person')).trim();
-  var muId=String(g('TaBookings2021_PMSmultiunitID','PMSmultiunitID')).trim();
-  var s1=truthy(g('TaBookings2021_Arrivalform_done','Arrivalform_done'));
-  var s2=truthy(g('TaBookings2021_Registro_policia_done','Registro_policia_done'));
-  var s3=truthy(g('TaBookings2021_Security_deposit_terminado','Security_deposit_terminado'));
-  var s4=truthy(g('TaBookings2021_Ecotasa_cobrada','Ecotasa_cobrada'));
-  var allDone=s1&&s2&&s3&&s4;
-
-  $('pgGreeting').textContent='Hello, '+guest;
-  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
-  $('pgCode').textContent='Booking ID '+code;
-
-  /* Step links */
-  var ce=encodeURIComponent(code),b='https://'+CASPIO+'/dp/';
-  $('btnS1').href=b+DP.a+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS2').href=b+DP.p+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS3').href=b+DP.d+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS4').href=b+DP.t+'?FS_confirmation_code='+ce+'&cbResetParam=1';
-
-  /* Step states */
-  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(([done,n])=>{
-    /* Progress dots: número siempre visible, done = verde + tick en esquina */
-    var dot=$('pd'+n);
-    dot.className='pt-circle '+(done?'done':'pend');
-    /* dot.textContent conserva el número — no lo cambiamos */
-
-    /* Label del dot */
-    var lbl=$('pdl'+n);
-    if(lbl)lbl.className='pt-label'+(done?' done':'');
-
-    /* Línea */
-    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
-
-    /* Step card */
-    $('sc'+n).className='step-card '+(done?'done':'pend');
-    $('sl'+n).textContent='Step '+n;
-    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?'Done':'Pending';
-    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');btn.textContent=done?'Revisit':'Open';
-  });
-
-  /* Pending banner */
-  if(!allDone){
-    var pend=[!s1,!s2,!s3,!s4].filter(Boolean).length;
-    $('pendNote').style.display='flex';
-    $('pendText').textContent=pend+' step'+(pend>1?'s':'')+' still pending.';
-  }
-
-  /* Key info */
-  if(allDone){
-    $('keySection').className='visible';
-    $('kiKeybox').textContent=keybox||'—';
-    $('kiAddr').textContent=address||'—';
-    $('kiWifi').textContent=wifiU||'—';
-    $('kiWifiPw').textContent=wifiP||'—';
-    if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
-  }
-
-  /* Mostrar contenido YA */
-  $('stLoad').style.display='none';
-  $('content').style.display='block';
-  $('langWrap').style.display='block';
-
-  /* Async lookups sin bloquear el render */
-  if(allDone){
-    if(muId)loadMultiunit(muId,keybox);
-    if(vmId)loadVillaManager(vmId);
-  }
-
-  /* Idioma — solo mostrar selector, sin auto-traducir (evita reload loop) */
-  var devLang=detectDeviceLang();
-  $('langSel').value=devLang;
-
-}
-
-async function loadMultiunit(muId,dflt){
-  try{
-    var j=await fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&where='+encodeURIComponent("multiunitID='"+muId+"'")+'&limit=1')).then(r=>r.json());
-    var mu=(j.Result||j.result||[])[0];
-    if(!mu)return;
-    var k=mu.Keybox||mu.keybox;if(k)$('kiKeybox').textContent=k;
-    var apt=mu.descripcion||mu.Descripcion||mu.name||'';
-    if(apt){$('kiApt').textContent='Apartment: '+apt;$('kiApt').style.display='block';}
-  }catch(e){console.warn('[mu]',e);}
-}
-
-async function loadVillaManager(vmId){
-  try{
-    var j=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&where='+encodeURIComponent("UserID='"+vmId+"'")+'&limit=1')).then(r=>r.json());
-    var u=(j.Result||j.result||[])[0];if(!u)return;
-    var nm=u.Name||u.name||'';
-    var ph=u.phone||u.Phone||u.Telefono||u.telefono||'';
-    if(nm){
-      $('duringSection').style.display='block';
-      $('vmName').textContent=nm;
-      $('vmDesc').textContent=nm+' will be your contact during your stay, making sure everything goes as well as possible.';
-      if(ph)$('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(ph);
-      else $('vmWaBtn').style.display='none';
-    }
-  }catch(e){console.warn('[vm]',e);}
 }
 
 document.addEventListener('DOMContentLoaded',init);
