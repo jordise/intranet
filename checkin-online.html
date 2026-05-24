@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v05 — 3Villas</title>
+  <title>Check-in Online v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -18,19 +18,6 @@
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
-
-    /* ── Google Translate ── */
-    .goog-te-banner-frame,.goog-te-gadget-icon,.goog-logo-link{display:none!important}
-    body{top:0!important}
-    #google_translate_element{display:none}
-
-    /* ── Lang bar ── */
-    .lang-bar{display:none;align-items:center;justify-content:flex-end;gap:6px;
-      padding:10px 20px 0;font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif}
-    .lang-bar.show{display:flex}
-    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      border:1px solid var(--gray-3);border-radius:8px;padding:5px 8px 5px 6px;
-      background:#fff;color:var(--gray-5);cursor:pointer;outline:none}
 
     /* ── States ── */
     #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -188,39 +175,17 @@
       .cf-btns{flex-direction:column;align-items:center}
     }
   </style>
+  <div id="google_translate_element" style="display:none"></div>
   <script>
   function googleTranslateElementInit(){
-    new google.translate.TranslateElement({
-      pageLanguage:'en',
-      includedLanguages:'en,es,fr,de,it,nl,ru,pt,ca',
-      layout:google.translate.TranslateElement.InlineLayout.SIMPLE,
-      autoDisplay:false
-    },'google_translate_element');
+    new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'en,es,fr,de,it,nl,ru,pt,ca',autoDisplay:false},'google_translate_element');
   }
   </script>
   <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
-  <script src="auth.js"></script>
+<script src="auth.js"></script>
 </head>
 <body>
 <script>Auth.require('entradas-equipo');</script>
-<div id="google_translate_element"></div>
-
-<!-- Lang selector -->
-<div class="lang-bar" id="langBar">
-  <span>🌐</span>
-  <select id="langSel" onchange="applyLang(this.value)">
-    <option value="en">English</option>
-    <option value="es">Español</option>
-    <option value="fr">Français</option>
-    <option value="de">Deutsch</option>
-    <option value="it">Italiano</option>
-    <option value="nl">Nederlands</option>
-    <option value="ru">Русский</option>
-    <option value="pt">Português</option>
-    <option value="ca">Català</option>
-  </select>
-</div>
-
 <!-- Loading -->
 <div id="stLoad">
   <div class="spinner"></div>
@@ -239,7 +204,25 @@
 <div id="content">
 
   <!-- Header -->
-  <div class="page-header">
+  <div class="page-header" style="position:relative">
+    <!-- Lang button — top right del header -->
+    <div id="langWrap" style="position:absolute;top:16px;right:0;display:none">
+      <select id="langSel" onchange="applyLang(this.value)" title="Language"
+        style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+               border:1px solid var(--gray-3);border-radius:8px;padding:4px 6px;
+               background:#fff;color:var(--gray-5);cursor:pointer;outline:none">
+        <option value="en">🌐 EN</option>
+        <option value="es">🌐 ES</option>
+        <option value="fr">🌐 FR</option>
+        <option value="de">🌐 DE</option>
+        <option value="it">🌐 IT</option>
+        <option value="nl">🌐 NL</option>
+        <option value="ru">🌐 RU</option>
+        <option value="pt">🌐 PT</option>
+        <option value="ca">🌐 CA</option>
+      </select>
+    </div>
+
     <img class="page-logo" src="logo-negro.png" alt="3Villas"
          onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
     <div class="page-title">Check-in Online</div>
@@ -452,33 +435,23 @@ function cleanPh(s){return(s||'').replace(/[\s\-()]/g,'').replace(/^\+/,'');}
 function truthy(v){if(!v&&v!==0)return false;return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
 
 /* ── Google Translate ── */
+/* ── Google Translate ── */
 function applyLang(lang){
-  /* Cookie approach — más fiable que manipular el combo directamente */
-  var host=location.hostname;
-  document.cookie='googtrans=/en/'+lang+';path=/;domain='+host;
-  document.cookie='googtrans=/en/'+lang+';path=/';
-  if(lang==='en'){
-    /* Volver a inglés: borrar cookies y recargar */
-    document.cookie='googtrans=;expires='+new Date(0).toUTCString()+';path=/;domain='+host;
-    document.cookie='googtrans=;expires='+new Date(0).toUTCString()+';path=/';
-    location.reload();
-    return;
-  }
-  /* Intentar via combo primero, fallback a reload */
+  /* Sin reload — usar combo de GT esperando que cargue */
   var tries=0;
   var iv=setInterval(function(){
     var combo=document.querySelector('.goog-te-combo');
-    if(combo){clearInterval(iv);combo.value=lang;combo.dispatchEvent(new Event('change'));return;}
-    if(++tries>30){clearInterval(iv);location.reload();}
+    if(combo){
+      clearInterval(iv);
+      combo.value=lang;
+      combo.dispatchEvent(new Event('change'));
+      return;
+    }
+    if(++tries>60) clearInterval(iv); /* máx 6s de espera */
   },100);
 }
 
-function detectDeviceLang(){
-  var supported=['en','es','fr','de','it','nl','ru','pt','ca'];
-  /* Leer idioma del cookie googtrans si existe */
-  var m=document.cookie.match(/googtrans=\/en\/([a-z]+)/);
-  if(m&&supported.includes(m[1])){return m[1];}
-  /* Si no, idioma del navegador */
+/* Si no, idioma del navegador */
   var nav=(navigator.language||navigator.userLanguage||'en').split('-')[0].toLowerCase();
   return supported.includes(nav)?nav:'en';
 }
@@ -488,18 +461,18 @@ async function fetchView(code){
   var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)
     +'&where='+encodeURIComponent("TaBookings2021_FS_confirmation_code='"+code+"'")
     +'&orderBy='+encodeURIComponent('TaBookings2021_Checkin')+'&limit=1';
-  console.log('[ci-v05] fetchView');
+  console.log('[ci-v06] fetchView');
   var j=await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v05] view:',j);
+  console.log('[ci-v06] view:',j);
   if(j.error)throw new Error(j.error);
   return j.Result||j.result||[];
 }
 async function fetchTable(code){
   var url=WORKER+"?action=data&table=TaBookings2021&where="
     +encodeURIComponent("FS_confirmation_code='"+code+"'")+"&limit=1";
-  console.log('[ci-v05] fetchTable fallback');
+  console.log('[ci-v06] fetchTable fallback');
   var j=await fetch(Auth.url(url)).then(r=>r.json());
-  console.log('[ci-v05] table:',j);
+  console.log('[ci-v06] table:',j);
   if(j.error)throw new Error(j.error);
   return j.Result||j.result||[];
 }
@@ -519,7 +492,7 @@ async function init(){
   try{
     var rows=[],fromView=true;
     try{rows=await fetchView(code);}
-    catch(e1){console.warn('[ci-v05] view failed:',e1.message);fromView=false;rows=await fetchTable(code);}
+    catch(e1){console.warn('[ci-v06] view failed:',e1.message);fromView=false;rows=await fetchTable(code);}
     if(!rows.length){
       $('stLoad').style.display='none';$('stErr').style.display='flex';
       $('errMsg').textContent='Booking not found: '+code;
@@ -528,7 +501,7 @@ async function init(){
     }
     render(rows[0],code);
   }catch(err){
-    console.error('[ci-v05]',err);
+    console.error('[ci-v06]',err);
     $('stLoad').style.display='none';$('stErr').style.display='flex';
     $('errMsg').textContent='Error: '+err.message;
     $('errDetail').textContent='Open browser console (F12) for details';
@@ -607,7 +580,7 @@ function render(r,code){
   /* Mostrar contenido YA */
   $('stLoad').style.display='none';
   $('content').style.display='block';
-  $('langBar').className='lang-bar show';
+  $('langWrap').style.display='block';
 
   /* Async lookups sin bloquear el render */
   if(allDone){
@@ -615,10 +588,10 @@ function render(r,code){
     if(vmId)loadVillaManager(vmId);
   }
 
-  /* Idioma */
-  var lang=detectDeviceLang();
-  $('langSel').value=lang;
-  if(lang!=='en')setTimeout(()=>applyLang(lang),2000);
+  /* Idioma — solo mostrar selector, sin auto-traducir (evita reload loop) */
+  var devLang=detectDeviceLang();
+  $('langSel').value=devLang;
+
 }
 
 async function loadMultiunit(muId,dflt){
