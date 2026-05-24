@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Primer Contacto v02 — 3Villas</title>
+  <title>Primer Contacto v03 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -27,6 +27,16 @@
       --r:12px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+
+    .dark-toggle{background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);width:32px;height:32px;border-radius:8px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .dark-toggle:hover{border-color:var(--gray-4)}
+    body.dark,body.dark *{color:#fff!important}
+    body.dark{background:#111118!important}
+    body.dark .top-nav,body.dark #filterPanel,body.dark #statsBar,body.dark .pc-card,body.dark .pc-head,body.dark .pc-body,body.dark .pc-foot,body.dark .manager-panel,body.dark .manager-item,body.dark .wm-box,body.dark .wm-head,body.dark .wm-body,body.dark .wm-foot,body.dark .col-head,body.dark .wm-preview,body.dark .wm-readonly,body.dark .sc-box,body.dark #noPrefsMsg{background:#1e1e26!important}
+    body.dark .col-empty,body.dark .pill-opts,body.dark .cual-group{background:#252535!important}
+    body.dark .pill-opt.on,body.dark .cual-opt.on{background:#3a3a4e!important}
+    body.dark *{border-color:rgba(255,255,255,.08)!important}
+    body.dark .dark-toggle{background:#252535!important}
 
     /* Nav */
     .top-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;
@@ -199,6 +209,8 @@
 <script>Auth.require('entradas');</script>
 <div id="toast"></div>
 
+<div id="noPrefsMsg" style="display:none;background:#fff;border:2px solid var(--orange);border-radius:10px;margin:12px 20px;padding:14px 16px;max-width:700px"><div style="display:flex;align-items:flex-start;gap:10px"><div style="font-size:24px">💡</div><div style="flex:1"><p style="font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;margin-bottom:4px">Configura tus valores por defecto</p><p style="font-size:12px;color:var(--gray-4)">Activa tus managers y preferencias de modo noche.</p><a href="usuario-valores-por-defecto.html" style="display:inline-block;margin-top:10px;padding:7px 14px;background:var(--red);color:#fff;border-radius:7px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;text-decoration:none">Configurar →</a></div><button onclick="document.getElementById('noPrefsMsg').style.display='none'" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--gray-4)">✕</button></div></div>
+
 <nav class="top-nav">
   <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
   <div class="nav-center">
@@ -207,35 +219,20 @@
   </div>
   <div class="nav-btns">
     <a class="user-pill" href="usuario-valores-por-defecto.html">⚙️ <span id="hUser"></span></a>
+    <button class="dark-toggle" id="darkToggle" onclick="toggleDark()" title="Modo noche">🌙</button>
     <button class="nav-menu-btn" onclick="NavComponent.open()">☰</button>
   </div>
 </nav>
 
 <div id="filterPanel">
-  <div class="filter-row">
-    <div class="f-group">
-      <span class="f-label">Fecha envío</span>
+  <div class="main-bar">
+    <div class="f-group" style="flex:0 0 145px">
+      <span class="f-label">Fecha de envío</span>
       <input type="date" id="fFecha" class="f-input" onchange="doSearch()">
     </div>
-    <div class="f-group">
-      <span class="f-label">Rango</span>
-      <div class="pill-opts">
-        <button class="pill-opt on" id="rp2" onclick="setRango(2,this)">±2 días</button>
-        <button class="pill-opt"    id="rp5" onclick="setRango(5,this)">Semana</button>
-        <button class="pill-opt"    id="rp30" onclick="setRango(30,this)">Todo</button>
-      </div>
-    </div>
-    <div class="f-group">
-      <span class="f-label">Contacto</span>
-      <div class="pill-opts">
-        <button class="pill-opt on" id="cpPend" onclick="setCF('pend',this)">Pendientes</button>
-        <button class="pill-opt"    id="cpAll"  onclick="setCF('all',this)">Todos</button>
-        <button class="pill-opt"    id="cpDone" onclick="setCF('done',this)">Contactados</button>
-      </div>
-    </div>
-    <div class="f-group" style="position:relative">
+    <div class="f-group" style="position:relative;flex:1;min-width:150px;max-width:230px">
       <span class="f-label">Villa Manager</span>
-      <button class="f-select-btn" id="mgrBtn" onclick="toggleMgrPanel(event)">
+      <button class="f-select" id="mgrBtn" onclick="toggleMgrPanel(event)" style="display:flex;align-items:center;justify-content:space-between;text-align:left">
         <span id="mgrLbl">Todos</span><span style="font-size:10px;color:var(--gray-4)">▾</span>
       </button>
       <div class="manager-panel" id="mgrPanel">
@@ -249,7 +246,40 @@
         </div>
       </div>
     </div>
-    <button class="btn-clear" onclick="clearAll()" title="Limpiar filtros">✕</button>
+    <div class="pill-group">
+      <span class="pill-label">Días antes</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="rp2" onclick="setRango(2,this)">2 días</button>
+        <button class="pill-opt"    id="rp3" onclick="setRango(3,this)">3 días</button>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+      <span>Más filtros</span><span class="arr">▾</span>
+    </button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
+  </div>
+  <div id="masFiltros">
+    <div class="mas-inner">
+      <div class="mf-row">
+        <div class="f-group" style="flex:0 0 auto">
+          <span class="f-label">Contacto</span>
+          <div class="pill-opts">
+            <button class="pill-opt on" id="cpPend" onclick="setCF('pend',this)">Pendientes</button>
+            <button class="pill-opt"    id="cpAll"  onclick="setCF('all',this)">Todos</button>
+            <button class="pill-opt"    id="cpDone" onclick="setCF('done',this)">Contactados</button>
+          </div>
+        </div>
+        <div class="f-group">
+          <span class="f-label">Villa</span>
+          <input type="text" id="fVilla" class="f-input" placeholder="Buscar villa…" oninput="doSearch()">
+        </div>
+        <div class="f-group">
+          <span class="f-label">Inquilino</span>
+          <input type="text" id="fInquilino" class="f-input" placeholder="Nombre del huésped…" oninput="doSearch()">
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -363,7 +393,13 @@
 </div>
 
 <script>
+(function(){if(localStorage.getItem('3v_dark')==='1')document.body.classList.add('dark');})();
+
 'use strict';
+
+function setDarkMode(on){document.body.classList.toggle('dark',!!on);try{localStorage.setItem('3v_dark',on?'1':'0');}catch(e){}var btn=document.getElementById('darkToggle');if(btn){btn.textContent=on?'☀️':'🌙';}}
+function toggleDark(){setDarkMode(!document.body.classList.contains('dark'));}
+function toggleMas(){var b=document.getElementById('btnMas'),m=document.getElementById('masFiltros');if(!b||!m)return;b.classList.toggle('on');m.classList.toggle('open');}
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 const VIEW='Vi_villas_and_bookings2021';
 const F={
@@ -397,12 +433,13 @@ let _tt;function toast(m,t){const e=$('toast');e.textContent=m;e.className='show
 
 function diasHasta(s){const t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(s.split('T')[0]+'T00:00:00')-t)/86400000);}
 
-function uInfo(d){
-  if(d===2)return{cls:'ub-hoy',   label:'📅 Enviar hoy',    gk:'hoy'};
-  if(d===1)return{cls:'ub-tarde', label:'⚠️ Enviar ayer',   gk:'tarde'};
-  if(d===0)return{cls:'ub-muytarde',label:'🔴 Entra hoy',   gk:'muytarde'};
-  if(d<0) return{cls:'ub-muytarde',label:'❌ '+Math.abs(d)+'d tarde',gk:'muytarde'};
-  return{cls:'ub-futuro',label:'🗓 En '+d+' días',gk:'futuro'};
+function uInfo(d,rn){
+  rn=rn||2;
+  if(d>=2&&d<=rn)return{cls:'ub-hoy',     label:'📅 Enviar hoy',        gk:'enviar'};
+  if(d>rn)       return{cls:'ub-futuro',   label:'🗓 En '+d+' días',     gk:'enviar'};
+  if(d===1)      return{cls:'ub-tarde',    label:'⚠️ Tarde',              gk:'manana'};
+  if(d===0)      return{cls:'ub-muytarde', label:'🔴 Entra hoy',         gk:'hoy'};
+  return          {cls:'ub-muytarde',      label:'❌ '+Math.abs(d)+'d',  gk:'hoy'};
 }
 
 function buildMsg(d,mgr,useArrival){
@@ -464,22 +501,26 @@ function clearAll(){selMgr.clear();renderMgrList();updateMgrLbl();$('fFecha').va
 
 // Search
 async function doSearch(){
-  const sid=++_sid;
+  var sid=++_sid;
   setState('load');
-  const fecha=$('fFecha').value||todayStr();
-  // Desde = fecha (dia envío para check-in en 2 días) → check-in desde fecha+0 hasta fecha+rango+2
-  const ciDesde=addDays(fecha,0);
-  const ciHasta=addDays(fecha,rango+2);
-  const parts=[`${F.status}<>'cancelled'`,`${F.ci}>='${ciDesde}T00:00:00' AND ${F.ci}<='${ciHasta}T23:59:59'`];
+  var fecha=$('fFecha').value||todayStr();
+  var ciDesde=addDays(fecha,-1);
+  var ciHasta=addDays(fecha,rango+1);
+  var wparts=[
+    F.status+"<>'cancelled'",
+    F.ci+">='"+ciDesde+"T00:00:00'",
+    F.ci+"<='"+ciHasta+"T23:59:59'"
+  ];
   if(selMgr.size>0){
-    if(selMgr.size===1)parts.push(`${F.vmId}='${[...selMgr][0]}'`);
-    else parts.push(`${F.vmId} IN (${[...selMgr].map(i=>`'${i}'`).join(',')})`);
+    var mIds=[...selMgr];
+    if(mIds.length===1)wparts.push(F.vmId+"='"+mIds[0]+"'");
+    else wparts.push(F.vmId+" IN ("+mIds.map(function(i){return"'"+i+"'";}).join(',')+")" );
   }
-  const url=`${WORKER}?action=view&view=${encodeURIComponent(VIEW)}&where=${encodeURIComponent(parts.join(' AND '))}&orderBy=${encodeURIComponent(F.ci)}&limit=300`;
+  var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&where='+encodeURIComponent(wparts.join(' AND '))+'&orderBy='+encodeURIComponent(F.ci)+'&limit=300';
   try{
-    const res=await fetch(Auth.url(url));if(sid!==_sid)return;
-    const j=await res.json();if(j.error)throw new Error(j.error);
-    const recs=j.Result||j.result||[];if(sid!==_sid)return;
+    var res=await fetch(Auth.url(url));if(sid!==_sid)return;
+    var j=await res.json();if(j.error)throw new Error(j.error);
+    var recs=j.Result||j.result||[];if(sid!==_sid)return;
     renderResult(recs,fecha);
   }catch(err){if(sid!==_sid)return;setState('err');$('errMsg').textContent=err.message;}
 }
@@ -492,16 +533,23 @@ function setState(s){
 
 function renderResult(recs,fecha){
   var en=recs.map(function(r){var ci=r[F.ci]||'';return{r:r,ci:ci,dias:ci?diasHasta(ci):99,done:isTruthy(r[F.contactado]),code:r[F.code]||''};});
-  var fil=en;
-  if(cf==='pend')fil=en.filter(function(e){return!e.done;});
-  else if(cf==='done')fil=en.filter(function(e){return e.done;});
+  var fv=(($('fVilla')||{value:''}).value||'').toLowerCase();
+  var fi=(($('fInquilino')||{value:''}).value||'').toLowerCase();
+  var fil=en.filter(function(e){
+    if(fv&&!(e.r[F.villa]||'').toLowerCase().includes(fv))return false;
+    var nm=((e.r[F.fiscalName]||'')+(e.r[F.guestName]||'')).toLowerCase();
+    if(fi&&!nm.includes(fi))return false;
+    if(cf==='pend')return!e.done;
+    if(cf==='done')return e.done;
+    return true;
+  });
   var tot=en.length,d2=en.filter(function(e){return e.done;}).length;
   $('sTot').textContent=tot;$('sDone').textContent=d2;$('sPend').textContent=tot-d2;
   $('sFechaEnvio').textContent='Fecha: '+new Date(fecha+'T00:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
   $('statsBar').style.display=tot>0?'flex':'none';
   if(!fil.length){setState('empty');return;}
-  var gF=[],gH=[],gT=[];
-  fil.forEach(function(e){var ui=uInfo(e.dias);e.ui=ui;if(ui.gk==='futuro')gF.push(e);else if(ui.gk==='hoy')gH.push(e);else gT.push(e);});
+  var gE=[],gM=[],gH=[];
+  fil.forEach(function(e){var ui=uInfo(e.dias,rango);e.ui=ui;if(ui.gk==='enviar')gE.push(e);else if(ui.gk==='manana')gM.push(e);else gH.push(e);});
   function fillCol(id,items,cls,t1,t2){
     var col=$(id);if(!col)return;col.innerHTML='';
     var hd=document.createElement('div');hd.className='col-head '+cls;
@@ -512,9 +560,10 @@ function renderResult(recs,fecha){
     else items.forEach(function(e){cc.appendChild(buildCard(e));});
     col.appendChild(cc);
   }
-  fillCol('colFuturo',gF,'ch-futuro','🗓 Próximamente','más de 2 días');
-  fillCol('colHoy',gH,'ch-hoy','📅 Enviar hoy','check-in en 2 días');
-  fillCol('colTarde',gT,'ch-tarde','⚠️ Tarde','debería haberse enviado');
+  var t2=rango===3?'check-in en 2-3 días':'check-in en 2 días';
+  fillCol('colFuturo',gE,'ch-hoy','📅 Enviar hoy',t2);
+  fillCol('colHoy',gM,'ch-tarde','⚠️ Tarde','entra mañana');
+  fillCol('colTarde',gH,'ch-muytarde','🔴 Entra hoy','envío con retraso');
   $('contentWrap').style.display='block';
 }
 
@@ -624,12 +673,13 @@ let _tt;function toast(m,t){const e=$('toast');e.textContent=m;e.className='show
 
 function diasHasta(s){const t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(s.split('T')[0]+'T00:00:00')-t)/86400000);}
 
-function uInfo(d){
-  if(d===2)return{cls:'ub-hoy',   label:'📅 Enviar hoy',    gk:'hoy'};
-  if(d===1)return{cls:'ub-tarde', label:'⚠️ Enviar ayer',   gk:'tarde'};
-  if(d===0)return{cls:'ub-muytarde',label:'🔴 Entra hoy',   gk:'muytarde'};
-  if(d<0) return{cls:'ub-muytarde',label:'❌ '+Math.abs(d)+'d tarde',gk:'muytarde'};
-  return{cls:'ub-futuro',label:'🗓 En '+d+' días',gk:'futuro'};
+function uInfo(d,rn){
+  rn=rn||2;
+  if(d>=2&&d<=rn)return{cls:'ub-hoy',     label:'📅 Enviar hoy',        gk:'enviar'};
+  if(d>rn)       return{cls:'ub-futuro',   label:'🗓 En '+d+' días',     gk:'enviar'};
+  if(d===1)      return{cls:'ub-tarde',    label:'⚠️ Tarde',              gk:'manana'};
+  if(d===0)      return{cls:'ub-muytarde', label:'🔴 Entra hoy',         gk:'hoy'};
+  return          {cls:'ub-muytarde',      label:'❌ '+Math.abs(d)+'d',  gk:'hoy'};
 }
 
 function buildMsg(d,mgr,useArrival){
@@ -643,6 +693,20 @@ function buildMsg(d,mgr,useArrival){
 }
 
 // Init
+async function loadPCPrefs(){
+  if(!meId)return null;
+  try{
+    var url=Auth.url(WORKER+'?action=data&table=TaUsers_valores_pordefecto&where='+encodeURIComponent("Iduser='"+meId+"'")+'&limit=1');
+    var res=await fetch(url);var j=await res.json();
+    return(j.Result||j.result||[])[0]||null;
+  }catch(e){console.warn('[PCPrefs]',e.message);return null;}
+}
+function applyPCPrefs(prefs){
+  var vmIds=String(prefs.entradas_villamanager||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if(vmIds.length){selMgr.clear();vmIds.forEach(function(id){selMgr.add(id);});}
+  setDarkMode(prefs.todas_modo_noche===-1||prefs.todas_modo_noche===true||String(prefs.todas_modo_noche)==='-1');
+}
+
 document.addEventListener('DOMContentLoaded',async()=>{
   $('fFecha').value=todayStr();
   try{
@@ -687,7 +751,10 @@ document.addEventListener('click',e=>{const p=$('mgrPanel'),b=$('mgrBtn');if(p&&
 
 function setRango(n,btn){rango=n;document.querySelectorAll('#filterPanel .pill-opts:first-of-type .pill-opt').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');doSearch();}
 function setCF(v,btn){cf=v;['cpPend','cpAll','cpDone'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',(id==='cpPend'&&v==='pend')||(id==='cpAll'&&v==='all')||(id==='cpDone'&&v==='done'));});doSearch();}
-function clearAll(){selMgr.clear();renderMgrList();updateMgrLbl();$('fFecha').value=todayStr();rango=2;['rp2','rp5','rp30'].forEach(id=>{const e=$(id);if(e)e.classList.toggle('on',id==='rp2');});cf='pend';['cpPend','cpAll','cpDone'].forEach(id=>{const e=$(id);if(e)e.classList.toggle('on',id==='cpPend');});doSearch();}
+function clearAll(){selMgr.clear();    var _prefs=await loadPCPrefs();
+    if(_prefs){applyPCPrefs(_prefs);var _nb=document.getElementById('noPrefsMsg');if(_nb)_nb.style.display='none';}
+    else{var _kpd=me?String(me.Keyholder_por_defecto||'').trim():'';if(_kpd)selMgr.add(_kpd);var _nb=document.getElementById('noPrefsMsg');if(_nb){_nb.style.display='block';}}
+    renderMgrList();updateMgrLbl();$('fFecha').value=todayStr();rango=2;['rp2','rp5','rp30'].forEach(id=>{const e=$(id);if(e)e.classList.toggle('on',id==='rp2');});cf='pend';['cpPend','cpAll','cpDone'].forEach(id=>{const e=$(id);if(e)e.classList.toggle('on',id==='cpPend');});doSearch();}
 
 // Search
 async function doSearch(){
