@@ -1,34 +1,19 @@
-/* ═══════════════════════════════════════════════════════════════
-   checkin-auth.js  v2 — Autenticación huéspedes 3Villas
-   
+/* checkin-auth.js v3 — Autenticación huéspedes 3Villas
    Flujo:
    1. URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
-   2. ¿Verificado en sessionStorage (4h)? → onVerified(booking)
-   3. Si no → pantalla de verificación:
-      a. Introduce email → Worker verifica + Caspio envía código
-      b. Introduce código (últimos 5 dígitos teléfono)
-      c. Worker verifica → devuelve booking → sessionStorage → onVerified(booking)
-
-   Uso en cada página de check-in:
-   ───────────────────────────────
-   <script src="checkin-auth.js"></script>
-   <script>
-     CheckinAuth.init({
-       onVerified: function(booking){ ... }
-     });
-   </script>
-   ═══════════════════════════════════════════════════════════════ */
+   2. ¿PIN guardado en sessionStorage? → re-verificar → datos frescos → onVerified(booking)
+   3. Si no → pantalla de verificación email → código → sessionStorage → onVerified(booking) */
 
 const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const SESSION_TTL = 4 * 60 * 60 * 1000;  /* 4 horas */
+  const SESSION_TTL = 4 * 60 * 60 * 1000;
   const MAX_ATT     = 5;
 
-  /* ── SessionStorage ── */
+  /* ── Session (guarda solo code + pin, no el booking) ── */
   function getSession(code){
-    try{
+    try {
       const s = sessionStorage.getItem(SESSION_KEY);
       if(!s) return null;
       const obj = JSON.parse(s);
@@ -36,20 +21,17 @@ const CheckinAuth = (function(){
         sessionStorage.removeItem(SESSION_KEY);
         return null;
       }
-      return obj; /* {code, pin, expires} */
-    }catch(e){ return null; }
+      return obj;
+    } catch(e){ return null; }
   }
-      return obj; /* {code, pin, expires} */
-    }catch(e){ return null; }
-  }
+
   function setSession(code, pin){
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       code, pin, expires: Date.now() + SESSION_TTL
     }));
-  }));
   }
 
-  /* ── URL params ── */
+  /* ── URL param ── */
   function getCode(){
     const p = new URLSearchParams(location.search);
     return p.get('TaBookings2021_FS_confirmation_code')
@@ -57,8 +39,7 @@ const CheckinAuth = (function(){
         || p.get('code') || '';
   }
 
-
-  /* ── Worker calls ── */
+  /* ── Worker call ── */
   async function wPost(action, body){
     const r = await fetch(`${WORKER}?action=${action}`, {
       method : 'POST',
@@ -70,9 +51,7 @@ const CheckinAuth = (function(){
     return j;
   }
 
-  /* ══════════════════════════════════════════════════════
-     PANTALLA DE VERIFICACIÓN
-  ══════════════════════════════════════════════════════ */
+  /* ══ CSS del overlay ══ */
   const CSS = `
     #caOverlay{position:fixed;inset:0;background:#fff;z-index:9999;
       display:flex;align-items:center;justify-content:center;padding:24px 20px;
@@ -86,13 +65,13 @@ const CheckinAuth = (function(){
       text-transform:uppercase;letter-spacing:.5px;color:#495057;display:block;margin-bottom:5px}
     .ca-inp{width:100%;padding:11px 14px;border:1.5px solid #dee2e6;border-radius:10px;
       font-size:15px;outline:none;transition:border-color .15s;margin-bottom:10px;
-      font-family:'Open Sans',sans-serif}
+      font-family:'Open Sans',sans-serif;box-sizing:border-box}
     .ca-inp:focus{border-color:#C8102E}
-    .ca-inp.pin{font-size:26px;letter-spacing:8px;text-align:center;
-      font-weight:800;font-family:Montserrat,sans-serif}
+    .ca-inp.pin{font-size:26px;letter-spacing:8px;text-align:center;font-weight:800;
+      font-family:Montserrat,sans-serif}
     .ca-btn{width:100%;padding:12px;background:#C8102E;color:#fff;border:none;
       border-radius:10px;font-family:Montserrat,sans-serif;font-size:14px;
-      font-weight:800;cursor:pointer;margin-top:4px}
+      font-weight:800;cursor:pointer;margin-top:4px;box-sizing:border-box}
     .ca-btn:disabled{opacity:.5;cursor:not-allowed}
     .ca-err{background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;
       padding:10px 14px;font-size:12px;color:#C8102E;margin-bottom:10px;
@@ -113,19 +92,18 @@ const CheckinAuth = (function(){
   `;
 
   function inject(){
-    const s=document.createElement('style');
-    s.textContent=CSS;
+    const s = document.createElement('style');
+    s.textContent = CSS;
     document.head.appendChild(s);
-
-    const d=document.createElement('div');
-    d.id='caOverlay';
-    d.innerHTML=`
+    const d = document.createElement('div');
+    d.id = 'caOverlay';
+    d.innerHTML = `
       <div class="ca-card">
         <img class="ca-logo" src="logo-negro.png" alt="3Villas"
              onerror="this.onerror=null;this.style.display='none'">
         <div id="caStepEmail">
           <div class="ca-title">Check-in Online</div>
-          <div class="ca-sub">Enter the email address you used when booking to receive your access code.</div>
+          <div class="ca-sub" id="caEmailSub">Enter the email address you used when booking to receive your access code.</div>
           <div class="ca-err" id="caErrEmail"></div>
           <label class="ca-lbl">Email address</label>
           <input class="ca-inp" id="caEmail" type="email" placeholder="your@email.com" autocomplete="email">
@@ -146,8 +124,8 @@ const CheckinAuth = (function(){
           <div class="ca-att" id="caAtt"></div>
           <button class="ca-back" onclick="CheckinAuth._back()">← Try a different email</button>
           <div class="ca-contact">
-            Didn't receive it? Check spam, or contact
-            <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp +34 659 93 34 34</a>
+            Didn't receive it? Check spam or contact us at
+            <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">+34 659 93 34 34</a>
           </div>
         </div>
         <div id="caStepOk" style="display:none">
@@ -159,139 +137,137 @@ const CheckinAuth = (function(){
         </div>
       </div>`;
     document.body.appendChild(d);
+    document.getElementById('caEmail').addEventListener('keydown', e => { if(e.key==='Enter') CheckinAuth._send(); });
+    document.getElementById('caPin').addEventListener('keydown',  e => { if(e.key==='Enter') CheckinAuth._verify(); });
 
-    document.getElementById('caEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._send(); });
-    document.getElementById('caPin').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._verify(); });
-
-    /* Pedir al Worker el email enmascarado de la reserva (sin exponer el email completo) */
+    /* Pedir email hint al Worker y pre-rellenar */
     fetch(`${WORKER}?action=checkin-hint&code=${encodeURIComponent(_code)}`)
-      .then(r=>r.ok?r.json():null)
-      .then(j=>{
-        if(!j||!j.hint) return;
-        /* Pre-rellenar el input con el email de Caspio */
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if(!j || !j.hint) return;
         const inp = document.getElementById('caEmail');
         if(inp) inp.value = j.hint;
-        /* Actualizar subtítulo */
-        const sub = document.querySelector('#caStepEmail .ca-sub');
-        if(sub) sub.innerHTML =
-          'Your access code will be sent to <strong>'+j.hint+'</strong>. Click the button to confirm.';
+        const sub = document.getElementById('caEmailSub');
+        if(sub) sub.innerHTML = 'Your access code will be sent to <strong>' + j.hint + '</strong>. Click the button to confirm.';
       })
-      .catch(()=>{});
+      .catch(() => {});
   }
 
   function step(s){
-    ['Email','Pin','Ok'].forEach(n=>{
-      document.getElementById('caStep'+n).style.display = n===s?'block':'none';
+    ['Email','Pin','Ok'].forEach(n => {
+      document.getElementById('caStep'+n).style.display = n===s ? 'block' : 'none';
     });
   }
-  function err(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
-  function noErr(id){document.getElementById(id).style.display='none';}
-  function busy(id,on,txt){
-    const b=document.getElementById(id);
-    b.disabled=on;
-    if(!b._orig)b._orig=b.textContent;
-    b.innerHTML=on?`<span class="ca-sp"></span>${txt||'Please wait…'}`:b._orig;
+  function err(id, msg){ const e=document.getElementById(id); e.textContent=msg; e.style.display='block'; }
+  function noErr(id){ document.getElementById(id).style.display='none'; }
+  function busy(id, on, txt){
+    const b = document.getElementById(id);
+    b.disabled = on;
+    if(!b._orig) b._orig = b.textContent;
+    b.innerHTML = on ? `<span class="ca-sp"></span>${txt||'Please wait…'}` : b._orig;
   }
 
-  /* ── Estado ── */
   let _code='', _email='', _att=0, _cb=null;
 
-  /* ── Paso 1: enviar código ── */
   async function send(){
     noErr('caErrEmail');
-    const email=(document.getElementById('caEmail').value||'').toLowerCase().trim();
-    if(!email||!email.includes('@')){ err('caErrEmail','Please enter a valid email address.'); return; }
-    busy('caBtnEmail',true,'Sending…');
-    try{
+    const email = (document.getElementById('caEmail').value||'').toLowerCase().trim();
+    if(!email || !email.includes('@')){ err('caErrEmail','Please enter a valid email address.'); return; }
+    busy('caBtnEmail', true, 'Sending…');
+    try {
       await wPost('send-checkin-code', { bookingCode:_code, email });
-      _email=email;
-      document.getElementById('caPinSub').textContent=
+      _email = email;
+      document.getElementById('caPinSub').textContent =
         `We've sent a 5-digit code to ${email}. Check your inbox (and spam folder).`;
       step('Pin');
-    }catch(e){
+    } catch(e){
       err('caErrEmail', e.message.includes('not found')
         ? 'This email does not match our records. Please use the email you booked with.'
         : 'Could not send the code. Please try again or contact us.');
-    }finally{ busy('caBtnEmail',false); }
+    } finally { busy('caBtnEmail', false); }
   }
 
-  /* ── Paso 2: verificar código ── */
   async function verify(){
     noErr('caErrPin');
-    const pin=(document.getElementById('caPin').value||'').replace(/\D/g,'').trim();
-    if(pin.length<4){ err('caErrPin','Please enter the full code.'); return; }
-    busy('caBtnPin',true,'Verifying…');
-    try{
+    const pin = (document.getElementById('caPin').value||'').replace(/\D/g,'').trim();
+    if(pin.length < 4){ err('caErrPin','Please enter the full code.'); return; }
+    busy('caBtnPin', true, 'Verifying…');
+    try {
       const j = await wPost('verify-checkin-code', { bookingCode:_code, pin });
       step('Ok');
-      setSession(_code, pin); /* guardar pin para re-fetch en refresco */
-      setTimeout(async ()=>{
+      setSession(_code, pin);
+      setTimeout(() => {
         document.getElementById('caOverlay').remove();
-        /* Fetch booking fresco con el token */
         if(_cb) _cb(j.booking);
       }, 700);
-    }catch(e){
+    } catch(e){
       _att++;
-      const left=MAX_ATT-_att;
-      if(left<=0){
+      const left = MAX_ATT - _att;
+      if(left <= 0){
         err('caErrPin','Too many incorrect attempts. Please contact us at bookings@3villas.com');
-        document.getElementById('caBtnPin').disabled=true;
-        document.getElementById('caPin').disabled=true;
-      }else{
-        err('caErrPin',`Incorrect code. ${left} attempt${left>1?'s':''} remaining.`);
-        document.getElementById('caPin').value='';
-        document.getElementById('caAtt').textContent=`${_att} of ${MAX_ATT} attempts used`;
+        document.getElementById('caBtnPin').disabled = true;
+        document.getElementById('caPin').disabled = true;
+      } else {
+        err('caErrPin', `Incorrect code. ${left} attempt${left>1?'s':''} remaining.`);
+        document.getElementById('caPin').value = '';
+        document.getElementById('caAtt').textContent = `${_att} of ${MAX_ATT} attempts used`;
       }
-    }finally{ busy('caBtnPin',false); }
+    } finally { busy('caBtnPin', false); }
   }
 
   function back(){
     noErr('caErrPin');
-    document.getElementById('caPin').value='';
-    _att=0;
-    document.getElementById('caAtt').textContent='';
-    document.getElementById('caBtnPin').disabled=false;
+    document.getElementById('caPin').value = '';
+    _att = 0;
+    document.getElementById('caAtt').textContent = '';
+    document.getElementById('caBtnPin').disabled = false;
     step('Email');
-    busy('caBtnEmail',false);
+    busy('caBtnEmail', false);
   }
 
-  /* ── API pública ── */
+  /* ══ API pública ══ */
   return {
     init(opts){
-      _cb   = opts.onVerified || (()=>{});
+      _cb   = opts.onVerified || (() => {});
       _code = opts.code || getCode();
 
       if(!_code){
-        document.body.innerHTML='<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif"><p style="color:#C8102E;font-weight:800">No booking code in URL</p><p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+        document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
+          '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
+          '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
         return;
       }
 
-      /* ¿Ya verificado? */
+      /* ¿Sesión existente? Re-verificar con PIN guardado → datos frescos */
       const sess = getSession(_code);
       if(sess){
-        /* Sesión válida: re-verificar con PIN guardado → datos SIEMPRE frescos */
         wPost('verify-checkin-code', { bookingCode: _code, pin: sess.pin })
-          .then(j=>{ if(_cb && j.booking) _cb(j.booking); })
-          .catch(e=>{ console.warn('[checkin-auth] refresh failed:', e); });
+          .then(j => { if(_cb && j.booking) _cb(j.booking); })
+          .catch(e => {
+            /* Si falla (pin expirado, etc.) → mostrar overlay de nuevo */
+            sessionStorage.removeItem(SESSION_KEY);
+            const go = () => inject();
+            document.readyState === 'loading'
+              ? document.addEventListener('DOMContentLoaded', go)
+              : go();
+          });
         return;
       }
 
-      /* Mostrar overlay */
-      const go=()=>inject();
-      document.readyState==='loading'
-        ? document.addEventListener('DOMContentLoaded',go)
+      /* Sin sesión → mostrar overlay */
+      const go = () => inject();
+      document.readyState === 'loading'
+        ? document.addEventListener('DOMContentLoaded', go)
         : go();
     },
 
-    /* Llamados desde el HTML */
-    _send:  ()=>send(),
-    _verify:()=>verify(),
-    _back:  ()=>back(),
+    _send:   () => send(),
+    _verify: () => verify(),
+    _back:   () => back(),
 
-    /* Utilidades para las páginas */
-    getCode:    ()=>_code,
-    getBooking: ()=>null,
-    isVerified: ()=>!!getSession(_code),
+    getCode:    () => _code,
+    getBooking: () => null,
+    isVerified: () => !!getSession(_code),
   };
 
 })();
