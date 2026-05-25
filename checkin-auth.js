@@ -32,17 +32,21 @@ const CheckinAuth = (function(){
       const s = sessionStorage.getItem(SESSION_KEY);
       if(!s) return null;
       const obj = JSON.parse(s);
-      if(obj.code !== code || Date.now() > obj.expires) {
+      if(obj.code !== code || Date.now() > obj.expires){
         sessionStorage.removeItem(SESSION_KEY);
         return null;
       }
-      return obj;
+      return obj; /* {code, pin, expires} */
     }catch(e){ return null; }
   }
-  function setSession(code, booking){
+      return obj; /* {code, pin, expires} */
+    }catch(e){ return null; }
+  }
+  function setSession(code, pin){
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-      code, booking, expires: Date.now() + SESSION_TTL
+      code, pin, expires: Date.now() + SESSION_TTL
     }));
+  }));
   }
 
   /* ── URL params ── */
@@ -220,9 +224,10 @@ const CheckinAuth = (function(){
     try{
       const j = await wPost('verify-checkin-code', { bookingCode:_code, pin });
       step('Ok');
-      setSession(_code, j.booking);
-      setTimeout(()=>{
+      setSession(_code, pin); /* guardar pin para re-fetch en refresco */
+      setTimeout(async ()=>{
         document.getElementById('caOverlay').remove();
+        /* Fetch booking fresco con el token */
         if(_cb) _cb(j.booking);
       }, 700);
     }catch(e){
@@ -263,7 +268,13 @@ const CheckinAuth = (function(){
 
       /* ¿Ya verificado? */
       const sess = getSession(_code);
-      if(sess){ setTimeout(()=>_cb(sess.booking), 0); return; }
+      if(sess){
+        /* Sesión válida: re-verificar con PIN guardado → datos SIEMPRE frescos */
+        wPost('verify-checkin-code', { bookingCode: _code, pin: sess.pin })
+          .then(j=>{ if(_cb && j.booking) _cb(j.booking); })
+          .catch(e=>{ console.warn('[checkin-auth] refresh failed:', e); });
+        return;
+      }
 
       /* Mostrar overlay */
       const go=()=>inject();
@@ -279,7 +290,7 @@ const CheckinAuth = (function(){
 
     /* Utilidades para las páginas */
     getCode:    ()=>_code,
-    getBooking: ()=>getSession(_code)?.booking || null,
+    getBooking: ()=>null,
     isVerified: ()=>!!getSession(_code),
   };
 
