@@ -57,7 +57,7 @@ const CheckinAuth = (function(){
       display:flex;align-items:center;justify-content:center;padding:24px 20px;
       font-family:'Open Sans',sans-serif}
     .ca-card{width:100%;max-width:380px}
-    .ca-logo{display:block;height:44px;margin:0 auto 18px;object-fit:contain}
+    .ca-logo{display:block;height:192px;max-width:100%;object-fit:contain;margin:0 auto 18px}
     .ca-title{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;
       color:#C8102E;text-align:center;margin-bottom:6px}
     .ca-sub{font-size:13px;color:#868e96;text-align:center;margin-bottom:22px;line-height:1.5}
