@@ -45,13 +45,14 @@ const CheckinAuth = (function(){
     }));
   }
 
-  /* ── URL param ── */
+  /* ── URL params ── */
   function getCode(){
     const p = new URLSearchParams(location.search);
     return p.get('TaBookings2021_FS_confirmation_code')
         || p.get('FS_confirmation_code')
         || p.get('code') || '';
   }
+
 
   /* ── Worker calls ── */
   async function wPost(action, body){
@@ -73,7 +74,7 @@ const CheckinAuth = (function(){
       display:flex;align-items:center;justify-content:center;padding:24px 20px;
       font-family:'Open Sans',sans-serif}
     .ca-card{width:100%;max-width:380px}
-    .ca-logo{display:block;height:22px;margin:0 auto 18px;object-fit:contain}
+    .ca-logo{display:block;height:66px;margin:0 auto 20px;object-fit:contain}
     .ca-title{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;
       color:#C8102E;text-align:center;margin-bottom:6px}
     .ca-sub{font-size:13px;color:#868e96;text-align:center;margin-bottom:22px;line-height:1.5}
@@ -157,6 +158,18 @@ const CheckinAuth = (function(){
 
     document.getElementById('caEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._send(); });
     document.getElementById('caPin').addEventListener('keydown',e=>{ if(e.key==='Enter') CheckinAuth._verify(); });
+
+    /* Pedir al Worker el email enmascarado de la reserva (sin exponer el email completo) */
+    fetch(`${WORKER}?action=checkin-hint&code=${encodeURIComponent(_code)}`)
+      .then(r=>r.ok?r.json():null)
+      .then(j=>{
+        if(!j||!j.hint) return;
+        /* Mostrar hint debajo del label: "We'll send to j***@gmail.com" */
+        const sub = document.querySelector('#caStepEmail .ca-sub');
+        if(sub) sub.innerHTML =
+          'Your access code will be sent to <strong>'+j.hint+'</strong>. Click the button to confirm.';
+      })
+      .catch(()=>{});
   }
 
   function step(s){
