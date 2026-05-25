@@ -74,7 +74,7 @@ const CheckinAuth = (function(){
       display:flex;align-items:center;justify-content:center;padding:24px 20px;
       font-family:'Open Sans',sans-serif}
     .ca-card{width:100%;max-width:380px}
-    .ca-logo{display:block;height:66px;margin:0 auto 20px;object-fit:contain}
+    .ca-logo{display:block;height:44px;margin:0 auto 18px;object-fit:contain}
     .ca-title{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;
       color:#C8102E;text-align:center;margin-bottom:6px}
     .ca-sub{font-size:13px;color:#868e96;text-align:center;margin-bottom:22px;line-height:1.5}
@@ -164,7 +164,10 @@ const CheckinAuth = (function(){
       .then(r=>r.ok?r.json():null)
       .then(j=>{
         if(!j||!j.hint) return;
-        /* Mostrar hint debajo del label: "We'll send to j***@gmail.com" */
+        /* Pre-rellenar el input con el email de Caspio */
+        const inp = document.getElementById('caEmail');
+        if(inp) inp.value = j.hint;
+        /* Actualizar subtítulo */
         const sub = document.querySelector('#caStepEmail .ca-sub');
         if(sub) sub.innerHTML =
           'Your access code will be sent to <strong>'+j.hint+'</strong>. Click the button to confirm.';
