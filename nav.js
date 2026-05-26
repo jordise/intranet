@@ -14,9 +14,9 @@
 //  │ Menú        │ Valores del campo Role en TaUsers     │
 //  ├─────────────┼──────────────────────────────────────┤
 //  │ admin       │ "admin", "manager"                   │
-//  │ staff       │ "staff", "villamanager"               │
-//  │ sales       │ "sales", "comercial"                  │
-//  │ cleaner     │ "cleaner", "limpieza"                 │
+//  │ staff       │ "staff", "villamanager"              │
+//  │ sales       │ "sales", "comercial"                 │
+//  │ cleaner     │ "cleaner", "limpieza"                │
 //  │ default     │ vacío o cualquier otro valor          │
 //  └─────────────┴──────────────────────────────────────┘
 //
@@ -47,35 +47,35 @@ var NAV_MENUS = {
       label: 'Listados',
       icon: '📖',
       children: [
-        { label: 'Reporte ventas semanal',       url: 'reports-ventas.html',                     icon: '📄' },
+        { label: 'Reporte ventas semanal',       url: 'reports-ventas.html',                      icon: '📄' }
       ]
     },
-     {
+    {
       label: 'Equipo',
       icon: '👥',
       children: [
-        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
+        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                      icon: '📄' }
       ]
     },
     {
       label: 'Manuales',
       icon: '📖',
       children: [
-        { label: 'Generar manual',       url: 'generar.html',                     icon: '📄' },
-        { label: 'Manual lavadora',      url: 'manual-lavadora.html',             icon: '🫧' },
-        { label: 'Manual técnico',       url: 'manual-tecnico.html',              icon: '🔧' },
-        { label: 'Manual usuario',       url: 'manual-usuario.html',              icon: '👤' },
-        { label: 'Lavadora Villa María', url: 'manual_lavadora_villa_maria.html', icon: '🏠' },
+        { label: 'Generar manual',       url: 'generar.html',                      icon: '📄' },
+        { label: 'Manual lavadora',      url: 'manual-lavadora.html',              icon: '🫧' },
+        { label: 'Manual técnico',       url: 'manual-tecnico.html',               icon: '🔧' },
+        { label: 'Manual usuario',       url: 'manual-usuario.html',               icon: '👤' },
+        { label: 'Lavadora Villa María', url: 'manual_lavadora_villa_maria.html', icon: '🏠' }
       ]
     },
     {
       label: 'Configuración',
       icon: '⚙️',
       children: [
-        { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' },
+        { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
       ]
     },
-    { label: 'Login', url: 'login.html', icon: '🔑' },
+    { label: 'Login', url: 'login.html', icon: '🔑' }
   ],
 
   // ── STAFF — villa managers / equipo general ──────────────────
@@ -91,35 +91,34 @@ var NAV_MENUS = {
       label: 'Equipo',
       icon: '👥',
       children: [
-        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
+        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                      icon: '📄' }
       ]
     },
-    { label: 'Login',              url: 'login.html',               icon: '🔑' },
+    { label: 'Login',              url: 'login.html',               icon: '🔑' }
   ],
 
   // ── SALES — equipo comercial ─────────────────────────────────
   //    Aplica a: Role = "sales" | "comercial"
   sales: [
     { label: 'Reporte Semanal ',  url: 'reports-ventas.html', icon: '📅' },
-      {
+    {
       label: 'Vacacional',
       icon: '📖',
       children: [
         { label: 'Villas',     url: 'buscar-villa.html',      icon: '🏡' },
-        { label: 'Contactos',  url: 'contactos.html',         icon: '👥' },
+        { label: 'Contactos',  url: 'contactos.html',         icon: '👥' }
       ]
     },
-   
-    { label: 'Login',      url: 'login.html',             icon: '🔑' },
+    { label: 'Login',      url: 'login.html',             icon: '🔑' }
   ],
 
   // ── CLEANER — equipo de limpieza ─────────────────────────────
   //    Aplica a: Role = "cleaner" | "limpieza"
   cleaner: [
      { label: 'Entradas y Salidas', url: 'entradas.html',          icon: '🚪' },
-     { label: 'Mis tareas',         url: 'tareas.html',            icon: '✅' },
-     { label: 'Villas',             url: 'buscar-villa.html',      icon: '🏡' },
-     { label: 'Login',              url: 'login.html',             icon: '🔑' },
+     { label: 'Mis tareas',         url: 'tareas.html',             icon: '✅' },
+     { label: 'Villas',             url: 'buscar-villa.html',       icon: '🏡' },
+     { label: 'Login',              url: 'login.html',              icon: '🔑' }
   ],
 
   // ── DEFAULT — fallback ────────────────────────────────────────
@@ -127,8 +126,8 @@ var NAV_MENUS = {
   default: [
     { label: 'Entradas y Salidas', url: 'entradas.html',     icon: '🚪' },
     { label: 'Villas',             url: 'buscar-villa.html', icon: '🏡' },
-    { label: 'Login',              url: 'login.html',        icon: '🔑' },
-  ],
+    { label: 'Login',              url: 'login.html',        icon: '🔑' }
+  ]
 
 };
 
