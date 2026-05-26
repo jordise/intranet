@@ -52,7 +52,7 @@ var NAV_MENUS = {
     },
      {
       label: 'Equipo',
-      icon: ' ',
+      icon: '👥',
       children: [
         { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
       ]
@@ -89,7 +89,7 @@ var NAV_MENUS = {
     { label: 'WelcomePacks',       url: 'pedir-wellcomepacks.html', icon: '📦' },
     {
       label: 'Equipo',
-      icon: ' ',
+      icon: '👥',
       children: [
         { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
       ]
