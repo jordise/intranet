@@ -50,6 +50,13 @@ var NAV_MENUS = {
         { label: 'Reporte ventas semanal',       url: 'reports-ventas.html',                     icon: '📄' },
       ]
     },
+     {
+      label: 'Equipo',
+      icon: ' ',
+      children: [
+        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
+      ]
+    },
     {
       label: 'Manuales',
       icon: '📖',
@@ -80,6 +87,13 @@ var NAV_MENUS = {
     { label: 'Tareas',             url: 'tareas.html',              icon: '✅' },
     { label: 'Ocupación',          url: 'listado-ocupacion.html',   icon: '📅' },
     { label: 'WelcomePacks',       url: 'pedir-wellcomepacks.html', icon: '📦' },
+    {
+      label: 'Equipo',
+      icon: ' ',
+      children: [
+        { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                     icon: '📄' },
+      ]
+    },
     { label: 'Login',              url: 'login.html',               icon: '🔑' },
   ],
 
