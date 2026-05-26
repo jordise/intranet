@@ -1,459 +1,1439 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
+  <!-- ══ PWA ══ -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/3villas-manuals/sw.js')
+        .then(r => console.log('SW registrado:', r.scope))
+        .catch(e => console.warn('SW error:', e));
+    });
+  }
+</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v29 — 3Villas</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Tareas v73 — 3Villas</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--red:#C8102E;--green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
-      --blue:#2563EB;--blue-lt:#EFF6FF;--blue-bd:#BFDBFE;
-      --amber:#B45309;--amber-lt:#FFFBEB;--amber-bd:#FCD34D;
-      --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
-      --gray-4:#868e96;--gray-5:#212529;--wa:#25D366;}
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--purple:#5e35b1;--purple-light:#ede7f6;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Montserrat,sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
-    /* Loading */
-    #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
-      min-height:80vh;gap:10px;text-align:center;padding:40px 20px}
-    .spinner{width:32px;height:32px;border:3px solid var(--gray-3);
-      border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    html{overflow-x:hidden} /* evita desbordamiento horizontal que desplaza el FAB fuera de pantalla */
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;max-width:100vw;overflow-x:hidden}
+/* ── Nav compacta — pedir-wellcomepacks style ── */
+    .wp-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:400}
+    .wp-nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+    .wp-nav-logo img{height:26px;object-fit:contain}
+    .wp-nav-center{flex:1;min-width:0;padding:0 6px}
+    .wp-nav-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-sub{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wp-nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .wp-nav-user{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0}
+    .wp-nav-menu{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-menu:hover{background:var(--red-dark)}
+    .wp-nav-close{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;transition:background .15s;flex-shrink:0}
+    .wp-nav-close:hover{background:rgba(200,16,46,.2)}
+    /* ── Filter panel ── */
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 14px 0;position:sticky;top:48px;z-index:200;box-shadow:var(--shadow-sm);max-width:100%;overflow:hidden}
+    .main-bar{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;padding-bottom:10px}
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    .btn-mas{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border:1.5px dashed var(--gray-3);border-radius:7px;background:transparent;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+    .btn-mas:hover{border-color:var(--red);color:var(--red)}
+    .btn-mas.on{border-style:solid;border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .btn-mas .arr{transition:transform .2s}
+    .btn-mas.on .arr{transform:rotate(180deg)}
+    .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s;flex-shrink:0}
+    .btn-clear:hover{color:var(--red)}
+    #masFiltros{overflow:hidden;max-height:0;transition:max-height .35s ease}
+    #masFiltros.open{max-height:400px}
+    .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 8px}
+    .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .filter-row:last-child{margin-bottom:0}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px}
+    .f-group.narrow{flex:0 0 140px}
+    .f-group.wide{flex:2;min-width:180px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .manager-panel{position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:8px;box-shadow:var(--shadow-lg);z-index:9999;display:flex;flex-direction:column;max-height:300px;min-width:220px}
+    .manager-list{overflow-y:auto;flex:1;padding:4px 0}
+    .manager-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--gray-5);transition:background .1s}
+    .manager-item:hover{background:var(--gray-1)}
+    .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .manager-item label{cursor:pointer;flex:1}
+    #chips{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;min-height:0}
+    .chip-filter{display:inline-flex;align-items:center;gap:4px;background:var(--red-light);color:var(--red);padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
+    .chip-filter button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+    /* ── Stats ── */
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    .stat{display:flex;align-items:baseline;gap:5px}
+    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
+    /* ── Table ── */
+    main{padding:18px 22px;max-width:1400px;margin:0 auto}
+    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
+    .spinner{display:inline-block;width:38px;height:38px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
     @keyframes spin{to{transform:rotate(360deg)}}
-    /* Layout */
-    #content{display:none;max-width:540px;margin:0 auto;padding:0 20px 80px}
-    /* Header */
-    .page-header{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--gray-2);
-      margin-bottom:20px;position:relative}
-    .page-logo{height:192px;display:block;margin:0 auto 18px;max-width:100%;object-fit:contain}
-    .page-title{font-family:Montserrat,sans-serif;font-size:24px;font-weight:900;color:var(--red);margin-bottom:12px}
-    .page-greeting{font-size:15px;font-weight:600;margin-bottom:2px}
-    .page-villa{font-size:13px;color:var(--gray-4)}
-    .page-code{display:inline-block;margin-top:6px;font-size:11px;color:var(--gray-4);
-      background:var(--gray-2);padding:3px 12px;border-radius:20px;
-      font-family:Montserrat,sans-serif;font-weight:700}
-    /* Lang */
-    #langWrap{position:absolute;top:16px;right:0;display:none}
-    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
-      background:#fff;color:var(--gray-5);cursor:pointer;outline:none}
-    /* Key section */
-    #keySection{display:none;margin-bottom:22px}
-    #keySection.visible{display:block}
-    .congrats{background:var(--green-lt);border:1.5px solid var(--green-bd);
-      border-radius:12px;padding:14px;margin-bottom:12px;text-align:center}
-    .congrats-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;color:var(--green);margin-bottom:2px}
-    .congrats-sub{font-size:12px;color:var(--green);opacity:.8}
-    .key-grid{display:flex;flex-direction:column;gap:9px}
-    .key-row{border:1px solid var(--gray-3);border-radius:11px;padding:13px 15px}
-    /* ── Key section — tipografía unificada ── */
-    .key-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);display:block;margin-bottom:5px}
-    .key-val{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--gray-5)}
-    .key-val.code{font-size:28px;letter-spacing:5px;color:var(--red);font-weight:900;
-      background:var(--gray-1);display:inline-block;padding:6px 16px;
-      border-radius:8px;border:1px dashed var(--gray-3)}
-    /* Address inline */
-    .key-arrive-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);margin-bottom:8px}
-    .addr-inline{display:flex;align-items:center;gap:8px}
-    .addr-text{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--gray-5)}
-    /* Wifi */
-    .wifi-block{display:flex;align-items:center;gap:12px}
-    .wifi-ico{flex-shrink:0;margin-top:1px;color:var(--gray-5)}
-    .wifi-data{flex:1}
-    .wifi-line{font-family:Montserrat,sans-serif;font-size:13px;color:var(--gray-5);
-      margin-bottom:4px;line-height:1.4}
-    .wifi-line .wl-lbl{color:var(--gray-4);font-size:11px;font-family:Montserrat,sans-serif;
-      font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
-    .wifi-line .wl-val{font-family:Montserrat,sans-serif;font-weight:700;font-size:14px}
-    .wifi-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .btn-maps{display:inline-flex;align-items:center;gap:5px;margin-top:7px;
-      padding:6px 12px;background:var(--gray-2);color:var(--gray-5);border-radius:8px;
-      font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
-      text-decoration:none;border:1px solid var(--gray-3)}
-    .enter-note{font-size:11px;color:var(--gray-4);margin-top:6px;line-height:1.5}
-    /* VM durante estancia */
-    #duringSection{display:none;border:1px solid var(--green-bd);border-radius:11px;
-      padding:13px 15px;background:var(--green-lt);margin-bottom:22px}
-    .ds-tag{font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.5px;color:var(--green);display:block;margin-bottom:5px}
-    .ds-name{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;margin-bottom:3px}
-    .ds-desc{font-size:12px;color:var(--gray-4);line-height:1.5;margin-bottom:9px}
-    .btn-wa-vm{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
-      background:var(--wa);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;
-      font-size:var(--t-md);font-weight:800;text-decoration:none}
-    /* Pending */
-    .pending-note{display:none;background:var(--amber-lt);border:1px solid var(--amber-bd);
-      border-radius:10px;padding:11px 14px;margin-bottom:20px;
-      font-size:var(--t-md);color:var(--amber);align-items:center;gap:10px;font-weight:700}
-    /* ── Steps — sistema unificado ── */
-    .steps-section{margin-bottom:24px}
-    .steps-label{font-size:var(--t-sm);font-weight:800;text-transform:uppercase;
-      letter-spacing:.7px;color:var(--gray-4);margin-bottom:16px;
-      padding-bottom:10px;border-bottom:1px solid var(--gray-2);text-align:center}
-
-    /* Progress dots */
-    .progress-track{display:flex;align-items:center;margin-bottom:20px;
-      max-width:300px;margin-left:auto;margin-right:auto}
-    .pt-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
-    .pt-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-weight:900;font-size:var(--t-md);position:relative}
-    .pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
-    .pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
-    .pt-circle.done::after{content:'✓';position:absolute;top:-6px;right:-6px;
-      font-size:9px;background:#fff;color:var(--green);border-radius:50%;
-      width:16px;height:16px;display:flex;align-items:center;justify-content:center;
-      border:1.5px solid var(--green-bd);font-weight:900;line-height:16px;text-align:center}
-    .pt-label{font-size:var(--t-sm);font-weight:700;color:var(--gray-4);
-      text-align:center;max-width:56px;line-height:1.2}
-    .pt-label.done{color:var(--green)}
-    .pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 4px;margin-bottom:20px}
-    .pt-line.done{background:var(--green)}
-
-    /* Step cards */
-    .steps-cards{display:flex;flex-direction:column;gap:8px}
-    .step-card{border:1px solid var(--gray-3);border-radius:14px;padding:16px;
-      display:flex;align-items:center;gap:14px}
-    .step-card.done{border-color:var(--green);background:var(--green-lt)}
-
-    /* Icono */
-    .sc-ico{width:48px;height:48px;border-radius:12px;flex-shrink:0;
-      display:flex;align-items:center;justify-content:center}
-    .step-card.pend .sc-ico{background:var(--blue-lt);color:var(--blue)}
-    .step-card.done .sc-ico{background:var(--green);border:none;color:#fff}
-    .sc-ico svg{width:24px;height:24px}
-    .step-card.pend .sc-ico svg{stroke:var(--blue)}
-    .step-card.done .sc-ico svg{stroke:#fff}
-
-    /* Texto */
-    .sc-body{flex:1;min-width:0}
-    .sc-step-label{font-size:var(--t-sm);font-weight:800;text-transform:uppercase;
-      letter-spacing:.5px;margin-bottom:3px}
-    .step-card.pend .sc-step-label{color:var(--blue)}
-    .step-card.done .sc-step-label{color:var(--green)}
-    .sc-name{font-size:var(--t-lg);font-weight:800;color:var(--gray-5);margin-bottom:3px}
-    .sc-desc{font-size:var(--t-sm);color:var(--gray-4);line-height:1.5;margin-bottom:5px}
-
-    /* Badge done/pending */
-    .sc-status{font-size:var(--t-sm);font-weight:800;
-      padding:3px 10px;border-radius:20px;display:inline-block}
-    .sc-status.pend{background:var(--amber-lt);color:var(--amber)}
-    .sc-status.done{background:var(--green);color:#fff}  /* verde sólido + blanco = igual que los dots */
-
-    /* Botón play */
-    .sc-btn{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
-      width:40px;height:40px;padding:0;border:none;border-radius:10px;
-      cursor:pointer;text-decoration:none}
-    .sc-btn.pend{background:var(--blue);color:#fff}
-    .sc-btn.done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
-    /* Contact footer */
-    .contact-footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-2);text-align:center}
-    .cf-title{font-size:var(--t-md);font-weight:800;color:var(--gray-5);margin-bottom:6px}
-    .cf-sub{font-size:var(--t-sm);color:var(--gray-4);margin-bottom:14px}
-    .cf-btns{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
-      background:var(--wa);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:var(--t-md);font-weight:800;text-decoration:none}
-    .btn-phone{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
-      background:#1a73e8;color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:var(--t-md);font-weight:800;text-decoration:none}
-    .btn-email{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;
-      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
-      border-radius:9px;font-family:Montserrat,sans-serif;font-size:var(--t-md);font-weight:700;text-decoration:none}
-    #waFloat{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--wa);
-      width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-      box-shadow:0 4px 14px rgba(37,211,102,.35);text-decoration:none}
-    @media(max-width:420px){
-      .key-val.code{font-size:22px;letter-spacing:3px}
-      .wifi-row{grid-template-columns:1fr}
-      .cf-btns{flex-direction:column;align-items:center}
+    #tableWrap{display:none;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    /* ── Tabla estilo pedir-wellcomepacks ── */
+    #tableWrap{border-top:3px solid var(--red)}
+    thead{position:sticky;top:0;z-index:10}
+    thead tr.th-top{background:var(--red)}
+    thead tr.th-top th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#fff;padding:10px 14px;text-align:left;white-space:nowrap;user-select:none;border-right:1px solid rgba(255,255,255,.12)}
+    thead tr.th-top th:last-child{border-right:none}
+    thead tr.th-top th[data-col]{cursor:pointer}
+    thead tr.th-top th[data-col]:hover{background:var(--red-dark)}
+    th .sort-ico{opacity:.5;margin-left:4px;font-size:9px}
+    th.sort-asc .sort-ico::after{content:'▲'}th.sort-desc .sort-ico::after{content:'▼'}th:not(.sort-asc):not(.sort-desc)[data-col] .sort-ico::after{content:'⇅'}
+    /* Badges urgente/importante en filas */
+    /* v16: flags como emoji inline — no se necesitan clases separadas */
+    /* Toggle pills urgente/importante */
+    .pill-toggle{border:1.5px solid var(--gray-2);background:#fff;color:var(--gray-4);padding:4px 12px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+    .pill-toggle:hover{border-color:var(--gray-4)}
+    .pill-toggle.on-urg{border-color:var(--red);background:var(--red-light);color:var(--red)}
+    .pill-toggle.on-imp{border-color:var(--orange);background:var(--orange-light);color:var(--orange)}
+    tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
+    tbody tr:hover{background:var(--gray-1)}
+    tbody tr:last-child{border-bottom:none}
+    td{padding:9px 14px;vertical-align:middle}
+    /* Villa + estado + asignado combinados */
+    /* v50: bloque villa+tarea clickable como unidad */
+    .task-link{display:flex;flex-direction:column;gap:3px;text-decoration:none;
+      cursor:pointer;border-radius:8px;padding:4px 6px;margin:-4px -6px;
+      transition:background .14s}
+    .task-link:hover{background:var(--gray-1)}
+    .task-link:active{background:var(--gray-2)}
+    #fBuscar{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:180px;max-width:220px;transition:border-color .15s;font-family:'Open Sans',sans-serif;flex-shrink:0}
+  #fBuscar:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+  #fBuscar::placeholder{color:var(--gray-3)}
+  /* ── Info Card (v42) ── */
+    /* v45: info-card — toda la caja es el botón */
+    .info-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:5px;border:1.5px solid var(--gray-2);border-radius:14px;padding:10px 8px;
+      width:72px;min-height:84px;background:#fff;box-sizing:border-box;
+      cursor:pointer;text-decoration:none;color:inherit;
+      transition:border-color .18s,box-shadow .18s,background .12s}
+    .info-card:hover{border-color:var(--gray-5);box-shadow:0 3px 12px rgba(0,0,0,.12)}
+    .info-card:active{background:var(--gray-1)}text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .12s}
+    .info-card:hover{border-color:var(--gray-4);box-shadow:0 2px 8px rgba(0,0,0,.10)}
+    .info-card:active{background:var(--gray-1)}
+    .info-flags{font-size:14px;line-height:1;min-height:18px}
+    .info-flags{font-size:13px;line-height:1;text-align:center;letter-spacing:1px}
+    .info-user{font-family:'Open Sans',sans-serif;font-size:10px;color:var(--gray-4);font-weight:600;text-align:center;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .info-pencil{display:flex;align-items:center;justify-content:center;
+      background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:50%;
+      width:28px;height:28px;font-size:13px;flex-shrink:0}
+    /* info-villa y info-bot eliminados v46 */
+    .est-done{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;color:var(--green)}
+    /* est-pend eliminado v46 — pendiente no muestra estado */
+    .meta-cell{display:flex;flex-direction:column;gap:4px;min-width:140px}
+    .meta-villa{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5);text-transform:uppercase;letter-spacing:.3px}
+    .meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .meta-sep{color:var(--gray-3);font-size:10px}
+    .meta-user{font-size:11px;color:var(--gray-4);font-weight:600}
+    .type-badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:10px;white-space:nowrap}
+    .tb-com{background:#fce4ec;color:#c2185b}.tb-int{background:var(--purple-light);color:var(--purple)}.tb-x{background:var(--gray-2);color:var(--gray-4)}
+    .date-cell{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;color:var(--gray-4)}
+    .date-cell.overdue{color:var(--red)}.date-cell.today{color:var(--orange)}
+    .res-link{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 7px;border-radius:4px;white-space:nowrap;cursor:pointer;border:none}
+    .act-btn{display:inline-flex;align-items:center;gap:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;cursor:pointer;border:none;white-space:nowrap;transition:filter .15s}
+    .act-btn:hover{filter:brightness(.88)}
+    .act-btn-ver{background:var(--gray-2);color:var(--gray-5)}
+    .act-btn-edit{background:var(--blue-light);color:var(--blue)}
+    .acts-wrap{display:flex;gap:5px;flex-wrap:wrap}
+    .empty-row td{text-align:center;padding:50px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:15px}
+    /* Próximamente */
+    .prox-toggle-row td{cursor:pointer;padding:10px 14px;background:var(--gray-1);border-top:2px dashed var(--gray-3)}
+    .prox-toggle-row:hover td{background:var(--orange-light)}
+    .prox-task-row{display:none}
+    .prox-task-row td{background:var(--gray-1)}
+    /* ── debug — siempre bottom-LEFT para nunca tapar el FAB ── */
+    #dbWrap{position:fixed;bottom:18px;left:14px;z-index:997}
+    #dbBtn{background:var(--gray-5);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center}
+    #dbBox{display:none;position:absolute;bottom:44px;left:0;width:min(460px,90vw);max-height:430px;background:#1e1e2e;color:#a6e3a1;padding:12px;border-radius:var(--r);font-family:monospace;font-size:11px;overflow:auto;white-space:pre;box-shadow:var(--shadow-lg)}
+    #dbBox.open{display:block}
+    @media(max-width:700px){.f-group.narrow{flex:1}}
+    /* ── FAB nueva tarea — bottom:80px para no quedar detrás del nav bar Android ── */
+    #fabNueva{position:fixed;bottom:80px;right:20px;z-index:9999;display:flex!important;align-items:center;justify-content:center;background:var(--red);color:#fff;border:none;border-radius:50%;width:56px;height:56px;cursor:pointer;box-shadow:0 4px 18px rgba(200,16,46,.5);-webkit-transform:translateZ(0);transform:translateZ(0)}
+    #fabNueva .fab-txt{display:none}
+    #fabNueva .fab-ico{font-size:28px;line-height:1;pointer-events:none}
+    @supports(bottom:env(safe-area-inset-bottom)){
+      #fabNueva{bottom:calc(24px + env(safe-area-inset-bottom))}
     }
-  </style>
-  <script src="checkin-auth.js"></script>
+    @media(min-width:900px){
+      #fabNueva{bottom:24px;right:24px;border-radius:28px;width:auto;height:auto;padding:13px 20px 13px 16px;gap:8px;transform:none}
+      #fabNueva .fab-txt{display:inline;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800}
+      #fabNueva .fab-ico{font-size:20px}
+    }
+  .desc-wrap{display:flex;flex-direction:column;gap:3px}
+  .desc-lines{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6}
+  .desc-lines.open{-webkit-line-clamp:unset;overflow:visible}
+  .desc-more{background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;padding:0;text-align:left}
+  .desc-more:hover{color:var(--gray-5)}
+  
+  .desc-editor{display:none;margin-top:4px}
+  .desc-ql-wrap{border:1.5px solid var(--red);border-radius:7px;overflow:hidden;background:#fff}
+  .desc-ql-wrap .ql-editor{min-height:80px;font-size:12px;font-family:inherit;padding:8px 10px;line-height:1.6}
+  .desc-ql-wrap .ql-editor.ql-blank::before{color:#bbb;font-style:normal}
+  .desc-ql-wrap .ql-container.ql-snow{border:none}
+  .desc-re-bar{display:flex;gap:4px;margin-bottom:4px}
+  .re-btn-inline{background:#fff;border:1.5px solid var(--gray-2);border-radius:5px;padding:3px 8px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;color:var(--gray-5);transition:all .12s}
+  .re-btn-inline:hover{border-color:var(--red);color:var(--red)}
+  .desc-actions{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .desc-save-btn{background:var(--red);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:10px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer;transition:opacity .15s}
+  .desc-save-btn:hover{opacity:.85}
+  .desc-saving{font-size:10px;color:var(--gray-3);font-family:Montserrat,sans-serif;font-weight:700;margin-left:2px}
+</style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+<script>
+
+function _ea(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ── Editor inline Quill ── */
+var _tqls={};
+(function(){
+  function toPlain(h){
+    if(!h)return'';
+    var d=document.createElement('div');d.innerHTML=h;
+    var lines=[];
+    d.childNodes.forEach(function(n){
+      if(n.nodeName==='UL'){
+        var chk=n.getAttribute('data-checked');
+        n.querySelectorAll('li').forEach(function(li){
+          var t=(li.innerText||li.textContent||'').trim();
+          if(chk==='true')lines.push('[x] '+t);
+          else if(chk==='false')lines.push('[ ] '+t);
+          else lines.push('• '+t);
+        });
+      } else {
+        var t=(n.innerText||n.textContent||'').replace(/\n/g,' ').trim();
+        if(t)lines.push(t);
+      }
+    });
+    return lines.join('\n');
+  }
+  function toHtmlQ(text){
+    if(!text)return'';
+    if(text.indexOf('<ul')!==-1||text.indexOf('<p>')!==-1)return text;
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    return text.split('\n').map(function(line){
+      if(/^\[x\] /.test(line))return'<ul data-checked="true"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^\[ \] /.test(line))return'<ul data-checked="false"><li>'+esc(line.slice(4))+'</li></ul>';
+      if(/^• /.test(line))return'<ul><li>'+esc(line.slice(2))+'</li></ul>';
+      return'<p>'+esc(line)+'</p>';
+    }).join('');
+  }
+  window._tplain=toPlain;
+  window._thtml=toHtmlQ;
+})();
+
+function _getWrap(el){return el.closest('.desc-wrap');}
+function _getQ(wrap){return _tqls[wrap.getAttribute('data-tid')]||null;}
+
+function _initQ(wrap){
+  var tid=wrap.getAttribute('data-tid');
+  if(_tqls[tid])return _tqls[tid];
+  var qlEl=wrap.querySelector('.desc-ql');
+  if(!qlEl||!window.Quill)return null;
+  qlEl.innerHTML='';
+  var q=new Quill(qlEl,{modules:{toolbar:false},theme:'snow',placeholder:'Descripción de la tarea…'});
+  q.root.innerHTML=_thtml(wrap.getAttribute('data-raw')||'');
+  _tqls[tid]=q;
+  return q;
+}
+
+function _openDesc(btn){
+  var wrap=_getWrap(btn);
+  var lines=wrap.querySelector('.desc-lines');
+  var editor=wrap.querySelector('.desc-editor');
+  lines.style.display='none';
+  btn.style.display='none';
+  editor.style.display='block';
+  var q=_initQ(wrap);
+  if(q)setTimeout(function(){q.focus();},50);
+}
+
+function _doSave(wrap,onDone){
+  var q=_getQ(wrap);
+  var newText=q?_tplain(q.root.innerHTML):(wrap.getAttribute('data-raw')||'');
+  newText=newText.trim();
+  wrap.setAttribute('data-raw',newText);
+  var lines=wrap.querySelector('.desc-lines');
+  if(lines)lines.innerHTML=descHtml(newText);
+  var tid=wrap.getAttribute('data-tid')||'';
+  if(onDone)onDone();
+  if(!tid)return;
+  var saving=wrap.querySelector('.desc-saving');
+  if(saving){saving.textContent='Guardando…';saving.style.color='';saving.style.display='inline';}
+  var _worker=window._W||'https://caspio-proxy.jordi-89b.workers.dev';
+  var url=_worker+'?action=update&table=TaTasks&id='+encodeURIComponent(tid);
+  if(typeof Auth!=='undefined'&&Auth.url)url=Auth.url(url);
+  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Taskdescription:newText})})
+  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});return r.json();})
+  .then(function(){if(saving){saving.textContent='✓';setTimeout(function(){saving.style.display='none';},2000);}})
+  .catch(function(e){console.error('[desc save]',tid,e);if(saving){saving.textContent='✕ Error';saving.style.color='var(--red)';setTimeout(function(){saving.style.display='none';saving.style.color='';},4000);}});
+}
+
+function _closeDesc(btn){
+  var wrap=_getWrap(btn);
+  var editor=wrap.querySelector('.desc-editor');
+  var openBtn=wrap.querySelector('.open-btn');
+  _doSave(wrap,function(){
+    editor.style.display='none';
+    var lines=wrap.querySelector('.desc-lines');
+    if(lines)lines.style.display='';
+    if(openBtn)openBtn.style.display='';
+  });
+}
+
+function _saveDescBtn(btn){_doSave(_getWrap(btn),null);}
+
+function _qFmtRow(btn,type){
+  var q=_getQ(_getWrap(btn));
+  if(!q)return;
+  q.focus();
+  var f=q.getFormat();
+  if(type==='bullet')q.format('list',f.list==='bullet'?false:'bullet');
+  else q.format('list',(f.list==='unchecked'||f.list==='checked')?false:'unchecked');
+}
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function descHtml(t){
+  if(!t)return'';
+  if(t.indexOf('<ul')!==-1||t.indexOf('<p>')!==-1){
+    var d=document.createElement('div');d.innerHTML=t;
+    return _esc((d.innerText||d.textContent||'').replace(/\n/g,' ').trim());
+  }
+  return t.split('\n').map(function(l){
+    if(/^\[x\] /.test(l))return'<s style="color:#c4c9d4">✓ '+_esc(l.slice(4))+'</s>';
+    if(/^\[ \] /.test(l))return'<span style="color:#7a8194">☐ '+_esc(l.slice(4))+'</span>';
+    if(/^\u2022 /.test(l))return'<b style="color:#C8102E;font-weight:900">•</b> '+_esc(l.slice(2));
+    return _esc(l);
+  }).join('<br>');
+}
+function toggleDesc(btn){
+  var p=btn.previousElementSibling;
+  p.classList.toggle('open');
+  btn.textContent=p.classList.contains('open')?'▲ menos':'▼ más';
+}
+</script>
 </head>
 <body>
+<input type="hidden" id="mgrName">
+<script>Auth.require('tareas');</script>
 
-<div id="stLoad"><div class="spinner"></div></div>
-
-<div id="content">
-  <div class="page-header">
-    <div id="langWrap">
-      <select id="langSel" onchange="applyLang(this.value)">
-        <option value="en">🌐 EN</option><option value="es">🌐 ES</option>
-        <option value="fr">🌐 FR</option><option value="de">🌐 DE</option>
-        <option value="it">🌐 IT</option><option value="nl">🌐 NL</option>
-        <option value="ru">🌐 RU</option><option value="pt">🌐 PT</option>
-        <option value="ca">🌐 CA</option>
-      </select>
-    </div>
-    <img class="page-logo" src="logo-negro.png" alt="3Villas"
-         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
-    <div class="page-title">Check-in Online</div>
-    <div class="page-greeting" id="pgGreeting"></div>
-    <div class="page-thanks" id="pgThanks" style="display:none;font-size:13px;color:var(--gray-4);margin-top:4px;line-height:1.5">Thanks for booking with us!<br>Let's prepare your stay!</div>
-    <div class="page-villa" id="pgVilla"></div>
-    <div class="page-code" id="pgCode"></div>
+<nav class="wp-nav">
+  <a class="wp-nav-logo" href="index.html">
+    <img src="logo-negro.png" alt="<3Villas">
+  </a>
+  <div class="wp-nav-center">
+    <div class="wp-nav-title">Tareas</div>
+    <div class="wp-nav-sub" id="hSub"></div>
   </div>
+  <div class="wp-nav-btns">
+    <div class="wp-nav-user">👤 <span id="hUserName"></span></div>
+    <button class="wp-nav-menu" onclick="NavComponent.open()" title="Menú">☰</button>
+    <button class="wp-nav-close" onclick="history.back()" title="Volver">✕</button>
+  </div>
+</nav>
 
-  <!-- Key info (solo si allDone) -->
-  <div id="keySection">
-    <div class="congrats">
-      <div class="congrats-title">🎉 Congratulations!</div>
-      <div class="congrats-sub">You are ready to enjoy your stay.</div>
-    </div>
-    <div class="key-grid">
-      <div class="key-row" style="text-align:center">
-        <span class="key-lbl">🔑 Keybox code</span>
-        <div class="key-val code" id="kiKeybox">—</div>
-        <div id="kiApt" style="display:none;font-size:13px;margin-top:5px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:700"></div>
-        <div class="enter-note">Use this code to open the keybox at the entrance and get the keys.</div>
-      </div>
-      <div class="key-row">
-        <div class="key-arrive-title">How to arrive?</div>
-        <div class="addr-inline">
-          <a class="btn-maps" id="kiMaps" href="#" target="_blank" style="display:none">📍 Google Maps</a>
-          <div class="addr-text" id="kiAddr">—</div>
+<!-- ── PANEL FILTROS ── -->
+<div id="filterPanel">
+  <!-- Barra siempre visible: Estado + botón Filtros -->
+  <div class="main-bar">
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-shrink:0">
+      <input type="text" id="fBuscar" placeholder="Buscar" autocomplete="off">
+      <div class="pill-group">
+        <span class="pill-label">Estado</span>
+        <div class="pill-opts">
+          <button class="pill-opt"    id="eAll">Todas</button>
+          <button class="pill-opt on" id="ePend">Pendientes</button>
+          <button class="pill-opt"    id="eDone">Terminadas</button>
         </div>
       </div>
-      <div class="key-row">
-        <div class="wifi-block">
-          <svg class="wifi-ico" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-            <line x1="12" y1="20" x2="12.01" y2="20" stroke-width="3"/>
-          </svg>
-          <div class="wifi-data">
-            <div class="wifi-line"><span class="wl-lbl">WiFi</span><span class="wl-val" id="kiWifi">—</span></div>
-            <div class="wifi-line"><span class="wl-lbl">Password</span><span class="wl-val" id="kiWifiPw">—</span></div>
+    </div>
+    <div class="pill-group" style="flex-shrink:0">
+      <span class="pill-label">Prioridad</span>
+      <div style="display:flex;gap:5px">
+        <button class="pill-toggle" id="fImportante" onclick="toggleFlagFilter('importante')">🚩 Importante</button>
+        <button class="pill-toggle" id="fUrgente" onclick="toggleFlagFilter('urgente')">🏁 Urgente</button>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn-mas" id="btnMas" onclick="toggleMas()">
+      <span>Filtros</span><span class="arr">▾</span>
+    </button>
+    <button class="btn-clear" onclick="clearAll()" title="Limpiar">✕</button>
+  </div>
+
+  <!-- Chips activos -->
+  <div id="chips"></div>
+
+  <!-- Panel colapsable -->
+  <div id="masFiltros">
+    <div class="mas-inner">
+      <div class="filter-row">
+        <div class="f-group wide" style="position:relative">
+          <label class="f-label">Asignado a</label>
+          <button id="fUserBtn" class="f-select" style="text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span id="fUserLabel">Cargando...</span>
+            <span style="font-size:10px;color:var(--gray-4)">▾</span>
+          </button>
+          <div id="userPanel" class="manager-panel" style="display:none">
+            <div style="padding:8px 10px;border-bottom:1px solid var(--gray-2)">
+              <input type="text" id="userSearch" class="f-input" placeholder="Buscar usuario..." style="height:30px;font-size:12px">
+            </div>
+            <div id="userList" class="manager-list"></div>
+            <div style="padding:6px 10px;border-top:1px solid var(--gray-2);display:flex;gap:8px">
+              <button id="btnSelectAll" class="btn-clear" style="font-size:11px;color:var(--gray-4)">Todos</button>
+              <button id="btnClearUsers" class="btn-clear" style="font-size:11px;color:var(--red)">Ninguno</button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Villa manager durante la estancia -->
-  <div id="duringSection">
-    <span class="ds-tag">During your stay</span>
-    <div class="ds-name" id="vmName"></div>
-    <div class="ds-desc" id="vmDesc"></div>
-    <a class="btn-wa-vm" id="vmWaBtn" href="#" target="_blank">WhatsApp</a>
-  </div>
-
-
-
-  <!-- Steps -->
-  <div class="steps-section">
-    <div class="steps-label">Steps</div>
-    <div class="progress-track">
-      <div class="pt-step"><div class="pt-circle pend" id="pd1">1</div><div class="pt-label" id="pdl1">Arrival</div></div>
-      <div class="pt-line" id="pl1"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd2">2</div><div class="pt-label" id="pdl2">Police</div></div>
-      <div class="pt-line" id="pl2"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd3">3</div><div class="pt-label" id="pdl3">Deposit</div></div>
-      <div class="pt-line" id="pl3"></div>
-      <div class="pt-step"><div class="pt-circle pend" id="pd4">4</div><div class="pt-label" id="pdl4">Tax</div></div>
-    </div>
-    <div class="steps-cards">
-      <div class="step-card pend" id="sc1">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl1">Step 1</div><div class="sc-name">Arrival Form</div><div class="sc-desc">Some required info to prepare your stay.</div><span class="sc-status pend" id="ss1">Pending</span></div>
-        <a class="sc-btn pend" id="btnS1" href="#" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
-      </div>
-      <div class="step-card pend" id="sc2">
-        <div class="sc-ico">
-        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M50 8 L27 24 L36 39 L64 39 L73 24 Z" stroke-width="5"/>
-          <path d="M35 39 C35 45,65 45,65 39" stroke-width="5"/>
-          <path d="M50 17 C54 17,55 21,50 26 C45 21,46 17,50 17 Z" fill="currentColor" stroke="none"/>
-          <path d="M35 45 C35 60,65 60,65 45" stroke-width="5"/>
-          <path d="M43 62 L50 71 L57 62" stroke-width="5"/>
-          <path d="M43 62 L48 67" stroke-width="5"/>
-          <path d="M57 62 L52 67" stroke-width="5"/>
-          <path d="M50 71 L45 92 L55 92 Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
-          <path d="M21 92 L21 68 C21 60,35 59,43 62" stroke-width="5"/>
-          <path d="M79 92 L79 68 C79 60,65 59,57 62" stroke-width="5"/>
-          <line x1="33" y1="80" x2="33" y2="92" stroke-width="5"/>
-          <line x1="67" y1="80" x2="67" y2="92" stroke-width="5"/>
-        </svg>
+        <div class="f-group narrow">
+          <label class="f-label">Desde</label>
+          <input type="date" id="fDesde" class="f-input">
         </div>
-        <div class="sc-body"><div class="sc-step-label" id="sl2">Step 2</div><div class="sc-name">Police Report</div><div class="sc-desc">Mandatory info required by the Spanish Police.</div><span class="sc-status pend" id="ss2">Pending</span></div>
-        <a class="sc-btn pend" id="btnS2" href="#" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
-      </div>
-      <div class="step-card pend" id="sc3">
-        <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 6v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <div class="sc-body"><div class="sc-step-label" id="sl3">Step 3</div><div class="sc-name">Security Deposit</div><div class="sc-desc">Different options to make the deposit easier.</div><span class="sc-status pend" id="ss3">Pending</span></div>
-        <a class="sc-btn pend" id="btnS3" href="#" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
-      </div>
-      <div class="step-card pend" id="sc4">
-        <div class="sc-ico">
-        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M32 10 C25 10,22 15,22 22 L22 74 C22 80,26 84,32 84" stroke-width="6"/>
-          <path d="M74 12 C82 18,84 25,80 35 L74 55" stroke-width="6"/>
-          <rect x="28" y="16" width="48" height="66" rx="10" stroke-width="6"/>
-          <line x1="40" y1="32" x2="64" y2="32" stroke-width="5"/>
-          <line x1="40" y1="42" x2="64" y2="42" stroke-width="5"/>
-          <line x1="40" y1="52" x2="64" y2="52" stroke-width="5"/>
-          <rect x="42" y="60" width="50" height="22" rx="8" fill="none" stroke="currentColor" stroke-width="3"/>
-          <text x="67" y="76" font-family="Arial,sans-serif" font-size="14" font-weight="900" text-anchor="middle" fill="currentColor">TAX</text>
-        </svg>
-        </div>
-        <div class="sc-body"><div class="sc-step-label" id="sl4">Step 4</div><div class="sc-name">Tourist Tax</div><div class="sc-desc">Mandatory taxes that against our will we are forced to collect.</div><span class="sc-status pend" id="ss4">Pending</span></div>
-        <a class="sc-btn pend" id="btnS4" href="#" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
-      </div><!-- /sc4 -->
-
-      <!-- Step 5: Key code -->
-      <div class="step-card pend" id="sc5">
-        <div class="sc-ico" id="sc5ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="8" cy="11" r="4"/>
-            <path d="M12 11h8"/>
-            <path d="M18 11v3"/>
-            <path d="M15 11v2"/>
-          </svg>
-        </div>
-        <div class="sc-body">
-          <div class="sc-step-label" id="sl5">Step 5</div>
-          <div class="sc-name">Key code</div>
-          <div class="sc-desc" id="sc5desc">Once all the previous steps are completed, you will see the property keycode, Wi-Fi details, and all check-in instructions here.</div>
-          <span class="sc-status pend" id="ss5">Pending</span>
+        <div class="f-group narrow">
+          <label class="f-label">Hasta</label>
+          <input type="date" id="fHasta" class="f-input">
         </div>
       </div>
+      <div class="filter-row" style="margin-bottom:0">
+        <div class="f-group">
+          <label class="f-label">Villa</label>
+          <input type="text" id="fVilla" class="f-input" list="villasList" placeholder="Nombre de villa..." oninput="onVillaChange()">
+          <datalist id="villasList"></datalist>
+        </div>
+        <!-- v12: filtro multiunit -->
+        <div class="f-group" id="multiunitFilterGroup" style="display:none">
+          <label class="f-label">Multiunit / Unidad</label>
+          <select id="fMultiunit" class="f-input" onchange="schedule(0)">
+            <option value="">Todas las unidades</option>
+          </select>
+        </div>
+        <div class="f-group" style="flex:0 0 110px">
+          <label class="f-label">Nº Tarea</label>
+          <input type="number" id="fTaskId" class="f-input" placeholder="ej. 1042" min="1" step="1" style="width:100%">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Id Reserva</label>
+          <input type="text" id="fReserva" class="f-input" placeholder="ej. j5oQcmp4FQ">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Tipo tarea</label>
+          <select id="fTasktype" class="f-select"><option value="">— Todos —</option></select>
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Tipo reserva</label>
+          <select id="fBookingType" class="f-select">
+            <option value="">— Todos —</option>
+            <option value="10">🧹 Limpieza</option>
+            <option value="20">🎁 WelcomePack</option>
+            <option value="30">🔒 Cierre</option>
+          </select>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <div class="contact-footer">
-    <div class="cf-title">Need help?</div>
-    <div class="cf-sub">If you need any help, do not hesitate to contact us.</div>
-    <div class="cf-btns">
-      <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
-      <a class="btn-phone" href="tel:+34659933434"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.1 6.1l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+34 659 93 34 34</a>
-      <a class="btn-email" href="mailto:bookings@3villas.com">bookings@3villas.com</a>
     </div>
   </div>
 </div>
 
-<a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
-  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
-    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
-    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
-  </svg>
-</a>
+<div id="statsBar">
+  <div class="stat"><strong id="sCnt">0</strong> tareas</div>
+  <div class="stat" id="sPendStat" style="display:none"><strong id="sPendCnt" style="color:var(--red)">0</strong> pendientes</div>
+  <div class="stat" id="sDoneStat" style="display:none"><strong id="sDoneCnt" style="color:var(--green)">0</strong> terminadas</div>
+</div>
+
+<main>
+  <div id="stInit" class="state-box"><div class="spinner"></div><p>Iniciando...</p></div>
+  <div id="stLoad" class="state-box" style="display:none"><div class="spinner"></div><p>Cargando tareas...</p></div>
+  <div id="stErr"  class="state-box" style="display:none">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-bottom:8px"></p>
+    <p style="font-size:12px;color:var(--gray-4)">Abre el panel 🐛 para ver detalles</p>
+  </div>
+  <div id="tableWrap">
+    <table>
+      <thead>
+        <tr class="th-top">
+          <th data-col="_villaName" style="width:160px">Info</th>
+          <th data-col="Taskname" style="width:200px">Tarea</th>
+          <th data-col="Taskdescription">Descripción</th>
+          <th data-col="Data_to_be_done_fixed" style="width:110px">Fecha</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<button id="fabNueva" onclick="abrirNuevaTarea()" title="Nueva tarea">
+  <span class="fab-ico">＋</span><span class="fab-txt"> Nueva tarea</span>
+</button>
+
+<div id="dbWrap">
+  <button id="dbBtn">🐛</button>
+  <div id="dbBox">Sin datos aún.</div>
+</div>
 
 <script>
-const CASPIO = 'c1abn932.caspio.com';
-const DP = {a:'353f700036ea9d14f6134018b0d3',p:'353f700038fe5bd8229244cea489',
-            d:'353f7000f2d0c28229154bc5b63d',t:'353f70008194047f5b8b4cdc8970'};
-const $=id=>document.getElementById(id);
+(function () {
+  'use strict';
 
-function truthy(v){if(!v&&v!==0)return false;
-  return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
-function cleanPh(s){return(s||'').replace(/[\s\-()]/g,'').replace(/^\+/,'');}
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
-function render(r, code){
-  function g(a,b){return r[a]||r[b]||'';}
-  var villa   = g('TaVillas_Name_villa_para_inquilinos')||'—';
-  var guest   = g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
-  var nights  = g('TaBookings2021_Nights');
-  var address = g('TaVillas_Address');
-  var maps    = g('TaVillas_Googlemaps_link');
-  var wifiU   = g('TaVillas_Wifi_user');
-  var wifiP   = g('TaVillas_Wifi_password');
-  var keybox  = g('TaVillas_Keybox_code');
-  var s1=truthy(g('TaBookings2021_Arrivalform_done'));
-  var s2=truthy(g('TaBookings2021_Registro_policia_done'));
-  var s3=truthy(g('TaBookings2021_Security_deposit_terminado'));
-  var s4=truthy(g('TaBookings2021_Ecotasa_cobrada'));
-  /* allDone viene del Worker como campo _allDone, o calculamos */
-  var allDone = r._allDone !== undefined ? r._allDone : (s1&&s2&&s3&&s4);
+  function g(id)   { return document.getElementById(id); }
+  function val(id) { return (g(id) || {}).value || ''; }
+  function todayStr(){ return new Date().toISOString().split('T')[0]; }
+  function fmtDate(s) {
+    if (!s) return '—';
+    var d = new Date(s.includes('T') ? s : s + 'T00:00:00');
+    return isNaN(d) ? s : d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }
 
-  $('pgGreeting').textContent='Hello, '+guest;
-  $('pgThanks').style.display='block';
-  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
-  $('pgCode').textContent='Booking ID '+code;
+  var estadoFilter  = 'pend';
+  var filterUrgente   = false; /* v15 */
+  var filterImportante= false; /* v15 */
 
-  var ce=encodeURIComponent(code),b='https://'+CASPIO+'/dp/';
-  $('btnS1').href=b+DP.a+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS2').href=b+DP.p+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS3').href=b+DP.d+'?TaBookings2021_FS_confirmation_code='+ce+'&cbResetParam=1';
-  $('btnS4').href=b+DP.t+'?FS_confirmation_code='+ce+'&cbResetParam=1';
+  function isFlagOn(v){if(!v)return false;var s=String(v).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s);}
 
-  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(([done,n])=>{
-    $('pd'+n).className='pt-circle '+(done?'done':'pend');
-    $('pdl'+n).className='pt-label'+(done?' done':'');
-    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
-    $('sc'+n).className='step-card '+(done?'done':'pend');
-    $('sl'+n).textContent='Step '+n;
-    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?'Done':'Pending';
-    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');
+  window.toggleFlagFilter = function(flag){
+    if(flag==='urgente'){
+      filterUrgente=!filterUrgente;
+      var btn=document.getElementById('fUrgente');
+      if(btn)btn.classList.toggle('on-urg',filterUrgente);
+    } else {
+      filterImportante=!filterImportante;
+      var btn=document.getElementById('fImportante');
+      if(btn)btn.classList.toggle('on-imp',filterImportante);
+    }
+    schedule();
+  };
+  var allUsersMap   = {};
+  var selectedUsers = {};
+  var allUsersList  = [];
+  var currentUserId = '';
+  var villaNameMap  = {};
+  var multiunitsMap = {}; /* v64 */
+  var allVillas     = [];
+  var tasktypeSet   = {};
+  var allRows       = [];
+  var sortCol       = 'Data_to_be_done_fixed';
+  var sortDir       = 1;
+  var searchTimer   = null;
+  var searchId      = 0;
+  var proxOpen      = false;
+
+  function selUsersKeys() { return Object.keys(selectedUsers); }
+  function schedule(ms)   { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, ms||0); }
+
+  function isDone(t) {
+    var v = t.Tarea_terminada;
+    return v===true||v===1||v===-1||
+           String(v).toLowerCase()==='yes'||
+           String(v).toLowerCase()==='sí'||
+           String(v).toLowerCase()==='true';
+  }
+  function getTaskId(t) { return t.taskid||t.TaskID||t.idtask||t.Id||t.ID||''; }
+
+  // ── Toggle filtros colapsables ──
+  window.toggleMas = function() {
+    g('btnMas').classList.toggle('on');
+    g('masFiltros').classList.toggle('open');
+  };
+
+  // ── Toggle Próximamente ──
+  window.toggleProxTareas = function() {
+    proxOpen = !proxOpen;
+    document.querySelectorAll('.prox-task-row').forEach(function(r) {
+      r.style.display = proxOpen ? 'table-row' : 'none';
+    });
+    var arr = g('proxArrow');
+    if (arr) arr.style.transform = proxOpen ? 'rotate(90deg)' : '';
+  };
+
+  window.abrirNuevaTarea = function() {
+    var params = 'villa_id=164';
+    if (currentUserId) params += '&userid=' + encodeURIComponent(currentUserId);
+    window.location.href = 'nueva-tarea.html?' + params;
+  };
+
+  window.openEditTask = function(rawId, reserva) {
+    if (!rawId) { alert('Sin ID de tarea.'); return; }
+    var params = 'taskid=' + encodeURIComponent(rawId);
+    if (reserva) params += '&Idreserva=' + encodeURIComponent(reserva);
+    window.location.href = 'editar-tarea.html?' + params;
+  };
+
+  function fixStickyTops(){
+    var nav=document.querySelector('.wp-nav');
+    var fp=document.getElementById('filterPanel');
+    if(nav&&fp) fp.style.top=nav.offsetHeight+'px';
+  }
+  window.addEventListener('resize', fixStickyTops);
+  setTimeout(fixStickyTops, 100);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    g('eAll') .addEventListener('click', function(){ setEstado('all');  });
+    g('ePend').addEventListener('click', function(){ setEstado('pend'); });
+    g('eDone').addEventListener('click', function(){ setEstado('done'); });
+    g('fUserBtn').addEventListener('click', toggleUserPanel);
+    g('userSearch').addEventListener('input', function(){ renderUserList(this.value); });
+    g('btnSelectAll').addEventListener('click', function(){
+      allUsersList.forEach(function(u){ selectedUsers[u.id]=true; });
+      renderUserList(''); updateUserBtn();
+    });
+    g('btnClearUsers').addEventListener('click', function(){
+      selectedUsers={}; renderUserList(''); updateUserBtn();
+    });
+    g('fDesde').addEventListener('change', function(){
+      var h=g('fHasta'); if(h&&h.value&&h.value<this.value)h.value=this.value; schedule();
+    });
+    g('fHasta').addEventListener('change', function(){ schedule(); });
+    if(g('fBuscar'))g('fBuscar').addEventListener('input',function(){schedule(600);});
+    g('fReserva').addEventListener('input',   function(){ schedule(500); });
+    g('fTaskId').addEventListener('input',    function(){ schedule(300); });
+    /* v12: oninput en HTML, no listener aquí */
+    g('fTasktype').addEventListener('change', function(){ schedule(); });
+    g('fBookingType').addEventListener('change', function(){ schedule(); });
+    g('dbBtn').addEventListener('click', function(){ g('dbBox').classList.toggle('open'); });
+    document.querySelectorAll('th[data-col]').forEach(function(th){
+      th.addEventListener('click', function(){ sortBy(th.dataset.col); });
+    });
+    document.addEventListener('click', function(e){
+      var panel=g('userPanel'), btn=g('fUserBtn');
+      if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))
+        panel.style.display='none';
+    });
+    window.addEventListener('resize', repositionUserPanel);
+
+    fixStickyTops();
+    g('fDesde').value = '2020-01-01';
+    g('fHasta').value = '2029-12-31';
+
+    /* v67 FIX: incluir loadMultiunitsFirst en el init — antes nunca se llamaba */
+    Promise.allSettled([loadUsers(), loadVillas(), loadMultiunitsFirst()])
+      .then(function(){
+        restoreFiltersFromURL(); /* v72: restaurar filtros desde URL si los hay */
+        _initDone = true; /* v73: permitir replaceState a partir de ahora */
+        doSearch();
+      });
   });
 
+  window.addEventListener('pageshow', function(e){
+    if(e.persisted || sessionStorage.getItem('taskSaved')==='1'){
+      sessionStorage.removeItem('taskSaved');
+      doSearch();
+    }
+  });
 
+  /* v72: al usar botones back/forward del navegador, restaurar filtros */
+  window.addEventListener('popstate', function(e){
+    restoreFiltersFromURL();
+    doSearch();
+  });
 
-  if(allDone){
-    $('keySection').className='visible';
-    /* Keybox: multiunit override si viene del Worker */
-    $('kiKeybox').textContent=(r._mu_keybox||keybox||'—');
-    $('kiAddr').textContent=address||'—';
-    $('kiWifi').textContent=wifiU||'—';
-    $('kiWifiPw').textContent=wifiP||'—';
-    if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
-    if(r._mu_name){$('kiApt').textContent='Apartment: '+r._mu_name;$('kiApt').style.display='block';}
+  // ── CARGAR USUARIOS ──
+  function loadUsers() {
+    var btn = g('fUserBtn');
+    if (btn){ btn.disabled=true; g('fUserLabel').textContent='Cargando...'; }
+    return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
+      .then(function(r){ return r.json(); })
+      .then(function(json){
+        var users = json.Result||json.result||[];
+        users.forEach(function(u){
+          /* v58: allUsersMap SOLO mapea UserID → Nombre.
+             NO se mapea Keyholder_por_defecto → Nombre porque si el KPD de un
+             usuario coincide con el UserID de otro, sobreescribe su nombre y
+             UserID_asigned_alfanum busca siempre por UserID real, no por KPD. */
+          allUsersMap[String(u.UserID||'')] = String(u.Name||'');
+        });
+        var myEmail = Auth.email ? Auth.email() : '';
+        var myUser  = users.filter(function(u){
+          return String(u.Email||'').toLowerCase()===myEmail.toLowerCase();
+        })[0];
+        if (myUser) {
+          currentUserId = String(myUser.UserID||'').trim(); /* v27: usar UserID directamente */
+          if (g('mgrName'))   g('mgrName').value = myUser.Name||'';
+          if (g('hUserName')) g('hUserName').textContent = (myUser.Name||'').split(' ')[0];
+        }
+        allUsersList = users.filter(function(u){
+          var s=u['User_Status'];
+          return s===true||s===1||s===-1||String(s).toLowerCase()==='yes'||String(s).toLowerCase()==='sí'||String(s).toLowerCase()==='true';
+        }).map(function(u){
+          var uid=String(u.UserID||'').trim();
+          var kpd=String(u['Keyholder_por_defecto']||'').trim();
+          /* v37: guardar ambos IDs — tareas pueden estar asignadas con cualquiera */
+          return {id:uid, kpd:(kpd&&kpd!==uid?kpd:''), name:String(u.Name||'')};
+        });
+        selectedUsers = {};
+        /* v37: default = UserID del usuario logado (sin KPD) */
+        if (currentUserId) selectedUsers[currentUserId] = true;
+        renderUserList(''); updateUserBtn();
+        if (btn) btn.disabled = false;
+        /* v63: guardar info base, se amplía cuando carguen los multiunits */
+        g('dbBox').dataset.usersInfo = 'Usuarios: '+allUsersList.length+'\nMi ID: '+currentUserId;
+        g('dbBox').textContent = g('dbBox').dataset.usersInfo+'\n[Multiunits: cargando...]';
+      })
+      .catch(function(e){
+        if(btn){g('fUserLabel').textContent='Error';btn.disabled=false;}
+        console.error('loadUsers:',e);
+      });
+  }
 
-    /* Villa manager */
-    if(r._vm_name){
-      $('duringSection').style.display='block';
-      $('vmName').textContent=r._vm_name;
-      $('vmDesc').textContent=r._vm_name+' will be your contact during your stay, making sure everything goes as well as possible.';
-      if(r._vm_phone) $('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
-      else $('vmWaBtn').style.display='none';
+  // ── CARGAR VILLAS ──
+  function loadVillas() {
+    return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
+      .then(function(r){ return r.json(); })
+      .then(function(json){
+        var rows=json.Result||json.result||[];
+        var dl=g('villasList');
+        rows.forEach(function(v){
+          var id=String(v.villaid||'');
+          var name=v.Name_villa_para_inquilinos||v.Name||id;
+          villaNameMap[id]=name;
+          allVillas.push({id:id,name:name});
+          if(dl){ var opt=document.createElement('option'); opt.value=name; dl.appendChild(opt); }
+        });
+      })
+      .catch(function(e){ console.warn('loadVillas:',e.message); });
+  }
+
+  // ── PANEL USUARIOS ──
+  function renderUserList(filter) {
+    var list=g('userList'); if(!list)return;
+    var q=(filter||'').toLowerCase();
+    /* v57: ordenar alfabéticamente con usuario actual primero */
+    var items=allUsersList.slice().sort(function(a,b){
+      if(a.id===currentUserId) return -1;
+      if(b.id===currentUserId) return 1;
+      return a.name.localeCompare(b.name,'es',{sensitivity:'base'});
+    });
+    if(q) items=items.filter(function(u){return u.name.toLowerCase().indexOf(q)!==-1;});
+    list.innerHTML=items.map(function(u){
+      var checked=selectedUsers[u.id]?' checked':'';
+      var isCurrent=(u.id===currentUserId);
+      var style=isCurrent?'background:var(--red-light);':'';
+      var marker=isCurrent?'<span style="font-size:9px;color:var(--red);font-weight:800;margin-left:4px">← tú</span>':'';
+      return '<div class="manager-item" data-uid="'+u.id+'" style="'+style+'">'+
+             '<input type="checkbox" id="uc_'+u.id+'"'+checked+'>'+
+             '<label for="uc_'+u.id+'">'+u.name+marker+'</label></div>';
+    }).join('');
+    /* v57: stopPropagation para que el panel NO se cierre al seleccionar */
+    list.querySelectorAll('.manager-item').forEach(function(item){
+      item.addEventListener('click', function(e){
+        e.stopPropagation();  /* evita que el document.click cierre el panel */
+        var uid=item.dataset.uid;
+        if(selectedUsers[uid]) delete selectedUsers[uid]; else selectedUsers[uid]=true;
+        /* re-render conservando scroll y sin cerrar panel */
+        var scrollTop=list.scrollTop;
+        renderUserList(g('userSearch').value||'');
+        list.scrollTop=scrollTop;
+        updateUserBtn();
+        schedule(300);
+      });
+    });
+    /* v57: scroll hasta el usuario actual (solo si no hay filtro) */
+    if(!q){
+      var currentItem=list.querySelector('[data-uid="'+currentUserId+'"]');
+      if(currentItem) currentItem.scrollIntoView({block:'nearest'});
     }
   }
 
-  if(allDone){
-    $('sc5').className='step-card done';
-    var ss5=$('ss5');ss5.className='sc-status done';ss5.textContent='Unlocked';
-    $('sc5desc').textContent='Your key code and all access details are shown above.';
+  function updateUserBtn() {
+    var lbl=g('fUserLabel'); if(!lbl)return;
+    var keys=selUsersKeys();
+    if(keys.length===0)      lbl.textContent='Todos';
+    else if(keys.length===1) lbl.textContent=allUsersMap[keys[0]]||keys[0];
+    else                     lbl.textContent=keys.length+' usuarios';
+    var hSub=g('hSub');
+    if(hSub){
+      if(keys.length===1){ var name=allUsersMap[keys[0]]||''; hSub.textContent=name?'de '+name.split(' ')[0]:''; }
+      else hSub.textContent='';
+    }
   }
 
-  $('stLoad').style.display='none';
-  $('content').style.display='block';
-  $('langWrap').style.display='block';
-  /* Lang selector */
-  var sup=['en','es','fr','de','it','nl','ru','pt','ca'];
-  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
-  $('langSel').value=sup.includes(nav)?nav:'en';
-}
+  function toggleUserPanel(e) {
+    e.stopPropagation();
+    var panel=g('userPanel'), btn=g('fUserBtn');
+    if(!panel||!btn)return;
+    if(panel.style.display!=='none'){panel.style.display='none';return;}
+    repositionUserPanel();
+    panel.style.display='flex';
+    g('userSearch').value=''; renderUserList(''); g('userSearch').focus();
+  }
+  function repositionUserPanel() {
+    var panel=g('userPanel'), btn=g('fUserBtn');
+    if(!panel||!btn||panel.style.display==='none')return;
+    var r=btn.getBoundingClientRect();
+    panel.style.top=(r.bottom+4)+'px'; panel.style.left=r.left+'px'; panel.style.width=r.width+'px';
+  }
 
-function applyLang(lang){
-  var tries=0,iv=setInterval(function(){
-    var c=document.querySelector('.goog-te-combo');
-    if(c){clearInterval(iv);c.value=lang;c.dispatchEvent(new Event('change'));return;}
-    if(++tries>60)clearInterval(iv);
-  },100);
-}
+  // ── ESTADO ──
+  function setEstado(mode, doSch) {
+    estadoFilter=mode;
+    ['eAll','ePend','eDone'].forEach(function(id){
+      var el=g(id); if(!el)return;
+      var on=(id==='eAll'&&mode==='all')||(id==='ePend'&&mode==='pend')||(id==='eDone'&&mode==='done');
+      el.classList.toggle('on',on);
+    });
+    if(doSch!==false) schedule();
+  }
 
-/* Iniciar auth — con check defensivo */
-if(typeof CheckinAuth === 'undefined'){
-  /* checkin-auth.js no se cargó — mostrar error claro */
-  document.getElementById('stLoad').innerHTML =
-    '<div style="text-align:center;padding:40px 20px">' +
-    '<div style="font-size:36px;margin-bottom:12px">⚠️</div>' +
-    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px;margin-bottom:8px">' +
-    'Error: checkin-auth.js not found</p>' +
-    '<p style="font-size:12px;color:#868e96;margin-bottom:16px">' +
-    'The file checkin-auth.js is missing from the server.</p>' +
-    '<a href="mailto:bookings@3villas.com" style="font-family:Montserrat,sans-serif;font-size:12px;' +
-    'font-weight:700;color:#C8102E">Contact us: bookings@3villas.com</a>' +
-    '</div>';
-} else {
-  CheckinAuth.init({
-    onVerified: function(booking){
-      var code = CheckinAuth.getCode();
-      render(booking, code);
+  window.clearBuscar = function(){
+    var el=g('fBuscar');if(el)el.value='';
+    schedule();
+  };
+  window.clearAll = function() {
+    selectedUsers={};
+    if(currentUserId) selectedUsers[currentUserId]=true;
+    renderUserList(''); updateUserBtn();
+    g('fDesde').value='2020-01-01'; g('fHasta').value='2029-12-31';
+    var _fb=g('fBuscar');if(_fb)_fb.value='';
+    g('fReserva').value=''; g('fVilla').value=''; if(g('fTaskId'))g('fTaskId').value='';
+    if(g('fMultiunit'))g('fMultiunit').value='';
+    if(g('multiunitFilterGroup'))g('multiunitFilterGroup').style.display='none';
+    g('fTasktype').value=''; g('fBookingType').value='';
+    setEstado('pend',false); renderChips(); doSearch();
+  };
+
+  // ── WHERE ──
+  // ── cargar multiunits antes que tareas ──
+  function loadMultiunitsFirst(){
+    /* v67 FIX CRÍTICO: return la promesa — sin return, Promise.allSettled descarta la promesa
+       y doSearch() corre inmediatamente con multiunitsMap vacío */
+    return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=500'))
+      .then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
+      })
+      .then(function(json){
+        var rows=json.Result||json.result||[];
+        rows.forEach(function(row){
+          var desc=String(row.descripcion||row.Descripcion||row.nombre_listing_manual||'').trim();
+          var muId=String(row.multiunitID||row.MultiunitID||'').trim();
+          var lid=String(row.ListingID_pms||row.listingID_pms||'').trim();
+          if(muId)multiunitsMap[muId]=desc;
+          if(lid&&lid!==muId)multiunitsMap[lid]=desc;
+        });
+        var dbEl=g('dbBox');
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\nMultiunits:'+Object.keys(multiunitsMap).length;
+      })
+      .catch(function(e){
+        var dbEl=g('dbBox');
+        if(dbEl)dbEl.textContent=(dbEl.dataset.usersInfo||'')+'\n[MU ERROR:'+e.message+']';
+      });
+      /* sin .then(loadData) — lo gestiona Promise.allSettled en el init */
+  }
+
+    /* v12: actualizar filtro multiunit al cambiar villa */
+  function onVillaChange(){
+    schedule(500);
+    var vText=val('fVilla').trim().toLowerCase();
+    var mg=g('multiunitFilterGroup'),ms=g('fMultiunit');
+    if(!vText){if(mg)mg.style.display='none';if(ms)ms.value='';return;}
+    /* buscar villa que coincida exactamente */
+    var matchVid=null;
+    Object.keys(villaNameMap).forEach(function(vid){if(villaNameMap[vid].toLowerCase()===vText)matchVid=vid;});
+    if(!matchVid){if(mg)mg.style.display='none';return;}
+    var mus=Object.keys(multiunitsMap);
+    if(!mus.length){if(mg)mg.style.display='none';return;}
+    if(ms)ms.innerHTML='<option value="">Todas las unidades</option>'+mus.map(function(id){return'<option value="'+id+'">'+(multiunitsMap[id]||id)+'</option>';}).join('');
+    if(mg)mg.style.display='';
+  }
+    /* v32: buildWhereForUser acepta array de userIds específico */
+    function buildWhereForUser(userKeys){
+      /* v54: si hay taskid, ignorar userKeys y filtrar solo por taskid */
+      var tidRaw2=(val('fTaskId')||'').trim();
+      if(tidRaw2 && /^\d+$/.test(tidRaw2)) return 'taskid='+parseInt(tidRaw2,10);
+      var parts2=[], desde=val('fDesde');
+      var userKeys2=userKeys||selUsersKeys();
+      if(userKeys2.length>0){
+        /* v57 FIX: solo UserID sin KPD */
+        var ids=userKeys2.map(function(k){return"'"+k+"'";});
+        parts2.push(ids.length===1?'UserID_asigned_alfanum='+ids[0]:'UserID_asigned_alfanum IN ('+ids.join(',')+')');
+      }
+      if(desde) parts2.push("(Data_to_be_done_fixed IS NULL OR Data_to_be_done_fixed>='"+desde+"T00:00:00')"); /* v35 */
+      var bt=val('fBookingType'), tt=val('fTasktype'), reserva=val('fReserva').trim();
+      if(bt)    parts2.push('Tasktype_booking='+bt);
+      if(tt)    parts2.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
+      if(reserva) parts2.push("idreserva LIKE '%"+reserva+"%'");
+      var villaQ=val('fVilla').trim().toLowerCase();
+      if(villaQ){
+        var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);
+        if(!mids.length) parts2.push('villaid=-999');
+        else if(mids.length===1) parts2.push('villaid='+mids[0]);
+        else parts2.push('villaid IN ('+mids.join(',')+')');
+      }
+      var muF=val('fMultiunit').trim();
+      if(muF) parts2.push("PMSmultiunitID='"+muF+"'");
+      var bq=(val('fBuscar')||'').trim().replace(/'/g,"''");
+      if(bq) parts2.push("buscar_en_textos LIKE '%"+bq+"%'");
+      return parts2.join(' AND ');
     }
-  });
-}
+
+    function buildWhere() {
+    /* v54: si hay taskid, filtrar SOLO por taskid — los demás filtros se ignoran */
+    var tidRaw=(val('fTaskId')||'').trim();
+    if(tidRaw && /^\d+$/.test(tidRaw)) return 'taskid='+parseInt(tidRaw,10);
+    var parts=[], desde=val('fDesde'), hasta=val('fHasta');
+    var reserva=val('fReserva').trim(), tt=val('fTasktype'), bt=val('fBookingType');
+    /* v32: Tarea_terminada se filtra en cliente — ver doSearch */
+    var keys=selUsersKeys();
+    if(keys.length>0){
+      /* v57 FIX: usar solo UserID, sin KPD — el KPD de otro usuario causaba
+         que seleccionar Samm mostrase las tareas de Sasha (bug KPD cruzado) */
+      var ids=keys.map(function(k){return"'"+k+"'";});
+      parts.push(ids.length===1?'UserID_asigned_alfanum='+ids[0]:'UserID_asigned_alfanum IN ('+ids.join(',')+')');
+    }
+    // Solo filtrar desde en servidor (hasta client-side para no excluir tareas sin fecha)
+    if(desde) parts.push("(Data_to_be_done_fixed IS NULL OR Data_to_be_done_fixed>='"+desde+"T00:00:00')"); /* v35 */
+    if(bt)    parts.push('Tasktype_booking='+bt);
+    if(tt)    parts.push("Tasktype='"+tt.replace(/'/g,"''")+"'");
+    if(reserva) parts.push("idreserva LIKE '%"+reserva+"%'");
+    var villaQ=val('fVilla').trim().toLowerCase();
+    if(villaQ){
+      var mids=allVillas.filter(function(v){return v.name.toLowerCase().indexOf(villaQ)!==-1;}).map(function(v){return v.id;}).filter(Boolean);
+      if(!mids.length) parts.push('villaid=-999');
+      else if(mids.length===1) parts.push('villaid='+mids[0]);
+      else parts.push('villaid IN ('+mids.join(',')+')');
+    }
+    var muF=val('fMultiunit').trim();
+    if(muF)parts.push("PMSmultiunitID='"+muF+"'");
+    var bq=(val('fBuscar')||'').trim().replace(/'/g,"''");
+    if(bq) parts.push("buscar_en_textos LIKE '%"+bq+"%'");
+    return parts.join(' AND ');
+  }
+
+  // ── CHIPS ──
+  function renderChips() {
+    var html='';
+    var keys=selUsersKeys();
+    /* v63 FIX chips: mostrar SIEMPRE los filtros activos "siempre que se pueda" */
+    /* Chip usuario: SIEMPRE que haya selección */
+    if(keys.length>0){
+      var names=keys.map(function(id){return allUsersMap[id]||id;}).join(', ');
+      html+=chip((keys.length===1?'👤 ':'👥 ')+names,'users');
+    }
+    /* Chip estado: SIEMPRE (incluso Pendientes = el default) */
+    var estadoLabel={pend:'Pendientes',done:'Terminadas',all:'Todas'}[estadoFilter]||estadoFilter;
+    html+=chip('📋 '+estadoLabel,'estado');
+    /* Chip fecha */
+    var d=val('fDesde'), h=val('fHasta');
+    if(d && d!==DEFAULT_DESDE) html+=chip('Desde: '+fmtDate(d),'desde');
+    if(h && h!==DEFAULT_HASTA) html+=chip('Hasta: '+fmtDate(h),'hasta');
+    /* Chip taskid, reserva, villa, multiunit */
+    var _tid=(val('fTaskId')||'').trim(); if(_tid) html+=chip('Tarea #'+_tid,'taskid');
+    if(val('fReserva').trim()) html+=chip('Reserva: '+val('fReserva').trim(),'reserva');
+    if(val('fVilla').trim())   html+=chip('Villa: '+val('fVilla').trim(),'villa');
+    if(val('fMultiunit').trim()){var _mn=multiunitsMap[val('fMultiunit')]||val('fMultiunit');html+=chip('Unidad: '+_mn,'multiunit');}
+    /* Chip tipo */
+    var bt=val('fBookingType'), btL={'10':'Limpieza','20':'WelcomePack','30':'Cierre'};
+    if(bt) html+=chip(btL[bt]||bt,'booking');
+    if(val('fTasktype')) html+=chip('Tipo: '+val('fTasktype'),'tasktype');
+    /* Chip prioridad */
+    if(filterUrgente)    html+=chip('🏁 Urgente','urgente');
+    if(filterImportante) html+=chip('🚩 Importante','importante');
+    g('chips').innerHTML=html;
+    g('chips').querySelectorAll('button[data-key]').forEach(function(btn){
+      btn.addEventListener('click',function(){ clearChip(btn.dataset.key); renderChips(); doSearch(); });
+    });
+  }
+  function chip(label,key){ return '<span class="chip-filter">'+label+' <button data-key="'+key+'">✕</button></span>'; }
+  function clearChip(key) {
+    // La X limpia el filtro (quita la restricción), no resetea al default
+    if(key==='users')   { selectedUsers={}; renderUserList(''); updateUserBtn(); }
+    if(key==='desde')   g('fDesde').value='';       // sin límite inferior de fecha
+    if(key==='hasta')   g('fHasta').value='';       // sin límite superior de fecha
+    if(key==='taskid') { if(g('fTaskId'))g('fTaskId').value=''; }
+    if(key==='reserva') g('fReserva').value='';
+    if(key==='villa'){g('fVilla').value='';if(g('fMultiunit'))g('fMultiunit').value='';if(g('multiunitFilterGroup'))g('multiunitFilterGroup').style.display='none';}
+    if(key==='multiunit')  g('fMultiunit').value='';
+    if(key==='booking') g('fBookingType').value='';
+    if(key==='tasktype') g('fTasktype').value='';
+    if(key==='estado')  setEstado('pend',false);    // vuelve al default: pendientes
+    if(key==='urgente')   {filterUrgente=false;   var b=document.getElementById('fUrgente');   if(b)b.classList.remove('on-urg');}
+    if(key==='importante'){filterImportante=false; var b=document.getElementById('fImportante');if(b)b.classList.remove('on-imp');}
+  }
+
+  // ── BUSCAR ──
+  function doSearch() {
+    var myId=++searchId; proxOpen=false; renderChips();
+    /* v73: pushStateFromFilters se llama AL FINAL (en renderTable), no aquí.
+       Llamarlo al inicio causaba que replaceState() interrumpiera la carga en algunos navegadores */
+    g('tableWrap').style.display='none'; g('stInit').style.display='none';
+    g('stLoad').style.display='block';   g('stErr').style.display='none';
+    g('statsBar').style.display='none';  if(g('hCount'))g('hCount').textContent='';
+
+    var keys=selUsersKeys();
+    /* v32: si hay múltiples usuarios, una petición por usuario para evitar el límite de 1000 */
+    var fetchPromises;
+    if(keys.length>1){
+      fetchPromises=keys.map(function(uid){
+        var whereOne=buildWhereForUser([uid]);
+        var qs=whereOne?'&where='+encodeURIComponent(whereOne):'';
+        return fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
+          .then(function(r){return r.json();})
+          .then(function(j){return j.Result||j.result||[];});
+      });
+    } else {
+      var where=buildWhere();
+      var qs=where?'&where='+encodeURIComponent(where):'';
+      fetchPromises=[fetch(Auth.url(WORKER+'?action=data&table=TaTasks'+qs+'&orderBy=taskid%20DESC&limit=1000'))
+        .then(function(r){return r.json();})
+        .then(function(j){if(j.error)throw new Error(j.error);return j.Result||j.result||[];})];
+    }
+
+    Promise.all(fetchPromises)
+      .then(function(arrays){
+        if(myId!==searchId)return;
+        /* Combinar y deduplicar por taskid */
+        var seen={};
+        var tasks=[];
+        arrays.forEach(function(arr){
+          arr.forEach(function(t){
+            var id=String(t.taskid||t.PK_ID||'');
+            if(!seen[id]){seen[id]=true;tasks.push(t);}
+          });
+        });
+        /* v29: debug extendido para diagnóstico */
+        var dbSelectedUsers=JSON.stringify(selectedUsers);
+        var dbUsersList=allUsersList.map(function(u){return u.id+'='+u.name;}).join(', ');
+        var dbAssignedVals=[...new Set(tasks.map(function(t){return String(t.UserID_asigned_alfanum||'(vacío)');}))]
+                          .slice(0,20).join(', ');
+        g('dbBox').textContent=
+          'selectedUsers: '+dbSelectedUsers+
+          '\ncurrentUserId: '+currentUserId+
+          '\nWHERE: '+(where||'(sin filtros)')+
+          '\n\nResultados: '+tasks.length+
+          '\nUserID_asigned_alfanum en resultados: '+dbAssignedVals+
+          '\n\nallUsersList IDs: '+dbUsersList+
+          /* v65: mostrar primera tarea CON PMSmultiunitID (no siempre la primera) */
+          '\n\nMultiunits map keys('+Object.keys(multiunitsMap).length+'): '+Object.keys(multiunitsMap).slice(0,5).join(',')+
+          '\n\n'+(function(){
+            var tMu=tasks.find(function(t){return String(t.PMSmultiunitID||'').trim()!='';});
+            return JSON.stringify(tMu||tasks[0]||{},null,2);
+          })();
+        tasks.forEach(function(t){ if(t.Tasktype) tasktypeSet[String(t.Tasktype).trim()]=true; });
+        var selTT=g('fTasktype'), curTT=selTT.value;
+        selTT.innerHTML='<option value="">— Todos —</option>'+
+          Object.keys(tasktypeSet).sort().map(function(v){
+            return '<option value="'+v+'"'+(v===curTT?' selected':'')+'>'+v+'</option>';
+          }).join('');
+        tasks.forEach(function(t){ var vid=String(t.villaid||''); if(vid&&!villaNameMap[vid])villaNameMap[vid]='Villa '+vid; });
+        allRows=tasks; renderTable();
+      })
+      .catch(function(err){
+        if(myId!==searchId)return;
+        g('stLoad').style.display='none'; g('stErr').style.display='block';
+        g('errMsg').textContent=err.message; g('dbBox').textContent='Error:\n'+err.message;
+      });
+  }
+
+  // ── SORT ──
+  function sortBy(col) {
+    if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+    document.querySelectorAll('th[data-col]').forEach(function(th){
+      th.classList.remove('sort-asc','sort-desc');
+      if(th.dataset.col===col) th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+    });
+    renderTable();
+  }
+
+  // ── FECHA CELL ──
+  /* v56: columna Fecha muestra:
+     1. Fecha vencimiento (coloreada por urgencia)
+     2. Creado por: nombre de quien creó la tarea
+        → campo DataCreated en TaTasks: si contiene un UserID, buscar en allUsersMap
+          si es una fecha, buscar en campos alternativos (UserID_created, etc.)
+     3. Creada el: fecha de creación
+        → campo DataCreated si es fecha, o Created_At, RecordCreated como fallback
+     El ordenado del listado NO se toca (usa Data_to_be_done_fixed, nunca DataCreated) */
+  function dateCell(t) {
+    /* ── 1. Fecha de vencimiento ── */
+    var raw=t.Data_to_be_done_fixed||'';
+    var duePart='<span class="date-cell">—</span>';
+    if(raw){
+      var d=new Date(raw.split('T')[0]+'T00:00:00');
+      var today=new Date(); today.setHours(0,0,0,0);
+      var diff=Math.round((d-today)/86400000);
+      var cls='date-cell'+(diff<0?' overdue':diff===0?' today':'');
+      var lbl=diff===0?'Hoy':diff===-1?'Ayer':diff===1?'Mañana':fmtDate(raw);
+      duePart='<span class="'+cls+'">'+lbl+'</span>';
+    }
+
+    /* ── 2+3. Creado por + Creada el ──
+       DataCreated puede ser:
+         a) Fecha ISO "2026-05-04T10:30:00" → Creada el
+         b) UserID "ABC123" → Creado por (buscar en allUsersMap)
+       Intentar AMBOS: fecha para "Creada el", UserID en campos alternativos para "Creado por" */
+    var dc = String(t.DataCreated||t.dataCreated||t.Data_Created||'').trim();
+    var esDateVal = /^\d{4}-\d{2}-\d{2}/.test(dc);
+
+    /* ── "Creado por" ── */
+    var creadorName = '';
+    /* Primero: campos explícitos de creador */
+    var creadorId = String(
+      t.UserID_created || t.Created_by || t.CreatedBy ||
+      t.UserID_Creator || t.creator_id || ''
+    ).trim();
+    if(creadorId) creadorName = allUsersMap[creadorId] || '';
+    /* Segundo: si DataCreated parece un UserID (no fecha), intentarlo */
+    if(!creadorName && !esDateVal && dc){
+      creadorName = allUsersMap[dc] || '';
+    }
+
+    /* ── "Creada el" ── */
+    var creadaFecha = '';
+    if(esDateVal){
+      /* DataCreated es una fecha */
+      creadaFecha = fmtDate(dc);
+    } else {
+      /* Buscar fecha de creación en campos alternativos */
+      var altFecha = String(
+        t.Created_At || t.RecordCreated || t.created_at ||
+        t.DateCreated || t.date_created || ''
+      ).trim();
+      if(altFecha && /^\d{4}-\d{2}-\d{2}/.test(altFecha)){
+        creadaFecha = fmtDate(altFecha);
+      }
+    }
+
+    /* ── HTML ── */
+    var creadoPart = creadorName
+      ? '<div style="margin-top:4px;font-family:Montserrat,sans-serif;font-size:9px;'
+        +'font-weight:700;color:var(--gray-4);white-space:nowrap;line-height:1.3">'
+        +'<span style="opacity:.7;font-weight:600">Creado por</span><br>'
+        +_esc(creadorName.split(' ')[0])
+        +'</div>'
+      : '';
+    var creadaFechaPart = creadaFecha
+      ? '<div style="margin-top:2px;font-family:Montserrat,sans-serif;font-size:9px;'
+        +'color:var(--gray-3);white-space:nowrap;line-height:1.3">'
+        +'<span style="font-weight:600;color:var(--gray-4)">Creada el</span><br>'
+        +creadaFecha
+        +'</div>'
+      : '';
+
+    return '<div style="display:flex;flex-direction:column;gap:1px">'
+      +duePart+creadoPart+creadaFechaPart+'</div>';
+  }
+
+  // ── GENERAR FILA ──
+  function buildRow(t, extraClass) {
+    var done_t  = isDone(t);
+    var reserva = t.idreserva||t.Idreserva||'';
+    var taskName = (t.Taskname||'').trim();
+    var taskNameShort = taskName.length>70?taskName.slice(0,70)+'…':taskName;
+    var taskDesc = (t.Taskdescription||'').trim();
+    var taskDescShort = taskDesc.length>110?taskDesc.slice(0,110)+'…':taskDesc;
+    var taskId  = getTaskId(t);
+    var villaName = t._villaName||'—';
+    var userName  = t._userName||'';
+
+    var rowBg='';
+    if(!done_t && extraClass!=='prox-task-row'){
+      var rawD=t.Data_to_be_done_fixed||'';
+      if(rawD){
+        var today2=new Date(); today2.setHours(0,0,0,0);
+        var diff2=Math.round((new Date(rawD.split('T')[0]+'T00:00:00')-today2)/86400000);
+        /* v47: sin fondo coloreado */
+        
+      }
+    }
+
+    var btnEdit = taskId
+      ? '<button class="act-btn act-btn-edit" onclick="openEditTask(\''+taskId+'\',\''+(reserva||'')+'\');" title="Editar">✏️ Editar</button>'
+      : '';
+
+    /* v46: info-card — centrada, sin villa, sin "Pendiente" */
+    var isUrg = isFlagOn(t.urgente);
+    var isImp = isFlagOn(t.importante);
+    var editUrl=taskId?'editar-tarea.html?taskid='+encodeURIComponent(taskId)+(reserva?'&Idreserva='+encodeURIComponent(reserva):''):'';
+    var flags=(isImp?'🚩':'')+(isUrg?'🏁':'');
+    var metaCell = (editUrl?'<a class="info-card" href="'+editUrl+'" title="Editar">':'<div class="info-card">')
+      + (flags?'<div class="info-flags">'+flags+'</div>':'')
+      + '<div class="info-pencil">✎</div>'
+      + (done_t?'<span class="est-done">Terminada</span>':'')
+      + (userName?'<div class="info-user">'+_esc(userName.split(' ')[0])+'</div>':'')
+      + (editUrl?'</a>':'</div>');
+    /* v55: columna Tarea — villa + multiunit pill + nombre + fecha vencimiento */
+    var _muId=String(t.PMSmultiunitID||'').trim();
+    var _muName=_muId?(multiunitsMap[_muId]||''):'';
+    /* v63 DEBUG: si hay _muId y no se encuentra nombre, añadir al panel visible */
+    if(_muId&&!_muName&&!window._muDebugDone){
+      window._muDebugDone=true; /* solo mostrar una vez */
+      var _dbEl=g('dbBox');
+      if(_dbEl) _dbEl.textContent+=('\n[MU MISS] taskid:'+t.taskid+' PMSmultiunitID='+JSON.stringify(_muId)+'\nmap.has(name_+id)='+JSON.stringify(multiunitsMap[_muId])+'\nkeys:'+Object.keys(multiunitsMap).length);
+    }
+    /* villa sin el multiunit concatenado (usar villaNameMap directo) */
+    var _villaOnly=villaNameMap[String(t.villaid||'')]||('Villa '+String(t.villaid||''));
+    /* pill de multiunit */
+    var _muPill=_muName
+      ? '<span style="display:inline-flex;align-items:center;background:var(--orange-light);'
+        +'color:var(--orange);font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;'
+        +'padding:1px 5px;border-radius:4px;margin-left:4px;text-transform:uppercase;'
+        +'letter-spacing:.3px;white-space:nowrap;vertical-align:middle">'+_esc(_muName)+'</span>'
+      : '';
+    /* fecha de vencimiento pequeña bajo el nombre de la tarea */
+    var _dueMini=(function(){
+      var rw=t.Data_to_be_done_fixed||'';
+      if(!rw)return'';
+      var dd=new Date(rw.split('T')[0]+'T00:00:00');
+      var td2=new Date();td2.setHours(0,0,0,0);
+      var df=Math.round((dd-td2)/86400000);
+      var cls2='';
+      if(df<0)cls2='color:var(--red)';
+      else if(df===0)cls2='color:var(--orange)';
+      else cls2='color:var(--gray-4)';
+      var lb=df===0?'📅 Hoy':df===-1?'📅 Ayer':df===1?'📅 Mañana':'📅 '+fmtDate(rw);
+      return'<div style="margin-top:2px;font-family:Montserrat,sans-serif;font-size:10px;'
+        +'font-weight:700;'+cls2+'">'+lb+'</div>';
+    })();
+    var taskNameCell = (editUrl
+      ? '<a href="'+editUrl+'" class="task-link">'
+      : '<div style="display:flex;flex-direction:column;gap:3px">')
+      + '<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;'
+      +   'text-transform:uppercase;letter-spacing:.8px;color:var(--gray-4);'
+      +   'display:flex;align-items:center;flex-wrap:wrap;gap:2px">'
+      +   _esc(_villaOnly)+_muPill
+      + '</div>'
+      + (taskName
+        ? '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-4);line-height:1.3">'+_esc(taskName)+'</div>'
+        : '<span style="color:var(--gray-3);font-size:11px">(sin nombre)</span>')
+      + _dueMini
+      + (editUrl?'</a>':'</div>');
+    var descOnlyCell = taskDesc
+      ? '<div class="desc-wrap" data-raw="'+_ea(taskDesc)+'" data-tid="'+_ea(taskId)+'">'
+        + '<div class="desc-lines" style="font-size:12px;color:var(--gray-5);line-height:1.55">'+descHtml(taskDesc)+'</div>'
+        + '<div class="desc-editor">'
+        +   '<div class="desc-re-bar">'
+        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'bullet\')">• Lista</button>'
+        +     '<button class="re-btn-inline" onclick="_qFmtRow(this,\'check\')">☐ Check</button>'
+        +   '</div>'
+        +   '<div class="desc-ql-wrap"><div class="desc-ql"></div></div>'
+        +   '<div class="desc-actions">'
+        +     '<button class="desc-more" onclick="_closeDesc(this)">▲ menos</button>'
+        +     '<button class="desc-save-btn" onclick="_saveDescBtn(this)">💾 Guardar</button>'
+        +     '<span class="desc-saving" style="display:none">Guardando…</span>'
+        +   '</div>'
+        + '</div>'
+        + '<button class="desc-more open-btn" onclick="_openDesc(this)">▼ más</button>'
+        + '</div>'
+      : '';
+    return '<tr class="'+(extraClass||'')+'" style="'+rowBg+'">'
+      +'<td style="vertical-align:top;padding:6px 4px">'+metaCell+'</td>'
+      +'<td style="max-width:200px;vertical-align:top">'+taskNameCell+'</td>'
+      +'<td style="max-width:300px;vertical-align:top">'+descOnlyCell+'</td>'
+      +'<td>'+dateCell(t)+'</td>'
+      +'</tr>';
+  }
+
+  // ── RENDER ──
+  function renderTable() {
+    g('stLoad').style.display='none';
+    var today=new Date(); today.setHours(0,0,0,0);
+
+    var hastaVal=val('fHasta');
+    var filtered=allRows.filter(function(t){
+      if(estadoFilter==='pend') return !isDone(t);
+      if(estadoFilter==='done') return  isDone(t);
+      return true;
+    }).filter(function(t){
+      /* v36: excluir Tasktype_booking=20 en cliente — evita problemas SQL con IS NULL */
+      return String(t.Tasktype_booking||'') !== '20';
+    }).filter(function(t){
+      // Filtro hasta en cliente: tareas sin fecha siempre pasan
+      if(!hastaVal) return true;
+      var rawD=t.Data_to_be_done_fixed||'';
+      if(!rawD) return true;
+      return rawD.split('T')[0]<=hastaVal;
+    }).filter(function(t){
+      /* v19: filtro urgente/importante en cliente */
+      if(filterUrgente   && !isFlagOn(t.urgente))    return false;
+      if(filterImportante && !isFlagOn(t.importante)) return false;
+      return true;
+    }).map(function(t){
+      return Object.assign({},t,{
+        _villaName: (function(){var vn=villaNameMap[String(t.villaid||'')]||'Villa '+String(t.villaid||'');var mu=String(t.PMSmultiunitID||'').trim();return mu&&multiunitsMap[mu]?vn+' / '+multiunitsMap[mu]:vn;})(), /* v12 */
+        _userName:  allUsersMap[String(t.UserID_asigned_alfanum||'')]||String(t.UserID_asigned_alfanum||''),
+        _done:      isDone(t)?1:0,
+      });
+    });
+
+    filtered.sort(function(a,b){
+      var av=a[sortCol]!==undefined?a[sortCol]:'', bv=b[sortCol]!==undefined?b[sortCol]:'';
+      if(sortCol==='Data_to_be_done_fixed'){av=a.Data_to_be_done_fixed||'9999';bv=b.Data_to_be_done_fixed||'9999';}
+      return String(av).localeCompare(String(bv),'es',{numeric:true})*sortDir;
+    });
+
+    /* v19: Separar en grupos con lógica de prioridad:
+       - Importante (solo pendPast, no futura salvo que sea también urgente) → primeros
+       - Urgente (cualquier fecha, sacada de Próximamente) → segundos
+       - Normal pendPast → en medio
+       - Próximamente: futuras no urgentes (aunque sean importantes) → colapsable
+       - Done → al final
+    */
+    var grpImportante=[], grpUrgente=[], grpNormal=[], grpProx=[], doneRows=[];
+
+    filtered.forEach(function(t){
+      if(isDone(t)){ doneRows.push(t); return; }
+      var rawD=t.Data_to_be_done_fixed||'';
+      var isFuture=rawD && new Date(rawD.split('T')[0]+'T00:00:00')>today;
+      var imp=isFlagOn(t.importante);
+      var urg=isFlagOn(t.urgente);
+
+      if(imp && !isFuture){
+        grpImportante.push(t);        /* importante + pasada/hoy → primero */
+      } else if(urg){
+        grpUrgente.push(t);           /* urgente (cualquier fecha) → segundo, sacada de Próximamente */
+      } else if(!isFuture){
+        grpNormal.push(t);            /* normal pasada/hoy → en medio */
+      } else {
+        grpProx.push(t);              /* futura no urgente → Próximamente */
+      }
+    });
+
+    var pendTotal = grpImportante.length+grpUrgente.length+grpNormal.length+grpProx.length;
+    var done = doneRows.length;
+    g('sCnt').textContent=filtered.length;
+    g('sPendCnt').textContent=pendTotal; g('sDoneCnt').textContent=done;
+    g('sPendStat').style.display=pendTotal>0?'flex':'none';
+    g('sDoneStat').style.display=done>0?'flex':'none';
+    g('statsBar').style.display='flex';
+    if(g('hCount'))g('hCount').textContent=filtered.length||'';
+
+    var tbody=g('tbody');
+    if(!filtered.length){
+      tbody.innerHTML='<tr class="empty-row"><td colspan="5">🏖️ Sin tareas para los filtros seleccionados</td></tr>';
+      g('tableWrap').style.display='block'; return;
+    }
+
+    var html='';
+    grpImportante.forEach(function(t){ html+=buildRow(t,''); });
+    grpUrgente.forEach(function(t){    html+=buildRow(t,''); });
+    grpNormal.forEach(function(t){     html+=buildRow(t,''); });
+
+    if(grpProx.length){
+      html+='<tr class="prox-toggle-row" onclick="toggleProxTareas()">'+
+        '<td colspan="5">'+
+        '<span style="margin-right:8px;font-size:14px">🗓️</span>'+
+        '<strong>Próximamente: '+grpProx.length+' tarea'+(grpProx.length>1?'s':'')+'</strong>'+
+        '<span id="proxArrow" style="margin-left:8px;display:inline-block;transition:transform .2s">›</span>'+
+        '</td></tr>';
+      grpProx.forEach(function(t){ html+=buildRow(t,'prox-task-row'); });
+    }
+
+    doneRows.forEach(function(t){ html+=buildRow(t,''); });
+    tbody.innerHTML=html;
+    g('tableWrap').style.display='block';
+    pushStateFromFilters(); /* v73: actualizar URL al terminar de renderizar */
+  }
+
+  // ── URL PERSISTENCE v72: filtros ↔ URL params ──────────────
+  var DEFAULT_DESDE = '2020-01-01', DEFAULT_HASTA = '2029-12-31';
+
+  var _initDone = false; /* v73: no actualizar URL hasta que la página esté inicializada */
+
+  /* Serializa el estado actual de filtros en la URL (replaceState) */
+  function pushStateFromFilters() {
+    if(!_initDone) return; /* v73: evitar replaceState durante la carga inicial */
+    try {
+      var p = new URLSearchParams();
+      var keys = selUsersKeys();
+      if(keys.length) p.set('u', keys.join(','));
+      if(estadoFilter && estadoFilter !== 'pend') p.set('est', estadoFilter);
+      var desde = val('fDesde');
+      if(desde && desde !== DEFAULT_DESDE) p.set('fd', desde);
+      var hasta = val('fHasta');
+      if(hasta && hasta !== DEFAULT_HASTA) p.set('fh', hasta);
+      var villa = val('fVilla').trim();
+      if(villa) p.set('vi', villa);
+      var mu = val('fMultiunit').trim();
+      if(mu) p.set('mu', mu);
+      var reserva = val('fReserva').trim();
+      if(reserva) p.set('re', reserva);
+      var taskid = (val('fTaskId')||'').trim();
+      if(taskid) p.set('tid', taskid);
+      var tt = val('fTasktype');
+      if(tt) p.set('tt', tt);
+      var bt = val('fBookingType');
+      if(bt) p.set('bt', bt);
+      if(filterUrgente)    p.set('urg', '1');
+      if(filterImportante) p.set('imp', '1');
+      var qs = p.toString();
+      history.replaceState({f:qs}, '', location.pathname+(qs?'?'+qs:''));
+    } catch(e) { /* replaceState no crítico — ignorar errores */ }
+  }
+  /* Restaura el estado de filtros desde la URL actual */
+  function restoreFiltersFromURL() {
+    var p = new URLSearchParams(location.search);
+    if(!p.toString()) {
+      setEstado('pend', false); /* default */
+      return;
+    }
+    /* Estado */
+    setEstado(p.get('est') || 'pend', false);
+    /* Usuarios */
+    if(p.has('u')) {
+      selectedUsers = {};
+      p.get('u').split(',').forEach(function(id){ if(id.trim()) selectedUsers[id.trim()] = true; });
+      renderUserList(''); updateUserBtn();
+    }
+    /* Fechas */
+    if(p.has('fd')) g('fDesde').value = p.get('fd');
+    if(p.has('fh')) g('fHasta').value = p.get('fh');
+    /* Villa + multiunit */
+    if(p.has('vi')) {
+      g('fVilla').value = p.get('vi');
+      /* Abrir el panel de filtros si hay filtros avanzados */
+      var bMas = g('btnMas'), mFil = g('masFiltros');
+      if(bMas && !bMas.classList.contains('on')){ bMas.classList.add('on'); if(mFil)mFil.classList.add('open'); }
+    }
+    if(p.has('mu')) {
+      if(g('fMultiunit')) g('fMultiunit').value = p.get('mu');
+      if(g('multiunitFilterGroup')) g('multiunitFilterGroup').style.display = '';
+    }
+    if(p.has('re')) { g('fReserva').value = p.get('re'); }
+    if(p.has('tid') && g('fTaskId')) g('fTaskId').value = p.get('tid');
+    if(p.has('tt')) g('fTasktype').value = p.get('tt');
+    if(p.has('bt')) g('fBookingType').value = p.get('bt');
+    /* Prioridad */
+    if(p.get('urg') === '1') {
+      filterUrgente = true;
+      var bUrg = g('fUrgente'); if(bUrg) bUrg.classList.add('on-urg');
+    }
+    if(p.get('imp') === '1') {
+      filterImportante = true;
+      var bImp = g('fImportante'); if(bImp) bImp.classList.add('on-imp');
+    }
+    /* Abrir panel si hay algún filtro avanzado activo */
+    if(p.has('re')||p.has('tid')||p.has('tt')||p.has('bt')||p.has('mu')||p.has('fd')||p.has('fh')) {
+      var bMas2 = g('btnMas'), mFil2 = g('masFiltros');
+      if(bMas2 && !bMas2.classList.contains('on')){ bMas2.classList.add('on'); if(mFil2)mFil2.classList.add('open'); }
+    }
+  }
+  // ── FIN URL PERSISTENCE ────────────────────────────────────
+
+
+})();
 </script>
 </body>
 </html>
