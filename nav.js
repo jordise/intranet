@@ -55,6 +55,7 @@ var NAV_MENUS = {
       icon: '👥',
       children: [
         { label: 'Horarios',       url: 'https://docs.google.com/document/d/1cStA_oxwK__WiJSn-5Ut1J5nUkJVZIlDDy2jYFtn_k4/edit?tab=t.0',                      icon: '📄' }
+{ label: 'Reporte test semanal',       url: 'reports-ventas.html',                      icon: '📄' }
       ]
     },
     {
