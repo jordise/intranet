@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
+<!-- VERSIÓN ACTUAL: v32 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v31 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v31 — 27/05/2026 -->
+  <title>Notas Equipo Reservas v32 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v32 — 27/05/2026 -->
   <!--
     FIX v28/v29:
     1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
@@ -15,6 +16,9 @@
        - populateForm() se mueve al Promise.all.then() para garantizar que
          window.__mu esté disponible al filtrar por villaid de la reserva
        - populateMultiunitSelect() filtra por TaVillas_villaid de la reserva
+    NUEVO v32:
+    - Resumen actual de depósito de seguridad con mensaje por opción (0-4)
+      y estado de devolución (Security_deposit_devuelto) para opciones 2 y 3
   -->
   <!-- ══ PWA ══ -->
   <link rel="manifest" href="manifest.json">
@@ -149,7 +153,6 @@
   <div class="h-label">Notas Equipo Reservas</div>
   <div class="h-villa" id="hVilla">Cargando…</div>
   <div class="h-meta" id="hMeta"></div>
-
 </header>
 
 <main id="mainContent" style="display:none">
@@ -260,8 +263,6 @@
     </div>
 
     <!-- 4.3 Ecotasa -->
-    <!-- FIX v28/v29: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
-         Se usa fEcotasaCobrada (select) y ecoVal() para guardar. -->
     <div class="col-wrap st-na" id="colEcotasa" style="display:none">
       <div class="col-head" onclick="tog('colEcotasa')">
         <span class="col-ico">🌿</span>
@@ -345,10 +346,6 @@
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start">
                   <div class="field">
                     <label class="lbl">Estado</label>
-                    <!-- fEcotasaCobrada: valores del lookup Ta_Pagado_Pendiente (TableID integer) -->
-                    <!-- FIX v30: solo DOS opciones, sin placeholder vacío.
-                         value="0" = Pendiente (primera = por defecto)
-                         value="1" = Pagado -->
                     <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
                       <option value="0">Pendiente</option>
                       <option value="1">Pagado</option>
@@ -376,11 +373,24 @@
       </div>
       <div class="col-body" id="bodyColDeposito">
         <span id="vrDeposito" style="font-size:11px;padding:4px 8px;border-radius:6px">—</span>
+
+        <!-- ══ RESUMEN ACTUAL v32 ══ -->
+        <div id="depResumen" style="border-radius:10px;overflow:hidden;border:1.5px solid var(--gray-2)">
+          <div style="background:var(--gray-1);padding:7px 12px;border-bottom:1px solid var(--gray-2)">
+            <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">📋 Resumen actual</span>
+          </div>
+          <div id="depResumenBody" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div id="depResumenMsg" style="font-size:13px;font-weight:600;color:var(--gray-5);line-height:1.5">—</div>
+            <div id="depResumenDev" style="display:none;font-size:12px;padding:7px 12px;border-radius:8px;border:1.5px solid var(--gray-2);background:var(--gray-1);font-weight:500"></div>
+          </div>
+        </div>
+        <!-- ══ FIN RESUMEN ACTUAL ══ -->
+
         <div class="alert al-rd" style="margin-bottom:4px">
           <strong>⚠️ PELIGRO — NO TOCAR SIN AVISAR PRIMERO</strong>
           En principio este campo NO se debe modificar. Si necesita tocarse: avisar antes a <strong>Jordi</strong> y dejar una nota en "Notas depósito de seguridad" explicando el motivo.
         </div>
-        <div class="chk-row" id="rowDepTerm" onclick="chkTog('cbDepTerm','rowDepTerm')">
+        <div class="chk-row" id="rowDepTerm" onclick="chkTog('cbDepTerm','rowDepTerm');renderDepResumen()">
           <input type="checkbox" class="hcb" id="cbDepTerm">
           <div class="chk-circle" id="circDepTerm"></div>
           <span class="chk-label">Depósito de Seguridad — Terminado</span>
@@ -440,6 +450,7 @@
     </div>
   </div>
 </div>
+
 <!-- ══ 1. NOTAS ══ -->
 <div class="card">
   <div class="card-head" onclick="togCard('card-notas')"><span class="card-ico">🧹</span><h2 style="flex:1">Notas</h2><span class="card-arr" id="arr-card-notas">▾</span></div>
@@ -470,8 +481,6 @@
 </div>
 
 <!-- ══ 3. MULTIUNITS ══ -->
-<!-- FIX v28/v29: el selector fMultiunit ahora solo muestra los multiunits
-     de la villa de esta reserva (filtrado por TaVillas_villaid) -->
 <div class="card">
   <div class="card-head" onclick="togCard('card-mu')"><span class="card-ico">🏠</span><h2 style="flex:1">Multiunits</h2><span class="card-arr" id="arr-card-mu">▾</span></div>
   <div class="card-body collapsed" id="body-card-mu" style="padding:0">
@@ -506,7 +515,6 @@
     </div>
   </div>
 </div>
-
 
 </main>
 
@@ -602,6 +610,72 @@ window.selectDepOpt=function(id){
   renderDepositPanel();
 };
 
+/* ── Resumen Depósito v32 ── */
+window.renderDepResumen=function(){
+  var msg=g('depResumenMsg');
+  var dev=g('depResumenDev');
+  var outer=g('depResumen');
+  var body=g('depResumenBody');
+  if(!msg||!dev||!outer||!body)return;
+
+  var opt=parseInt(g('fDepOpt')?g('fDepOpt').value||selDepOpt:selDepOpt)||0;
+  var term=g('cbDepTerm')?g('cbDepTerm').checked:false;
+  var devuelto=isTruthy(fB('Security_deposit_devuelto'));
+
+  var devTxt='<strong>Devolución del depósito:</strong> el depósito actualmente está '
+    +(devuelto
+      ? '<span style="color:var(--green);font-weight:700">✅ Devuelto</span>'
+      : '<span style="color:var(--orange);font-weight:700">⏳ Pendiente de devolución</span>');
+
+  var html='';
+  var borderColor='var(--gray-2)';
+  var bgColor='#fff';
+  var showDev=false;
+
+  if(opt===0||isNaN(opt)){
+    html='<span style="font-size:15px">⏳</span> El cliente <strong>todavía no ha decidido</strong> ninguna opción';
+    borderColor='rgba(224,123,0,.5)';bgColor='var(--orange-light)';
+    msg.style.color='var(--orange)';
+  } else if(opt===1){
+    html='<span style="font-size:15px">✅</span> El cliente ha decidido la opción de <strong>Security Deposit Waiver</strong>';
+    borderColor='var(--green)';bgColor='var(--green-light)';
+    msg.style.color='var(--green-dark)';
+  } else if(opt===2){
+    var pagTxt=term
+      ? 'y <strong>ya lo ha pagado</strong>.'
+      : 'y <strong>lo pagará cuando pague las tasas turísticas</strong>.';
+    html='<span style="font-size:15px">💳</span> El cliente ha decidido la opción de pagar el depósito con <strong>Tarjeta</strong> '+pagTxt;
+    borderColor='var(--blue)';bgColor='var(--blue-light)';
+    msg.style.color='var(--blue)';
+    showDev=true;
+  } else if(opt===3){
+    html='<span style="font-size:15px">🏦</span> El cliente ha decidido la opción de pagar el depósito de seguridad con <strong>Transferencia</strong>.';
+    borderColor='#4060cc';bgColor='#eef0fa';
+    msg.style.color='#4060cc';
+    showDev=true;
+  } else if(opt===4){
+    html='<span style="font-size:15px">✈️</span> Es de <strong>Airbnb</strong> y ha escogido que no quería Security Deposit Waiver.';
+    borderColor='var(--gray-3)';bgColor='var(--gray-1)';
+    msg.style.color='var(--gray-5)';
+  } else {
+    html='Opción seleccionada: <strong>'+opt+'</strong>';
+    msg.style.color='var(--gray-5)';
+  }
+
+  msg.innerHTML=html;
+  outer.style.borderColor=borderColor;
+  outer.style.background=bgColor;
+  body.style.background=bgColor;
+
+  if(showDev){
+    dev.style.display='block';
+    dev.innerHTML=devTxt;
+    dev.style.borderColor=borderColor;
+  } else {
+    dev.style.display='none';
+  }
+};
+
 function renderDepositPanel(){
   var cont=g('depPanel');if(!cont)return;
   var opts=window.__depOptions||[];
@@ -635,9 +709,6 @@ function renderDepositPanel(){
   cont.innerHTML=html;
 }
 
-/* ── FIX v28/v29: ecoVal lee fEcotasaCobrada (select) y devuelve INTEGER
-   para guardar en TaBookings2021_Ecotasa_cobrada (DataType INTEGER,
-   lookup Ta_Pagado_Pendiente: 1=Pagado, 0=Pendiente, null=sin valor) ── */
 function ecoVal(){
   var eco=g('fEcotasaCobrada').value;
   if(eco==='1')return 1;
@@ -679,9 +750,6 @@ function loadDepositOptions(){
     }).catch(function(){window.__depOptions=[];});
 }
 
-/* ── FIX v28/v29: loadMultiunits solo almacena datos en window.__mu.
-   NO toca el select. El select se puebla en populateMultiunitSelect()
-   filtrado por villaid de la reserva. ── */
 function loadMultiunits(){
   return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200'))
     .then(function(r){return r.json();})
@@ -690,21 +758,17 @@ function loadMultiunits(){
     }).catch(function(){window.__mu=[];});
 }
 
-/* ── FIX v28/v29: puebla fMultiunit SOLO con los multiunits de la villa
-   de esta reserva, usando TaVillas_villaid del bookingData ── */
 function populateMultiunitSelect(){
   var sel=g('fMultiunit');if(!sel)return;
   sel.innerHTML='<option value="">— Sin cambio —</option>';
   var rows=window.__mu||[];
-  /* FIX v29: Caspio filtra TaMultiunits por ListingID_pms = TaBookings2021_VillaID_FSnumber
-     (campo cascade del XML de la datapage villamanager) */
   var villaFsId=String(fB('VillaID_FSnumber')||fB('TaBookings2021_VillaID_FSnumber')||'').trim();
   var filtered=villaFsId
     ? rows.filter(function(m){
         var mv=String(m.ListingID_pms||m.listingID_pms||m.listingid_pms||'').trim();
         return mv===villaFsId;
       })
-    : rows; /* fallback: mostrar todos si no hay VillaID_FSnumber */
+    : rows;
   filtered.forEach(function(m){
     var opt=document.createElement('option');
     opt.value=String(m.multiunitID||'');
@@ -723,9 +787,6 @@ function loadTiposPension(){
     }).catch(function(){});
 }
 
-/* ── FIX v28/v29: loadBooking ya NO llama a populateForm().
-   populateForm() se llama desde Promise.all.then() cuando
-   todos los datos (incluidos los multiunits) están disponibles. ── */
 function loadBooking(){
   var where="TaBookings2021_FS_confirmation_code='"+confCode+"'";
   var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=1';
@@ -737,7 +798,6 @@ function loadBooking(){
       bookingData=rows[0];
       villaData=bookingData;
     });
-  /* populateForm() se llama en Promise.all.then() */
 }
 
 function fB(k){
@@ -785,7 +845,7 @@ function populateForm(){
   g('fPhone2').value=String(fB('Segundo_Telefono')||'');
   setSelectVal('fPhoneCual',String(fB('Guest_phonenumber_cual_usar')||''));
 
-  /* ── FIX v28/v29: poblar select multiunit filtrado por villaid ── */
+  /* Multiunits */
   populateMultiunitSelect();
   var muid=String(fB('PMSmultiunitID')||'');
   g('muCode').textContent=muid||'—';
@@ -847,12 +907,10 @@ function populateForm(){
   var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
   setVr('vrPolicia',pV,'Registro de Policía');setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
 
-  /* ── FIX v28/v29: Ecotasa_cobrada es INTEGER. Se usa fEcotasaCobrada (select).
-     NO se usa cbEcotasaCobrada (no existe en el HTML). ── */
+  /* Ecotasa */
   var eV=isTruthy(fV('Checkin_ecotasa'));
   var eCob=String(fB('Ecotasa_cobrada')||'');
   setVr('vrEcotasa',eV,'Ecotasa');
-  /* FIX v30: mapear null/'' a '0' (Pendiente) ya que no hay opción vacía */
   setSelectVal('fEcotasaCobrada', eCob==='1'?'1':'0');
   setColState('colEcotasa','stEcotasa',eV,eCob==='1');
   var ecoManual=fB('Ecotasa_entrada_manualmente')||'';
@@ -876,6 +934,7 @@ function populateForm(){
   selDepOpt=parseInt(fB('Security_deposit_options')||0);
   var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
   renderDepositPanel();
+  renderDepResumen();  /* v32: resumen tras cargar los datos */
 
   /* Cobros extras */
   window.__upCobrado={};
@@ -918,11 +977,7 @@ function buildPoliceUrl(){
   var el=g('policeUrl');if(el){el.href=url;el.textContent=url;}
 }
 
-/* ══ GUARDAR ══
-   FIX v28/v29:
-   - Eliminado Ecotasa_cobrada_select (campo inexistente en Caspio)
-   - Ecotasa_cobrada usa ecoVal() → integer (1=Pagado, 0=Pendiente, null)
-*/
+/* ══ GUARDAR ══ */
 window.guardar=function(){
   if(isSaving)return;
   if(!validarImportes())return;
@@ -939,8 +994,6 @@ window.guardar=function(){
     Arrivalform_done:g('cbArrDone').checked?1:0,
     Registro_policia_done:g('cbPolDone').checked?1:0,
     Security_deposit_terminado:g('cbDepTerm').checked?1:0,
-    /* FIX: Ecotasa_cobrada es INTEGER del lookup Ta_Pagado_Pendiente.
-       ecoVal() convierte el select a 1/0/null. NO existe Ecotasa_cobrada_select. */
     Ecotasa_cobrada:ecoVal(),
     Ecotasa_entrada_manualmente:g('fEcotasaManual').value||null,
     Ecotasa_comentarios:g('fEcotasaComentarios').value.trim()||null,
@@ -1004,10 +1057,7 @@ function showErr(msg){
   g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p style="color:var(--red);font-weight:600">'+msg+'</p></div>';
 }
 
-/* ══ INIT ══
-   FIX v28/v29: populateForm() se llama en Promise.all.then() para garantizar
-   que loadBooking() Y loadMultiunits() han terminado antes de renderizar.
-*/
+/* ══ INIT ══ */
 document.addEventListener('DOMContentLoaded',function(){
   if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
   Promise.all([
@@ -1028,8 +1078,7 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 });
 
-
-/* ── CI Mini Buttons v31 ── */
+/* ── CI Mini Buttons ── */
 var _ciBtn={colArrival:'cibArrival',colPolicia:'cibPolicia',colEcotasa:'cibEcotasa',colDeposito:'cibDeposito'};
 var _ciBdg={colArrival:'cibBdgArrival',colPolicia:'cibBdgPolicia',colEcotasa:'cibBdgEcotasa',colDeposito:'cibBdgDeposito'};
 var _ciCols=['colArrival','colPolicia','colEcotasa','colDeposito'];
@@ -1057,9 +1106,10 @@ function updateCiBar(colId,done){
   if(!b||!bdg)return;
   b.classList.remove('done','pend','na');
   if(done===true){b.classList.add('done');bdg.textContent='✓';}
-  else           {b.classList.add('pend');bdg.textContent='!';}  
+  else           {b.classList.add('pend');bdg.textContent='!';}
 }
 })();
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v32 - Resumen actual depósito de seguridad: mensaje por opción (0=sin decidir, 1=Waiver, 2=Tarjeta+estado pago+devolución, 3=Transferencia+devolución, 4=Airbnb sin waiver). Campo Security_deposit_devuelto para estado devolución en opciones 2 y 3. Checkbox terminado actualiza el resumen en tiempo real | v31 - CI mini buttons, FIX ecotasa integer (Ecotasa_cobrada INTEGER), FIX multiunits filtrado por villa (ListingID_pms = VillaID_FSnumber) -->
