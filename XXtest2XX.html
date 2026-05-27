@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v21 — 3Villas</title>
+  <title>Valores por defecto v22 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -321,66 +321,29 @@
 
     <div class="field-row">
       <div class="field-info">
-        <div class="field-label">📅 Fecha desde (relativa a hoy)</div>
-        <div class="field-desc">0 = hoy · +1 = mañana · -1 = ayer · etc.</div>
+        <div class="field-label">📅 Fecha desde</div>
+        <div class="field-desc">Relativa a hoy · <strong>0</strong> = hoy · <strong>+1</strong> = mañana · <strong>-1</strong> = ayer</div>
       </div>
-      <div class="field-control">
-        <select id="fDesdeOff" class="f-select" style="width:200px">
-              <option value="-7">hace 7 días (-7)</option>
-              <option value="-6">hace 6 días (-6)</option>
-              <option value="-5">hace 5 días (-5)</option>
-              <option value="-4">hace 4 días (-4)</option>
-              <option value="-3">hace 3 días (-3)</option>
-              <option value="-2">Anteayer (-2)</option>
-              <option value="-1">Ayer (-1)</option>
-              <option value="0" selected>Hoy (+0)</option>
-              <option value="1">Mañana (+1)</option>
-              <option value="2">Pasado mañana (+2)</option>
-              <option value="3">en 3 días (+3)</option>
-              <option value="4">en 4 días (+4)</option>
-              <option value="5">en 5 días (+5)</option>
-              <option value="6">en 6 días (+6)</option>
-              <option value="7">en 1 semana (+7)</option>
-              <option value="8">+8 días (+8)</option>
-              <option value="9">+9 días (+9)</option>
-              <option value="10">+10 días (+10)</option>
-              <option value="11">+11 días (+11)</option>
-              <option value="12">+12 días (+12)</option>
-              <option value="13">+13 días (+13)</option>
-              <option value="14">en 2 semanas (+14)</option>
-            </select>
+      <div class="field-control" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" id="fDesdeOff" class="num-input" value="0" style="width:80px" oninput="syncPreview()">
+          <span style="font-size:12px;color:var(--gray-4)">días desde hoy</span>
+        </div>
+        <span id="fDesdePreview" style="font-size:12px;font-weight:700;color:var(--blue)"></span>
       </div>
     </div>
+
     <div class="field-row">
       <div class="field-info">
-        <div class="field-label">📅 Fecha hasta (relativa a hoy)</div>
-        <div class="field-desc">0 = hoy · +1 = mañana · -1 = ayer · etc.</div>
+        <div class="field-label">📅 Fecha hasta</div>
+        <div class="field-desc">Relativa a hoy · debe ser ≥ fecha desde</div>
       </div>
-      <div class="field-control">
-        <select id="fHastaOff" class="f-select" style="width:200px">
-              <option value="-7">hace 7 días (-7)</option>
-              <option value="-6">hace 6 días (-6)</option>
-              <option value="-5">hace 5 días (-5)</option>
-              <option value="-4">hace 4 días (-4)</option>
-              <option value="-3">hace 3 días (-3)</option>
-              <option value="-2">Anteayer (-2)</option>
-              <option value="-1">Ayer (-1)</option>
-              <option value="0" selected>Hoy (+0)</option>
-              <option value="1">Mañana (+1)</option>
-              <option value="2">Pasado mañana (+2)</option>
-              <option value="3">en 3 días (+3)</option>
-              <option value="4">en 4 días (+4)</option>
-              <option value="5">en 5 días (+5)</option>
-              <option value="6">en 6 días (+6)</option>
-              <option value="7">en 1 semana (+7)</option>
-              <option value="8">+8 días (+8)</option>
-              <option value="9">+9 días (+9)</option>
-              <option value="10">+10 días (+10)</option>
-              <option value="11">+11 días (+11)</option>
-              <option value="12">+12 días (+12)</option>
-              <option value="13">+13 días (+13)</option>
-              <option value="14">en 2 semanas (+14)</option>
-            </select>
+      <div class="field-control" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" id="fHastaOff" class="num-input" value="0" style="width:80px" oninput="syncPreview()">
+          <span style="font-size:12px;color:var(--gray-4)">días desde hoy</span>
+        </div>
+        <span id="fHastaPreview" style="font-size:12px;font-weight:700;color:var(--blue)"></span>
       </div>
     </div>
 
@@ -705,11 +668,32 @@ function leerFormulario(){
   };
 }
 
+
+function _dayLabel(n){
+  n=parseInt(n)||0;
+  if(n===0)return'Hoy';if(n===1)return'Mañana';if(n===-1)return'Ayer';if(n===-2)return'Anteayer';
+  return n>0?'en '+n+' días':'hace '+Math.abs(n)+' días';
+}
+function syncPreview(){
+  var d=parseInt(($('fDesdeOff')||{}).value)||0;
+  var h=parseInt(($('fHastaOff')||{}).value)||0;
+  var pd=$('fDesdePreview');if(pd)pd.textContent=_dayLabel(d);
+  var ph=$('fHastaPreview');if(ph)ph.textContent=_dayLabel(h);
+  var inp=$('fHastaOff');
+  if(inp){
+    inp.style.borderColor=h<d?'var(--red)':'';
+    inp.style.boxShadow=h<d?'0 0 0 3px rgba(200,16,46,.15)':'';
+  }
+}
+
 async function guardar(){
   const btn=$('btnSave'),lbl=$('saveLabel'),sp=$('saveSpinner');
   btn.disabled=true;sp.style.display='block';lbl.textContent='Guardando…';
   try{
-    const data=leerFormulario();
+    const _dv=parseInt(($('fDesdeOff')||{}).value)||0;
+  const _hv=parseInt(($('fHastaOff')||{}).value)||0;
+  if(_hv<_dv){toast('⚠️ La fecha «Hasta» no puede ser anterior a la fecha «Desde»','err');btn.disabled=false;sp.style.display='none';lbl.textContent='💾 Guardar cambios';return;}
+  const data=leerFormulario();
 
     let url;
     if(existingRecordId){
