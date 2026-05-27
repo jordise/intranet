@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Valores por defecto v20 — 3Villas</title>
+  <title>Valores por defecto v22 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -321,16 +321,29 @@
 
     <div class="field-row">
       <div class="field-info">
-        <div class="field-label">📆 Rango de días</div>
-        <div class="field-desc">
-          Número de días que abarca la búsqueda.<br>
-          <span style="color:var(--gray-5);font-weight:600">1</span> = solo el día de hoy · <span style="color:var(--gray-5);font-weight:600">2</span> = hoy + mañana · etc.<br>
-          <em>La fecha «Hasta» = fecha «Desde» + (días − 1)</em>
-        </div>
+        <div class="field-label">📅 Fecha desde</div>
+        <div class="field-desc">Relativa a hoy · <strong>0</strong> = hoy · <strong>+1</strong> = mañana · <strong>-1</strong> = ayer</div>
       </div>
-      <div class="field-control" style="flex-direction:column;align-items:center;gap:4px">
-        <input type="number" id="fDias" class="num-input" min="1" max="30" value="1">
-        <span style="font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:600">día(s)</span>
+      <div class="field-control" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" id="fDesdeOff" class="num-input" value="0" style="width:80px" oninput="syncPreview()">
+          <span style="font-size:12px;color:var(--gray-4)">días desde hoy</span>
+        </div>
+        <span id="fDesdePreview" style="font-size:12px;font-weight:700;color:var(--blue)"></span>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-info">
+        <div class="field-label">📅 Fecha hasta</div>
+        <div class="field-desc">Relativa a hoy · debe ser ≥ fecha desde</div>
+      </div>
+      <div class="field-control" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" id="fHastaOff" class="num-input" value="0" style="width:80px" oninput="syncPreview()">
+          <span style="font-size:12px;color:var(--gray-4)">días desde hoy</span>
+        </div>
+        <span id="fHastaPreview" style="font-size:12px;font-weight:700;color:var(--blue)"></span>
       </div>
     </div>
 
@@ -410,7 +423,8 @@ const DEFAULTS={
   entradas_filtro_cierre:'Pendiente',
   entradas_filtro_checkin_online:'Todos',
   entradas_villamanager:'',      // se llenará con el KPD del usuario
-  entrada_dias:1,
+  entrada_fechadesdehoy_masmenos:0,
+  entrada_fechadhastahoy_masmenos:0,
   entradas_vista:'Vista Normal',
   entradas_mostrar_filtros:'Cerrado',
   entradas_tareas_grupo:''
@@ -591,7 +605,12 @@ function applyPrefs(p){
   if(p.entradas_vista)            setPillByVal('pgVista',p.entradas_vista);
   if(p.entradas_mostrar_filtros)  setPillByVal('pgFiltros',p.entradas_mostrar_filtros);
   // Días
-  if(p.entrada_dias!=null)$('fDias').value=parseInt(p.entrada_dias)||1;
+  if(p.entrada_fechadesdehoy_masmenos!=null){
+    var _sd=$('fDesdeOff');if(_sd)_sd.value=parseInt(p.entrada_fechadesdehoy_masmenos)||0;
+  }
+  if(p.entrada_fechadhastahoy_masmenos!=null){
+    var _hd=$('fHastaOff');if(_hd)_hd.value=parseInt(p.entrada_fechadhastahoy_masmenos)||0;
+  }
   // Usuarios — multi-select (valores separados por coma)
   vmSelected.clear();
   const vmIds=String(p.entradas_villamanager||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -614,7 +633,8 @@ function applyDefaults(){
   setPillByVal('pgCI',d.entradas_filtro_checkin_online);
   setPillByVal('pgVista',d.entradas_vista);
   setPillByVal('pgFiltros',d.entradas_mostrar_filtros);
-  $('fDias').value=d.entrada_dias;
+  var _sd2=$('fDesdeOff');if(_sd2)_sd2.value=d.entrada_fechadesdehoy_masmenos;
+  var _hd2=$('fHastaOff');if(_hd2)_hd2.value=d.entrada_fechadhastahoy_masmenos;
   // Villa manager por defecto: KPD del usuario actual
   vmSelected.clear();
   if(d.entradas_villamanager) vmSelected.add(d.entradas_villamanager);
@@ -639,7 +659,8 @@ function leerFormulario(){
     entradas_filtro_cierre:getPillVal('pgCierre'),
     entradas_filtro_checkin_online:getPillVal('pgCI'),
     entradas_villamanager:[...vmSelected].join(','),
-    entrada_dias:parseInt($('fDias').value)||1,
+    entrada_fechadesdehoy_masmenos:parseInt(($('fDesdeOff')||{}).value)||0,
+    entrada_fechadhastahoy_masmenos:parseInt(($('fHastaOff')||{}).value)||0,
     entradas_vista:getPillVal('pgVista'),
     entradas_mostrar_filtros:getPillVal('pgFiltros'),
     /* entradas_tareas_grupo es Text(255) — siempre string */
@@ -647,11 +668,32 @@ function leerFormulario(){
   };
 }
 
+
+function _dayLabel(n){
+  n=parseInt(n)||0;
+  if(n===0)return'Hoy';if(n===1)return'Mañana';if(n===-1)return'Ayer';if(n===-2)return'Anteayer';
+  return n>0?'en '+n+' días':'hace '+Math.abs(n)+' días';
+}
+function syncPreview(){
+  var d=parseInt(($('fDesdeOff')||{}).value)||0;
+  var h=parseInt(($('fHastaOff')||{}).value)||0;
+  var pd=$('fDesdePreview');if(pd)pd.textContent=_dayLabel(d);
+  var ph=$('fHastaPreview');if(ph)ph.textContent=_dayLabel(h);
+  var inp=$('fHastaOff');
+  if(inp){
+    inp.style.borderColor=h<d?'var(--red)':'';
+    inp.style.boxShadow=h<d?'0 0 0 3px rgba(200,16,46,.15)':'';
+  }
+}
+
 async function guardar(){
   const btn=$('btnSave'),lbl=$('saveLabel'),sp=$('saveSpinner');
   btn.disabled=true;sp.style.display='block';lbl.textContent='Guardando…';
   try{
-    const data=leerFormulario();
+    const _dv=parseInt(($('fDesdeOff')||{}).value)||0;
+  const _hv=parseInt(($('fHastaOff')||{}).value)||0;
+  if(_hv<_dv){toast('⚠️ La fecha «Hasta» no puede ser anterior a la fecha «Desde»','err');btn.disabled=false;sp.style.display='none';lbl.textContent='💾 Guardar cambios';return;}
+  const data=leerFormulario();
 
     let url;
     if(existingRecordId){
