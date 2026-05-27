@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Notas Equipo Reservas v31 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v31 — 27/05/2026
+     v31: CI Summary Bar — 4 botones de estado encima del checkin online -->
+  <!--
+    FIX v28/v29:
+    1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
+       (DataType INTEGER, lookup Ta_Pagado_Pendiente). Se elimina Ecotasa_cobrada_select
+       del record de guardar y se usa ecoVal() directamente en Ecotasa_cobrada.
+    2. Multiunits: loadMultiunits() cargaba todos sin filtrar por villa. Ahora:
+       - loadMultiunits() solo almacena en window.__mu (sin tocar el select)
+       - populateForm() se mueve al Promise.all.then() para garantizar que
+         window.__mu esté disponible al filtrar por villaid de la reserva
+       - populateMultiunitSelect() filtra por TaVillas_villaid de la reserva
+  -->
+  <!-- ══ PWA ══ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--r:12px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
+    header{background:var(--red);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .h-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;opacity:.7;letter-spacing:1px}
+    .h-villa{font-family:'Montserrat',sans-serif;font-size:clamp(13px,3.5vw,17px);font-weight:900;text-transform:uppercase;line-height:1.2;margin-top:2px}
+    .h-meta{font-size:11px;opacity:.75;margin-top:3px}
+    .h-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+    .h-badge{background:rgba(255,255,255,.18);border-radius:8px;padding:4px 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700}
+    .card-arr{font-size:11px;color:var(--gray-4);transition:transform .22s;margin-left:auto}
+    .card-head.open .card-arr{transform:rotate(180deg)}
+    .btn-back-h{background:none;border:none;color:rgba(255,255,255,.85);cursor:pointer;font-size:12px;font-family:'Montserrat',sans-serif;font-weight:700;padding:0}
+    #loadOverlay{position:fixed;inset:0;background:rgba(255,255,255,.93);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px}
+    .spinner{width:40px;height:40px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sp-txt{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+    main{padding:14px 12px;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+    .card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+    .card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px solid var(--gray-2)}
+    .card-head h2{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);flex:1}
+    .card-ico{font-size:18px;flex-shrink:0}
+    .card-head{cursor:pointer}
+    .card-head:hover{background:var(--gray-1)}
+    .card-body.collapsed{display:none}
+    .card-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+    .col-wrap{border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;transition:border-color .2s}
+    .col-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;background:#fff;transition:background .15s}
+    .col-head:hover{background:var(--gray-1)}
+    .col-ico{font-size:16px;flex-shrink:0}
+    .col-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;flex:1}
+    .col-badge{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+    .col-wrap.st-done .col-head{background:#d4edda}
+    .col-wrap.st-done{border-color:#28a745;border-width:2px}
+    .col-wrap.st-done .col-badge{background:#28a745;color:#fff}
+    .col-wrap.st-done .col-title{color:#155724;font-weight:800}
+    .col-wrap.st-done .col-ico{filter:hue-rotate(80deg)}
+    .col-wrap.st-pend .col-head{background:#fff8f0}
+    .col-wrap.st-pend{border-color:rgba(224,123,0,.4)}
+    .col-wrap.st-pend .col-badge{background:var(--orange);color:#fff}
+    .col-wrap.st-na .col-badge{background:var(--gray-2);color:var(--gray-4)}
+    .col-arr{width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:11px;transition:transform .22s;flex-shrink:0}
+    .col-wrap.open .col-arr{transform:rotate(180deg)}
+    .col-body{display:none;padding:14px;border-top:1px solid var(--gray-2);background:#fff;flex-direction:column;gap:10px}
+    .col-wrap.open .col-body{display:flex}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .lbl-hint{font-size:11px;color:var(--gray-4);line-height:1.4;margin-top:2px}
+    textarea,select,input[type=text]{border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 13px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    textarea:focus,select:focus,input[type=text]:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    textarea{resize:vertical;min-height:80px;line-height:1.5}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    input:disabled{background:var(--gray-1);color:var(--gray-4);cursor:not-allowed}
+    .chk-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--gray-2);cursor:pointer;user-select:none;transition:all .2s}
+    .chk-row.on{border-color:var(--green);background:var(--green-light)}
+    .chk-circle{width:24px;height:24px;border-radius:50%;border:2.5px solid var(--gray-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;font-size:13px;color:transparent;transition:all .2s}
+    .chk-row.on .chk-circle{border-color:var(--green);background:var(--green);color:#fff}
+    .chk-label{flex:1;font-size:13px;font-weight:500}
+    .chk-row.on .chk-label{color:var(--green-dark);font-weight:600}
+    input[type=checkbox].hcb{display:none}
+    .vr{display:inline-flex;align-items:center;gap:4px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px}
+    .vr.si{background:var(--green-light);color:var(--green)}
+    .vr.no{background:var(--gray-2);color:var(--gray-4)}
+    .alert{border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5}
+    .alert strong{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;display:block;margin-bottom:3px}
+    .al-or{background:var(--orange-light);border-left:3px solid var(--orange)}
+    .al-or strong{color:var(--orange)}
+    .al-rd{background:var(--red-light);border-left:3px solid var(--red)}
+    .al-rd strong{color:var(--red)}
+    .dep-opts{display:flex;flex-direction:column;gap:6px}
+    .dep-opt{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--gray-2);cursor:pointer;transition:all .15s}
+    .dep-opt:hover{border-color:var(--blue)}
+    .dep-opt.on{border-color:var(--blue);background:var(--blue-light)}
+    .dep-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-3);flex-shrink:0;margin-top:5px}
+    .dep-opt.on .dep-dot{background:var(--blue)}
+    .dep-txt{flex:1;font-size:12px;line-height:1.4}
+    .extra-line{background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+    .extra-line-title{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)}
+    .mu-cur{background:var(--gray-1);border-radius:8px;padding:10px 14px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px}
+    .mu-cur strong{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);display:block;margin-bottom:2px}
+    .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:10px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
+    .btn-save{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1}
+    .btn-save:hover{background:var(--red-dark)}
+    .btn-save:disabled{background:var(--gray-3);cursor:not-allowed}
+    .btn-back2{background:var(--gray-2);color:var(--gray-5);border:none;border-radius:10px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+    #toast.ok{background:var(--green)}#toast.err{background:var(--red)}
+    @media(max-width:480px){.field-row{grid-template-columns:1fr}}
+
+    /* ── CI Summary Bar v31 ── */
+    .ci-bar{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--gray-2);background:var(--gray-1)}
+    .ci-btn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;
+      padding:10px 4px;border-radius:10px;border:2px solid var(--gray-2);background:#fff;
+      cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif;user-select:none}
+    .ci-btn:active{transform:scale(.96)}
+    .ci-btn.done{border-color:#28a745;background:#d4edda}
+    .ci-btn.pend{border-color:var(--orange);background:var(--orange-light)}
+    .ci-btn.sect-open{box-shadow:0 0 0 3px rgba(0,0,0,.12);transform:translateY(-2px)}
+    .ci-btn-ico{font-size:20px;line-height:1}
+    .ci-btn-name{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);text-align:center;line-height:1.2}
+    .ci-btn.done .ci-btn-name{color:#155724}
+    .ci-btn.pend .ci-btn-name{color:var(--orange)}
+    .ci-badge{font-size:8px;font-weight:900;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+    .ci-btn.done .ci-badge{background:#28a745;color:#fff}
+    .ci-btn.pend .ci-badge{background:var(--orange);color:#fff}
+    .ci-btn.na  .ci-badge{background:var(--gray-2);color:var(--gray-4)}
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+<div id="loadOverlay"><div class="spinner"></div><div class="sp-txt">Cargando reserva…</div></div>
+<div id="toast"></div>
+
+<header>
+  <div class="h-label">Notas Equipo Reservas</div>
+  <div class="h-villa" id="hVilla">Cargando…</div>
+  <div class="h-meta" id="hMeta"></div>
+  <div class="h-row">
+    <button class="btn-back-h" onclick="history.back()">← Volver</button>
+    <span class="h-badge" id="hStatus">—</span>
+  </div>
+</header>
+
+<main id="mainContent" style="display:none">
+
+<!-- ══ 1. NOTAS ══ -->
+<div class="card">
+  <div class="card-head" onclick="togCard('card-notas')"><span class="card-ico">🧹</span><h2 style="flex:1">Notas</h2><span class="card-arr" id="arr-card-notas">▾</span></div>
+  <div class="card-body collapsed" id="body-card-notas">
+    <div class="field">
+      <label class="lbl">Notas limpieza</label>
+      <textarea id="fCleaningNotes" rows="3" placeholder="Notas para el equipo de limpieza…"></textarea>
+    </div>
+    <div class="field">
+      <label class="lbl">Notas depósito de seguridad</label>
+      <p class="lbl-hint">Si no hay que devolver el depósito o se tiene que devolver parcialmente, escríbelo aquí para que administración esté al corriente.</p>
+      <textarea id="fSecurityNotes" rows="3" placeholder="Ej: Devolver solo 500€ por daños…"></textarea>
+    </div>
+    <div class="field">
+      <label class="lbl">Notas villamanager <span style="color:var(--gray-3);font-size:9px;font-weight:600;text-transform:none">· visibles en pantalla de entradas</span></label>
+      <textarea id="fKeyholderNotes" rows="3" placeholder="Notas del villamanager para esta reserva…"></textarea>
+    </div>
+    <div class="field">
+      <label class="lbl">Early check-in <span style="font-weight:400;text-transform:none;font-size:10px">(hora acordada con el cliente)</span></label>
+      <select id="fEarlyCheckin">
+        <option value="">— No aplica —</option>
+        <option value="08:00">08:00</option><option value="09:00">09:00</option>
+        <option value="10:00">10:00</option><option value="11:00">11:00</option>
+        <option value="12:00">12:00</option><option value="13:00">13:00</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 2. TELÉFONO DEL INQUILINO ══ -->
+<div class="card">
+  <div class="card-head" onclick="togCard('card-phone')"><span class="card-ico">📞</span><h2 style="flex:1">Teléfono del inquilino</h2><span class="card-arr" id="arr-card-phone">▾</span></div>
+  <div class="card-body collapsed" id="body-card-phone">
+    <div class="field-row">
+      <div class="field"><label class="lbl">Tfn Hostaway</label><input type="text" id="fPhone1" disabled></div>
+      <div class="field"><label class="lbl">Tfn Arrival Form</label><input type="text" id="fPhone2" placeholder="Teléfono arrival form…"></div>
+    </div>
+    <div class="field">
+      <label class="lbl">Cual se está usando</label>
+      <select id="fPhoneCual"><option value="">Número de Hostaway</option></select>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 3. MULTIUNITS ══ -->
+<!-- FIX v28/v29: el selector fMultiunit ahora solo muestra los multiunits
+     de la villa de esta reserva (filtrado por TaVillas_villaid) -->
+<div class="card">
+  <div class="card-head" onclick="togCard('card-mu')"><span class="card-ico">🏠</span><h2 style="flex:1">Multiunits</h2><span class="card-arr" id="arr-card-mu">▾</span></div>
+  <div class="card-body collapsed" id="body-card-mu" style="padding:0">
+    <div class="col-wrap" id="colMu" style="border-radius:0;border:none;border-top:1px solid var(--gray-2)">
+      <div class="col-head" onclick="tog('colMu')">
+        <span class="col-ico">🔀</span>
+        <div style="flex:1"><div class="col-title">Cambiar apartamento</div><div id="muSubtitle" style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:var(--gray-4);margin-top:2px">Sin multiunit asignado</div></div>
+        <div class="col-arr">▾</div>
+      </div>
+      <div class="col-body" id="bodyColMu">
+        <div class="field"><label class="lbl">Apartamento actual</label>
+          <div class="mu-cur"><div><strong>Código</strong><span id="muCode">—</span></div><div><strong>Nombre</strong><span id="muName">—</span></div></div>
+        </div>
+        <div class="field"><label class="lbl">Cambiar a</label><select id="fMultiunit"><option value="">— Sin cambio —</option></select></div>
+        <div class="field"><label class="lbl">Tipo Pensión</label><select id="fTipoPension"><option value="">— Sin especificar —</option></select></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 4. CHECKIN ONLINE ══ -->
+<div class="card">
+  <div class="card-head" onclick="togCard('card-ci')"><span class="card-ico">✅</span><h2 style="flex:1">Checkin Online</h2><span class="card-arr" id="arr-card-ci">▾</span></div>
+  <div class="card-body collapsed" id="body-card-ci" style="gap:0;padding:0">
+
+    <!-- ══ CI Summary Bar ══ -->
+    <div class="ci-bar">
+      <button class="ci-btn na" id="cibArrival" onclick="togCiSection('colArrival')">
+        <span class="ci-btn-ico">📋</span>
+        <span class="ci-btn-name">Arrival</span>
+        <span class="ci-badge" id="cibBdgArrival">N/A</span>
+      </button>
+      <button class="ci-btn na" id="cibPolicia" onclick="togCiSection('colPolicia')">
+        <span class="ci-btn-ico">🚔</span>
+        <span class="ci-btn-name">Policía</span>
+        <span class="ci-badge" id="cibBdgPolicia">N/A</span>
+      </button>
+      <button class="ci-btn na" id="cibEcotasa" onclick="togCiSection('colEcotasa')">
+        <span class="ci-btn-ico">🌿</span>
+        <span class="ci-btn-name">Ecotasa</span>
+        <span class="ci-badge" id="cibBdgEcotasa">N/A</span>
+      </button>
+      <button class="ci-btn na" id="cibDeposito" onclick="togCiSection('colDeposito')">
+        <span class="ci-btn-ico">🔐</span>
+        <span class="ci-btn-name">Depósito</span>
+        <span class="ci-badge" id="cibBdgDeposito">N/A</span>
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:8px 14px 14px">
+
+    <!-- 4.1 Arrival Form -->
+    <div class="col-wrap st-na" id="colArrival">
+      <div class="col-head" onclick="tog('colArrival')">
+        <span class="col-ico">📋</span>
+        <span class="col-title">Arrival Form</span>
+        <span class="col-badge" id="stArrival">No aplica</span>
+        <div class="col-arr">▾</div>
+      </div>
+      <div class="col-body" id="bodyColArrival">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div id="vrArrival" style="width:100%"></div>
+        </div>
+        <div id="arrFormSummary" style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;margin-bottom:8px;font-size:12px">
+          <div style="background:var(--gray-1);padding:6px 10px;border-bottom:1px solid var(--gray-2)">
+            <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-5)">🔍 Hostaway vs Arrival Form</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:var(--gray-1)">
+                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">Campo</th>
+                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">📋 Hostaway</th>
+                <th style="padding:5px 8px;text-align:left;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">📝 Formulario</th>
+                <th style="padding:5px 8px;text-align:center;font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;border-bottom:1px solid var(--gray-2)">≠</th>
+              </tr>
+            </thead>
+            <tbody id="af_cmpBody"></tbody>
+          </table>
+          <div style="background:var(--gray-1);padding:6px 10px;border-top:1px solid var(--gray-2);border-bottom:1px solid var(--gray-2)">
+            <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-5)">📋 Solo en el formulario</span>
+          </div>
+          <div style="padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div id="af_agesWrap"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades adultos</span><br><span id="af_ages">—</span></div>
+            <div id="af_childAgesWrap"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Edades niños/bebés</span><br><span id="af_childAges">—</span></div>
+            <div id="af_infoWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--orange);text-transform:uppercase">🛏 Extras (cunas, tronas…)</span><br><span id="af_info" style="color:var(--orange);font-weight:600">—</span></div>
+            <div id="af_camasWrap" style="grid-column:1/-1;display:none"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:#4060cc;text-transform:uppercase">🛏 Reorganizar camas</span><br><span id="af_camas" style="color:#4060cc;font-weight:600">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Llegada Menorca</span><br><span id="af_arrival">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Salida Menorca</span><br><span id="af_departure">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Check-in solicitado</span><br><span id="af_checkinTime">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Check-out solicitado</span><br><span id="af_checkoutTime">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">DNI / NIE / Pasaporte</span><br><span id="af_dni" style="font-family:monospace;font-weight:700">—</span></div>
+            <div><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">País / Ciudad</span><br><span id="af_country">—</span> / <span id="af_city">—</span></div>
+            <div style="grid-column:1/-1"><span style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Dirección</span><br><span id="af_address">—</span></div>
+          </div>
+        </div>
+        <div class="alert al-rd" style="margin-bottom:4px">
+          <strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.
+        </div>
+        <div class="chk-row" id="rowArrDone" onclick="chkTog('cbArrDone','rowArrDone')">
+          <input type="checkbox" class="hcb" id="cbArrDone">
+          <div class="chk-circle" id="circArrDone"></div>
+          <span class="chk-label">Arrival Form rellenado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4.2 Registro de Policía -->
+    <div class="col-wrap st-na" id="colPolicia">
+      <div class="col-head" onclick="tog('colPolicia')">
+        <span class="col-ico">🚔</span>
+        <span class="col-title">Registro de Policía</span>
+        <span class="col-badge" id="stPolicia">No aplica</span>
+        <div class="col-arr">▾</div>
+      </div>
+      <div class="col-body" id="bodyColPolicia">
+        <div><div id="vrPolicia" style="width:100%"></div></div>
+        <div id="policeUrlWrap" style="display:block;background:var(--gray-1);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4);margin-bottom:6px">🔗 Enlace Registro de Policía</div>
+          <a id="policeUrl" href="#" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);word-break:break-all;font-family:monospace;display:block;margin-bottom:6px">—</a>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('policeUrl').href).then(function(){toast('✅ Enlace copiado','ok');})" style="background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:7px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer">📋 Copiar enlace</button>
+        </div>
+        <div class="alert al-rd"><strong>⚠️ SOLO EN CASO DE EMERGENCIA</strong>Solo tocar si eres consciente de lo que haces. Explica el motivo en las Notas del Villamanager.</div>
+        <div class="chk-row" id="rowPolDone" onclick="chkTog('cbPolDone','rowPolDone','colPolicia')">
+          <input type="checkbox" class="hcb" id="cbPolDone">
+          <div class="chk-circle" id="circPolDone"></div>
+          <span class="chk-label">Registro de Policía rellenado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4.3 Ecotasa -->
+    <!-- FIX v28/v29: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
+         Se usa fEcotasaCobrada (select) y ecoVal() para guardar. -->
+    <div class="col-wrap st-na" id="colEcotasa">
+      <div class="col-head" onclick="tog('colEcotasa')">
+        <span class="col-ico">🌿</span>
+        <span class="col-title">Ecotasa</span>
+        <span class="col-badge" id="stEcotasa">No aplica</span>
+        <div class="col-arr">▾</div>
+      </div>
+      <div class="col-body" id="bodyColEcotasa">
+        <div id="vrEcotasa" style="margin-bottom:10px"></div>
+        <div style="border:2px solid var(--green);border-radius:10px;overflow:hidden;margin-bottom:10px">
+          <div style="background:var(--green-light);padding:7px 12px;border-bottom:1px solid rgba(30,158,78,.2)">
+            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green)">📋 Datos de la reserva</span>
+          </div>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="flex:1;min-width:120px">
+                <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:2px">Inquilino</div>
+                <div id="ecoGuestName" style="font-size:13px;font-weight:700;color:var(--gray-5)">—</div>
+              </div>
+              <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:8px;padding:6px 12px;text-align:center;min-width:56px">
+                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--green);text-transform:uppercase">Noches</div>
+                <div id="ecoNights" style="font-size:18px;font-weight:900;color:var(--green)">—</div>
+              </div>
+              <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:8px;padding:6px 12px;text-align:center;min-width:80px">
+                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--green);text-transform:uppercase">Niños (formulario)</div>
+                <div id="ecoChildrenForm" style="font-size:18px;font-weight:900;color:var(--green)">—</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase">Niños (reserva):</div>
+              <div id="ecoChildren" style="font-size:13px;font-weight:700;color:var(--gray-5)">—</div>
+            </div>
+          </div>
+        </div>
+        <div style="border:2px solid var(--red);border-radius:10px;overflow:hidden;margin-bottom:10px">
+          <div style="background:var(--red-light);padding:7px 12px;border-bottom:1px solid rgba(200,16,46,.15)">
+            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red)">⚠️ CORREGIR EL NÚMERO DE ADULTOS</span>
+          </div>
+          <div style="padding:10px 12px">
+            <p style="font-size:12px;color:var(--red);font-weight:700;line-height:1.5">Si por algún motivo el número de adultos en la reserva está mal, lo podemos cambiar indicando el número correcto en "Adultos corregir" y el cálculo de la ecotasa se recalculará solo.</p>
+          </div>
+        </div>
+        <div style="border:2px solid #1a73e8;border-radius:10px;overflow:hidden">
+          <div style="background:#e8f0fe;padding:7px 12px;border-bottom:1px solid rgba(26,115,232,.2)">
+            <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:#1a73e8">🌿 Ecotasa</span>
+          </div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-4)">Ecotasa actual:</span>
+              <span id="ecoFinal" style="font-size:18px;font-weight:900;color:var(--green)">—</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px">
+              <div style="background:var(--gray-1);border-radius:8px;padding:8px;text-align:center">
+                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos reserva</div>
+                <div id="ecoAdults" style="font-size:22px;font-weight:900;color:var(--gray-5)">—</div>
+              </div>
+              <div style="background:var(--gray-1);border-radius:8px;padding:8px">
+                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos (Descripción rellenada en formulario)</div>
+                <div id="ecoAdultsForm" style="font-size:12px;font-weight:600;color:var(--gray-5);word-break:break-all">—</div>
+                <div id="ecoAges" style="font-size:10px;color:var(--gray-4);margin-top:3px"></div>
+              </div>
+              <div style="background:var(--gray-1);border-radius:8px;padding:8px;text-align:center">
+                <div style="font-family:Montserrat,sans-serif;font-size:8px;font-weight:800;color:var(--gray-4);text-transform:uppercase;margin-bottom:4px">Adultos corregir</div>
+                <input type="number" id="fAdultosCorregir" style="width:60px;border:1.5px solid var(--gray-2);border-radius:6px;padding:4px 6px;font-size:16px;font-weight:700;text-align:center">
+              </div>
+            </div>
+            <div style="border:2px solid var(--orange);border-radius:10px;overflow:hidden">
+              <div onclick="var b=this.nextElementSibling;var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.eco-arr').textContent=open?'▾':'▴';"
+                   style="background:var(--orange-light);padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(224,123,0,.2)">
+                <span style="font-size:16px">⚠️</span>
+                <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--orange);flex:1">PELIGRO — Modificar Ecotasa</span>
+                <span class="eco-arr" style="color:var(--orange);font-size:11px">▾</span>
+              </div>
+              <div style="display:none;padding:12px;background:#fffdf5" class="eco-casos-body">
+                <p style="font-size:11px;color:var(--orange);font-weight:700;margin-bottom:10px;line-height:1.4">⚠️ Usar SOLO EN CASOS EXCEPCIONALES. Si el cálculo de la ecotasa es incorrecto podemos poner el IMPORTE a cobrar aquí manualmente.</p>
+                <div class="field" style="margin-bottom:10px">
+                  <label class="lbl">Importe Ecotasa manual</label>
+                  <input type="text" id="fEcotasaManual" placeholder="0.00" oninput="chkImporte(this)" style="max-width:140px">
+                </div>
+                <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Si la ecotasa se ha pagado por otro canal marcarla como cobrada e indicar en comentarios, donde se ha cobrado.</p>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start">
+                  <div class="field">
+                    <label class="lbl">Estado</label>
+                    <!-- fEcotasaCobrada: valores del lookup Ta_Pagado_Pendiente (TableID integer) -->
+                    <!-- FIX v30: solo DOS opciones, sin placeholder vacío.
+                         value="0" = Pendiente (primera = por defecto)
+                         value="1" = Pagado -->
+                    <select id="fEcotasaCobrada" onchange="updateEcoStatus()">
+                      <option value="0">Pendiente</option>
+                      <option value="1">Pagado</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Comentarios Ecotasa</label>
+                    <textarea id="fEcotasaComentarios" rows="2" placeholder="Donde se ha cobrado, incidencias…"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4.4 Depósito de Seguridad -->
+    <div class="col-wrap st-na" id="colDeposito">
+      <div class="col-head" onclick="tog('colDeposito')">
+        <span class="col-ico">🔐</span>
+        <span class="col-title">Depósito de Seguridad</span>
+        <span class="col-badge" id="stDeposito">No aplica</span>
+        <div class="col-arr">▾</div>
+      </div>
+      <div class="col-body" id="bodyColDeposito">
+        <span id="vrDeposito" style="font-size:11px;padding:4px 8px;border-radius:6px">—</span>
+        <div class="alert al-rd" style="margin-bottom:4px">
+          <strong>⚠️ PELIGRO — NO TOCAR SIN AVISAR PRIMERO</strong>
+          En principio este campo NO se debe modificar. Si necesita tocarse: avisar antes a <strong>Jordi</strong> y dejar una nota en "Notas depósito de seguridad" explicando el motivo.
+        </div>
+        <div class="chk-row" id="rowDepTerm" onclick="chkTog('cbDepTerm','rowDepTerm')">
+          <input type="checkbox" class="hcb" id="cbDepTerm">
+          <div class="chk-circle" id="circDepTerm"></div>
+          <span class="chk-label">Depósito de Seguridad — Terminado</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div class="field"><label class="lbl">Depósito EUR</label><input type="text" id="fDepEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
+          <div class="field"><label class="lbl">Waiver EUR</label><input type="text" id="fWavEUR" oninput="chkImporte(this)" placeholder="0,00"></div>
+          <div class="field"><label class="lbl">Gasto tarjeta</label><input type="text" id="fGastoT" oninput="chkImporte(this)" placeholder="0,00"></div>
+        </div>
+        <div class="alert al-or"><strong>⚠️ MUY IMPORTANTE</strong>NUNCA modificar los importes si ya se han cobrado. Para BODAS y Reservas conflictivas: en "Se permite waiver" poner NO.</div>
+        <div class="field"><label class="lbl">Se permite seleccionar waiver en esta reserva</label>
+          <p class="lbl-hint">Solo puede ser <strong>Sí</strong> o <strong>No</strong>. Cambia a <strong>No</strong> para BODAS y reservas conflictivas.</p>
+          <select id="fSeWaver"><option value="">Cargando…</option></select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="lbl">IBAN Inquilino</label><input type="text" id="fIBAN" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
+          <div class="field"><label class="lbl">BIC / SWIFT</label><input type="text" id="fBIC" disabled style="background:var(--gray-1);color:var(--gray-5)"></div>
+        </div>
+        <div class="field"><label class="lbl">Comentarios sobre el waiver</label><p class="lbl-hint" style="margin-bottom:6px">Anota aquí cualquier comentario: cambios en el waiver, incidencias o cualquier observación del inquilino sobre el pago del waiver.</p><textarea id="fWaverText" rows="3" placeholder="Comentarios sobre el waiver…"></textarea></div>
+        <div class="field">
+          <label class="lbl">Opción seleccionada por el cliente</label>
+          <div id="depPanel" style="display:flex;flex-direction:column;gap:6px">
+            <p style="color:var(--gray-3);font-size:11px">Cargando opciones…</p>
+          </div>
+          <input type="hidden" id="fDepOpt">
+        </div>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ 5. COBROS EXTRAS ══ -->
+<div class="card">
+  <div class="card-head" onclick="togCard('card-extras')"><span class="card-ico">💶</span><h2 style="flex:1">Cobros Extras y Upselling</h2><span class="card-arr" id="arr-card-extras">▾</span></div>
+  <div class="card-body collapsed" id="body-card-extras">
+    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">1️⃣ Línea 1</span><span id="stUp1" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
+      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp1Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(1)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp1EUR" oninput="chkImporte(this);updateUpBadge(1)" placeholder="0,00"></div>
+    </div>
+    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">2️⃣ Línea 2</span><span id="stUp2" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
+      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp2Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(2)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp2EUR" oninput="chkImporte(this);updateUpBadge(2)" placeholder="0,00"></div>
+    </div>
+    <div style="background:var(--gray-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">3️⃣ Línea 3</span><span id="stUp3" style="display:none;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:6px"></span></div>
+      <div class="field"><label class="lbl">Concepto</label><input type="text" id="fUp3Text" placeholder="Escribir aquí el concepto…" oninput="updateUpBadge(3)"></div>
+      <div class="field"><label class="lbl">Importe (EUR)</label><input type="text" id="fUp3EUR" oninput="chkImporte(this);updateUpBadge(3)" placeholder="0,00"></div>
+    </div>
+    <div style="background:var(--blue-light);border-radius:10px;padding:12px 14px">
+      <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🔗 Link de cobros para el cliente</div>
+      <p style="font-size:11px;color:var(--gray-4);margin-bottom:8px">Úsalo solo si hace falta pasárselo directamente al cliente.</p>
+      <a id="linkCobros" href="#" target="_blank" style="font-size:11px;color:var(--blue);word-break:break-all;font-family:monospace">—</a>
+      <button onclick="copiarLink()" style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:8px;padding:7px 14px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;width:100%">📋 Copiar enlace</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<div class="save-bar" id="saveBar" style="display:none">
+  <button class="btn-back2" onclick="history.back()">← Volver</button>
+  <button class="btn-save" id="btnSave" onclick="guardar()">💾 Guardar</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+var params=new URLSearchParams(location.search);
+var confCode=(params.get('TaBookings2021_FS_confirmation_code')||'').trim();
+var bookingData=null,villaData=null,isSaving=false;
+var selDepOpt=0;
+
+function g(id){return document.getElementById(id);}
+function isTruthy(v){
+  if(v===null||v===undefined||v===''||v===false)return false;
+  if(v===true||v===1||v===-1)return true;
+  var n=Number(v);
+  if(!isNaN(n)&&String(v).trim()!=='')return n!==0;
+  var s=String(v).toLowerCase().trim();
+  return['yes','si','sí','true','1','-1','on'].indexOf(s)!==-1;
+}
+function isOk(v){if(v===null||v===undefined||v==='')return null;var s=String(v).toLowerCase().trim();if(['pagado','hecho','done','1'].indexOf(s)!==-1)return true;if(['pendiente','0','false','no'].indexOf(s)!==-1)return false;return null;}
+
+var _tt;
+function toast(msg,type){var el=g('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},4000);}
+
+window.togCard=function(id){
+  var body=g('body-'+id),arr=g('arr-'+id);if(!body)return;
+  var open=body.classList.contains('collapsed');
+  body.classList.toggle('collapsed',!open);
+  if(arr)arr.style.transform=open?'rotate(180deg)':'';
+};
+window.tog=function(id){var w=g(id);if(w)w.classList.toggle('open');};
+
+window.chkTog=function(cbId,rowId){
+  var cb=g(cbId);if(!cb||cb.disabled)return;
+  cb.checked=!cb.checked;syncChk(cbId,rowId);
+};
+function syncChk(cbId,rowId){
+  var cb=g(cbId),row=g(rowId),circ=g('circ'+cbId.replace('cb',''));
+  if(!cb||!row)return;
+  row.classList.toggle('on',cb.checked);
+  if(circ)circ.textContent=cb.checked?'✓':'';
+}
+function setCb(cbId,rowId,val){var cb=g(cbId);if(cb)cb.checked=val;syncChk(cbId,rowId);}
+
+function setColState(wrapId,stId,villaSolicita,done){
+  var w=g(wrapId),st=g(stId);if(!w||!st)return;
+  w.classList.remove('st-done','st-pend','st-na');
+  if(done){w.classList.add('st-done');st.textContent='✓ Terminado';}
+  else{w.classList.add('st-pend');st.textContent='Pendiente';}
+  updateCiBar(wrapId,done);
+}
+function setVr(id,active,label){
+  var el=g(id);if(!el)return;
+  var villa=String(fB('Property_Title')||'Esta villa');
+  if(active){
+    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#d4edda;color:#155724;border:1.5px solid #c3e6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
+      '<span style="font-size:16px">✅</span>'+
+      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
+      'Se solicita <strong>'+label+'</strong> en el checkin online de esta villa</span></span>';
+  } else {
+    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:#f8d7da;color:#721c24;border:1.5px solid #f5c6cb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;line-height:1.3">'+
+      '<span style="font-size:16px">❌</span>'+
+      '<span><strong style="font-family:Montserrat,sans-serif;font-size:11px;text-transform:uppercase">'+villa+'</strong><br>'+
+      'Esta villa <strong>NO</strong> requiere '+label+' en el checkin online</span></span>';
+  }
+}
+
+window.updateEcoStatus=function(){
+  var eco=g('fEcotasaCobrada').value;
+  setColState('colEcotasa','stEcotasa',true,eco==='1');
+};
+
+window.updateUpBadge=function(n){
+  var eur=(g('fUp'+n+'EUR')||{}).value||'';
+  var cob=window.__upCobrado&&window.__upCobrado[n];
+  var st=g('stUp'+n);if(!st)return;
+  if(!eur.trim()){st.style.display='none';return;}
+  st.style.display='';
+  if(cob===1){st.textContent='✓ Cobrado';st.style.background='var(--green)';st.style.color='#fff';}
+  else{st.textContent='Pendiente';st.style.background='var(--red)';st.style.color='#fff';}
+};
+
+window.selectDepOpt=function(id){
+  selDepOpt=parseInt(id);
+  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
+  renderDepositPanel();
+};
+
+function renderDepositPanel(){
+  var cont=g('depPanel');if(!cont)return;
+  var opts=window.__depOptions||[];
+  var current=selDepOpt;
+  if(!opts.length){cont.innerHTML='<p style="color:var(--gray-3);font-size:11px;padding:8px">Cargando opciones…</p>';return;}
+  var curOpt=opts.filter(function(o){return parseInt(o.deposit_options_ID)===current;})[0];
+  var html='';
+  if(curOpt){
+    html+='<div style="background:var(--blue);color:#fff;border-radius:10px;padding:12px 14px">';
+    html+='<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Opción seleccionada actualmente</div>';
+    html+='<div style="font-weight:700;font-size:14px;line-height:1.3">'+curOpt.Option_description+'</div>';
+    html+='<div style="font-size:10px;opacity:.75;margin-top:3px;font-family:Montserrat,sans-serif">Código: <b>'+curOpt.Option_name+'</b> · ID: '+curOpt.deposit_options_ID+'</div>';
+    html+='</div>';
+  } else {
+    html+='<div style="background:var(--gray-2);border-radius:10px;padding:10px 14px"><div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-4)">Sin opción seleccionada</div></div>';
+  }
+  html+='<div style="border:1.5px solid var(--gray-2);border-radius:10px;overflow:hidden;margin-top:2px">';
+  html+='<div style="background:var(--gray-1);padding:7px 12px;border-bottom:1px solid var(--gray-2)"><span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--gray-4)">Todas las opciones disponibles</span></div>';
+  opts.forEach(function(o,i){
+    var id=parseInt(o.deposit_options_ID);var sel=(id===current);
+    var bg=sel?'var(--blue-light)':'#fff';var bl=sel?'border-left:4px solid var(--blue)':'border-left:4px solid transparent';
+    var last=(i===opts.length-1)?'':'border-bottom:1px solid var(--gray-2)';
+    html+='<div style="'+bl+';'+last+';background:'+bg+';padding:10px 14px;display:flex;align-items:center;gap:10px">';
+    html+='<span style="font-size:15px;color:'+(sel?'var(--blue)':'var(--gray-3)')+';flex-shrink:0;width:16px;text-align:center">'+(sel?'●':'○')+'</span>';
+    html+='<div style="flex:1"><div style="font-size:12px;font-weight:'+(sel?'700':'400')+';color:'+(sel?'var(--blue)':'var(--gray-5)')+'">'+o.Option_description+'</div>';
+    html+='<div style="font-size:10px;color:var(--gray-4);font-family:Montserrat,sans-serif;margin-top:1px">ID: '+id+' · <b>'+o.Option_name+'</b></div></div>';
+    if(sel) html+='<span style="background:var(--blue);color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:8px;flex-shrink:0">ACTUAL</span>';
+    html+='</div>';
+  });
+  html+='</div>';
+  cont.innerHTML=html;
+}
+
+/* ── FIX v28/v29: ecoVal lee fEcotasaCobrada (select) y devuelve INTEGER
+   para guardar en TaBookings2021_Ecotasa_cobrada (DataType INTEGER,
+   lookup Ta_Pagado_Pendiente: 1=Pagado, 0=Pendiente, null=sin valor) ── */
+function ecoVal(){
+  var eco=g('fEcotasaCobrada').value;
+  if(eco==='1')return 1;
+  if(eco==='0')return 0;
+  return null;
+}
+
+/* ══ CARGA DE DATOS ══ */
+function setSelectVal(id,val){
+  var sel=g(id);if(!sel||val===''||val===null||val===undefined)return;
+  for(var i=0;i<sel.options.length;i++){if(String(sel.options[i].value)===String(val)){sel.selectedIndex=i;return;}}
+}
+
+function loadTfnOpts(){
+  return fetch(Auth.url(WORKER+'?action=data&table=Ta_numero_tfn_a_usar&limit=50'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];var sel=g('fPhoneCual');
+      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.Id_que_numerousar||'');opt.textContent=String(t.Descripcion||opt.value);sel.appendChild(opt);});
+    }).catch(function(){});
+}
+
+function loadYesNo(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaViXYesNo&limit=10'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];var sel=g('fSeWaver');sel.innerHTML='';
+      if(!rows.length){sel.innerHTML='<option value="0">No</option><option value="1">Sí</option>';return;}
+      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.TableID!==undefined?t.TableID:'');opt.textContent=String(t.TableName||opt.value);sel.appendChild(opt);});
+    }).catch(function(){g('fSeWaver').innerHTML='<option value="0">No</option><option value="1">Sí</option>';});
+}
+
+function loadDepositOptions(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaSecurityDepositOptions&limit=20'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      window.__depOptions=(json.Result||json.result||[]).sort(function(a,b){return parseInt(a.deposit_options_ID||0)-parseInt(b.deposit_options_ID||0);});
+      renderDepositPanel();
+    }).catch(function(){window.__depOptions=[];});
+}
+
+/* ── FIX v28/v29: loadMultiunits solo almacena datos en window.__mu.
+   NO toca el select. El select se puebla en populateMultiunitSelect()
+   filtrado por villaid de la reserva. ── */
+function loadMultiunits(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaMultiunits&limit=200'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      window.__mu=json.Result||json.result||[];
+    }).catch(function(){window.__mu=[];});
+}
+
+/* ── FIX v28/v29: puebla fMultiunit SOLO con los multiunits de la villa
+   de esta reserva, usando TaVillas_villaid del bookingData ── */
+function populateMultiunitSelect(){
+  var sel=g('fMultiunit');if(!sel)return;
+  sel.innerHTML='<option value="">— Sin cambio —</option>';
+  var rows=window.__mu||[];
+  /* FIX v29: Caspio filtra TaMultiunits por ListingID_pms = TaBookings2021_VillaID_FSnumber
+     (campo cascade del XML de la datapage villamanager) */
+  var villaFsId=String(fB('VillaID_FSnumber')||fB('TaBookings2021_VillaID_FSnumber')||'').trim();
+  var filtered=villaFsId
+    ? rows.filter(function(m){
+        var mv=String(m.ListingID_pms||m.listingID_pms||m.listingid_pms||'').trim();
+        return mv===villaFsId;
+      })
+    : rows; /* fallback: mostrar todos si no hay VillaID_FSnumber */
+  filtered.forEach(function(m){
+    var opt=document.createElement('option');
+    opt.value=String(m.multiunitID||'');
+    opt.textContent=String(m.descripcion||m.Descripcion||opt.value);
+    sel.appendChild(opt);
+  });
+  console.log('[Multiunits] VillaID_FSnumber='+villaFsId+' total='+rows.length+' filtrados='+filtered.length);
+}
+
+function loadTiposPension(){
+  return fetch(Auth.url(WORKER+'?action=data&table=TaTipo_pension&limit=100'))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];var sel=g('fTipoPension');
+      rows.forEach(function(t){var opt=document.createElement('option');opt.value=String(t.PensionID||t.pensionID||'');opt.textContent=String(t.Type_name||t.type_name||opt.value);sel.appendChild(opt);});
+    }).catch(function(){});
+}
+
+/* ── FIX v28/v29: loadBooking ya NO llama a populateForm().
+   populateForm() se llama desde Promise.all.then() cuando
+   todos los datos (incluidos los multiunits) están disponibles. ── */
+function loadBooking(){
+  var where="TaBookings2021_FS_confirmation_code='"+confCode+"'";
+  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=1';
+  return fetch(Auth.url(url))
+    .then(function(r){return r.json();})
+    .then(function(json){
+      var rows=json.Result||json.result||[];
+      if(!rows.length) throw new Error('Reserva no encontrada: '+confCode);
+      bookingData=rows[0];
+      villaData=bookingData;
+    });
+  /* populateForm() se llama en Promise.all.then() */
+}
+
+function fB(k){
+  if(!bookingData)return'';
+  var v=bookingData[k];if(v!==undefined&&v!==null)return v;
+  v=bookingData['TaBookings2021_'+k];if(v!==undefined&&v!==null)return v;
+  return'';
+}
+function fV(k){
+  if(!villaData)return'';
+  var v=villaData['TaVillas_'+k];if(v!==undefined&&v!==null)return v;
+  v=villaData[k];if(v!==undefined&&v!==null)return v;
+  return'';
+}
+
+function populateForm(){
+  /* Header */
+  g('hVilla').textContent=String(fB('Property_Title')||confCode);
+  g('hMeta').textContent='Reserva: '+confCode+(fB('Guest_Full_Name')?' · '+fB('Guest_Full_Name'):'');
+  g('hStatus').textContent=String(fB('Status_name_formula')||fB('Status')||confCode);
+
+  /* Datos ecotasa */
+  var eg=g('ecoGuestName'),en=g('ecoNights'),ec=g('ecoChildren');
+  var ecf=g('ecoChildrenForm'),ea=g('ecoAdults'),eaf=g('ecoAdultsForm');
+  var ef=g('ecoFinal'),eag=g('ecoAges');
+  if(eg)eg.textContent=String(fB('Guest_Full_Name')||'—');
+  if(en)en.textContent=String(fB('Nights')||'—');
+  if(ec)ec.textContent=String(fB('Children')||'—');
+  if(ecf)ecf.textContent=String(fB('Guest_children_nr_form')||'—');
+  if(ea)ea.textContent=String(fB('Adults')||'—');
+  if(eaf)eaf.textContent=String(fB('Guest_adults_nr_form')||'—');
+  var ecoFinalVal=fB('Ecotasa_final')||'';
+  if(ef)ef.textContent=ecoFinalVal?'€'+ecoFinalVal:'—';
+  if(eag)eag.textContent=String(fB('Guest_ages_form')||'—');
+  if(g('fAdultosCorregir'))g('fAdultosCorregir').value=fB('Adults')||'';
+
+  /* Notas */
+  g('fCleaningNotes').value=String(fB('CleaningNotes')||'');
+  g('fSecurityNotes').value=String(fB('Security_deposit_notes_comentar')||'');
+  g('fKeyholderNotes').value=String(fB('keyholderNotes')||'');
+  setSelectVal('fEarlyCheckin',String(fB('Checkin_earlycheckin')||''));
+
+  /* Teléfonos */
+  g('fPhone1').value=String(fB('Guest_phonenumber')||'');
+  g('fPhone2').value=String(fB('Segundo_Telefono')||'');
+  setSelectVal('fPhoneCual',String(fB('Guest_phonenumber_cual_usar')||''));
+
+  /* ── FIX v28/v29: poblar select multiunit filtrado por villaid ── */
+  populateMultiunitSelect();
+  var muid=String(fB('PMSmultiunitID')||'');
+  g('muCode').textContent=muid||'—';
+  var muNm='Sin multiunit';
+  if(muid&&window.__mu){var f=(window.__mu||[]).filter(function(m){return String(m.multiunitID)===muid;})[0];if(f)muNm=String(f.descripcion||f.Descripcion||muid);}
+  g('muName').textContent=muNm==='Sin multiunit'?'—':muNm;
+  g('muSubtitle').textContent=muNm;
+  setSelectVal('fTipoPension',String(fB('Tipo_pensionID')||''));
+
+  /* Arrival Form */
+  var aV=isTruthy(fV('Checkin_arrivalform')),aD=isTruthy(fB('Arrivalform_done'));
+  setVr('vrArrival',aV,'Arrival Form');setCb('cbArrDone','rowArrDone',aD);setColState('colArrival','stArrival',aV,aD);
+
+  /* Resumen Arrival Form */
+  (function(){
+    function val(k){return String(fB(k)||'').trim();}
+    function af(id,v){var el=document.getElementById(id);if(el)el.textContent=v||'—';}
+    var rows=[
+      ['Adultos',val('Adults'),val('Guest_adults_nr_form')],
+      ['Niños',val('Children'),val('Guest_children_nr_form')],
+      ['Nombre',val('Guest_Full_Name'),val('Fiscal_guest_name')],
+      ['Apellido',val('Guest_Surename'),val('Fiscal_guest_surename')||val('Fiscal_guest_surname')],
+      ['Teléfono',val('Guest_phonenumber'),val('Segundo_Telefono')],
+      ['Email',val('Guest_email')||val('Email'),val('Segundo_email')],
+      ['Noches',val('Nights'),''],
+    ];
+    var tbody=document.getElementById('af_cmpBody');
+    if(tbody){tbody.innerHTML=rows.map(function(r){
+      var lbl=r[0],ha=r[1],fm=r[2];var status='';var rowBg='';
+      if(!ha&&!fm)return'';
+      if(!fm){status='<span style="color:var(--gray-3)">—</span>';}
+      else if(!ha){status='<span style="color:#4060cc">ℹ️</span>';}
+      else if(ha.toLowerCase()===fm.toLowerCase()){status='<span style="color:var(--green)">✅</span>';}
+      else{status='<span style="color:var(--orange)">⚠️</span>';rowBg='background:var(--orange-light)';}
+      return'<tr style="border-bottom:1px solid var(--gray-2);'+rowBg+'">'+
+        '<td style="padding:6px 8px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);text-transform:uppercase;white-space:nowrap">'+lbl+'</td>'+
+        '<td style="padding:6px 8px;color:var(--gray-5)">'+(ha||'<span style="color:var(--gray-3)">—</span>')+'</td>'+
+        '<td style="padding:6px 8px;color:var(--gray-5)">'+(fm||'<span style="color:var(--gray-3)">—</span>')+'</td>'+
+        '<td style="padding:6px 8px;text-align:center">'+status+'</td></tr>';
+    }).join('');}
+    af('af_ages',val('Guest_ages_form'));
+    af('af_childAges',val('Guest_children_babies_ages_form'));
+    af('af_arrival',val('Arrival_Time_to_Menorca'));
+    af('af_departure',val('Departure_Time_to_Menorca'));
+    af('af_checkinTime',val('Checkin_time'));
+    af('af_checkoutTime',val('Checkout_time'));
+    af('af_dni',val('Fiscal_guest_DNI_passport'));
+    af('af_city',val('Fiscal_guest_city'));
+    af('af_country',val('Fiscal_guest_Country'));
+    af('af_address',val('Fiscal_guest_address'));
+    var info=val('Guest_info');
+    if(info){var el=document.getElementById('af_info');if(el)el.textContent=info;var wr=document.getElementById('af_infoWrap');if(wr)wr.style.display='block';}
+    var camas=val('TaVillas_Reorganizar_camas')||val('Reorganizar_camas');
+    if(camas){var el=document.getElementById('af_camas');if(el)el.textContent=camas;var wr=document.getElementById('af_camasWrap');if(wr)wr.style.display='block';}
+    var summary=document.getElementById('arrFormSummary');if(summary)summary.style.display='block';
+  })();
+
+  /* Policía */
+  var pV=isTruthy(fV('Checkin_registro_policia')),pD=isTruthy(fB('Registro_policia_done'));
+  setVr('vrPolicia',pV,'Registro de Policía');setCb('cbPolDone','rowPolDone',pD);setColState('colPolicia','stPolicia',pV,pD);
+
+  /* ── FIX v28/v29: Ecotasa_cobrada es INTEGER. Se usa fEcotasaCobrada (select).
+     NO se usa cbEcotasaCobrada (no existe en el HTML). ── */
+  var eV=isTruthy(fV('Checkin_ecotasa'));
+  var eCob=String(fB('Ecotasa_cobrada')||'');
+  setVr('vrEcotasa',eV,'Ecotasa');
+  /* FIX v30: mapear null/'' a '0' (Pendiente) ya que no hay opción vacía */
+  setSelectVal('fEcotasaCobrada', eCob==='1'?'1':'0');
+  setColState('colEcotasa','stEcotasa',eV,eCob==='1');
+  var ecoManual=fB('Ecotasa_entrada_manualmente')||'';
+  if(g('fEcotasaManual'))g('fEcotasaManual').value=ecoManual;
+  var ecoComent=fB('Ecotasa_comentarios')||'';
+  if(g('fEcotasaComentarios'))g('fEcotasaComentarios').value=ecoComent;
+  if(g('fAdultosCorregir'))g('fAdultosCorregir').value=fB('Guest_adults_nr_form')||fB('Adults')||'';
+
+  /* Depósito */
+  var dV=isTruthy(fV('Checkin_deposito')),dD=isTruthy(fB('Security_deposit_terminado'));
+  setVr('vrDeposito',dV,'Depósito de Seguridad');
+  setCb('cbDepTerm','rowDepTerm',dD);
+  setColState('colDeposito','stDeposito',dV,dD);
+  g('fDepEUR').value=String(fB('Security_deposit_EUR')||'');
+  g('fWavEUR').value=String(fB('Deposit_waver_EUR')||'');
+  g('fGastoT').value=String(fB('Gasto_tarjeta_deposito_seguridad')||'');
+  setSelectVal('fSeWaver',String(parseInt(fB('Se_permite_waver')||0)));
+  g('fIBAN').value=String(fB('Numero_cuenta_bancaria_guest')||'');
+  g('fBIC').value=String(fB('Numero_swift_bic_bancario_guest')||'');
+  g('fWaverText').value=String(fB('Deposit_waver_text')||'');
+  selDepOpt=parseInt(fB('Security_deposit_options')||0);
+  var inp=g('fDepOpt');if(inp)inp.value=selDepOpt;
+  renderDepositPanel();
+
+  /* Cobros extras */
+  window.__upCobrado={};
+  g('fUp1Text').value=String(fB('Upselling1_text')||'');g('fUp1EUR').value=String(fB('Upselling1_EUR')||'');window.__upCobrado[1]=parseInt(fB('Upselling1_cobrado')||0);
+  g('fUp2Text').value=String(fB('Upselling2_text')||'');g('fUp2EUR').value=String(fB('Upselling2_EUR')||'');window.__upCobrado[2]=parseInt(fB('Upselling2_cobrado')||0);
+  g('fUp3Text').value=String(fB('Upselling3_text')||'');g('fUp3EUR').value=String(fB('Upselling3_EUR')||'');window.__upCobrado[3]=parseInt(fB('Upselling3_cobrado')||0);
+  updateUpBadge(1);updateUpBadge(2);updateUpBadge(3);
+
+  /* Link cobros */
+  var lk='https://c1abn932.caspio.com/dp/353f70008194047f5b8b4cdc8970?FS_confirmation_code='+encodeURIComponent(confCode);
+  var lEl=g('linkCobros');if(lEl){lEl.href=lk;lEl.textContent=lk;}
+
+  /* Link policía */
+  buildPoliceUrl();
+}
+
+function toYMD(s){if(!s)return'';var d=String(s).replace(/[T ].*/,'').split('-');if(d.length===3)return d[0]+d[1]+d[2];return String(s).replace(/-/g,'');}
+function buildPoliceUrl(){
+  var org=fB('TaVillas_Link_Registrodepolicia')||fB('Link_Registrodepolicia')||'';
+  var wrap=g('policeUrlWrap');if(!wrap)return;
+  wrap.style.display='block';
+  var reserv=confCode||'';
+  var checkin=toYMD(fB('Checkin')||fB('TaBookings2021_Checkin')||'');
+  var checkout=toYMD(fB('Checkout')||fB('TaBookings2021_Checkout')||'');
+  var created=toYMD(fB('Cretated_At')||fB('TaBookings2021_Cretated_At')||fB('Created_At')||'');
+  var aform=String(fB('Guest_adults_nr_form')||'').trim();
+  var cform=String(fB('Guest_children_nr_form')||'').trim();
+  var total=aform?((parseInt(aform)||0)+(parseInt(cform)||0)):((parseInt(fB('Adults')||0))+(parseInt(fB('Children')||0)));
+  var fiscNm=String(fB('Fiscal_guest_name')||'').trim();
+  var firstName=(fiscNm&&fiscNm!==' ')?fiscNm:String(fB('Guest_Full_Name')||'');
+  var lastName=(fiscNm&&fiscNm!==' ')?String(fB('Fiscal_guest_surename')||''):String(fB('Guest_Surename')||'');
+  var ph2=String(fB('Segundo_Telefono')||'').trim();
+  var ph=ph2?ph2:String(fB('Guest_phonenumber')||'');
+  ph=ph.replace(/\+/g,'00').replace(/\s/g,'');
+  var base='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96';
+  var url=base+'/organization/'+encodeURIComponent(org)+'/reservation/'+encodeURIComponent(reserv)+
+    '?checkInDate='+checkin+'&checkOutDate='+checkout+'&contractDate='+created+
+    '&number='+total+'&firstName='+encodeURIComponent(firstName)+
+    '&lastName1='+encodeURIComponent(lastName)+'&phone='+encodeURIComponent(ph);
+  var el=g('policeUrl');if(el){el.href=url;el.textContent=url;}
+}
+
+/* ══ GUARDAR ══
+   FIX v28/v29:
+   - Eliminado Ecotasa_cobrada_select (campo inexistente en Caspio)
+   - Ecotasa_cobrada usa ecoVal() → integer (1=Pagado, 0=Pendiente, null)
+*/
+window.guardar=function(){
+  if(isSaving)return;
+  if(!validarImportes())return;
+  isSaving=true;var btn=g('btnSave');btn.disabled=true;btn.textContent='Guardando…';
+  var newMUID=g('fMultiunit').value;
+  var record={
+    CleaningNotes:g('fCleaningNotes').value.trim(),
+    Security_deposit_notes_comentar:g('fSecurityNotes').value.trim(),
+    keyholderNotes:g('fKeyholderNotes').value.trim(),
+    Checkin_earlycheckin:g('fEarlyCheckin').value||null,
+    Segundo_Telefono:g('fPhone2').value.trim(),
+    Guest_phonenumber_cual_usar:g('fPhoneCual').value||null,
+    Tipo_pensionID:g('fTipoPension').value||null,
+    Arrivalform_done:g('cbArrDone').checked?1:0,
+    Registro_policia_done:g('cbPolDone').checked?1:0,
+    Security_deposit_terminado:g('cbDepTerm').checked?1:0,
+    /* FIX: Ecotasa_cobrada es INTEGER del lookup Ta_Pagado_Pendiente.
+       ecoVal() convierte el select a 1/0/null. NO existe Ecotasa_cobrada_select. */
+    Ecotasa_cobrada:ecoVal(),
+    Ecotasa_entrada_manualmente:g('fEcotasaManual').value||null,
+    Ecotasa_comentarios:g('fEcotasaComentarios').value.trim()||null,
+    Guest_adults_nr_form:g('fAdultosCorregir')?g('fAdultosCorregir').value||null:null,
+    Security_deposit_EUR:g('fDepEUR').value||null,
+    Deposit_waver_EUR:g('fWavEUR').value||null,
+    Gasto_tarjeta_deposito_seguridad:g('fGastoT').value||null,
+    Se_permite_waver:parseInt(g('fSeWaver').value||0),
+    Security_deposit_options:parseInt(g('fDepOpt').value||0),
+    Numero_cuenta_bancaria_guest:g('fIBAN').value.trim()||null,
+    Numero_swift_bic_bancario_guest:g('fBIC').value.trim()||null,
+    Deposit_waver_text:g('fWaverText').value.trim()||null,
+    Upselling1_text:g('fUp1Text').value.trim()||null,
+    Upselling1_EUR:g('fUp1EUR').value||null,
+    Upselling2_text:g('fUp2Text').value.trim()||null,
+    Upselling2_EUR:g('fUp2EUR').value||null,
+    Upselling3_text:g('fUp3Text').value.trim()||null,
+    Upselling3_EUR:g('fUp3EUR').value||null,
+  };
+  if(newMUID)record['PMSmultiunitID']=parseInt(newMUID)||newMUID;
+  var where="FS_confirmation_code='"+confCode+"'";
+  fetch(Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT'),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
+  .then(function(r){return r.ok?r.json():r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);});})
+  .then(function(){
+    toast('✅ Guardado','ok');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
+    setTimeout(function(){history.back();},1200);
+  })
+  .catch(function(err){
+    toast('❌ '+err.message,'err');btn.textContent='💾 Guardar';btn.disabled=false;isSaving=false;
+  });
+};
+
+window.chkImporte=function(el){
+  if(!el)return;
+  if(el.value.indexOf(',')!==-1){el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';toast('⚠️ Usa punto (.) no coma (,) como decimal. Ej: 33.50','err');}
+  else{el.style.borderColor='';el.style.boxShadow='';}
+};
+
+function validarImportes(){
+  var campos=['fDepEUR','fWavEUR','fGastoT','fUp1EUR','fUp2EUR','fUp3EUR'];
+  for(var i=0;i<campos.length;i++){
+    var el=g(campos[i]);
+    if(el&&el.value.indexOf(',')!==-1){
+      el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 3px rgba(200,16,46,.2)';
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      toast('⚠️ Importe con coma detectado. Usa punto (.) como decimal. Ej: 33.50','err');
+      el.focus();return false;
+    }
+  }
+  return true;
+}
+
+window.copiarLink=function(){
+  var lnk=g('linkCobros');if(!lnk)return;
+  navigator.clipboard.writeText(lnk.href).then(function(){toast('✅ Enlace copiado','ok');}).catch(function(){toast('❌ No se pudo copiar','err');});
+};
+
+function showErr(msg){
+  g('loadOverlay').style.display='none';g('mainContent').style.display='';
+  g('mainContent').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:44px;margin-bottom:12px">⚠️</div><p style="color:var(--red);font-weight:600">'+msg+'</p></div>';
+}
+
+/* ══ INIT ══
+   FIX v28/v29: populateForm() se llama en Promise.all.then() para garantizar
+   que loadBooking() Y loadMultiunits() han terminado antes de renderizar.
+*/
+document.addEventListener('DOMContentLoaded',function(){
+  if(!confCode){showErr('Falta TaBookings2021_FS_confirmation_code en la URL.');return;}
+  Promise.all([
+    loadBooking(),
+    loadTfnOpts(),
+    loadMultiunits(),
+    loadTiposPension(),
+    loadYesNo(),
+    loadDepositOptions()
+  ]).then(function(){
+    populateForm();           /* ahora sí, con todos los datos disponibles */
+    g('loadOverlay').style.display='none';
+    g('mainContent').style.display='';
+    g('saveBar').style.display='flex';
+  }).catch(function(e){
+    showErr(e.message||'Error cargando datos');
+  });
+});
+
+
+/* ── CI Summary Bar v31 ── */
+var _ciBtn={colArrival:'cibArrival',colPolicia:'cibPolicia',colEcotasa:'cibEcotasa',colDeposito:'cibDeposito'};
+var _ciBdg={colArrival:'cibBdgArrival',colPolicia:'cibBdgPolicia',colEcotasa:'cibBdgEcotasa',colDeposito:'cibBdgDeposito'};
+var _ciCols=['colArrival','colPolicia','colEcotasa','colDeposito'];
+
+window.togCiSection=function(colId){
+  var target=g(colId);if(!target)return;
+  var opening=!target.classList.contains('open');
+  _ciCols.forEach(function(id){
+    var el=g(id);if(el)el.classList.remove('open');
+    var b=g(_ciBtn[id]);if(b)b.classList.remove('sect-open');
+  });
+  if(opening){
+    target.classList.add('open');
+    var b=g(_ciBtn[colId]);if(b)b.classList.add('sect-open');
+    setTimeout(function(){target.scrollIntoView({behavior:'smooth',block:'nearest'});},80);
+  }
+};
+
+function updateCiBar(colId,done){
+  var b=g(_ciBtn[colId]),bdg=g(_ciBdg[colId]);
+  if(!b||!bdg)return;
+  b.classList.remove('done','pend','na');
+  if(done===true){b.classList.add('done');bdg.textContent='✓ Hecho';}
+  else           {b.classList.add('pend');bdg.textContent='Pendiente';}
+}
+})();
+</script>
+</body>
+</html>
