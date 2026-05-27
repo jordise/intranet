@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v85 — 3Villas</title>
+  <title>Entradas Equipo v86 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -737,6 +737,15 @@ function addDays(dateStr,days){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
+/* Case-insensitive pref lookup — Caspio puede devolver campos con distinto casing */
+function getPref(prefs,key){
+  if(!prefs)return undefined;
+  if(prefs[key]!==undefined)return prefs[key];
+  var lk=key.toLowerCase();
+  var found=Object.keys(prefs).find(function(k){return k.toLowerCase()===lk;});
+  return found!==undefined?prefs[found]:undefined;
+}
+
 // ════════════════ USER PREFS (TaUsers_valores_pordefecto) ════════════════
 /* v62: carga los valores por defecto del usuario desde Caspio y los aplica
    a los filtros de búsqueda si no hay parámetros de URL */
@@ -769,8 +778,11 @@ function applyUserPrefs(prefs){
 
   /* Fechas desde/hasta usando offsets relativos a hoy */
   const hoy=todayStr();
-  const desdeOff=parseInt(prefs.entrada_fechadesdehoy_masmenos)||0;
-  const hastaOff=parseInt(prefs.entrada_fechadhastahoy_masmenos)||0;
+  const _rawDesde=getPref(prefs,'entrada_fechadesdehoy_masmenos');
+  const _rawHasta=getPref(prefs,'entrada_fechadhastahoy_masmenos');
+  const desdeOff=(_rawDesde!==undefined&&_rawDesde!==null&&_rawDesde!=='')?parseInt(_rawDesde):0;
+  const hastaOff=(_rawHasta!==undefined&&_rawHasta!==null&&_rawHasta!=='')?parseInt(_rawHasta):0;
+  console.log('[UserPrefs] fechas raw:',{desde:_rawDesde,hasta:_rawHasta},'→ offsets:',{desdeOff,hastaOff});
   if($('fDesde'))$('fDesde').value=addDays(hoy,desdeOff);
   if($('fHasta'))$('fHasta').value=addDays(hoy,hastaOff);
 
@@ -803,6 +815,7 @@ function applyUserPrefs(prefs){
   if(tgIds.length)window.__extraTasksUsers=tgIds;
 
   setDarkMode(prefs.todas_modo_noche===-1||prefs.todas_modo_noche===true||String(prefs.todas_modo_noche)==='-1'); /* v70 */
+  console.log('[UserPrefs] keys Caspio:',Object.keys(prefs||{}).filter(k=>k.toLowerCase().includes('fecha')));
   console.log('[UserPrefs] aplicadas →',{tipoFilter,fWelcomePack,fCierre,toggleMode,
     managers:[...selectedManagers],dias,vista:prefs.entradas_vista,filtros:prefs.entradas_mostrar_filtros,tg:tgIds});
 }
@@ -1542,8 +1555,10 @@ function setView(mode){
     /* fichas/listado → aplicar rango de días de las preferencias */
     var prefs=window.__userPrefs||{};
     var hoy=todayStr();
-    var desdeOff=parseInt(prefs.entrada_fechadesdehoy_masmenos)||0;
-    var hastaOff=parseInt(prefs.entrada_fechadhastahoy_masmenos)||0;
+    var _rD=getPref(prefs,'entrada_fechadesdehoy_masmenos');
+    var _rH=getPref(prefs,'entrada_fechadhastahoy_masmenos');
+    var desdeOff=(_rD!==undefined&&_rD!==null&&_rD!=='')?parseInt(_rD):0;
+    var hastaOff=(_rH!==undefined&&_rH!==null&&_rH!=='')?parseInt(_rH):0;
     if($('fDesde'))$('fDesde').value=addDays(hoy,desdeOff);
     if($('fHasta'))$('fHasta').value=addDays(hoy,hastaOff);
   }
