@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entradas y Salidas · 3Villas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── Design tokens — strict ─── */
+:root {
+  /* Typography */
+  --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', monospace;
+
+  /* Color — minimal palette */
+  --bg:        #f4f4f5;
+  --surface:   #ffffff;
+  --surface-2: #fafafa;
+  --ink:       #0a0a0c;
+  --ink-2:     #2a2a30;
+  --muted:     #74747b;
+  --muted-2:   #a7a7ad;
+  --hair:      #ececee;
+  --hair-2:    #f3f3f4;
+  --brand:     #c8102e;
+  --brand-ink: #7a0a1c;
+  --brand-soft:#fbeaed;
+  --ok:        #1a7a3f;
+  --ok-soft:   #e8f3ec;
+  --warn:      #92580c;
+  --warn-soft: #fbf1de;
+
+  /* ONE radius across the whole UI */
+  --r:    10px;
+  --r-lg: 14px;   /* only used at the largest container level (cards) */
+
+  /* Spacing — 4px base */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 0 rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-2: 0 8px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ─── Reset ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px; line-height: 1.5;
+  font-feature-settings: "ss01", "cv11"; /* Geist niceties */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; }
+input, textarea { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ─── Atoms ─── */
+
+/* Surface */
+.surface { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r-lg); }
+
+/* Hairline divider */
+.hr { height: 1px; background: var(--hair-2); width: 100%; }
+
+/* Mono numerals */
+.mono { font-family: var(--mono); font-feature-settings: "tnum"; }
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* Label (tiny caps) */
+.label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* Tag — small badge with icon */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 8px; border-radius: var(--r);
+  background: var(--surface-2); border: 1px solid var(--hair);
+  font-size: 11px; font-weight: 600; color: var(--ink-2);
+}
+.tag.brand  { background: var(--brand-soft); border-color: transparent; color: var(--brand-ink); }
+.tag.ok     { background: var(--ok-soft);    border-color: transparent; color: var(--ok); }
+.tag.warn   { background: var(--warn-soft);  border-color: transparent; color: var(--warn); }
+.tag.ghost  { background: transparent; }
+
+/* Pill — segmented control track */
+.segment {
+  display: inline-flex; padding: 3px;
+  background: var(--hair-2); border-radius: var(--r);
+  align-items: center;
+}
+.segment > button {
+  height: 26px; padding: 0 10px; border: none; background: transparent;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  cursor: pointer; border-radius: 7px;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background .14s, color .14s;
+}
+.segment > button:hover { color: var(--ink-2); }
+.segment > button.on {
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px var(--hair);
+}
+
+/* Button */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px;
+  border: 1px solid var(--hair); border-radius: var(--r);
+  background: var(--surface); color: var(--ink-2);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--muted-2); color: var(--ink); }
+.btn.primary {
+  background: var(--ink); border-color: var(--ink); color: #fff;
+}
+.btn.primary:hover { background: #1a1a20; border-color: #1a1a20; color: #fff; }
+.btn.ghost { background: transparent; }
+.btn.icon { width: 32px; padding: 0; justify-content: center; }
+.btn.sm { height: 26px; padding: 0 9px; font-size: 11px; gap: 5px; }
+.btn.brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.brand:hover { background: #b50c28; border-color: #b50c28; color: #fff; }
+
+/* Input */
+.input {
+  height: 32px; padding: 0 10px;
+  border: 1px solid var(--hair); border-radius: var(--r);
+  background: var(--surface); color: var(--ink);
+  font-size: 13px;
+  outline: none; transition: border-color .12s, box-shadow .12s;
+}
+.input::placeholder { color: var(--muted-2); }
+.input:focus {
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+}
+
+/* Status pip — single-source for ok/ko/null state, sized inline */
+.pip {
+  display: inline-grid; place-items: center;
+  width: 16px; height: 16px; border-radius: 999px;
+  flex-shrink: 0;
+}
+.pip.ok   { background: var(--ok-soft); color: var(--ok); }
+.pip.ko   { background: var(--brand-soft); color: var(--brand); }
+.pip.na   { background: var(--hair-2); color: var(--muted-2); }
+.pip svg  { display: block; }
+
+/* Status row item — pip + label */
+.stat {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-2); font-weight: 600;
+  white-space: nowrap;
+}
+.stat .v { color: var(--muted); font-family: var(--mono); font-size: 11px; font-weight: 600; }
+
+/* Keybox chip */
+.keybox {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 8px 0 7px;
+  background: var(--ink); color: #fff;
+  border-radius: var(--r);
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+/* Card */
+.card {
+  background: var(--surface); border: 1px solid var(--hair);
+  border-radius: var(--r-lg); overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .14s, box-shadow .14s, transform .14s;
+}
+.card:hover { border-color: var(--muted-2); box-shadow: var(--shadow-2); }
+.card-section { padding: var(--s4); }
+.card-section + .card-section { border-top: 1px solid var(--hair-2); }
+
+/* Tabs / tabs container */
+.tabs { display: inline-flex; align-items: center; gap: 2px; }
+
+/* Scroll polish */
+.scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 4px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll { scrollbar-color: var(--hair) transparent; scrollbar-width: thin; }
+
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// ── Mock data ────────────────────────────────────────────────────────────────
+// Mock reservations for redesign mockup
+window.MOCK_RES = [
+  {
+    code: 'HMS5K2', villa: 'Binichic', mu: '', type: 'entrada',
+    checkIn: '2026-05-27', checkOut: '2026-06-03', nights: 7,
+    checkInTime: '16:00', arrivalMenorca: '14:30',
+    adults: 4, adultsAges: '42, 38, 35, 33',
+    children: 2, childrenAges: '8, 5',
+    guest: 'Sarah Johnson', fiscal: 'Sarah Anne Johnson',
+    phone: '+44 7700 900123', phone2: '', useArrival: false,
+    email: 'sarah@email.com', status: 'confirmed', portal: 'Airbnb',
+    keybox: '4582', vm: 'Carlos Ramos', cleaner: 'María López',
+    limpieza: true, wp: false, cierre: null,
+    arrivalForm: true, ecotasa: true, ecotasaEur: 84, ecotasaNote: '',
+    policia: true, deposito: false, depositoNote: 'Pendiente revisar',
+    notesClean: 'Llaves extra en cajón cocina, lavavajillas roto',
+    notesVm: 'Cliente VIP — preparar botella de vino bienvenida',
+    bookingComments: 'Celebran aniversario, traen 2 niños pequeños',
+    pendingTasks: 2,
+    ciOnlinePending: false,
+  },
+  {
+    code: 'BNT8M1', villa: 'Sa Caleta', mu: 'Casa principal', type: 'entrada',
+    checkIn: '2026-05-27', checkOut: '2026-05-31', nights: 4,
+    checkInTime: '17:30', arrivalMenorca: '16:00',
+    adults: 2, adultsAges: '55, 52',
+    children: 0, childrenAges: '',
+    guest: 'Jean-Pierre Dubois', fiscal: '',
+    phone: '+33 6 12 34 56 78', phone2: '+33 6 98 76 54 32', useArrival: true,
+    email: 'jpdubois@email.fr', status: 'confirmed', portal: 'Booking',
+    keybox: '0917', vm: 'Ana Torres', cleaner: 'Equipo Mahón',
+    limpieza: true, wp: true, cierre: null,
+    arrivalForm: true, ecotasa: true, ecotasaEur: 24, ecotasaNote: '',
+    policia: false, deposito: true, depositoNote: '',
+    notesClean: '',
+    notesVm: '',
+    bookingComments: '',
+    pendingTasks: 0,
+    ciOnlinePending: true,
+  },
+  {
+    code: 'CRR2X9', villa: 'Villa Mar y Sol', mu: '', type: 'salida',
+    checkIn: '2026-05-20', checkOut: '2026-05-27', nights: 7,
+    checkInTime: '16:00', arrivalMenorca: '', checkOutTime: '10:00',
+    departureMenorca: '13:45',
+    adults: 6, adultsAges: '',
+    children: 1, childrenAges: '12',
+    guest: 'Marco Bianchi', fiscal: 'Marco Bianchi',
+    phone: '+39 333 1234567', phone2: '', useArrival: false,
+    email: 'm.bianchi@email.it', status: 'confirmed', portal: 'VRBO',
+    keybox: '7733', vm: 'Carlos Ramos', cleaner: 'María López',
+    limpieza: null, wp: null, cierre: false,
+    arrivalForm: true, ecotasa: true, ecotasaEur: 49, ecotasaNote: '',
+    policia: true, deposito: true, depositoNote: 'Devuelto 500€',
+    notesClean: 'Revisar piscina, dejaron crema solar',
+    notesVm: 'Insistir en feedback — pareja muy contenta',
+    bookingComments: '',
+    pendingTasks: 1,
+    ciOnlinePending: false,
+  },
+  {
+    code: 'KLM4Z7', villa: 'Cas Patró', mu: '', type: 'entrada',
+    checkIn: '2026-05-28', checkOut: '2026-06-11', nights: 14,
+    checkInTime: '18:00', arrivalMenorca: '17:00',
+    adults: 8, adultsAges: '45, 44, 43, 42, 40, 38, 36, 35',
+    children: 3, childrenAges: '9, 7, 4',
+    guest: 'Wilhelm Müller', fiscal: 'Wilhelm Müller GmbH',
+    phone: '+49 170 1234567', phone2: '', useArrival: false,
+    email: 'w.mueller@email.de', status: 'new', portal: 'Direct',
+    keybox: '2208', vm: 'Ana Torres', cleaner: 'Equipo Norte',
+    limpieza: false, wp: false, cierre: null,
+    arrivalForm: false, ecotasa: false, ecotasaEur: 0, ecotasaNote: '',
+    policia: false, deposito: false, depositoNote: '',
+    notesClean: 'Limpieza profunda + reposición lavandería completa',
+    notesVm: 'Grupo grande — confirmar disponibilidad cocinero',
+    bookingComments: '2 familias viajan juntas, alergias documentadas',
+    pendingTasks: 4,
+    ciOnlinePending: true,
+  },
+  {
+    code: 'OPQ1A3', villa: 'Es Pinaret', mu: 'Apt A', type: 'salida',
+    checkIn: '2026-05-24', checkOut: '2026-05-27', nights: 3,
+    checkInTime: '16:00', checkOutTime: '10:00',
+    arrivalMenorca: '', departureMenorca: '12:00',
+    adults: 2, adultsAges: '29, 31',
+    children: 0, childrenAges: '',
+    guest: 'Emma Larsson', fiscal: '',
+    phone: '+46 70 123 4567', phone2: '', useArrival: false,
+    email: 'emma.l@email.se', status: 'confirmed', portal: 'Airbnb',
+    keybox: '5511', vm: 'Carlos Ramos', cleaner: 'Equipo Sur',
+    limpieza: null, wp: null, cierre: true,
+    arrivalForm: true, ecotasa: true, ecotasaEur: 12, ecotasaNote: '',
+    policia: true, deposito: true, depositoNote: '',
+    notesClean: '',
+    notesVm: '',
+    bookingComments: '',
+    pendingTasks: 0,
+    ciOnlinePending: false,
+  },
+  {
+    code: 'TUV9B6', villa: 'Cala Blanca', mu: '', type: 'entrada',
+    checkIn: '2026-05-29', checkOut: '2026-06-05', nights: 7,
+    checkInTime: '16:30', arrivalMenorca: '15:15',
+    adults: 4, adultsAges: '36, 34, 60, 58',
+    children: 0, childrenAges: '',
+    guest: 'James O\u2019Connor', fiscal: '',
+    phone: '+353 87 123 4567', phone2: '', useArrival: false,
+    email: 'james.oc@email.ie', status: 'confirmed', portal: 'Booking',
+    keybox: '3344', vm: 'Ana Torres', cleaner: 'María López',
+    limpieza: true, wp: true, cierre: null,
+    arrivalForm: true, ecotasa: true, ecotasaEur: 56, ecotasaNote: '',
+    policia: true, deposito: true, depositoNote: '',
+    notesClean: '',
+    notesVm: 'Familia con suegros — habitación accesible solicitada',
+    bookingComments: '',
+    pendingTasks: 0,
+    ciOnlinePending: false,
+  },
+];
+
+// Weekly view sample — Mon to Sun
+window.MOCK_WEEK = [
+  { date: '2026-05-25', day: 'Lun', items: [] },
+  { date: '2026-05-26', day: 'Mar', items: [
+    { code:'AAA1', villa:'Son Vell', type:'salida', cierre:true },
+  ]},
+  { date: '2026-05-27', day: 'Mié', today: true, items: [
+    { code:'HMS5K2', villa:'Binichic', type:'entrada', wp:false, limpieza:true },
+    { code:'BNT8M1', villa:'Sa Caleta / Casa principal', type:'entrada', wp:true, limpieza:true },
+    { code:'CRR2X9', villa:'Villa Mar y Sol', type:'salida', cierre:false },
+    { code:'OPQ1A3', villa:'Es Pinaret / Apt A', type:'salida', cierre:true },
+  ]},
+  { date: '2026-05-28', day: 'Jue', items: [
+    { code:'KLM4Z7', villa:'Cas Patró', type:'entrada', wp:false, limpieza:false },
+  ]},
+  { date: '2026-05-29', day: 'Vie', items: [
+    { code:'TUV9B6', villa:'Cala Blanca', type:'entrada', wp:true, limpieza:true },
+    { code:'XYZ2', villa:'Son Vell', type:'entrada', wp:false, limpieza:true },
+  ]},
+  { date: '2026-05-30', day: 'Sáb', items: [
+    { code:'WWW7', villa:'Cala Mitjana', type:'salida', cierre:true },
+    { code:'QQQ3', villa:'Binibeca', type:'entrada', wp:false, limpieza:true },
+  ]},
+  { date: '2026-05-31', day: 'Dom', items: [
+    { code:'BNT8M1', villa:'Sa Caleta', type:'salida', cierre:null },
+  ]},
+];
+
+window.MOCK_TASKS = [
+  { villa:'Binichic', task:'Revisar fuga grifo cocina', user:'Carlos', date:'Hoy', flag:'urgent' },
+  { villa:'Cas Patró', task:'Reponer toallas piscina (12 ud)', user:'Ana', date:'Hoy', flag:'important' },
+  { villa:'Villa Mar y Sol', task:'Llamar electricista — luz porche', user:'Carlos', date:'Ayer', flag:'overdue' },
+  { villa:'Cala Blanca', task:'Confirmar entrega WelcomePack', user:'María', date:'Mañana', flag:null },
+];
+
+</script>
+
+<script type="text/babel">
+// ── Icon library ─────────────────────────────────────────────────────────────
+// Unified icon library — every icon is 16×16, stroke 1.5, round caps/joins,
+// currentColor. Pass size to override. No fills. One visual language.
+const Icon = ({ d, size = 16, fill, ...rest }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+       strokeLinejoin="round" {...rest}>
+    {typeof d === 'string' ? <path d={d} /> : d}
+  </svg>
+);
+
+const I = {
+  // status
+  check:    p => <Icon {...p} d="M4 12.5l5 5L20 6" />,
+  x:        p => <Icon {...p} d={<><path d="M6 6l12 12"/><path d="M18 6L6 18"/></>} />,
+  dot:      p => <Icon {...p} d={<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>} />,
+  dash:     p => <Icon {...p} d="M5 12h14" />,
+  // nav / chrome
+  menu:     p => <Icon {...p} d={<><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>} />,
+  settings: p => <Icon {...p} d={<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></>} />,
+  search:   p => <Icon {...p} d={<><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></>} />,
+  filter:   p => <Icon {...p} d="M4 5h16l-6 8v6l-4-2v-4z" />,
+  plus:     p => <Icon {...p} d={<><path d="M12 5v14"/><path d="M5 12h14"/></>} />,
+  chevDown: p => <Icon {...p} d="M6 9l6 6 6-6" />,
+  chevRight:p => <Icon {...p} d="M9 6l6 6-6 6" />,
+  chevLeft: p => <Icon {...p} d="M15 6l-6 6 6 6" />,
+  more:     p => <Icon {...p} d={<><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></>} />,
+  // direction
+  arrowDown: p => <Icon {...p} d={<><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></>} />,
+  arrowUp:   p => <Icon {...p} d={<><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></>} />,
+  // ops
+  key:      p => <Icon {...p} d={<><circle cx="8" cy="14" r="4"/><path d="M11 11l9-9"/><path d="M16 6l3 3"/></>} />,
+  calendar: p => <Icon {...p} d={<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></>} />,
+  clock:    p => <Icon {...p} d={<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>} />,
+  plane:    p => <Icon {...p} d="M3 12l3-1 5 5-1 4 2 2 2-6 6-2 2-2-2-2-6 2-2-6-2 2 4 5-5 1-2-2z" />,
+  user:     p => <Icon {...p} d={<><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></>} />,
+  users:    p => <Icon {...p} d={<><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.5-3 3-5 6-5s5.5 2 6 5"/><path d="M16 4a3 3 0 010 6"/><path d="M21 18c-.3-2-1.6-3.5-3.5-4"/></>} />,
+  baby:     p => <Icon {...p} d={<><circle cx="12" cy="8" r="3"/><path d="M7 21c0-3 2-5 5-5s5 2 5 5"/><path d="M10 9l-.5.7"/><path d="M14 9l.5.7"/></>} />,
+  phone:    p => <Icon {...p} d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.1-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.5c.9.3 1.8.6 2.8.7a2 2 0 011.7 2z" />,
+  mail:     p => <Icon {...p} d={<><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/></>} />,
+  map:      p => <Icon {...p} d={<><path d="M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v16"/><path d="M15 6v16"/></>} />,
+  note:     p => <Icon {...p} d={<><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/></>} />,
+  task:     p => <Icon {...p} d={<><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M9 11l2 2 4-4"/></>} />,
+  bell:     p => <Icon {...p} d={<><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9z"/><path d="M10 21a2 2 0 004 0"/></>} />,
+  flag:     p => <Icon {...p} d={<><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></>} />,
+  spark:    p => <Icon {...p} d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7z" />,
+  wa:       p => <Icon {...p} d={<><path d="M21 12a9 9 0 11-3.4-7L21 4l-1.2 3.6A9 9 0 0121 12z"/><path d="M9 9c0 4 2 6 6 6l1-2-2-1-1 1c-1 0-2-1-2-2l1-1-1-2z"/></>} />,
+  pin:      p => <Icon {...p} d={<><path d="M12 22s7-7 7-12a7 7 0 10-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></>} />,
+  list:     p => <Icon {...p} d={<><path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><circle cx="4.5" cy="6" r=".8" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r=".8" fill="currentColor" stroke="none"/></>} />,
+  grid:     p => <Icon {...p} d={<><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></>} />,
+  weekly:   p => <Icon {...p} d={<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M9 14h2"/><path d="M13 14h2"/><path d="M17 14h-.01"/></>} />,
+  moon:     p => <Icon {...p} d="M21 13a9 9 0 11-10-10 7 7 0 0010 10z" />,
+  sun:      p => <Icon {...p} d={<><circle cx="12" cy="12" r="4"/><path d="M12 3v2"/><path d="M12 19v2"/><path d="M3 12h2"/><path d="M19 12h2"/><path d="M5.6 5.6l1.4 1.4"/><path d="M17 17l1.4 1.4"/><path d="M5.6 18.4l1.4-1.4"/><path d="M17 7l1.4-1.4"/></>} />,
+  package:  p => <Icon {...p} d={<><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/></>} />,
+  home:     p => <Icon {...p} d={<><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></>} />,
+  broom:    p => <Icon {...p} d={<><path d="M14 4l6 6"/><path d="M11 7l6 6-7 7-6-1-2-5z"/></>} />,
+  close:    p => <Icon {...p} d={<><path d="M6 6l12 12"/><path d="M18 6L6 18"/></>} />,
+  copy:     p => <Icon {...p} d={<><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></>} />,
+  edit:     p => <Icon {...p} d={<><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M14 5l4 4"/></>} />,
+  arrowR:   p => <Icon {...p} d={<><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></>} />,
+};
+
+window.I = I;
+
+</script>
+
+<script type="text/babel">
+// ── Shell: TopBar, FilterBar, PendingTasksBar, atoms ─────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// Entradas y Salidas — rediseño v2
+// Sistema riguroso: una sola tipografía (Geist), un solo radio (10/14),
+// una sola familia de iconos (line 1.6 stroke), paleta mínima (neutros + un
+// rojo de marca como acento + verde funcional para ✓ y rojo para ✕).
+// Mantiene EL MISMO layout y la MISMA información que la versión actual.
+// ════════════════════════════════════════════════════════════════════════════
+
+const { useState, useMemo } = React;
+
+// ─── tiny atoms ────────────────────────────────────────────────────────────
+function Pip({ ok, size = 16 }) {
+  const cls = ok === true ? 'pip ok' : ok === false ? 'pip ko' : 'pip na';
+  const ic  = ok === true ? <I.check size={size === 16 ? 12 : 10}/> :
+              ok === false ? <I.x     size={size === 16 ? 11 : 9}/> :
+                             <I.dash  size={size === 16 ? 11 : 9}/>;
+  return <span className={cls} style={{width: size, height: size}}>{ic}</span>;
+}
+
+function Stat({ label, ok, value, sm }) {
+  return (
+    <span className="stat" style={sm ? {fontSize: 11} : null}>
+      <Pip ok={ok} size={sm ? 14 : 16} />
+      <span>{label}</span>
+      {value && <span className="v">{value}</span>}
+    </span>
+  );
+}
+
+function Tag({ children, kind = 'neutral', icon }) {
+  return (
+    <span className={`tag ${kind === 'neutral' ? '' : kind}`}>
+      {icon}{children}
+    </span>
+  );
+}
+
+function TypeLabel({ type }) {
+  const isS = type === 'salida';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 8px 3px 6px', borderRadius: 999,
+      background: isS ? 'var(--brand-soft)' : 'var(--hair-2)',
+      color: isS ? 'var(--brand)' : 'var(--ink-2)',
+      fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase',
+    }}>
+      {isS ? <I.arrowUp size={11}/> : <I.arrowDown size={11}/>}
+      {isS ? 'Salida' : 'Entrada'}
+    </span>
+  );
+}
+
+// ─── Top bar ───────────────────────────────────────────────────────────────
+function TopBar() {
+  return (
+    <header style={{
+      display: 'flex', alignItems: 'center', gap: 14,
+      padding: '12px 24px',
+      background: 'var(--surface)',
+      borderBottom: '1px solid var(--hair)',
+      position: 'sticky', top: 0, zIndex: 20,
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: 8,
+        background: 'var(--ink)', color: '#fff',
+        display: 'grid', placeItems: 'center',
+        fontWeight: 700, fontSize: 13, letterSpacing: -0.3,
+      }}>♥3</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2, lineHeight: 1.2 }}>
+          Entradas y Salidas
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+          Miércoles · 27 mayo 2026
+        </div>
+      </div>
+      <button className="btn sm">
+        <I.settings size={13}/> Carlos R.
+      </button>
+      <button className="btn icon sm" title="Modo noche">
+        <I.moon size={14}/>
+      </button>
+      <button className="btn icon sm" title="Menú">
+        <I.menu size={15}/>
+      </button>
+    </header>
+  );
+}
+
+// ─── Filter bar ────────────────────────────────────────────────────────────
+function FilterBar({ view, setView, tipo, setTipo, openFilters, setOpenFilters }) {
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      borderBottom: '1px solid var(--hair)',
+      padding: '10px 24px',
+      position: 'sticky', top: 53, zIndex: 19,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      }}>
+        <div className="segment">
+          {[['both','Todo'],['entrada','Entradas'],['salida','Salidas']].map(([k,l]) => (
+            <button key={k} className={tipo === k ? 'on' : ''} onClick={() => setTipo(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        <span style={{ height: 16, width: 1, background: 'var(--hair)' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="label" style={{ fontSize: 10 }}>WelcomePack</span>
+          <div className="segment">
+            <button className="on">Todos</button>
+            <button>Pendiente</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="label" style={{ fontSize: 10 }}>Cierre</span>
+          <div className="segment">
+            <button className="on">Todos</button>
+            <button>Pendiente</button>
+          </div>
+        </div>
+
+        <span style={{ flex: 1 }} />
+
+        <div className="input" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          width: 220, padding: '0 10px',
+        }}>
+          <I.search size={14}/>
+          <input placeholder="Buscar villa, código, huésped…"
+            style={{
+              flex: 1, border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 13, color: 'var(--ink)',
+            }} />
+        </div>
+
+        <button className="btn sm icon" title="WhatsApp primer contacto"
+          style={{ color: '#1aa352' }}>
+          <I.wa size={14}/>
+        </button>
+
+        <div className="segment">
+          <button className={view === 'list'  ? 'on' : ''} onClick={() => setView('list')}  title="Listado"><I.list size={14}/></button>
+          <button className={view === 'cards' ? 'on' : ''} onClick={() => setView('cards')} title="Fichas"><I.grid size={14}/></button>
+          <button className={view === 'week'  ? 'on' : ''} onClick={() => setView('week')}  title="Semanal"><I.weekly size={14}/></button>
+        </div>
+
+        <button className="btn sm" onClick={() => setOpenFilters(v => !v)}>
+          <I.filter size={13}/> Filtros
+          <I.chevDown size={12} style={{
+            transition: 'transform .2s',
+            transform: openFilters ? 'rotate(180deg)' : 'none',
+          }}/>
+        </button>
+      </div>
+
+      {openFilters && (
+        <div style={{
+          marginTop: 12, paddingTop: 12,
+          borderTop: '1px solid var(--hair-2)',
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) auto',
+          gap: 12, alignItems: 'end',
+        }}>
+          <Field label="Villa Manager">
+            <button className="input" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', cursor: 'pointer', textAlign: 'left',
+            }}>
+              <span style={{color:'var(--ink-2)'}}>Carlos Ramos</span>
+              <I.chevDown size={13}/>
+            </button>
+          </Field>
+          <Field label="Desde"><input type="date" className="input" defaultValue="2026-05-27"/></Field>
+          <Field label="Hasta"><input type="date" className="input" defaultValue="2026-05-31"/></Field>
+          <Field label="Código reserva"><input className="input" placeholder="HMS5K2"/></Field>
+          <button className="btn brand sm" style={{ height: 32, padding: '0 16px' }}>
+            <I.package size={13}/> WelcomePacks
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span className="label">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// ─── Pending tasks bar ─────────────────────────────────────────────────────
+function PendingTasksBar() {
+  const [open, setOpen] = useState(true);
+  const tasks = window.MOCK_TASKS;
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      borderBottom: '1px solid var(--hair)',
+    }}>
+      <button onClick={() => setOpen(v => !v)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 24px', background: 'transparent', border: 'none',
+        cursor: 'pointer', textAlign: 'left',
+      }}>
+        <I.flag size={14} style={{ color: 'var(--brand)' }}/>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+          Tareas pendientes
+        </span>
+        <span style={{
+          padding: '1px 8px', borderRadius: 999,
+          background: 'var(--ink)', color: '#fff',
+          fontSize: 11, fontWeight: 700,
+          fontFamily: 'var(--mono)', letterSpacing: 0.2,
+        }}>{tasks.length}</span>
+        <span style={{ flex: 1 }}/>
+        <span title="Nueva tarea" style={{
+          padding: 4, borderRadius: 6, color: 'var(--muted)',
+        }}><I.plus size={14}/></span>
+        <I.chevDown size={14} style={{
+          color: 'var(--muted)',
+          transition: 'transform .2s',
+          transform: open ? 'rotate(180deg)' : 'none',
+        }}/>
+      </button>
+      {open && (
+        <div style={{ padding: '4px 12px 12px' }}>
+          {tasks.map((t, i) => (
+            <a key={i} href="#" style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '8px 12px', borderRadius: 'var(--r)',
+              transition: 'background .12s', textDecoration: 'none',
+              color: 'inherit',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 12, fontWeight: 600, color: 'var(--ink)',
+                minWidth: 140,
+              }}>
+                {t.flag === 'important' && <span style={{color:'var(--brand)'}}>●</span>}
+                {t.flag === 'urgent' && <span style={{color:'var(--warn)'}}>●</span>}
+                {t.flag === 'overdue' && <span style={{color:'var(--brand)'}}>●</span>}
+                {t.villa}
+              </span>
+              <span style={{ flex: 1, fontSize: 12, color: 'var(--muted)',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {t.task}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                <I.user size={11} style={{verticalAlign:'-2px', marginRight:3}}/>{t.user}
+              </span>
+              <span style={{
+                fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 600,
+                color: t.flag === 'overdue' ? 'var(--brand)' :
+                       t.date === 'Hoy' ? 'var(--warn)' : 'var(--muted)',
+                minWidth: 50, textAlign: 'right',
+              }}>{t.date}</span>
+              <I.chevRight size={13} style={{ color: 'var(--muted-2)' }}/>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+window.Atoms = { Pip, Stat, Tag, TypeLabel, TopBar, FilterBar, PendingTasksBar, Field };
+
+</script>
+
+<script type="text/babel">
+// ── Views: Card, List row, Week view ─────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// Card + List row + Week view — same design system
+// ════════════════════════════════════════════════════════════════════════════
+
+const { useState: useStateC } = React;
+const { Pip, Stat, TypeLabel } = window.Atoms;
+
+// short Spanish month
+const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtShort(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+// ─── CARD ──────────────────────────────────────────────────────────────────
+function ResCard({ r }) {
+  const [open, setOpen] = useStateC(false);
+  const isS = r.type === 'salida';
+  const pax = r.adults + r.children;
+
+  return (
+    <div className="card">
+      {/* HEAD */}
+      <div className="card-section" style={{ paddingBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <TypeLabel type={r.type} />
+          <span style={{ flex: 1 }} />
+          <span className="mono" style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
+            #{r.code}
+          </span>
+          <button className="btn icon" style={{ height: 24, width: 24, borderColor: 'transparent' }}>
+            <I.more size={14}/>
+          </button>
+        </div>
+        <h3 style={{
+          fontSize: 18, fontWeight: 600, letterSpacing: -0.35,
+          lineHeight: 1.15, color: 'var(--ink)',
+        }}>
+          {r.villa}
+          {r.mu && <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · {r.mu}</span>}
+        </h3>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          fontSize: 12, color: 'var(--muted)', marginTop: 6,
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <I.users size={13}/> <strong style={{ color: 'var(--ink-2)', fontWeight: 600 }}>{pax}</strong> pax
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <I.calendar size={13}/> <strong className="mono" style={{ color: 'var(--ink-2)', fontWeight: 600 }}>{r.nights}n</strong>
+          </span>
+          <span style={{ color: 'var(--muted-2)' }}>·</span>
+          <span>{r.portal}</span>
+        </div>
+      </div>
+
+      {/* DATES */}
+      <div className="card-section" style={{
+        padding: '14px 16px',
+        display: 'grid', gridTemplateColumns: '1fr auto 1fr',
+        alignItems: 'center', gap: 14,
+      }}>
+        <div>
+          <div className="label" style={{
+            color: !isS ? 'var(--ink-2)' : 'var(--muted)',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}>
+            <I.arrowDown size={10}/> Entrada
+          </div>
+          <div style={{
+            fontSize: 17, fontWeight: 600, fontFamily: 'var(--mono)',
+            color: 'var(--ink)', letterSpacing: -0.2, marginTop: 3,
+            fontFeatureSettings: '"tnum"',
+          }}>{fmtShort(r.checkIn)}</div>
+          <div style={{
+            fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--mono)',
+            marginTop: 2, display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <I.clock size={11}/>{r.checkInTime}
+            {r.arrivalMenorca && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
+                <I.plane size={11}/>{r.arrivalMenorca}
+              </span>
+            )}
+          </div>
+        </div>
+        <span style={{
+          padding: '4px 9px', borderRadius: 999,
+          background: 'var(--hair-2)', color: 'var(--ink-2)',
+          fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)',
+          letterSpacing: -0.2,
+        }}>{r.nights}n</span>
+        <div style={{ textAlign: 'right' }}>
+          <div className="label" style={{
+            color: isS ? 'var(--brand)' : 'var(--muted)',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            justifyContent: 'flex-end',
+          }}>
+            Salida <I.arrowUp size={10}/>
+          </div>
+          <div style={{
+            fontSize: 17, fontWeight: 600, fontFamily: 'var(--mono)',
+            color: 'var(--ink)', letterSpacing: -0.2, marginTop: 3,
+          }}>{fmtShort(r.checkOut)}</div>
+          <div style={{
+            fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--mono)',
+            marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 4,
+            justifyContent: 'flex-end',
+          }}>
+            <I.clock size={11}/>{isS ? (r.checkOutTime || '10:00') : '10:00'}
+            {isS && r.departureMenorca && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
+                <I.plane size={11}/>{r.departureMenorca}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* STATUS */}
+      <div className="card-section" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          {!isS ? (
+            <>
+              <Stat label="Limpieza" ok={r.limpieza}/>
+              <Stat label="WelcomePack" ok={r.wp}/>
+            </>
+          ) : (
+            <Stat label="Cierre" ok={r.cierre}/>
+          )}
+          {r.keybox && (
+            <span style={{ marginLeft: 'auto' }} className="keybox">
+              <I.key size={11}/>{r.keybox}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px 16px', flexWrap: 'wrap' }}>
+          <Stat label="Arrival form" ok={r.arrivalForm} sm/>
+          <Stat label="Ecotasa" ok={r.ecotasa} value={r.ecotasaEur ? `${r.ecotasaEur}€` : ''} sm/>
+          <Stat label="Policía" ok={r.policia} sm/>
+          <Stat label="Depósito" ok={r.deposito} sm/>
+        </div>
+      </div>
+
+      {/* NOTES */}
+      {(r.notesClean || r.notesVm) && (
+        <div className="card-section" style={{ padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {r.notesVm && (
+            <div style={{
+              display: 'flex', gap: 10, padding: '8px 10px',
+              background: 'var(--warn-soft)', borderRadius: 'var(--r)',
+            }}>
+              <I.spark size={14} style={{ color: 'var(--warn)', marginTop: 1, flexShrink: 0 }}/>
+              <div>
+                <div className="label" style={{ color: 'var(--warn)', marginBottom: 2 }}>Villa Manager</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45 }}>{r.notesVm}</div>
+              </div>
+            </div>
+          )}
+          {r.notesClean && (
+            <div style={{
+              display: 'flex', gap: 10, padding: '8px 10px',
+              background: 'var(--surface-2)', borderRadius: 'var(--r)',
+              border: '1px solid var(--hair-2)',
+            }}>
+              <I.broom size={14} style={{ color: 'var(--muted)', marginTop: 1, flexShrink: 0 }}/>
+              <div>
+                <div className="label" style={{ marginBottom: 2 }}>Limpieza</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45 }}>{r.notesClean}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GUEST */}
+      <div className="card-section" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+          <span style={{
+            fontSize: 14, fontWeight: 600, color: 'var(--ink)', letterSpacing: -0.2,
+            cursor: 'pointer', borderBottom: '1px dashed var(--muted-2)',
+          }}>{r.guest}</span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+            color: r.status === 'confirmed' ? 'var(--ok)' : 'var(--warn)',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999,
+              background: r.status === 'confirmed' ? 'var(--ok)' : 'var(--warn)' }}/>
+            {r.status === 'confirmed' ? 'Confirmada' : 'Nueva'}
+          </span>
+        </div>
+        <div style={{
+          display: 'flex', gap: 16, marginTop: 8,
+          fontSize: 12, color: 'var(--muted)',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <I.user size={12}/>
+            <strong style={{ color: 'var(--ink-2)', fontWeight: 600 }}>{r.adults}</strong>
+            {r.adultsAges && (
+              <span className="mono" style={{ fontSize: 10, color: 'var(--muted)' }}>({r.adultsAges})</span>
+            )}
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <I.baby size={12}/>
+            <strong style={{ color: r.children > 0 ? 'var(--ink-2)' : 'var(--muted-2)', fontWeight: 600 }}>
+              {r.children || 0}
+            </strong>
+            {r.childrenAges && (
+              <span className="mono" style={{ fontSize: 10, color: 'var(--muted)' }}>({r.childrenAges})</span>
+            )}
+          </span>
+        </div>
+        {r.bookingComments && (
+          <div style={{
+            marginTop: 8, padding: '7px 10px', borderRadius: 'var(--r)',
+            background: 'var(--surface-2)', border: '1px solid var(--hair-2)',
+            fontSize: 11, color: 'var(--muted)', lineHeight: 1.5,
+            display: 'flex', gap: 8,
+          }}>
+            <span style={{ color: 'var(--muted-2)', flexShrink: 0 }}>"</span>
+            <span>{r.bookingComments}</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+          <PhoneLine label="Host" phone={r.phone} active={!r.useArrival}/>
+          {r.phone2 && <PhoneLine label="Arrival" phone={r.phone2} active={r.useArrival}/>}
+        </div>
+      </div>
+
+      {/* COLLAPSIBLE DETAILS */}
+      {open && (
+        <div className="card-section" style={{ padding: '12px 16px', background: 'var(--surface-2)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Row icon={<I.broom size={13}/>} label="Limpieza" value={r.cleaner}/>
+            <Row icon={<I.home  size={13}/>} label="Villa Manager" value={r.vm}/>
+            <Row icon={<I.map   size={13}/>} label="Maps" value="Abrir ubicación" link/>
+            <Row icon={<I.mail  size={13}/>} label="Email" value={r.email}/>
+          </div>
+        </div>
+      )}
+
+      {/* TOGGLE */}
+      <button onClick={() => setOpen(v => !v)} style={{
+        padding: '9px 16px', background: 'var(--surface-2)',
+        borderTop: '1px solid var(--hair-2)', border: 'none',
+        borderBottomLeftRadius: 'inherit', borderBottomRightRadius: 'inherit',
+        cursor: 'pointer', textAlign: 'left',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        fontSize: 11, fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase',
+        color: 'var(--muted)',
+      }}>
+        <span>{open ? 'Ocultar detalles' : 'Ver detalles'}</span>
+        <I.chevDown size={13} style={{
+          transition: 'transform .2s',
+          transform: open ? 'rotate(180deg)' : 'none',
+        }}/>
+      </button>
+
+      {/* ACTIONS */}
+      <div style={{
+        padding: 10, display: 'flex', gap: 6, flexWrap: 'wrap',
+        borderTop: '1px solid var(--hair-2)',
+      }}>
+        <button className="btn primary sm">
+          <I.wa size={13}/> {isS ? 'Despedida' : 'Bienvenida'}
+        </button>
+        <button className="btn sm"><I.user size={13}/> Contacto</button>
+        <button className="btn sm icon" title="Maps"><I.pin size={13}/></button>
+        <button className="btn sm"><I.note size={13}/> Notas</button>
+        <button className="btn sm" style={{ marginLeft: 'auto' }}>
+          <I.plus size={13}/> Tarea
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PhoneLine({ label, phone, active }) {
+  return (
+    <a href={`tel:${phone}`} style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      fontSize: 12, fontFamily: 'var(--mono)',
+      color: active ? 'var(--ink-2)' : 'var(--muted)',
+      textDecoration: 'none',
+    }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 42, height: 18, borderRadius: 999,
+        background: active ? 'var(--ink)' : 'var(--hair-2)',
+        color: active ? '#fff' : 'var(--muted)',
+        fontSize: 9, fontWeight: 700, letterSpacing: 0.4,
+        textTransform: 'uppercase', fontFamily: 'var(--font)',
+      }}>{label}</span>
+      <I.phone size={12} style={{ color: active ? 'var(--ok)' : 'var(--muted-2)' }}/>
+      <span style={{ fontWeight: active ? 600 : 500 }}>{phone}</span>
+    </a>
+  );
+}
+
+function Row({ icon, label, value, link }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+      <span style={{ color: 'var(--muted)', display: 'inline-flex' }}>{icon}</span>
+      <span style={{ color: 'var(--muted)', minWidth: 100 }}>{label}</span>
+      <span style={{
+        color: link ? 'var(--ink)' : 'var(--ink-2)', fontWeight: 600,
+        cursor: link ? 'pointer' : 'default',
+        borderBottom: link ? '1px dashed var(--muted-2)' : 'none',
+      }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── LIST ROW ──────────────────────────────────────────────────────────────
+function ListRow({ r, alt }) {
+  const isS = r.type === 'salida';
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '110px 1.5fr 100px 90px 1.4fr 1.4fr auto',
+      gap: 14, alignItems: 'center',
+      padding: '14px 16px',
+      background: alt ? 'var(--surface-2)' : 'var(--surface)',
+      borderBottom: '1px solid var(--hair-2)',
+      transition: 'background .12s',
+    }}>
+      <TypeLabel type={r.type}/>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', letterSpacing: -0.2 }}>
+          {r.villa}
+          {r.mu && <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · {r.mu}</span>}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, fontFamily: 'var(--mono)' }}>
+          #{r.code} · {r.portal}
+        </div>
+      </div>
+      <div>
+        <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', letterSpacing: -0.2 }}>
+          {isS ? (r.checkOutTime || '10:00') : r.checkInTime}
+        </div>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{r.nights}n</div>
+      </div>
+      <span className="keybox">
+        <I.key size={11}/>{r.keybox}
+      </span>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{r.guest}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2,
+          display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span><I.user size={11}/> {r.adults}</span>
+          <span><I.baby size={11}/> {r.children || 0}</span>
+          <span style={{ color: 'var(--muted-2)' }}>·</span>
+          <span>{r.vm}</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px' }}>
+        {!isS ? (
+          <>
+            <Stat label="Limp" ok={r.limpieza} sm/>
+            <Stat label="WP" ok={r.wp} sm/>
+          </>
+        ) : (
+          <Stat label="Cierre" ok={r.cierre} sm/>
+        )}
+        <Stat label="Eco" ok={r.ecotasa} sm/>
+        <Stat label="Pol" ok={r.policia} sm/>
+      </div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button className="btn icon sm" title="WhatsApp" style={{ color: '#1aa352' }}>
+          <I.wa size={13}/>
+        </button>
+        <button className="btn icon sm" title="Más">
+          <I.more size={13}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── WEEK VIEW ─────────────────────────────────────────────────────────────
+function WeekItem({ item }) {
+  const isS = item.type === 'salida';
+  const okList = isS ? [['Cierre', item.cierre]] : [['WP', item.wp], ['Limp', item.limpieza]];
+  return (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 'var(--r)',
+      border: '1px solid var(--hair)',
+      padding: 9, display: 'flex', flexDirection: 'column', gap: 5,
+      cursor: 'pointer', transition: 'border-color .12s, box-shadow .12s',
+    }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--muted-2)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)'; }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          padding: '1px 6px', borderRadius: 999,
+          background: isS ? 'var(--brand-soft)' : 'var(--hair-2)',
+          color: isS ? 'var(--brand)' : 'var(--ink-2)',
+          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+        }}>
+          {isS ? <I.arrowUp size={9}/> : <I.arrowDown size={9}/>}
+          {isS ? 'Sal' : 'Ent'}
+        </span>
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)',
+        lineHeight: 1.25, letterSpacing: -0.1 }}>
+        {item.villa}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {okList.map(([l, ok], i) => (
+          <span key={i} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 10, color: 'var(--muted)', fontWeight: 600,
+          }}>
+            <Pip ok={ok} size={12}/>
+            {l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekView() {
+  return (
+    <div style={{ padding: '20px 24px' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 20, marginBottom: 18,
+      }}>
+        <button className="btn icon"><I.chevLeft size={14}/></button>
+        <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2,
+          color: 'var(--ink)', minWidth: 240, textAlign: 'center' }}>
+          25 — 31 mayo 2026
+        </span>
+        <button className="btn icon"><I.chevRight size={14}/></button>
+      </div>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10,
+      }}>
+        {window.MOCK_WEEK.map(day => (
+          <div key={day.date} style={{
+            background: 'var(--surface)',
+            border: `1px solid ${day.today ? 'var(--ink)' : 'var(--hair)'}`,
+            borderRadius: 'var(--r-lg)',
+            padding: 12,
+            display: 'flex', flexDirection: 'column', gap: 8,
+            minHeight: 240,
+          }}>
+            <div style={{
+              paddingBottom: 10,
+              borderBottom: `1px solid ${day.today ? 'var(--ink)' : 'var(--hair-2)'}`,
+              textAlign: 'center',
+            }}>
+              <div className="label" style={{ color: day.today ? 'var(--ink)' : 'var(--muted)' }}>
+                {day.day}
+              </div>
+              <div style={{
+                fontSize: 22, fontWeight: 600, color: 'var(--ink)',
+                fontFamily: 'var(--mono)', marginTop: 2, letterSpacing: -0.5,
+              }}>{day.date.split('-')[2]}</div>
+            </div>
+            {day.items.length === 0 ? (
+              <div style={{
+                fontSize: 11, color: 'var(--muted-2)', textAlign: 'center',
+                padding: '32px 0', fontWeight: 500,
+              }}>—</div>
+            ) : day.items.map((it, i) => <WeekItem key={i} item={it} />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+window.Views = { ResCard, ListRow, WeekView };
+
+</script>
+
+<script type="text/babel">
+// ── Main App ─────────────────────────────────────────────────────────────────
+const { useState } = React;
+const { TopBar, FilterBar, PendingTasksBar } = window.Atoms;
+const { ResCard, ListRow, WeekView } = window.Views;
+
+function App() {
+  const [view, setView] = useState('cards');
+  const [tipo, setTipo] = useState('both');
+  const [openFilters, setOpenFilters] = useState(false);
+
+  const records = window.MOCK_RES.filter(r => {
+    if (tipo === 'both') return true;
+    return r.type === tipo;
+  });
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <TopBar/>
+      <FilterBar
+        view={view} setView={setView}
+        tipo={tipo} setTipo={setTipo}
+        openFilters={openFilters} setOpenFilters={setOpenFilters}
+      />
+      <PendingTasksBar/>
+
+      <main style={{ flex: 1, padding: view === 'week' ? 0 : '20px 24px' }}>
+        {view === 'cards' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+            gap: 16,
+          }}>
+            {records.map(r => <ResCard key={r.code} r={r}/>)}
+          </div>
+        )}
+
+        {view === 'list' && (
+          <div className="surface" style={{ overflow: 'hidden' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '110px 1.5fr 100px 90px 1.4fr 1.4fr auto',
+              gap: 14, padding: '10px 16px',
+              background: 'var(--surface-2)',
+              borderBottom: '1px solid var(--hair)',
+            }}>
+              {['Tipo','Villa','Hora','Keybox','Huésped','Estado',''].map((h,i) => (
+                <span key={i} className="label">{h}</span>
+              ))}
+            </div>
+            {records.map((r, i) => <ListRow key={r.code} r={r} alt={i % 2 === 1}/>)}
+          </div>
+        )}
+
+        {view === 'week' && <WeekView/>}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
