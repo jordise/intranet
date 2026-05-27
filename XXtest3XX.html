@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Notas Equipo Reservas v31 — 3Villas</title>
   <!-- notas-equipo-reservas.html v31 — 27/05/2026
-     v31: CI Summary Bar siempre visible, sin colapso del card -->
+     v31: CI botones siempre visibles · secciones ocultas por defecto · ?ci= param -->
   <!--
     FIX v28/v29:
     1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
@@ -258,7 +258,7 @@
   <div class="ci-sections">
 
     <!-- 4.1 Arrival Form -->
-    <div class="col-wrap st-na" id="colArrival">
+    <div class="col-wrap st-na" id="colArrival" style="display:none">
       <div class="col-head" onclick="tog('colArrival')">
         <span class="col-ico">📋</span>
         <span class="col-title">Arrival Form</span>
@@ -313,7 +313,7 @@
     </div>
 
     <!-- 4.2 Registro de Policía -->
-    <div class="col-wrap st-na" id="colPolicia">
+    <div class="col-wrap st-na" id="colPolicia" style="display:none">
       <div class="col-head" onclick="tog('colPolicia')">
         <span class="col-ico">🚔</span>
         <span class="col-title">Registro de Policía</span>
@@ -339,7 +339,7 @@
     <!-- 4.3 Ecotasa -->
     <!-- FIX v28/v29: Ecotasa_cobrada es INTEGER (lookup Ta_Pagado_Pendiente).
          Se usa fEcotasaCobrada (select) y ecoVal() para guardar. -->
-    <div class="col-wrap st-na" id="colEcotasa">
+    <div class="col-wrap st-na" id="colEcotasa" style="display:none">
       <div class="col-head" onclick="tog('colEcotasa')">
         <span class="col-ico">🌿</span>
         <span class="col-title">Ecotasa</span>
@@ -444,7 +444,7 @@
     </div>
 
     <!-- 4.4 Depósito de Seguridad -->
-    <div class="col-wrap st-na" id="colDeposito">
+    <div class="col-wrap st-na" id="colDeposito" style="display:none">
       <div class="col-head" onclick="tog('colDeposito')">
         <span class="col-ico">🔐</span>
         <span class="col-title">Depósito de Seguridad</span>
@@ -1029,6 +1029,12 @@ document.addEventListener('DOMContentLoaded',function(){
     loadDepositOptions()
   ]).then(function(){
     populateForm();           /* ahora sí, con todos los datos disponibles */
+    /* Abrir sección por URL param ?ci=arrival|policia|ecotasa|deposito */
+    (function(){
+      var ciMap={arrival:'colArrival',policia:'colPolicia',ecotasa:'colEcotasa',deposito:'colDeposito'};
+      var ciParam=(new URLSearchParams(location.search)).get('ci')||'';
+      if(ciMap[ciParam.toLowerCase()])togCiSection(ciMap[ciParam.toLowerCase()]);
+    })();
     g('loadOverlay').style.display='none';
     g('mainContent').style.display='';
     g('saveBar').style.display='flex';
@@ -1045,12 +1051,16 @@ var _ciCols=['colArrival','colPolicia','colEcotasa','colDeposito'];
 
 window.togCiSection=function(colId){
   var target=g(colId);if(!target)return;
-  var opening=!target.classList.contains('open');
+  var isVisible=(target.style.display!=='none'&&target.style.display!=='');
+  /* cerrar y ocultar todos */
   _ciCols.forEach(function(id){
-    var el=g(id);if(el)el.classList.remove('open');
+    var el=g(id);
+    if(el){el.classList.remove('open');el.style.display='none';}
     var b=g(_ciBtn[id]);if(b)b.classList.remove('sect-open');
   });
-  if(opening){
+  /* si estaba cerrado → mostrar y abrir */
+  if(!isVisible){
+    target.style.display='block';
     target.classList.add('open');
     var b=g(_ciBtn[colId]);if(b)b.classList.add('sect-open');
     setTimeout(function(){target.scrollIntoView({behavior:'smooth',block:'nearest'});},80);
