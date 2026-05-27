@@ -34,7 +34,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v77 — 3Villas</title>
+  <title>Entradas Equipo v84 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -403,7 +403,26 @@
 
     /* Lnk */
     body.dark .lnk-m{background:rgba(255,255,255,.08)!important;color:rgba(255,255,255,.75)!important}
-    </style>
+  
+    .view-tog{display:inline-flex;align-items:center;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px;flex-shrink:0;height:36px}
+    .vp{border:none;border-radius:18px;width:36px;height:32px;font-size:15px;line-height:1;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;display:flex;align-items:center;justify-content:center;padding:0}
+    .vp.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+    #listView{display:none;padding:0}
+    .lv-row{border:1px solid var(--gray-2);border-radius:10px;background:#fff;overflow:hidden;margin-bottom:6px}
+    .lv-top{display:flex;align-items:center;gap:8px;padding:8px 12px;flex-wrap:wrap}
+    .lv-tipo{font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:4px;flex-shrink:0}
+    .lv-ent{background:#e8f0fe;color:#1565c0}.lv-sal{background:var(--red-light);color:var(--red)}
+    .lv-code{font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-4)}
+    .lv-villa{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);flex:1;min-width:100px;text-decoration:none}
+    .lv-guest{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-5)}
+    .lv-phone{font-size:12px;color:#1967d2;text-decoration:none}
+    .lv-btns{display:flex;gap:4px;flex-wrap:wrap;padding:0 12px 8px}
+    .lv-b{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap;border:none;cursor:pointer}
+    .lv-ok{background:var(--green-light);color:var(--green)}.lv-no{background:var(--red-light);color:var(--red)}.lv-na{background:var(--gray-2);color:var(--gray-4)}.lv-bl{background:#e8f0fe;color:#1967d2}.lv-rd{background:var(--red-light);color:var(--red)}.lv-gr{background:var(--green-light);color:var(--green)}
+    .lv-notes{padding:4px 12px 8px;border-top:1px solid var(--gray-2)}
+    .lv-note{font-size:11px;color:var(--gray-4);line-height:1.5;margin-bottom:2px}
+    .lv-nlbl{font-family:Montserrat,sans-serif;font-weight:800;font-size:9px;text-transform:uppercase;letter-spacing:.4px;margin-right:4px}
+  </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="nav-component.js"></script>
@@ -465,7 +484,11 @@
         <path d="M60 28c-17.7 0-32 13.5-32 30.1 0 6.2 2 12 5.5 16.9L30 92l17.6-4.7c4.2 2.3 9.1 3.6 14.4 3.6 17.7 0 32-13.5 32-30.1S77.7 28 60 28z" fill="#25D366"/>
       </svg>
     </a>
-    <button id="btnCalendar" onclick="toggleCalendarView()" title="Vista semanal / Lista">📅</button>
+    <div class="view-tog">
+      <button class="vp" id="vpL" onclick="setView('list')" title="Listado">≡</button>
+      <button class="vp on" id="vpF" onclick="setView('cards')" title="Fichas">⊞</button>
+      <button class="vp" id="vpC" onclick="setView('cal')" title="Calendario">📅</button>
+    </div>
     <button class="btn-mas" id="btnMas" onclick="toggleMas()">
       <span>Filtros</span><span class="arr">▾</span>
     </button>
@@ -757,13 +780,22 @@ function applyUserPrefs(prefs){
     }
   }
 
-  /* Vista semanal */
+  /* Vista guardada */
   if(prefs.entradas_vista==='Vista Semanal'){
-    _calMode=true;
-    const btn=$('btnCalendar');if(btn)btn.classList.add('active');
+    _calMode=true;_listMode=false;
     const wg=$('weekGrid');if(wg)wg.classList.add('active');
     const wn=$('weekNav');if(wn)wn.classList.add('active');
+    const vC=$('vpC');if(vC)vC.classList.add('on');
+    const vF=$('vpF');if(vF)vF.classList.remove('on');
+    const vL=$('vpL');if(vL)vL.classList.remove('on');
     _syncDates();
+  } else if(prefs.entradas_vista==='Vista Listado'){
+    _listMode=true;_calMode=false;
+    const lv=$('listView');if(lv)lv.style.display='block';
+    const gr=$('grid');if(gr)gr.style.display='none';
+    const vL=$('vpL');if(vL)vL.classList.add('on');
+    const vF=$('vpF');if(vF)vF.classList.remove('on');
+    const vC=$('vpC');if(vC)vC.classList.remove('on');
   }
 
   /* Panel de filtros abierto */
@@ -801,8 +833,10 @@ window.addEventListener('DOMContentLoaded',async()=>{
     const prefs=await loadUserPrefs();
     window.__userPrefs=prefs;
     if(prefs){
-      /* Tiene prefs → aplicar si no hay URL params, ocultar banner */
-      if(!hadURLParams) applyUserPrefs(prefs);
+      /* Tiene prefs → aplicar siempre (fechas y vista siempre de prefs) */
+      applyUserPrefs(prefs);
+      /* Si había URL params, restaurar solo los filtros de URL encima de las prefs */
+      if(hadURLParams) restoreFromURL();
       var _nb=$('noPrefsMsg');if(_nb)_nb.style.display='none';
     } else {
       /* Sin prefs → mostrar banner SIEMPRE (con o sin URL params)
@@ -975,9 +1009,9 @@ async function doSearch(){
 }
 
 // ════════════════ URL PARAMS ════════════════
-function saveToURL(){const params=new URLSearchParams();const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const cod=($('fCodigo')||{}).value||'';const villa=($('fVilla')||{}).value||'';const inq=($('fInquilino')||{}).value||'';if(desde)params.set('desde',desde);if(hasta)params.set('hasta',hasta);if(selectedManagers.size)params.set('mgr',[...selectedManagers].join(','));if(toggleMode!=='all')params.set('ci',toggleMode);if(fWelcomePack!=='all')params.set('wp',fWelcomePack);
+function saveToURL(){const params=new URLSearchParams();const cod=($('fCodigo')||{}).value||'';const villa=($('fVilla')||{}).value||'';const inq=($('fInquilino')||{}).value||'';if(selectedManagers.size)params.set('mgr',[...selectedManagers].join(','));if(toggleMode!=='all')params.set('ci',toggleMode);if(fWelcomePack!=='all')params.set('wp',fWelcomePack);
 if(fCierre!=='all')params.set('cierr',fCierre);if(tipoFilter!=='both')params.set('tipo',tipoFilter);if(cod)params.set('cod',cod);if(villa)params.set('villa',villa);if(inq)params.set('inq',inq);const qs=params.toString();history.replaceState(null,'',qs?'?'+qs:location.pathname);}
-function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['desde','hasta','mgr','ci','wp','cierr','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('desde')&&$('fDesde'))$('fDesde').value=p.get('desde');if(p.has('hasta')&&$('fHasta'))$('fHasta').value=p.get('hasta');if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');
+function restoreFromURL(){const p=new URLSearchParams(location.search);const filterKeys=['mgr','ci','wp','cierr','tipo','cod','villa','inq'];const hasParams=filterKeys.some(k=>p.has(k));if(!hasParams)return false;if(p.has('cod')&&$('fCodigo'))$('fCodigo').value=p.get('cod');if(p.has('villa')&&$('fVilla'))$('fVilla').value=p.get('villa');if(p.has('inq')&&$('fInquilino'))$('fInquilino').value=p.get('inq');if(p.has('mgr'))window.__urlManagers=p.get('mgr').split(',').filter(Boolean);if(p.has('ci'))toggleMode=p.get('ci');if(p.has('wp'))fWelcomePack=p.get('wp');
   if(p.has('cierr'))fCierre=p.get('cierr');if(p.has('tipo'))tipoFilter=p.get('tipo');return true;}
 
 // ════════════════ RENDER CARDS ════════════════
@@ -1014,6 +1048,7 @@ function renderCards(records,_extVillaIds,_muVillaMap){
   if($('hCount'))$('hCount').textContent=rows.length;if($('hCountLabel'))$('hCountLabel').textContent=' reservas';
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
   if(_calMode){grid.style.display='none';renderWeekly();}
+  else if(_listMode){grid.style.display='none';doRenderList(rows);}
   else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
@@ -1335,6 +1370,7 @@ function buildCard(r,type){
   const urlCierre=`task-cierre.html?Idreserva=${code}&Tasktype_booking=30&code=${code}`;
   const urlCiOnline=`https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code=${code}`;
   const urlEcFix=`https://c1abn932.caspio.com/dp/353f70000f4226a745cb49129831?TaBookings2021_FS_confirmation_code=${code}`;
+  const urlNER=`notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
   const urlNotas=`notas-villamanager.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
   const urlAddTask=`nueva-tarea.html?Idreserva=${encodeURIComponent(code)}&villa_id=${encodeURIComponent(villaId)}&villa_name=${encodeURIComponent(vl)}&multiunit_id=${encodeURIComponent(muId)}`; /* v40 */
   const urlResNotas=`notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=${encodeURIComponent(code)}`;
@@ -1357,9 +1393,9 @@ function buildCard(r,type){
     const ecEURfmt=ecEUR?parseFloat(ecEUR).toFixed(2)+' €':'';
     const ecExtra=`${ecEURfmt?' — <strong>'+ecEURfmt+'</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:#1967d2;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;text-decoration:none;margin-left:4px">✎</a>`;
     html+='<div class="c-status" style="border-top:1px solid var(--gray-2);flex-wrap:wrap">';
-    html+=mkBadge('Arrival form',g(r,'arrivalFormDone'));
-    html+=`<span class="bdg ${ecCls}" style="gap:3px">${ecIco} Ecotasa${ecExtra}</span>`;
-    html+=mkBadge('Policía',g(r,'policeDone'));html+=mkBadge('Depósito',g(r,'depositDone'));
+    html+=mkBadge('Arrival form',g(r,'arrivalFormDone'),`${urlNER}&ci=arrival`);
+    html+=`<a class="bdg ${ecCls}" href="${urlNER}&ci=ecotasa" onclick="return popup('${urlNER}&ci=ecotasa')" style="gap:3px;text-decoration:none;cursor:pointer">${ecIco} Ecotasa${ecExtra}</a>`;
+    html+=mkBadge('Policía',g(r,'policeDone'),`${urlNER}&ci=policia`);html+=mkBadge('Depósito',g(r,'depositDone'),`${urlNER}&ci=deposito`);
     html+='</div>';
     if(ecCom)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if(depNotes)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
@@ -1481,7 +1517,7 @@ function buildCard(r,type){
 }
 
 /* ════════════ VISTA SEMANAL ════════════ */
-var _calMode=false,_weekOff=0,_allRecs=[];
+var _calMode=false,_listMode=false,_weekOff=0,_allRecs=[];
 
 function _weekDays(off){
   var t=new Date(),day=t.getDay(),d=new Date(t);
@@ -1495,6 +1531,78 @@ function _syncDates(){
   var fd=$('fDesde'),fh=$('fHasta');
   if(fd)fd.value=_ds(days[0]);
   if(fh)fh.value=_ds(days[6]);
+}
+function setView(mode){
+  _calMode=mode==='cal'; _listMode=mode==='list';
+  var vL=$('vpL'),vF=$('vpF'),vC=$('vpC');
+  if(vL)vL.classList.toggle('on',mode==='list');
+  if(vF)vF.classList.toggle('on',mode==='cards');
+  if(vC)vC.classList.toggle('on',mode==='cal');
+  var wg=$('weekGrid');if(wg)wg.classList.toggle('active',_calMode);
+  var wn=$('weekNav');if(wn)wn.classList.toggle('active',_calMode);
+  var lv=$('listView');if(lv)lv.style.display=_listMode?'block':'none';
+  /* Fechas según la vista */
+  if(_calMode){
+    _syncDates(); /* semana → lunes a domingo */
+  } else {
+    /* fichas/listado → aplicar rango de días de las preferencias */
+    var dias=parseInt((window.__userPrefs&&window.__userPrefs.entrada_dias)||1)||1;
+    var hoy=todayStr();
+    if($('fDesde'))$('fDesde').value=hoy;
+    if($('fHasta')){
+      if(dias<=1){
+        $('fHasta').value=hoy;
+      } else {
+        var pts=hoy.split('-');
+        var hd=new Date(parseInt(pts[0]),parseInt(pts[1])-1,parseInt(pts[2]));
+        hd.setDate(hd.getDate()+(dias-1));
+        $('fHasta').value=hd.getFullYear()+'-'+String(hd.getMonth()+1).padStart(2,'0')+'-'+String(hd.getDate()).padStart(2,'0');
+      }
+    }
+  }
+  /* Guardar preferencia */
+  var val=mode==='cal'?'Vista Semanal':mode==='list'?'Vista Listado':'Vista Normal';
+  if(currentUserId){var u=Auth.url(WORKER+'?action=update&table=TaUsers_valores_pordefecto&where='+encodeURIComponent("Iduser='"+currentUserId+"'"));fetch(u,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({entradas_vista:val})}).catch(function(){});}
+  doSearch();
+}
+function _lvBdg(label,val,url){var ok=isOk(val);var cls=ok===null?'lv-na':ok?'lv-ok':'lv-no';var ico=ok===null?'·':ok?'✓':'✗';if(url)return'<a class="lv-b '+cls+'" href="'+url+'" onclick="return popup(\''+url+'\')" target="_blank">'+ico+' '+label+'</a>';return'<span class="lv-b '+cls+'">'+ico+' '+label+'</span>';}
+function doRenderList(rows){
+  var lv=$('listView');if(!lv)return;
+  if(!rows||!rows.length){lv.innerHTML='';return;}
+  var html='';
+  rows.forEach(function(row){
+    var r=row.r,isSal=row.type==='salida';
+    var code=g(r,'confirmCode'),villaId=r['TaVillas_villaid']||'';
+    var muId=String(g(r,'pmsmultiunitId')||'').trim();
+    var muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
+    var vl=(muName?g(r,'villaName')+' / '+muName:g(r,'villaName'))||'Villa';
+    var _rn=g(r,'guestName')||'',_rs=(r['TaBookings2021_Guest_Surename']||'').trim(),_sf=(r['TaBookings2021_Status_name_formula']||'').trim();
+    var gn=_sf==='Reserva'?(_rn+(_rs?' '+_rs:'')).trim():(_sf||_rn);
+    var ph=g(r,'guestPhone'),ph2=g(r,'phoneArrival'),cual=g(r,'phoneCual');
+    var aph=useArrival(cual)?ph2:ph;
+    var _nerBase='notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code='+encodeURIComponent(code);
+    var urlAF=_nerBase+'&ci=arrival';
+    var urlEc=_nerBase+'&ci=ecotasa';
+    var urlPol=_nerBase+'&ci=policia';
+    var urlDep=_nerBase+'&ci=deposito';
+    var urlEq='notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code='+encodeURIComponent(code);
+    var urlTask='nueva-tarea.html?Idreserva='+encodeURIComponent(code)+'&villa_id='+encodeURIComponent(villaId)+'&multiunit_id='+encodeURIComponent(muId);
+    var urlHA=g(r,'hostawayLink')||('https://dashboard.hostaway.com/reservations/'+code);
+    var urlCI='checkin-online.html?TaBookings2021_FS_confirmation_code='+code;
+    var urlVilla=villaId?('villa.html?villa_id='+encodeURIComponent(villaId)):'';
+    var nl=g(r,'cleaningNotes'),ni=g(r,'notasIrene');
+    html+='<div class="lv-row"><div class="lv-top">';
+    html+='<span class="lv-tipo '+(isSal?'lv-sal':'lv-ent')+'">'+(isSal?'↑ Sal':'↓ Ent')+'</span>';
+    if(code)html+='<span class="lv-code">#'+code+'</span>';
+    html+=(urlVilla?'<a class="lv-villa" href="'+urlVilla+'">'+vl+'</a>':'<span class="lv-villa">'+vl+'</span>');
+    if(gn)html+='<span class="lv-guest">'+gn+'</span>';
+    if(aph)html+='<a class="lv-phone" href="tel:'+aph+'">📞 '+aph+'</a>';
+    html+='</div>';
+    if(code){html+='<div class="lv-btns">';html+=_lvBdg('Arrival',g(r,'arrivalFormDone'),urlAF);html+=_lvBdg('Ecotasa',g(r,'ecotasaCobrada'),urlEc);html+=_lvBdg('Policía',g(r,'policeDone'),urlPol);html+=_lvBdg('Depósito',g(r,'depositDone'),urlDep);html+='<a class="lv-b lv-rd" href="'+urlEq+'">✏️ Equipo</a>';html+='<a class="lv-b lv-na" href="'+urlTask+'">＋ Tarea</a>';html+='<a class="lv-b lv-na" href="'+urlHA+'" onclick="return popup(\''+urlHA+'\')">🏠 Hostaway</a>';html+='<a class="lv-b lv-bl" href="'+urlCI+'" target="_blank">🔗 Checkin</a>';if(urlVilla)html+='<a class="lv-b lv-gr" href="'+urlVilla+'">🏡 Villa</a>';html+='</div>';}
+    if(nl||ni){html+='<div class="lv-notes">';if(nl)html+='<div class="lv-note"><span class="lv-nlbl">📝 Limpieza</span>'+nl+'</div>';if(ni)html+='<div class="lv-note"><span class="lv-nlbl">📌 VM</span>'+ni+'</div>';html+='</div>';}
+    html+='</div>';
+  });
+  lv.innerHTML=html;
 }
 function toggleCalendarView(){
   _calMode=!_calMode;
@@ -1616,6 +1724,7 @@ function renderWeekly(){
 }
 </script>
 
+<div id="listView"></div>
 <!-- Modal semanal -->
 <div id="wkModal" onclick="if(event.target===this)_closeModal()">
   <div id="wkModalInner"></div>
