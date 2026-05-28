@@ -1,28 +1,35 @@
-/* checkin-auth.js v4 — Autenticación huéspedes 3Villas
-   Flujo:
-   1. URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
-   2. ¿PIN guardado en sessionStorage? → re-verificar → datos frescos → onVerified(booking)
-   3. Si no → pantalla de verificación email → código → sessionStorage → onVerified(booking) */
+/* checkin-auth.js v5 — Autenticación huéspedes 3Villas
+   Flujo huésped:
+   1. checkin-online: URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
+      → pantalla verificación email → PIN → sesión guardada en sessionStorage → onVerified(booking)
+   2. Páginas hijas (checkin-arrival, police, deposit, taxes):
+      → si hay sesión válida → cargar datos del Worker directamente, SIN pedir PIN de nuevo
+      → si no hay sesión → redirigir a checkin-online con el code en la URL
+   Flujo admin/manager:
+      → si Auth está disponible y autenticado → bypass total, carga directa sin sesión huésped */
 
 const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const SESSION_TTL = 4 * 60 * 60 * 1000;
+  const SESSION_TTL = 4 * 60 * 60 * 1000; // 4h
   const MAX_ATT     = 5;
+  const CHECKIN_MAIN = 'checkin-online.html'; // página principal
 
-  /* ── i18n v4: textos del overlay traducidos ── */
+  /* ─────────────────────────────────────────────
+     i18n v5: textos del overlay en 8 idiomas
+     ───────────────────────────────────────────── */
   const CA_LANG = {
     en:{
       title_email:'Check-in Online',
       sub_email:'Enter the email address you used when booking to receive your access code.',
       lbl_email:'Email address', ph_email:'your@email.com',
-      btn_email:'Send access code', sending:'Sending…',
-      title_pin:'Check your email', lbl_pin:'Access code', ph_pin:'· · · · ·',
-      btn_pin:'Verify code', verifying:'Verifying…',
-      back:'← Try a different email',
+      btn_email:'Send access code', sending:'Sending\u2026',
+      title_pin:'Check your email', lbl_pin:'Access code', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Verify code', verifying:'Verifying\u2026',
+      back:'\u2190 Try a different email',
       no_email:"Didn't receive it? Check spam or contact us at",
-      verified:'Verified!', loading:'Loading your check-in…',
+      verified:'Verified!', loading:'Loading your check-in\u2026',
       need_help:'Need help?',
       err_email:'Please enter a valid email address.',
       err_not_found:'This email does not match our records. Please use the email you booked with.',
@@ -32,102 +39,112 @@ const CheckinAuth = (function(){
       err_incorrect:'Incorrect code. {left} attempt{s} remaining.',
       att_used:'{att} of {max} attempts used',
       hint_confirm:'Your access code will be sent to <strong>{hint}</strong>. Click the button to confirm.',
-      sent:'We’ve sent a 5-digit code to {email}. Check your inbox (and spam folder).',
+      sent:'We\u2019ve sent a 5-digit code to {email}. Check your inbox (and spam folder).',
+      redirect_msg:'Please complete the check-in from the main page.',
+      redirect_btn:'Go to Check-in',
     },
     es:{
       title_email:'Check-in Online',
-      sub_email:'Introduce el email que usaste al hacer la reserva para recibir tu código de acceso.',
-      lbl_email:'Correo electrónico', ph_email:'tu@email.com',
-      btn_email:'Enviar código', sending:'Enviando…',
-      title_pin:'Revisa tu email', lbl_pin:'Código de acceso', ph_pin:'· · · · ·',
-      btn_pin:'Verificar código', verifying:'Verificando…',
-      back:'← Usar otro email',
-      no_email:'¿No lo has recibido? Revisa el spam o contáctanos en',
-      verified:'¡Verificado!', loading:'Cargando tu check-in…',
-      need_help:'¿Necesitas ayuda?',
-      err_email:'Por favor, introduce un email válido.',
+      sub_email:'Introduce el email que usaste al hacer la reserva para recibir tu c\u00f3digo de acceso.',
+      lbl_email:'Correo electr\u00f3nico', ph_email:'tu@email.com',
+      btn_email:'Enviar c\u00f3digo', sending:'Enviando\u2026',
+      title_pin:'Revisa tu email', lbl_pin:'C\u00f3digo de acceso', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Verificar c\u00f3digo', verifying:'Verificando\u2026',
+      back:'\u2190 Usar otro email',
+      no_email:'\u00bfNo lo has recibido? Revisa el spam o cont\u00e1ctanos en',
+      verified:'\u00a1Verificado!', loading:'Cargando tu check-in\u2026',
+      need_help:'\u00bfNecesitas ayuda?',
+      err_email:'Por favor, introduce un email v\u00e1lido.',
       err_not_found:'Este email no coincide con nuestros registros. Usa el email con el que reservaste.',
-      err_send:'No se pudo enviar el código. Inténtalo de nuevo o contáctanos.',
-      err_code:'Por favor, introduce el código completo.',
-      err_too_many:'Demasiados intentos incorrectos. Contáctanos en bookings@3villas.com',
-      err_incorrect:'Código incorrecto. Quedan {left} intento{s}.',
+      err_send:'No se pudo enviar el c\u00f3digo. Int\u00e9ntalo de nuevo o cont\u00e1ctanos.',
+      err_code:'Por favor, introduce el c\u00f3digo completo.',
+      err_too_many:'Demasiados intentos incorrectos. Cont\u00e1ctanos en bookings@3villas.com',
+      err_incorrect:'C\u00f3digo incorrecto. Quedan {left} intento{s}.',
       att_used:'{att} de {max} intentos usados',
-      hint_confirm:'Tu código de acceso se enviará a <strong>{hint}</strong>. Pulsa el botón para confirmar.',
-      sent:'Hemos enviado un código de 5 dígitos a {email}. Revisa tu bandeja de entrada (y el spam).',
+      hint_confirm:'Tu c\u00f3digo de acceso se enviar\u00e1 a <strong>{hint}</strong>. Pulsa el bot\u00f3n para confirmar.',
+      sent:'Hemos enviado un c\u00f3digo de 5 d\u00edgitos a {email}. Revisa tu bandeja de entrada (y el spam).',
+      redirect_msg:'Accede al check-in desde la p\u00e1gina principal.',
+      redirect_btn:'Ir al Check-in',
     },
     fr:{
       title_email:'Check-in Online',
-      sub_email:"Entrez l’email utilisé lors de votre réservation pour recevoir votre code d’accès.",
+      sub_email:"Entrez l\u2019email utilis\u00e9 lors de votre r\u00e9servation pour recevoir votre code d\u2019acc\u00e8s.",
       lbl_email:'Adresse e-mail', ph_email:'votre@email.com',
-      btn_email:"Envoyer le code", sending:'Envoi…',
-      title_pin:'Vérifiez vos emails', lbl_pin:"Code d’accès", ph_pin:'· · · · ·',
-      btn_pin:'Vérifier le code', verifying:'Vérification…',
-      back:'← Utiliser un autre email',
-      no_email:"Vous ne l’avez pas reçu ? Vérifiez les spams ou contactez-nous :",
-      verified:'Vérifié !', loading:'Chargement de votre check-in…',
-      need_help:"Besoin d’aide ?",
+      btn_email:'Envoyer le code', sending:'Envoi\u2026',
+      title_pin:'V\u00e9rifiez vos emails', lbl_pin:"Code d\u2019acc\u00e8s", ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'V\u00e9rifier le code', verifying:'V\u00e9rification\u2026',
+      back:'\u2190 Utiliser un autre email',
+      no_email:"Vous ne l\u2019avez pas re\u00e7u ? V\u00e9rifiez les spams ou contactez-nous :",
+      verified:'V\u00e9rifi\u00e9 !', loading:'Chargement de votre check-in\u2026',
+      need_help:"Besoin d\u2019aide ?",
       err_email:'Veuillez entrer une adresse e-mail valide.',
-      err_not_found:"Cet email ne correspond pas à nos enregistrements. Utilisez l’email de réservation.",
-      err_send:"Impossible d’envoyer le code. Réessayez ou contactez-nous.",
+      err_not_found:"Cet email ne correspond pas \u00e0 nos enregistrements. Utilisez l\u2019email de r\u00e9servation.",
+      err_send:"Impossible d\u2019envoyer le code. R\u00e9essayez ou contactez-nous.",
       err_code:'Veuillez entrer le code complet.',
-      err_too_many:'Trop de tentatives incorrectes. Contactez-nous à bookings@3villas.com',
+      err_too_many:'Trop de tentatives incorrectes. Contactez-nous \u00e0 bookings@3villas.com',
       err_incorrect:'Code incorrect. {left} tentative{s} restante{s}.',
-      att_used:'{att} sur {max} tentatives utilisées',
-      hint_confirm:'Votre code sera envoyé à <strong>{hint}</strong>. Cliquez pour confirmer.',
-      sent:'Nous avons envoyé un code à 5 chiffres à {email}. Vérifiez votre boîte (et les spams).',
+      att_used:'{att} sur {max} tentatives utilis\u00e9es',
+      hint_confirm:'Votre code sera envoy\u00e9 \u00e0 <strong>{hint}</strong>. Cliquez pour confirmer.',
+      sent:'Nous avons envoy\u00e9 un code \u00e0 5 chiffres \u00e0 {email}. V\u00e9rifiez votre bo\u00eete (et les spams).',
+      redirect_msg:'Veuillez acc\u00e9der au check-in depuis la page principale.',
+      redirect_btn:'Aller au Check-in',
     },
     de:{
       title_email:'Check-in Online',
       sub_email:'Geben Sie die E-Mail-Adresse ein, die Sie bei der Buchung verwendet haben, um Ihren Zugangscode zu erhalten.',
       lbl_email:'E-Mail-Adresse', ph_email:'ihre@email.com',
-      btn_email:'Code senden', sending:'Senden…',
-      title_pin:'E-Mail prüfen', lbl_pin:'Zugangscode', ph_pin:'· · · · ·',
-      btn_pin:'Code bestätigen', verifying:'Prüfen…',
-      back:'← Andere E-Mail verwenden',
-      no_email:'Nichts erhalten? Spam-Ordner prüfen oder kontaktieren Sie uns:',
-      verified:'Bestätigt!', loading:'Ihr Check-in wird geladen…',
+      btn_email:'Code senden', sending:'Senden\u2026',
+      title_pin:'E-Mail pr\u00fcfen', lbl_pin:'Zugangscode', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Code best\u00e4tigen', verifying:'Pr\u00fcfen\u2026',
+      back:'\u2190 Andere E-Mail verwenden',
+      no_email:'Nichts erhalten? Spam-Ordner pr\u00fcfen oder kontaktieren Sie uns:',
+      verified:'Best\u00e4tigt!', loading:'Ihr Check-in wird geladen\u2026',
       need_help:'Brauchen Sie Hilfe?',
-      err_email:'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
-      err_not_found:'Diese E-Mail stimmt nicht mit unseren Daten überein. Bitte die Buchungs-E-Mail verwenden.',
+      err_email:'Bitte geben Sie eine g\u00fcltige E-Mail-Adresse ein.',
+      err_not_found:'Diese E-Mail stimmt nicht mit unseren Daten \u00fcberein. Bitte die Buchungs-E-Mail verwenden.',
       err_send:'Code konnte nicht gesendet werden. Bitte erneut versuchen oder uns kontaktieren.',
-      err_code:'Bitte geben Sie den vollständigen Code ein.',
+      err_code:'Bitte geben Sie den vollst\u00e4ndigen Code ein.',
       err_too_many:'Zu viele falsche Versuche. Kontaktieren Sie uns: bookings@3villas.com',
       err_incorrect:'Falscher Code. Noch {left} Versuch{s}.',
       att_used:'{att} von {max} Versuchen verwendet',
-      hint_confirm:'Ihr Code wird an <strong>{hint}</strong> gesendet. Klicken Sie zur Bestätigung.',
-      sent:'Wir haben einen 5-stelligen Code an {email} gesendet. Posteingang (und Spam) prüfen.',
+      hint_confirm:'Ihr Code wird an <strong>{hint}</strong> gesendet. Klicken Sie zur Best\u00e4tigung.',
+      sent:'Wir haben einen 5-stelligen Code an {email} gesendet. Posteingang (und Spam) pr\u00fcfen.',
+      redirect_msg:'Bitte nutzen Sie den Check-in \u00fcber die Hauptseite.',
+      redirect_btn:'Zum Check-in',
     },
     it:{
       title_email:'Check-in Online',
-      sub_email:"Inserisci l’email usata per la prenotazione per ricevere il tuo codice di accesso.",
+      sub_email:"Inserisci l\u2019email usata per la prenotazione per ricevere il tuo codice di accesso.",
       lbl_email:'Indirizzo email', ph_email:'tuo@email.com',
-      btn_email:'Invia codice', sending:'Invio…',
-      title_pin:'Controlla la tua email', lbl_pin:'Codice di accesso', ph_pin:'· · · · ·',
-      btn_pin:'Verifica codice', verifying:'Verifica…',
-      back:'← Usa un’altra email',
-      no_email:"Non l’hai ricevuto? Controlla lo spam o contattaci:",
-      verified:'Verificato!', loading:'Caricamento check-in…',
+      btn_email:'Invia codice', sending:'Invio\u2026',
+      title_pin:'Controlla la tua email', lbl_pin:'Codice di accesso', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Verifica codice', verifying:'Verifica\u2026',
+      back:"\u2190 Usa un'altra email",
+      no_email:"Non l\u2019hai ricevuto? Controlla lo spam o contattaci:",
+      verified:'Verificato!', loading:'Caricamento check-in\u2026',
       need_help:'Hai bisogno di aiuto?',
       err_email:'Inserisci un indirizzo email valido.',
-      err_not_found:"Questa email non corrisponde ai nostri dati. Usa l’email con cui hai prenotato.",
+      err_not_found:"Questa email non corrisponde ai nostri dati. Usa l\u2019email con cui hai prenotato.",
       err_send:'Impossibile inviare il codice. Riprova o contattaci.',
       err_code:'Inserisci il codice completo.',
       err_too_many:'Troppi tentativi errati. Contattaci a bookings@3villas.com',
       err_incorrect:'Codice errato. Rimangono {left} tentativo{s}.',
       att_used:'{att} di {max} tentativi usati',
-      hint_confirm:'Il tuo codice verrà inviato a <strong>{hint}</strong>. Clicca per confermare.',
+      hint_confirm:'Il tuo codice verr\u00e0 inviato a <strong>{hint}</strong>. Clicca per confermare.',
       sent:'Abbiamo inviato un codice a 5 cifre a {email}. Controlla la posta in arrivo (e lo spam).',
+      redirect_msg:'Accedi al check-in dalla pagina principale.',
+      redirect_btn:'Vai al Check-in',
     },
     nl:{
       title_email:'Check-in Online',
       sub_email:'Voer het e-mailadres in dat u bij de boeking heeft gebruikt om uw toegangscode te ontvangen.',
       lbl_email:'E-mailadres', ph_email:'uw@email.com',
-      btn_email:'Code verzenden', sending:'Verzenden…',
-      title_pin:'Controleer uw e-mail', lbl_pin:'Toegangscode', ph_pin:'· · · · ·',
-      btn_pin:'Code verifiëren', verifying:'Verifiëren…',
-      back:'← Ander e-mailadres gebruiken',
+      btn_email:'Code verzenden', sending:'Verzenden\u2026',
+      title_pin:'Controleer uw e-mail', lbl_pin:'Toegangscode', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Code verifi\u00ebren', verifying:'Verifi\u00ebren\u2026',
+      back:'\u2190 Ander e-mailadres gebruiken',
       no_email:'Niet ontvangen? Controleer spam of neem contact op:',
-      verified:'Geverifieerd!', loading:'Check-in wordt geladen…',
+      verified:'Geverifieerd!', loading:'Check-in wordt geladen\u2026',
       need_help:'Hulp nodig?',
       err_email:'Voer een geldig e-mailadres in.',
       err_not_found:'Dit e-mailadres komt niet overeen met onze gegevens. Gebruik het boekings-e-mailadres.',
@@ -138,48 +155,54 @@ const CheckinAuth = (function(){
       att_used:'{att} van {max} pogingen gebruikt',
       hint_confirm:'Uw code wordt verzonden naar <strong>{hint}</strong>. Klik om te bevestigen.',
       sent:'We hebben een 5-cijferige code gestuurd naar {email}. Controleer uw inbox (en spam).',
+      redirect_msg:'Gebruik de check-in via de hoofdpagina.',
+      redirect_btn:'Naar Check-in',
     },
     pt:{
       title_email:'Check-in Online',
-      sub_email:'Introduza o email que usou na reserva para receber o seu código de acesso.',
-      lbl_email:'Endereço de email', ph_email:'seu@email.com',
-      btn_email:'Enviar código', sending:'A enviar…',
-      title_pin:'Verifique o seu email', lbl_pin:'Código de acesso', ph_pin:'· · · · ·',
-      btn_pin:'Verificar código', verifying:'A verificar…',
-      back:'← Usar outro email',
-      no_email:'Não recebeu? Verifique o spam ou contacte-nos:',
-      verified:'Verificado!', loading:'A carregar o check-in…',
+      sub_email:'Introduza o email que usou na reserva para receber o seu c\u00f3digo de acesso.',
+      lbl_email:'Endere\u00e7o de email', ph_email:'seu@email.com',
+      btn_email:'Enviar c\u00f3digo', sending:'A enviar\u2026',
+      title_pin:'Verifique o seu email', lbl_pin:'C\u00f3digo de acesso', ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Verificar c\u00f3digo', verifying:'A verificar\u2026',
+      back:'\u2190 Usar outro email',
+      no_email:'N\u00e3o recebeu? Verifique o spam ou contacte-nos:',
+      verified:'Verificado!', loading:'A carregar o check-in\u2026',
       need_help:'Precisa de ajuda?',
-      err_email:'Por favor, introduza um email válido.',
-      err_not_found:'Este email não corresponde aos nossos registos. Use o email da reserva.',
-      err_send:'Não foi possível enviar o código. Tente novamente ou contacte-nos.',
-      err_code:'Por favor, introduza o código completo.',
+      err_email:'Por favor, introduza um email v\u00e1lido.',
+      err_not_found:'Este email n\u00e3o corresponde aos nossos registos. Use o email da reserva.',
+      err_send:'N\u00e3o foi poss\u00edvel enviar o c\u00f3digo. Tente novamente ou contacte-nos.',
+      err_code:'Por favor, introduza o c\u00f3digo completo.',
       err_too_many:'Demasiadas tentativas incorretas. Contacte-nos: bookings@3villas.com',
-      err_incorrect:'Código incorreto. Restam {left} tentativa{s}.',
+      err_incorrect:'C\u00f3digo incorreto. Restam {left} tentativa{s}.',
       att_used:'{att} de {max} tentativas usadas',
-      hint_confirm:'O seu código será enviado para <strong>{hint}</strong>. Clique para confirmar.',
-      sent:'Enviamos um código de 5 dígitos para {email}. Verifique a sua caixa de entrada (e spam).',
+      hint_confirm:'O seu c\u00f3digo ser\u00e1 enviado para <strong>{hint}</strong>. Clique para confirmar.',
+      sent:'Enviamos um c\u00f3digo de 5 d\u00edgitos para {email}. Verifique a sua caixa de entrada (e spam).',
+      redirect_msg:'Aceda ao check-in a partir da p\u00e1gina principal.',
+      redirect_btn:'Ir ao Check-in',
     },
     ca:{
       title_email:'Check-in Online',
-      sub_email:"Introdueix l’email que vas fer servir a la reserva per rebre el teu codi d’accés.",
-      lbl_email:'Adreça de correu', ph_email:'elvostrre@email.com',
-      btn_email:'Enviar codi', sending:'Enviant…',
-      title_pin:'Revisa el teu correu', lbl_pin:"Codi d’accés", ph_pin:'· · · · ·',
-      btn_pin:'Verificar codi', verifying:'Verificant…',
-      back:'← Usar un altre correu',
-      no_email:"No l’has rebut? Revisa l’spam o contacta’ns a",
-      verified:'Verificat!', loading:"Carregant el check-in…",
+      sub_email:"Introdueix l\u2019email que vas fer servir a la reserva per rebre el teu codi d\u2019acc\u00e9s.",
+      lbl_email:'Adre\u00e7a de correu', ph_email:'elvostrre@email.com',
+      btn_email:'Enviar codi', sending:'Enviant\u2026',
+      title_pin:'Revisa el teu correu', lbl_pin:"Codi d\u2019acc\u00e9s", ph_pin:'\u00b7 \u00b7 \u00b7 \u00b7 \u00b7',
+      btn_pin:'Verificar codi', verifying:'Verificant\u2026',
+      back:'\u2190 Usar un altre correu',
+      no_email:"No l\u2019has rebut? Revisa l\u2019spam o contacta\u2019ns a",
+      verified:'Verificat!', loading:"Carregant el check-in\u2026",
       need_help:'Necessites ajuda?',
-      err_email:'Si us plau, introdueix un email vàlid.',
-      err_not_found:"Aquest email no coincideix amb els nostres registres. Usa l’email amb què vas reservar.",
-      err_send:"No s’ha pogut enviar el codi. Torna-ho a intentar o contacta’ns.",
+      err_email:'Si us plau, introdueix un email v\u00e0lid.',
+      err_not_found:"Aquest email no coincideix amb els nostres registres. Usa l\u2019email amb qu\u00e8 vas reservar.",
+      err_send:"No s\u2019ha pogut enviar el codi. Torna-ho a intentar o contacta\u2019ns.",
       err_code:'Si us plau, introdueix el codi complet.',
-      err_too_many:"Massa intents incorrectes. Contacta’ns a bookings@3villas.com",
+      err_too_many:"Massa intents incorrectes. Contacta\u2019ns a bookings@3villas.com",
       err_incorrect:'Codi incorrecte. Queden {left} intent{s}.',
       att_used:'{att} de {max} intents usats',
-      hint_confirm:"El teu codi s’enviarà a <strong>{hint}</strong>. Fes clic per confirmar.",
-      sent:"Hem enviat un codi de 5 xífres a {email}. Revisa la safata d’entrada (i l’spam).",
+      hint_confirm:"El teu codi s\u2019enviar\u00e0 a <strong>{hint}</strong>. Fes clic per confirmar.",
+      sent:"Hem enviat un codi de 5 x\u00edfres a {email}. Revisa la safata d\u2019entrada (i l\u2019spam).",
+      redirect_msg:"Accedeix al check-in des de la p\u00e0gina principal.",
+      redirect_btn:'Anar al Check-in',
     },
   };
 
@@ -196,68 +219,36 @@ const CheckinAuth = (function(){
     if(vars) Object.keys(vars).forEach(function(p){s=s.replace(new RegExp('{'+p+'}','g'),vars[p]);});
     return s;
   }
-
-  /* Actualizar textos del overlay cuando el idioma cambia externamente */
-  function _refreshOverlay(){
-    var steps=['Email','Pin','Ok'];
-    var visible='';
-    steps.forEach(function(s){
-      var el=document.getElementById('caStep'+s);
-      if(el&&el.style.display!=='none') visible=s;
-    });
-    /* Actualizar textos estáticos */
-    _applyOverlayTexts();
-    /* Si está en paso email, re-aplicar el sub */
-    if(visible==='Email'){
-      var sub=document.getElementById('caEmailSub');
-      if(sub&&!sub.innerHTML.includes('<strong>')){
-        sub.textContent=_t('sub_email');
-      }
-    }
-  }
-
-  /* Aplicar todos los textos al overlay */
   function _applyOverlayTexts(){
-    var ids={
-      'caStepEmail .ca-title':        'title_email',
-    };
-    /* Actualizar dinámicamente los nodos de texto */
-    [
-      ['caEmailSub',    'sub_email',    'text'],
-      ['caBtnEmail',    'btn_email',    'text'],
-      ['caBtnPin',      'btn_pin',      'text'],
-      ['caBack',        'back',         'text'],
-    ].forEach(function(row){
-      var el=document.getElementById(row[0]);
-      if(!el) return;
-      /* Solo actualizar si el botón no está en estado "busy" */
-      if(el.disabled) return;
-      el.textContent=_t(row[1]);
-    });
-    /* Títulos y labels */
     document.querySelectorAll('[data-ca-i18n]').forEach(function(el){
       el.textContent=_t(el.getAttribute('data-ca-i18n'));
     });
-    /* Placeholders */
     document.querySelectorAll('[data-ca-ph]').forEach(function(el){
       el.placeholder=_t(el.getAttribute('data-ca-ph'));
     });
   }
+  function _refreshOverlay(){
+    _applyOverlayTexts();
+    var btnE=document.getElementById('caBtnEmail');
+    var btnP=document.getElementById('caBtnPin');
+    var btnB=document.getElementById('caBack');
+    if(btnE&&!btnE.disabled) btnE.textContent=_t('btn_email');
+    if(btnP&&!btnP.disabled) btnP.textContent=_t('btn_pin');
+    if(btnB) btnB.textContent=_t('back');
+  }
 
-  /* ── Session (guarda solo code + pin, no el booking) ── */
+  /* ── Session ── */
   function getSession(code){
     try {
       const s = sessionStorage.getItem(SESSION_KEY);
       if(!s) return null;
       const obj = JSON.parse(s);
-      if(obj.code !== code || Date.now() > obj.expires){
-        sessionStorage.removeItem(SESSION_KEY);
-        return null;
-      }
+      if(Date.now() > obj.expires){ sessionStorage.removeItem(SESSION_KEY); return null; }
+      /* Si se pasa code específico, verificar que coincide */
+      if(code && obj.code !== code){ return null; }
       return obj;
     } catch(e){ return null; }
   }
-
   function setSession(code, pin){
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       code, pin, expires: Date.now() + SESSION_TTL
@@ -272,7 +263,14 @@ const CheckinAuth = (function(){
         || p.get('code') || '';
   }
 
-  /* ── Worker call ── */
+  /* ── ¿Es admin/manager? (tiene Auth del sistema interno) ── */
+  function isAdmin(){
+    try {
+      return typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn();
+    } catch(e){ return false; }
+  }
+
+  /* ── Worker calls ── */
   async function wPost(action, body){
     const r = await fetch(`${WORKER}?action=${action}`, {
       method : 'POST',
@@ -282,6 +280,43 @@ const CheckinAuth = (function(){
     const j = await r.json();
     if(!r.ok) throw new Error(j.error || `Error ${r.status}`);
     return j;
+  }
+
+  /* Cargar booking data del Worker usando code + pin */
+  async function loadBookingData(code, pin){
+    const j = await wPost('verify-checkin-code', { bookingCode: code, pin });
+    if(!j.booking) throw new Error('no booking data');
+    return j.booking;
+  }
+
+  /* Cargar booking data como admin (usando Auth token) */
+  async function loadBookingDataAdmin(code){
+    const url = WORKER + '?action=view&view=Vi_villas_and_bookings2021&where='
+      + encodeURIComponent("TaBookings2021_FS_confirmation_code='" + code + "'");
+    const r = await fetch(typeof Auth !== 'undefined' ? Auth.url(url) : url);
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || 'Error ' + r.status);
+    const rows = j.Result || j.result || j;
+    if(!rows || !rows.length) throw new Error('booking not found');
+    return rows[0];
+  }
+
+  /* ── Redirigir a checkin-online si no hay sesión y no es admin ── */
+  function redirectToMain(code){
+    const lang = _getLang();
+    const txt  = CA_LANG[lang] || CA_LANG.en;
+    const base = location.pathname.replace(/[^/]*$/, '') + CHECKIN_MAIN;
+    const url  = code ? `${base}?TaBookings2021_FS_confirmation_code=${code}` : base;
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;font-family:Montserrat,sans-serif;text-align:center;">
+        <div style="max-width:360px">
+          <img src="logo-negro.png" alt="3Villas" style="height:80px;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto"
+               onerror="this.style.display='none'">
+          <div style="font-size:40px;margin-bottom:16px">🔐</div>
+          <p style="font-size:15px;font-weight:700;color:#212529;margin-bottom:8px">${txt.redirect_msg}</p>
+          <a href="${url}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#C8102E;color:#fff;border-radius:10px;text-decoration:none;font-weight:800;font-size:14px">${txt.redirect_btn}</a>
+        </div>
+      </div>`;
   }
 
   /* ══ CSS del overlay ══ */
@@ -344,7 +379,7 @@ const CheckinAuth = (function(){
           <div class="ca-contact">
             <span data-ca-i18n="need_help">Need help?</span>
             <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
-            · <a href="mailto:bookings@3villas.com">bookings@3villas.com</a>
+            &middot; <a href="mailto:bookings@3villas.com">bookings@3villas.com</a>
           </div>
         </div>
         <div id="caStepPin" style="display:none">
@@ -353,10 +388,10 @@ const CheckinAuth = (function(){
           <div class="ca-err" id="caErrPin"></div>
           <label class="ca-lbl" data-ca-i18n="lbl_pin">Access code</label>
           <input class="ca-inp pin" id="caPin" type="text" inputmode="numeric"
-                 maxlength="5" data-ca-ph="ph_pin" placeholder="· · · · ·" autocomplete="one-time-code">
+                 maxlength="5" data-ca-ph="ph_pin" placeholder="&middot; &middot; &middot; &middot; &middot;" autocomplete="one-time-code">
           <button class="ca-btn" id="caBtnPin" onclick="CheckinAuth._verify()">Verify code</button>
           <div class="ca-att" id="caAtt"></div>
-          <button class="ca-back" id="caBack" onclick="CheckinAuth._back()">← Try a different email</button>
+          <button class="ca-back" id="caBack" onclick="CheckinAuth._back()">&#8592; Try a different email</button>
           <div class="ca-contact">
             <span data-ca-i18n="no_email">Didn't receive it? Check spam or contact us at</span>
             <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">+34 659 93 34 34</a>
@@ -364,22 +399,20 @@ const CheckinAuth = (function(){
         </div>
         <div id="caStepOk" style="display:none">
           <div class="ca-ok">
-            <span class="ca-ok-ico">✅</span>
-            <div id="caOkTitle" data-ca-i18n="verified" style="font-family:Montserrat,sans-serif;font-weight:800;font-size:16px;color:#16a34a">Verified!</div>
-            <div id="caOkSub" data-ca-i18n="loading" style="font-size:13px;color:#868e96;margin-top:4px">Loading your check-in…</div>
+            <span class="ca-ok-ico">&#x2705;</span>
+            <div data-ca-i18n="verified" style="font-family:Montserrat,sans-serif;font-weight:800;font-size:16px;color:#16a34a">Verified!</div>
+            <div data-ca-i18n="loading" style="font-size:13px;color:#868e96;margin-top:4px">Loading your check-in&#8230;</div>
           </div>
         </div>
       </div>`;
     document.body.appendChild(d);
     document.getElementById('caEmail').addEventListener('keydown', e => { if(e.key==='Enter') CheckinAuth._send(); });
     document.getElementById('caPin').addEventListener('keydown',  e => { if(e.key==='Enter') CheckinAuth._verify(); });
-    /* v4: aplicar idioma al overlay nada más montarlo */
     _applyOverlayTexts();
     document.getElementById('caBtnEmail').textContent = _t('btn_email');
     document.getElementById('caBtnPin').textContent   = _t('btn_pin');
     document.getElementById('caBack').textContent     = _t('back');
 
-    /* Pedir email hint al Worker y pre-rellenar */
     fetch(`${WORKER}?action=checkin-hint&code=${encodeURIComponent(_code)}`)
       .then(r => r.ok ? r.json() : null)
       .then(j => {
@@ -403,7 +436,7 @@ const CheckinAuth = (function(){
     const b = document.getElementById(id);
     b.disabled = on;
     if(!b._orig) b._orig = b.textContent;
-    b.innerHTML = on ? `<span class="ca-sp"></span>${txt||'Please wait…'}` : b._orig;
+    b.innerHTML = on ? `<span class="ca-sp"></span>${txt||'Please wait\u2026'}` : b._orig;
   }
 
   let _code='', _email='', _att=0, _cb=null;
@@ -467,60 +500,106 @@ const CheckinAuth = (function(){
       _cb   = opts.onVerified || (() => {});
       _code = opts.code || getCode();
 
-      if(!_code){
-        document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
-          '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
-          '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+      /* ── MODO ADMIN/MANAGER: Auth del sistema interno → carga directa ── */
+      if(isAdmin()){
+        if(!_code){
+          /* Admin sin code en URL: mostrar mensaje */
+          document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
+            '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
+            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+          return;
+        }
+        /* Admin con code: cargar datos directamente via Auth */
+        const go = () => {
+          loadBookingDataAdmin(_code)
+            .then(booking => { if(_cb) _cb(booking); })
+            .catch(e => {
+              document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
+                '<p style="color:#C8102E;font-weight:800">Error loading booking</p>' +
+                '<p style="font-size:13px;color:#868e96;margin-top:8px">' + e.message + '</p></div>';
+            });
+        };
+        document.readyState === 'loading'
+          ? document.addEventListener('DOMContentLoaded', go)
+          : go();
         return;
       }
 
-      /* ¿Sesión existente? Re-verificar con PIN guardado → datos frescos */
-      const sess = getSession(_code);
+      /* ── MODO HUÉSPED ── */
+
+      /* Página principal (checkin-online): necesita code en URL */
+      const isMainPage = location.pathname.includes(CHECKIN_MAIN);
+
+      if(isMainPage){
+        /* Sin code → error */
+        if(!_code){
+          document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
+            '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
+            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+          return;
+        }
+        /* Con code: ver si hay sesión válida para este code */
+        const sess = getSession(_code);
+        if(sess){
+          /* Sesión válida → cargar datos directamente SIN llamar al Worker de nuevo */
+          const go = () => {
+            loadBookingData(_code, sess.pin)
+              .then(booking => { if(_cb) _cb(booking); })
+              .catch(() => {
+                /* Sesión caducada o inválida → pedir verificación de nuevo */
+                sessionStorage.removeItem(SESSION_KEY);
+                inject();
+              });
+          };
+          document.readyState === 'loading'
+            ? document.addEventListener('DOMContentLoaded', go)
+            : go();
+        } else {
+          /* Sin sesión → overlay de verificación */
+          const go = () => inject();
+          document.readyState === 'loading'
+            ? document.addEventListener('DOMContentLoaded', go)
+            : go();
+        }
+        return;
+      }
+
+      /* Páginas hijas (arrival, police, deposit, taxes):
+         DEBEN tener sesión activa de haber pasado por checkin-online.
+         Si no hay sesión → redirigir a checkin-online con el code. */
+      const sess = getSession(null); /* sin filtrar por code — usa el que haya */
       if(sess){
-        wPost('verify-checkin-code', { bookingCode: _code, pin: sess.pin })
-          .then(j => {
-            if(_cb && j.booking){
-              _cb(j.booking);
-            } else {
-              /* booking null/undefined → sesión inválida, mostrar overlay */
+        /* Usar el code de la sesión (ignora el de la URL si no hay) */
+        if(!_code) _code = sess.code;
+        /* Cargar datos frescos del Worker */
+        const go = () => {
+          loadBookingData(sess.code, sess.pin)
+            .then(booking => { if(_cb) _cb(booking); })
+            .catch(() => {
               sessionStorage.removeItem(SESSION_KEY);
-              const go = () => inject();
-              document.readyState === 'loading'
-                ? document.addEventListener('DOMContentLoaded', go)
-                : go();
-            }
-          })
-          .catch(e => {
-            /* Si falla (pin expirado, error de red, etc.) → mostrar overlay */
-            sessionStorage.removeItem(SESSION_KEY);
-            const go = () => inject();
-            document.readyState === 'loading'
-              ? document.addEventListener('DOMContentLoaded', go)
-              : go();
-          });
-        return;
+              redirectToMain(sess.code);
+            });
+        };
+        document.readyState === 'loading'
+          ? document.addEventListener('DOMContentLoaded', go)
+          : go();
+      } else {
+        /* Sin sesión en página hija → redirigir */
+        const go = () => redirectToMain(_code);
+        document.readyState === 'loading'
+          ? document.addEventListener('DOMContentLoaded', go)
+          : go();
       }
-
-      /* Sin sesión → mostrar overlay */
-      const go = () => inject();
-      document.readyState === 'loading'
-        ? document.addEventListener('DOMContentLoaded', go)
-        : go();
     },
 
     _send:   () => send(),
     _verify: () => verify(),
     _back:   () => back(),
-    /* v4: llamar desde la página cuando el usuario cambia idioma */
     _refreshLang: () => { if(document.getElementById('caOverlay')) _refreshOverlay(); },
 
     getCode:    () => _code,
     getBooking: () => null,
-    isVerified: () => !!getSession(_code),
+    isVerified: () => !!getSession(null),
   };
 
 })();
-
-
-
-FILE: checkin-deposit.html
