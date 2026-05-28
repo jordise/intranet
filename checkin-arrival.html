@@ -1,1 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#C8102E">
+  <title>Arrival Form — 3Villas</title>
+  <!-- checkin-arrival.html v1 — 28/05/2026
+       Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
+       Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
+       Misma tipografía Montserrat/Open Sans y mismo lenguaje visual. -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
+      --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
+      --blue:#2563EB;--blue-lt:#EFF6FF;
+      --amber:#B45309;--amber-lt:#FFFBEB;--amber-bd:#FCD34D;
+      --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
+      --gray-4:#868e96;--gray-5:#212529;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Montserrat,sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
 
+    /* ── Loading ── */
+    #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:80vh;gap:10px;text-align:center;padding:40px 20px}
+    .spinner{width:32px;height:32px;border:3px solid var(--gray-3);
+      border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Layout ── */
+    #content{display:none;max-width:540px;margin:0 auto;padding:0 20px 100px}
+
+    /* ── Header — igual que checkin-online ── */
+    .page-header{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--gray-2);
+      margin-bottom:24px;position:relative}
+    .page-logo{height:192px;display:block;margin:0 auto 18px;max-width:100%;object-fit:contain}
+    .page-title{font-family:Montserrat,sans-serif;font-size:22px;font-weight:900;
+      color:var(--red);margin-bottom:10px}
+    .page-greeting{font-size:15px;font-weight:700;margin-bottom:2px}
+    .page-villa{font-size:13px;color:var(--gray-4);margin-bottom:4px}
+    .page-code{display:inline-block;font-size:11px;color:var(--gray-4);
+      background:var(--gray-2);padding:3px 12px;border-radius:20px;font-weight:700}
+
+    /* ── Selector idioma — idéntico al de checkin-online v33 ── */
+    #langWrap{position:absolute;top:16px;right:0;display:none}
+    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
+      background:#fff;color:var(--gray-5);cursor:pointer;outline:none;
+      appearance:none;-webkit-appearance:none}
+
+    /* ── Sección ── */
+    .sec{margin-bottom:20px;border:1px solid var(--gray-3);border-radius:14px;overflow:hidden}
+    .sec-head{background:var(--gray-1);padding:11px 16px;display:flex;align-items:center;
+      gap:10px;border-bottom:1px solid var(--gray-3)}
+    .sec-ico{font-size:18px;flex-shrink:0}
+    .sec-title{font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5)}
+    .sec-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+
+    /* ── Campos ── */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);display:block}
+    .req{color:var(--red);margin-left:1px}
+    .inp,.sel,.ta{
+      width:100%;padding:10px 13px;
+      border:1.5px solid var(--gray-3);border-radius:10px;
+      font-size:14px;font-family:Montserrat,sans-serif;font-weight:600;
+      color:var(--gray-5);background:#fff;outline:none;
+      transition:border-color .15s;
+    }
+    .inp:focus,.sel:focus,.ta:focus{
+      border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+    .sel{
+      appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:34px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23868e96' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 12px center;
+    }
+    .ta{resize:vertical;min-height:72px;line-height:1.55}
+    .hint{font-family:Montserrat,sans-serif;font-size:10px;font-weight:500;
+      color:var(--gray-4);line-height:1.5}
+    .hint-warn{background:var(--amber-lt);border:1px solid var(--amber-bd);
+      border-radius:7px;padding:8px 10px;color:#78350f;font-size:10px;
+      font-family:Montserrat,sans-serif;font-weight:600;line-height:1.5}
+    .hint-info{background:var(--blue-lt);border-radius:10px;padding:12px 14px;
+      font-size:11px;color:#1e40af;line-height:1.65;font-family:Montserrat,sans-serif;font-weight:500}
+    .hint-info strong{font-weight:800}
+
+    /* ── RGPD checkbox ── */
+    .check-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+      padding:12px;background:var(--gray-1);border-radius:10px;
+      border:1.5px solid var(--gray-3);transition:border-color .15s}
+    .check-row:has(input:checked){border-color:var(--green);background:var(--green-lt)}
+    .check-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;
+      margin-top:1px;accent-color:var(--red);cursor:pointer}
+    .check-lbl{font-size:11px;font-weight:600;color:var(--gray-5);
+      line-height:1.55;cursor:pointer;font-family:Montserrat,sans-serif}
+    .gdpr-text{font-size:10px;color:var(--gray-4);line-height:1.6;
+      font-family:Montserrat,sans-serif;font-weight:500}
+
+    /* ── Error ── */
+    .form-err{background:var(--red-lt);border:1px solid #fca5a5;border-radius:10px;
+      padding:12px 14px;font-size:12px;color:var(--red);font-weight:700;
+      display:none;margin-bottom:14px;font-family:Montserrat,sans-serif}
+
+    /* ── Sticky submit bar ── */
+    #submitBar{position:sticky;bottom:0;background:#fff;
+      border-top:1px solid var(--gray-2);padding:12px 20px;
+      margin:0 -20px;box-shadow:0 -4px 18px rgba(0,0,0,.07)}
+    .btn-submit{width:100%;padding:14px;background:var(--red);color:#fff;border:none;
+      border-radius:12px;font-family:Montserrat,sans-serif;font-size:15px;
+      font-weight:900;cursor:pointer;transition:background .15s;letter-spacing:.2px}
+    .btn-submit:hover:not(:disabled){background:var(--red-dk)}
+    .btn-submit:disabled{background:var(--gray-3);cursor:not-allowed}
+
+    /* ── Success screen ── */
+    #stSuccess{display:none;text-align:center;padding:60px 20px;
+      max-width:400px;margin:0 auto}
+    .ok-ico{font-size:64px;margin-bottom:16px}
+    .ok-title{font-size:20px;font-weight:900;color:var(--green);margin-bottom:8px}
+    .ok-sub{font-size:13px;color:var(--gray-4);line-height:1.65;margin-bottom:24px}
+    .btn-back{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;
+      background:var(--gray-2);color:var(--gray-5);border-radius:10px;
+      font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;
+      text-decoration:none;border:none;cursor:pointer;transition:background .15s}
+    .btn-back:hover{background:var(--gray-3)}
+
+    @media(max-width:420px){
+      .field-row{grid-template-columns:1fr}
+    }
+  </style>
+  <script src="checkin-auth.js"></script>
+</head>
+<body>
+
+<div id="stLoad"><div class="spinner"></div></div>
+
+<div id="stSuccess">
+  <div class="ok-ico">✅</div>
+  <div class="ok-title" data-i18n="ok_title">Form sent!</div>
+  <div class="ok-sub" data-i18n="ok_sub">Thank you. Your information has been saved successfully.</div>
+  <button class="btn-back" onclick="history.back()">
+    ← <span data-i18n="btn_back">Back to check-in</span>
+  </button>
+</div>
+
+<div id="content">
+
+  <!-- ── HEADER ── -->
+  <div class="page-header">
+    <div id="langWrap">
+      <select id="langSel" onchange="applyLang(this.value)">
+        <option value="en">🌐 EN</option>
+        <option value="es">ES</option><option value="fr">FR</option>
+        <option value="de">DE</option><option value="it">IT</option>
+        <option value="nl">NL</option><option value="pt">PT</option>
+        <option value="ca">CA</option>
+      </select>
+    </div>
+    <img class="page-logo" src="logo-negro.png" alt="3Villas"
+         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
+    <div class="page-title" data-i18n="page_title">Arrival Form</div>
+    <div class="page-greeting" id="pgGreeting"></div>
+    <div class="page-villa" id="pgVilla"></div>
+    <div class="page-code" id="pgCode"></div>
+  </div>
+
+  <div class="form-err" id="formErr"></div>
+
+  <!-- ══ SEC 1: GUESTS ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">👤</span>
+      <span class="sec-title" data-i18n="sec_guests">Guests</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="fAdults">
+            <span data-i18n="lbl_adults">Adults</span>
+            <span class="req">*</span>
+            <span style="font-weight:500;text-transform:none;letter-spacing:0"> (&gt;16 <span data-i18n="lbl_years">yrs</span>)</span>
+          </label>
+          <select class="sel" id="fAdults" required>
+            <option value="">—</option>
+            <option>1</option><option>2</option><option>3</option><option>4</option>
+            <option>5</option><option>6</option><option>7</option><option>8</option>
+            <option>9</option><option>10</option><option>11</option><option>12</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fChildren">
+            <span data-i18n="lbl_children">Children</span>
+            <span style="font-weight:500;text-transform:none;letter-spacing:0"> (&lt;16 <span data-i18n="lbl_years">yrs</span>)</span>
+          </label>
+          <select class="sel" id="fChildren">
+            <option value="0">0</option>
+            <option>1</option><option>2</option><option>3</option>
+            <option>4</option><option>5</option><option>6</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fAges"><span data-i18n="lbl_ages">Ages of adults</span></label>
+        <input class="inp" id="fAges" type="text" data-i18n-ph="ph_ages" placeholder="e.g. 35, 32, 28">
+        <div class="hint" data-i18n="hint_ages">To better prepare your stay.</div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fChildAges"><span data-i18n="lbl_child_ages">Children &amp; babies — number and ages</span></label>
+        <input class="inp" id="fChildAges" type="text" data-i18n-ph="ph_child_ages" placeholder="e.g. 2 children: 5 and 3 years">
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fExtras"><span data-i18n="lbl_extras">Anything else? (cots, high chairs…)</span></label>
+        <textarea class="ta" id="fExtras" rows="2" data-i18n-ph="ph_extras" placeholder="Cot for 1-year-old, high chair…"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SEC 2: ARRIVAL & DEPARTURE ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">✈️</span>
+      <span class="sec-title" data-i18n="sec_times">Arrival &amp; Departure</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="fArrivalTime"><span data-i18n="lbl_arr_time">Arrival time to Menorca</span></label>
+          <select class="sel" id="fArrivalTime"><option value="">—</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fCheckinTime">
+            <span data-i18n="lbl_checkin_time">Check-in time</span><span class="req">*</span>
+          </label>
+          <select class="sel" id="fCheckinTime" required><option value="">—</option></select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="fDepartureTime"><span data-i18n="lbl_dep_time">Departure time from Menorca</span></label>
+          <select class="sel" id="fDepartureTime"><option value="">—</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fCheckoutTime">
+            <span data-i18n="lbl_checkout_time">Check-out time</span><span class="req">*</span>
+          </label>
+          <select class="sel" id="fCheckoutTime" required><option value="">—</option></select>
+        </div>
+      </div>
+
+      <div class="hint-info" data-i18n-html="checkin_note">
+        <strong>Check-in:</strong> After 16:00 &nbsp;·&nbsp; <strong>Check-out:</strong> Before 10:00<br>
+        <span style="font-size:10px;opacity:.85">For early check-in or late check-out requests, contact <em>bookings@3villas.com</em>. Subject to availability and extra cost. <strong>Not valid unless confirmed in writing by 3Villas.</strong> This form is NOT the way to confirm such requests.</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SEC 3: CONTACT ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">📱</span>
+      <span class="sec-title" data-i18n="sec_contact">Contact</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="field">
+        <label class="lbl" for="fEmail"><span data-i18n="lbl_email">Best email to contact you</span></label>
+        <input class="inp" id="fEmail" type="email" data-i18n-ph="ph_email" placeholder="your@email.com">
+        <div class="hint" data-i18n="hint_email">Leave empty if the booking email is already correct.</div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fPhone"><span data-i18n="lbl_phone">Best WhatsApp number</span></label>
+        <input class="inp" id="fPhone" type="tel" data-i18n-ph="ph_phone" placeholder="+34 600 000 000">
+        <div class="hint-warn" data-i18n="hint_phone">⚠️ International format required. Include country code (+34, +44, +33…). Do not include the initial 0 after the country code.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SEC 4: LEGAL / FISCAL ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">🏛️</span>
+      <span class="sec-title" data-i18n="sec_legal">Legal information</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="hint-info" style="background:#fffbeb;color:#78350f;border:1px solid var(--amber-bd)" data-i18n="legal_note">
+        Information required by the Spanish Tax Agency (Law BOE No.131 of 2018, model 179). Only about the person who made the booking. This does not imply any tax payment.
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="fFname">
+            <span data-i18n="lbl_fname">First name</span><span class="req">*</span>
+          </label>
+          <input class="inp" id="fFname" type="text" required autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label class="lbl" for="fLname">
+            <span data-i18n="lbl_lname">Surname</span><span class="req">*</span>
+          </label>
+          <input class="inp" id="fLname" type="text" required autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fDni">
+          <span data-i18n="lbl_dni">ID / Passport / NIE / TIN</span><span class="req">*</span>
+        </label>
+        <input class="inp" id="fDni" type="text" required data-i18n-ph="ph_dni" placeholder="12345678A">
+        <div class="hint" data-i18n="hint_dni">✅ Correct: 12345678 &nbsp; ❌ Incorrect: ID 12345678 or Passport: 12345678</div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="fAddress">
+          <span data-i18n="lbl_address">Address</span><span class="req">*</span>
+        </label>
+        <textarea class="ta" id="fAddress" rows="2" required autocomplete="street-address"></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="fCity">
+            <span data-i18n="lbl_city">City</span><span class="req">*</span>
+          </label>
+          <input class="inp" id="fCity" type="text" required autocomplete="address-level2">
+        </div>
+        <div class="field">
+          <label class="lbl" for="fCountry">
+            <span data-i18n="lbl_country">Nationality</span><span class="req">*</span>
+          </label>
+          <select class="sel" id="fCountry" required></select>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SEC 5: RGPD ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">🔒</span>
+      <span class="sec-title" data-i18n="sec_gdpr">Data protection</span>
+    </div>
+    <div class="sec-body">
+      <div class="gdpr-text" data-i18n="gdpr_text">
+        In accordance with RGPD (EU) 2016/679, personal data is processed by 3VILLAS ALQUILER VACACIONAL S.L. for business activities. You may exercise your ARCO rights at admin@3villas.com.
+      </div>
+      <label class="check-row" for="fGdpr">
+        <input type="checkbox" id="fGdpr" required>
+        <span class="check-lbl" data-i18n="gdpr_accept">
+          I have read and accept the data protection policy.
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ══ STICKY SUBMIT ══ -->
+  <div id="submitBar">
+    <button class="btn-submit" id="btnSubmit" onclick="submitForm()">
+      <span data-i18n="btn_submit">Send form</span>
+    </button>
+  </div>
+
+</div><!-- /#content -->
+
+<script>
+/* ════════════════════════════════════════════════
+   checkin-arrival.html v1 — JS
+   ════════════════════════════════════════════════ */
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+const $ = id => document.getElementById(id);
+
+/* ── Horas disponibles (hardcoded — fuente: Ta_hora_del_dia y Ta_hora_checkin / checkout) ── */
+const HOURS_ALL     = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00',
+                       '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00',
+                       '22:00','23:00','00:00','01:00','02:00','03:00'];
+const HOURS_CHECKIN  = ['16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
+                        '20:00','20:30','21:00','21:30','22:00','23:00'];
+const HOURS_CHECKOUT = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00'];
+
+/* ── Países (fuente: Ta_paises — lista completa ordenada) ── */
+const COUNTRIES = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda',
+  'Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh',
+  'Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina',
+  'Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia',
+  'Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros',
+  'Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti',
+  'Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia',
+  'Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana',
+  'Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary',
+  'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan',
+  'Jordan','Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon',
+  'Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi',
+  'Malaysia','Maldives','Mali','Malta','Mauritania','Mauritius','Mexico','Moldova','Monaco',
+  'Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nepal','Netherlands',
+  'New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman',
+  'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines',
+  'Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia',
+  'Saint Vincent and the Grenadines','Samoa','San Marino','Saudi Arabia','Senegal','Serbia',
+  'Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
+  'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden',
+  'Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo',
+  'Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine',
+  'United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu',
+  'Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe','Other'];
+
+function fillSel(id, opts, addEmpty){
+  const s=$(id); if(!s) return;
+  s.innerHTML = addEmpty ? '<option value="">—</option>' : '';
+  opts.forEach(o=>{ const op=document.createElement('option'); op.value=o; op.textContent=o; s.appendChild(op); });
+}
+
+/* ════ ESTADO ════ */
+let _code='', _booking=null;
+
+/* ════ I18N — mismo patrón que checkin-online v33 ════ */
+var LANG={};
+LANG.en={
+  page_title:'Arrival Form',
+  sec_guests:'Guests', sec_times:'Arrival & Departure',
+  sec_contact:'Contact', sec_legal:'Legal information', sec_gdpr:'Data protection',
+  lbl_adults:'Adults', lbl_children:'Children', lbl_years:'yrs',
+  lbl_ages:'Ages of adults',
+  hint_ages:'To better prepare your stay. e.g. 35, 32, 28',
+  lbl_child_ages:'Children & babies — number and ages',
+  lbl_extras:'Anything else? (cots, high chairs\u2026)',
+  lbl_arr_time:'Arrival time to Menorca',
+  lbl_checkin_time:'Check-in time',
+  lbl_dep_time:'Departure time from Menorca',
+  lbl_checkout_time:'Check-out time',
+  checkin_note:'<strong>Check-in:</strong> After 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Before 10:00<br><span style="font-size:10px;opacity:.85">For early check-in or late check-out, contact <em>bookings@3villas.com</em>. Subject to availability. <strong>Not valid unless confirmed in writing by 3Villas.</strong></span>',
+  lbl_email:'Best email to contact you',
+  hint_email:'Leave empty if the booking email is already correct.',
+  lbl_phone:'Best WhatsApp number',
+  hint_phone:'\u26a0\ufe0f International format required. Include country code (+34, +44, +33\u2026). Do not include the initial 0.',
+  legal_note:'Information required by the Spanish Tax Agency (model 179). Only about the person who made the booking. No tax payment implied.',
+  lbl_fname:'First name', lbl_lname:'Surname',
+  lbl_dni:'ID\u00a0/\u00a0Passport\u00a0/\u00a0NIE\u00a0/\u00a0TIN',
+  hint_dni:'\u2705 Correct: 12345678 \u00a0 \u274c Incorrect: ID\u00a012345678',
+  lbl_address:'Address', lbl_city:'City', lbl_country:'Nationality',
+  gdpr_text:'In accordance with RGPD (EU)\u00a02016/679, personal data is processed by 3VILLAS ALQUILER VACACIONAL\u00a0S.L. for business activities. ARCO rights: admin@3villas.com.',
+  gdpr_accept:'I have read and accept the data protection policy.',
+  btn_submit:'Send form', btn_back:'Back to check-in',
+  ok_title:'Form sent!',
+  ok_sub:'Thank you. Your information has been saved successfully.',
+  err_required:'Please fill in all required fields.',
+  err_gdpr:'You must accept the data protection policy.',
+  err_save:'Could not save the form. Please try again.',
+  ph_ages:'e.g. 35, 32, 28', ph_child_ages:'e.g. 2 children: 5 and 3 years',
+  ph_extras:'Cot for 1-year-old, high chair\u2026',
+  ph_email:'your@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
+  greeting:'Hello',
+};
+LANG.es={
+  page_title:'Formulario de llegada',
+  sec_guests:'Hu\u00e9spedes', sec_times:'Llegada y salida',
+  sec_contact:'Contacto', sec_legal:'Informaci\u00f3n legal', sec_gdpr:'Protecci\u00f3n de datos',
+  lbl_adults:'Adultos', lbl_children:'Ni\u00f1os', lbl_years:'a\u00f1os',
+  lbl_ages:'Edades de los adultos',
+  hint_ages:'Para preparar mejor tu estancia. Ej: 35, 32, 28',
+  lbl_child_ages:'Ni\u00f1os y beb\u00e9s \u2014 n\u00famero y edades',
+  lbl_extras:'\u00bfAlgo m\u00e1s? (cunas, tronas\u2026)',
+  lbl_arr_time:'Llegada a Menorca',
+  lbl_checkin_time:'Hora de check-in',
+  lbl_dep_time:'Salida de Menorca',
+  lbl_checkout_time:'Hora de check-out',
+  checkin_note:'<strong>Check-in:</strong> A partir de las 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Antes de las 10:00<br><span style="font-size:10px;opacity:.85">Para early check-in o late check-out escribe a <em>bookings@3villas.com</em>. Sujeto a disponibilidad. <strong>Solo v\u00e1lido si lo confirma 3Villas por escrito.</strong></span>',
+  lbl_email:'Mejor email para contactarte',
+  hint_email:'D\u00e9jalo vac\u00edo si el email de la reserva es correcto.',
+  lbl_phone:'Mejor n\u00famero de WhatsApp',
+  hint_phone:'\u26a0\ufe0f Formato internacional obligatorio. Incluye el c\u00f3digo de pa\u00eds (+34, +44\u2026). No incluyas el 0 inicial.',
+  legal_note:'Informaci\u00f3n requerida por la Agencia Tributaria espa\u00f1ola (modelo 179). Solo sobre quien realiz\u00f3 la reserva. No implica pago de ning\u00fan impuesto.',
+  lbl_fname:'Nombre', lbl_lname:'Apellidos',
+  lbl_dni:'DNI\u00a0/\u00a0Pasaporte\u00a0/\u00a0NIE\u00a0/\u00a0NIF',
+  hint_dni:'\u2705 Correcto: 12345678 \u00a0 \u274c Incorrecto: DNI\u00a012345678',
+  lbl_address:'Direcci\u00f3n', lbl_city:'Ciudad', lbl_country:'Nacionalidad',
+  gdpr_text:'De acuerdo con el RGPD (UE)\u00a02016/679, los datos son tratados por 3VILLAS ALQUILER VACACIONAL\u00a0S.L. Derechos ARCO en admin@3villas.com.',
+  gdpr_accept:'He le\u00eddo y acepto la pol\u00edtica de protecci\u00f3n de datos.',
+  btn_submit:'Enviar formulario', btn_back:'Volver al check-in',
+  ok_title:'\u00a1Formulario enviado!',
+  ok_sub:'Gracias. Tu informaci\u00f3n se ha guardado correctamente.',
+  err_required:'Por favor, rellena todos los campos obligatorios.',
+  err_gdpr:'Debes aceptar la pol\u00edtica de protecci\u00f3n de datos.',
+  err_save:'No se pudo guardar el formulario. Int\u00e9ntalo de nuevo.',
+  ph_ages:'ej: 35, 32, 28', ph_child_ages:'ej: 2 ni\u00f1os: 5 y 3 a\u00f1os',
+  ph_extras:'Cuna para 1 a\u00f1o, trona\u2026',
+  ph_email:'tu@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
+  greeting:'Hola',
+};
+LANG.fr={
+  page_title:"Formulaire d\u2019arriv\u00e9e",
+  sec_guests:'Voyageurs', sec_times:'Arriv\u00e9e et d\u00e9part',
+  sec_contact:'Contact', sec_legal:'Informations l\u00e9gales', sec_gdpr:'Protection des donn\u00e9es',
+  lbl_adults:'Adultes', lbl_children:'Enfants', lbl_years:'ans',
+  lbl_ages:''\u00c2ges des adultes',
+  hint_ages:'Pour mieux pr\u00e9parer votre s\u00e9jour. Ex\u00a0: 35, 32, 28',
+  lbl_child_ages:'Enfants et b\u00e9b\u00e9s \u2014 nombre et \u00e2ges',
+  lbl_extras:'Autre chose\u00a0? (berceaux, chaises hautes\u2026)',
+  lbl_arr_time:'Arriv\u00e9e \u00e0 Minorque',
+  lbl_checkin_time:"Heure d\u2019arriv\u00e9e",
+  lbl_dep_time:'D\u00e9part de Minorque',
+  lbl_checkout_time:'Heure de d\u00e9part',
+  checkin_note:'<strong>Check-in\u00a0:</strong> \u00c0 partir de 16h00 &nbsp;\u00b7&nbsp; <strong>Check-out\u00a0:</strong> Avant 10h00<br><span style="font-size:10px;opacity:.85">Pour un early check-in ou late check-out\u00a0: <em>bookings@3villas.com</em>. Sous r\u00e9serve de disponibilit\u00e9. <strong>Valable uniquement si confirm\u00e9 par \u00e9crit par 3Villas.</strong></span>',
+  lbl_email:'Meilleur email pour vous contacter',
+  hint_email:"Laissez vide si l\u2019email de r\u00e9servation est correct.",
+  lbl_phone:'Meilleur num\u00e9ro WhatsApp',
+  hint_phone:"\u26a0\ufe0f Format international obligatoire. Incluez l\u2019indicatif (+33, +44\u2026). N\u2019incluez pas le 0 initial.",
+  legal_note:"Information requise par l\u2019Agence fiscale espagnole (mod\u00e8le 179). Uniquement pour la personne ayant effectu\u00e9 la r\u00e9servation.",
+  lbl_fname:'Pr\u00e9nom', lbl_lname:'Nom',
+  lbl_dni:"Pi\u00e8ce d\u2019identit\u00e9\u00a0/\u00a0Passeport\u00a0/\u00a0NIE",
+  hint_dni:'\u2705 Correct\u00a0: 12345678 \u00a0 \u274c Incorrect\u00a0: ID\u00a012345678',
+  lbl_address:'Adresse', lbl_city:'Ville', lbl_country:'Nationalit\u00e9',
+  gdpr_text:'Conform\u00e9ment au RGPD (UE)\u00a02016/679, les donn\u00e9es sont trait\u00e9es par 3VILLAS ALQUILER VACACIONAL\u00a0S.L. Droits ARCO\u00a0: admin@3villas.com.',
+  gdpr_accept:"J\u2019ai lu et j\u2019accepte la politique de protection des donn\u00e9es.",
+  btn_submit:'Envoyer le formulaire', btn_back:'Retour au check-in',
+  ok_title:'Formulaire envoy\u00e9\u00a0!',
+  ok_sub:'Merci. Vos informations ont \u00e9t\u00e9 enregistr\u00e9es avec succ\u00e8s.',
+  err_required:'Veuillez remplir tous les champs obligatoires.',
+  err_gdpr:'Vous devez accepter la politique de protection des donn\u00e9es.',
+  err_save:"Impossible d\u2019enregistrer le formulaire. Veuillez r\u00e9essayer.",
+  ph_ages:'ex\u00a0: 35, 32, 28', ph_child_ages:'ex\u00a0: 2 enfants\u00a0: 5 et 3 ans',
+  ph_extras:'Berceau pour 1 an, chaise haute\u2026',
+  ph_email:'votre@email.com', ph_phone:'+33 6 00 00 00 00', ph_dni:'12345678',
+  greeting:'Bonjour',
+};
+LANG.de={
+  page_title:'Anmeldeformular',
+  sec_guests:'G\u00e4ste', sec_times:'Ankunft und Abreise',
+  sec_contact:'Kontakt', sec_legal:'Rechtliche Informationen', sec_gdpr:'Datenschutz',
+  lbl_adults:'Erwachsene', lbl_children:'Kinder', lbl_years:'J.',
+  lbl_ages:'Alter der Erwachsenen',
+  hint_ages:'Zur besseren Vorbereitung. z.B. 35, 32, 28',
+  lbl_child_ages:'Kinder und Babys \u2014 Anzahl und Alter',
+  lbl_extras:'Sonstiges\u00a0? (Kinderbett, Hochstuhl\u2026)',
+  lbl_arr_time:'Ankunft auf Menorca',
+  lbl_checkin_time:'Check-in-Uhrzeit',
+  lbl_dep_time:'Abreise von Menorca',
+  lbl_checkout_time:'Check-out-Uhrzeit',
+  checkin_note:'<strong>Check-in:</strong> Ab 16:00 Uhr &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Vor 10:00 Uhr<br><span style="font-size:10px;opacity:.85">F\u00fcr fr\u00fchen Check-in oder sp\u00e4ten Check-out: <em>bookings@3villas.com</em>. Je nach Verf\u00fcgbarkeit. <strong>Nur g\u00fcltig wenn schriftlich von 3Villas best\u00e4tigt.</strong></span>',
+  lbl_email:'Beste E-Mail zur Kontaktaufnahme',
+  hint_email:'Leer lassen, wenn die Buchungs-E-Mail korrekt ist.',
+  lbl_phone:'Beste WhatsApp-Nummer',
+  hint_phone:'\u26a0\ufe0f Internationales Format erforderlich. L\u00e4ndervorwahl angeben (+49, +44\u2026). Keine f\u00fchrende 0.',
+  legal_note:'Angaben der spanischen Steuerbeh\u00f6rde (Formular\u00a0179). Nur \u00fcber die Person, die die Buchung vorgenommen hat.',
+  lbl_fname:'Vorname', lbl_lname:'Nachname',
+  lbl_dni:'Ausweis\u00a0/\u00a0Reisepass\u00a0/\u00a0NIE',
+  hint_dni:'\u2705 Richtig: 12345678 \u00a0 \u274c Falsch: Ausweis\u00a012345678',
+  lbl_address:'Adresse', lbl_city:'Stadt', lbl_country:'Nationalit\u00e4t',
+  gdpr_text:'Gem\u00e4\u00df DSGVO (EU)\u00a02016/679 werden Daten von 3VILLAS ALQUILER VACACIONAL\u00a0S.L. verarbeitet. ARCO-Rechte: admin@3villas.com.',
+  gdpr_accept:'Ich habe die Datenschutzrichtlinie gelesen und akzeptiere sie.',
+  btn_submit:'Formular absenden', btn_back:'Zur\u00fcck zum Check-in',
+  ok_title:'Formular gesendet!',
+  ok_sub:'Vielen Dank. Ihre Informationen wurden erfolgreich gespeichert.',
+  err_required:'Bitte f\u00fcllen Sie alle Pflichtfelder aus.',
+  err_gdpr:'Sie m\u00fcssen die Datenschutzrichtlinie akzeptieren.',
+  err_save:'Das Formular konnte nicht gespeichert werden. Bitte erneut versuchen.',
+  ph_ages:'z.B. 35, 32, 28', ph_child_ages:'z.B. 2 Kinder: 5 und 3 Jahre',
+  ph_extras:'Kinderbett f\u00fcr 1-J\u00e4hrigen, Hochstuhl\u2026',
+  ph_email:'ihre@email.com', ph_phone:'+49 600 000 000', ph_dni:'12345678',
+  greeting:'Hallo',
+};
+LANG.it={
+  page_title:'Modulo di arrivo',
+  sec_guests:'Ospiti', sec_times:'Arrivo e partenza',
+  sec_contact:'Contatto', sec_legal:'Informazioni legali', sec_gdpr:'Protezione dei dati',
+  lbl_adults:'Adulti', lbl_children:'Bambini', lbl_years:'anni',
+  lbl_ages:'Et\u00e0 degli adulti',
+  hint_ages:'Per preparare meglio il soggiorno. Es: 35, 32, 28',
+  lbl_child_ages:'Bambini e neonati \u2014 numero ed et\u00e0',
+  lbl_extras:'Altro\u00a0? (culle, seggioloni\u2026)',
+  lbl_arr_time:'Arrivo a Minorca',
+  lbl_checkin_time:'Orario check-in',
+  lbl_dep_time:'Partenza da Minorca',
+  lbl_checkout_time:'Orario check-out',
+  checkin_note:'<strong>Check-in:</strong> Dalle 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Entro le 10:00<br><span style="font-size:10px;opacity:.85">Per early check-in o late check-out: <em>bookings@3villas.com</em>. Soggetto a disponibilit\u00e0. <strong>Valido solo se confermato per iscritto da 3Villas.</strong></span>',
+  lbl_email:'Migliore email per contattarti',
+  hint_email:"Lascia vuoto se l\u2019email della prenotazione \u00e8 corretta.",
+  lbl_phone:'Migliore numero WhatsApp',
+  hint_phone:"\u26a0\ufe0f Formato internazionale obbligatorio. Includi il prefisso (+39, +44\u2026). Non includere lo 0 iniziale.",
+  legal_note:"Informazioni richieste dall\u2019Agenzia fiscale spagnola (modello\u00a0179). Solo per chi ha effettuato la prenotazione.",
+  lbl_fname:'Nome', lbl_lname:'Cognome',
+  lbl_dni:'Documento\u00a0/\u00a0Passaporto\u00a0/\u00a0NIE',
+  hint_dni:'\u2705 Corretto: 12345678 \u00a0 \u274c Errato: Passaporto\u00a012345678',
+  lbl_address:'Indirizzo', lbl_city:'Citt\u00e0', lbl_country:'Nazionalit\u00e0',
+  gdpr_text:'Ai sensi del RGPD (UE)\u00a02016/679, i dati sono trattati da 3VILLAS ALQUILER VACACIONAL\u00a0S.L. Diritti ARCO: admin@3villas.com.',
+  gdpr_accept:"Ho letto e accetto la politica sulla protezione dei dati.",
+  btn_submit:'Invia modulo', btn_back:'Torna al check-in',
+  ok_title:'Modulo inviato!',
+  ok_sub:'Grazie. Le informazioni sono state salvate con successo.',
+  err_required:'Compila tutti i campi obbligatori.',
+  err_gdpr:"Devi accettare l\u2019informativa sulla protezione dei dati.",
+  err_save:'Impossibile salvare il modulo. Riprova.',
+  ph_ages:'es: 35, 32, 28', ph_child_ages:'es: 2 bambini: 5 e 3 anni',
+  ph_extras:'Culla per 1 anno, seggiolone\u2026',
+  ph_email:'tuo@email.com', ph_phone:'+39 600 000 000', ph_dni:'12345678',
+  greeting:'Ciao',
+};
+LANG.nl={
+  page_title:'Aankomstformulier',
+  sec_guests:'Gasten', sec_times:'Aankomst en vertrek',
+  sec_contact:'Contact', sec_legal:'Juridische informatie', sec_gdpr:'Gegevensbescherming',
+  lbl_adults:'Volwassenen', lbl_children:'Kinderen', lbl_years:'jr',
+  lbl_ages:'Leeftijden van volwassenen',
+  hint_ages:'Om uw verblijf beter voor te bereiden. Bijv: 35, 32, 28',
+  lbl_child_ages:'Kinderen en baby\u2019s \u2014 aantal en leeftijden',
+  lbl_extras:'Iets anders\u00a0? (bedjes, kinderstoelen\u2026)',
+  lbl_arr_time:'Aankomst op Menorca',
+  lbl_checkin_time:'Check-in tijd',
+  lbl_dep_time:'Vertrek van Menorca',
+  lbl_checkout_time:'Check-out tijd',
+  checkin_note:'<strong>Check-in:</strong> Vanaf 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Voor 10:00<br><span style="font-size:10px;opacity:.85">Voor early check-in of late check-out: <em>bookings@3villas.com</em>. Afhankelijk van beschikbaarheid. <strong>Alleen geldig indien schriftelijk bevestigd door 3Villas.</strong></span>',
+  lbl_email:'Beste e-mail om contact op te nemen',
+  hint_email:'Laat leeg als het boekings-e-mailadres correct is.',
+  lbl_phone:'Beste WhatsApp-nummer',
+  hint_phone:'\u26a0\ufe0f Internationaal formaat vereist. Voeg landcode toe (+31, +44\u2026). Geen voorloopnul.',
+  legal_note:'Informatie vereist door de Spaanse Belastingdienst (model\u00a0179). Alleen over de persoon die de boeking heeft gemaakt.',
+  lbl_fname:'Voornaam', lbl_lname:'Achternaam',
+  lbl_dni:'ID\u00a0/\u00a0Paspoort\u00a0/\u00a0NIE',
+  hint_dni:'\u2705 Correct: 12345678 \u00a0 \u274c Onjuist: ID\u00a012345678',
+  lbl_address:'Adres', lbl_city:'Stad', lbl_country:'Nationaliteit',
+  gdpr_text:'Overeenkomstig AVG (EU)\u00a02016/679 worden gegevens verwerkt door 3VILLAS ALQUILER VACACIONAL\u00a0S.L. ARCO-rechten: admin@3villas.com.',
+  gdpr_accept:'Ik heb het privacybeleid gelezen en accepteer het.',
+  btn_submit:'Formulier verzenden', btn_back:'Terug naar check-in',
+  ok_title:'Formulier verzonden!',
+  ok_sub:'Dank u. Uw informatie is succesvol opgeslagen.',
+  err_required:'Vul alle verplichte velden in.',
+  err_gdpr:'U moet het privacybeleid accepteren.',
+  err_save:'Kon het formulier niet opslaan. Probeer het opnieuw.',
+  ph_ages:'bijv. 35, 32, 28', ph_child_ages:'bijv. 2 kinderen: 5 en 3 jaar',
+  ph_extras:'Bedje voor 1 jaar, kinderstoel\u2026',
+  ph_email:'uw@email.com', ph_phone:'+31 6 00 00 00 00', ph_dni:'12345678',
+  greeting:'Hallo',
+};
+LANG.pt={
+  page_title:'Formul\u00e1rio de chegada',
+  sec_guests:'H\u00f3spedes', sec_times:'Chegada e partida',
+  sec_contact:'Contacto', sec_legal:'Informa\u00e7\u00e3o legal', sec_gdpr:'Prote\u00e7\u00e3o de dados',
+  lbl_adults:'Adultos', lbl_children:'Crian\u00e7as', lbl_years:'anos',
+  lbl_ages:'Idades dos adultos',
+  hint_ages:'Para preparar melhor a sua estadia. Ex: 35, 32, 28',
+  lbl_child_ages:'Crian\u00e7as e beb\u00e9s \u2014 n\u00famero e idades',
+  lbl_extras:'Mais alguma coisa\u00a0? (ber\u00e7os, cadeiras altas\u2026)',
+  lbl_arr_time:'Chegada a Menorca',
+  lbl_checkin_time:'Hora de check-in',
+  lbl_dep_time:'Partida de Menorca',
+  lbl_checkout_time:'Hora de check-out',
+  checkin_note:'<strong>Check-in:</strong> A partir das 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Antes das 10:00<br><span style="font-size:10px;opacity:.85">Para early check-in ou late check-out: <em>bookings@3villas.com</em>. Sujeito a disponibilidade. <strong>Apenas v\u00e1lido se confirmado por escrito pela 3Villas.</strong></span>',
+  lbl_email:'Melhor email para contacto',
+  hint_email:'Deixe em branco se o email da reserva estiver correto.',
+  lbl_phone:'Melhor n\u00famero WhatsApp',
+  hint_phone:'\u26a0\ufe0f Formato internacional obrigat\u00f3rio. Inclua o indicativo (+351, +44\u2026). N\u00e3o inclua o 0 inicial.',
+  legal_note:'Informa\u00e7\u00e3o exigida pela Ag\u00eancia Tribut\u00e1ria espanhola (modelo\u00a0179). Apenas sobre quem fez a reserva.',
+  lbl_fname:'Nome', lbl_lname:'Apelido',
+  lbl_dni:'BI\u00a0/\u00a0Passaporte\u00a0/\u00a0NIE\u00a0/\u00a0NIF',
+  hint_dni:'\u2705 Correto: 12345678 \u00a0 \u274c Incorreto: BI\u00a012345678',
+  lbl_address:'Morada', lbl_city:'Cidade', lbl_country:'Nacionalidade',
+  gdpr_text:'De acordo com o RGPD (UE)\u00a02016/679, os dados s\u00e3o tratados pela 3VILLAS ALQUILER VACACIONAL\u00a0S.L. Direitos ARCO: admin@3villas.com.',
+  gdpr_accept:'Li e aceito a pol\u00edtica de prote\u00e7\u00e3o de dados.',
+  btn_submit:'Enviar formul\u00e1rio', btn_back:'Voltar ao check-in',
+  ok_title:'Formul\u00e1rio enviado!',
+  ok_sub:'Obrigado. As suas informa\u00e7\u00f5es foram guardadas com sucesso.',
+  err_required:'Por favor, preencha todos os campos obrigat\u00f3rios.',
+  err_gdpr:'Deve aceitar a pol\u00edtica de prote\u00e7\u00e3o de dados.',
+  err_save:'N\u00e3o foi poss\u00edvel guardar o formul\u00e1rio. Tente novamente.',
+  ph_ages:'ex: 35, 32, 28', ph_child_ages:'ex: 2 crian\u00e7as: 5 e 3 anos',
+  ph_extras:'Ber\u00e7o para 1 ano, cadeira alta\u2026',
+  ph_email:'seu@email.com', ph_phone:'+351 600 000 000', ph_dni:'12345678',
+  greeting:'Ol\u00e1',
+};
+LANG.ca={
+  page_title:"Formulari d\u2019arribada",
+  sec_guests:'Hostes', sec_times:'Arribada i sortida',
+  sec_contact:'Contacte', sec_legal:'Informaci\u00f3 legal', sec_gdpr:'Protecci\u00f3 de dades',
+  lbl_adults:'Adults', lbl_children:'Nens', lbl_years:'anys',
+  lbl_ages:'Edats dels adults',
+  hint_ages:'Per preparar millor la vostra estada. Ex: 35, 32, 28',
+  lbl_child_ages:'Nens i nadons \u2014 nombre i edats',
+  lbl_extras:'Alguna cosa m\u00e9s\u00a0? (bressols, trones\u2026)',
+  lbl_arr_time:'Arribada a Menorca',
+  lbl_checkin_time:'Hora de check-in',
+  lbl_dep_time:'Sortida de Menorca',
+  lbl_checkout_time:'Hora de check-out',
+  checkin_note:"<strong>Check-in:</strong> A partir de les 16:00 &nbsp;\u00b7&nbsp; <strong>Check-out:</strong> Abans de les 10:00<br><span style=\"font-size:10px;opacity:.85\">Per early check-in o late check-out: <em>bookings@3villas.com</em>. Subjecte a disponibilitat. <strong>Nom\u00e9s v\u00e0lid si ho confirma per escrit 3Villas.</strong></span>",
+  lbl_email:'Millor email per contactar-vos',
+  hint_email:"Deixeu-lo buit si l\u2019email de la reserva \u00e9s correcte.",
+  lbl_phone:'Millor n\u00famero de WhatsApp',
+  hint_phone:"\u26a0\ufe0f Format internacional obligatori. Incloeu el codi de pa\u00eds (+34, +44\u2026). No incloeu el 0 inicial.",
+  legal_note:"Informaci\u00f3 requerida per l\u2019Ag\u00e8ncia Tribut\u00e0ria espanyola (model\u00a0179). Nom\u00e9s sobre qui va fer la reserva.",
+  lbl_fname:'Nom', lbl_lname:'Cognoms',
+  lbl_dni:"DNI\u00a0/\u00a0Passaport\u00a0/\u00a0NIE",
+  hint_dni:'\u2705 Correcte: 12345678 \u00a0 \u274c Incorrecte: DNI\u00a012345678',
+  lbl_address:'Adre\u00e7a', lbl_city:'Ciutat', lbl_country:'Nacionalitat',
+  gdpr_text:"D\u2019acord amb el RGPD (UE)\u00a02016/679, les dades s\u00f3n tractades per 3VILLAS ALQUILER VACACIONAL\u00a0S.L. Drets ARCO: admin@3villas.com.",
+  gdpr_accept:"He llegit i accepto la pol\u00edtica de protecci\u00f3 de dades.",
+  btn_submit:'Enviar formulari', btn_back:'Tornar al check-in',
+  ok_title:'Formulari enviat!',
+  ok_sub:"La vostra informaci\u00f3 s\u2019ha guardat correctament. Gr\u00e0cies.",
+  err_required:'Empleneu tots els camps obligatoris.',
+  err_gdpr:"Heu d\u2019acceptar la pol\u00edtica de protecci\u00f3 de dades.",
+  err_save:"No s\u2019ha pogut guardar el formulari. Torneu-ho a intentar.",
+  ph_ages:'ex: 35, 32, 28', ph_child_ages:'ex: 2 nens: 5 i 3 anys',
+  ph_extras:'Bressol per a 1 any, trona\u2026',
+  ph_email:"el_vostre@email.com", ph_phone:'+34 600 000 000', ph_dni:'12345678A',
+  greeting:'Hola',
+};
+
+var _currentLang='en';
+function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k;}
+
+function applyLang(lang){
+  if(!LANG[lang]) lang='en';
+  _currentLang=lang;
+  /* Nodos data-i18n (texto plano) */
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    el.textContent=t(el.getAttribute('data-i18n'));
+  });
+  /* Nodos data-i18n-html (HTML enriquecido: info-boxes) */
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){
+    el.innerHTML=t(el.getAttribute('data-i18n-html'));
+  });
+  /* Placeholders */
+  document.querySelectorAll('[data-i18n-ph]').forEach(function(el){
+    el.placeholder=t(el.getAttribute('data-i18n-ph'));
+  });
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+}
+
+function initLang(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  $('langSel').value=lang;
+  applyLang(lang);
+}
+
+/* ════ POBLAR SELECTS ════ */
+function fillHours(id, opts){
+  const s=$(id); if(!s) return;
+  s.innerHTML='<option value="">—</option>';
+  opts.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;s.appendChild(o);});
+}
+function fillCountries(){
+  const s=$('fCountry'); if(!s) return;
+  s.innerHTML='<option value="">—</option>';
+  COUNTRIES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;s.appendChild(o);});
+}
+
+/* ════ RENDER ════ */
+function render(r){
+  const g=k=>r[k]||'';
+  var guest=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
+  var villa=g('TaVillas_Name_villa_para_inquilinos')||'';
+  var nights=g('TaBookings2021_Nights');
+  $('pgGreeting').textContent=t('greeting')+', '+guest;
+  $('pgVilla').textContent=villa+(nights?' \u00b7 '+nights+' nights':'');
+  $('pgCode').textContent='Booking ID '+_code;
+  $('langWrap').style.display='block';
+  initLang();
+
+  /* Pre-rellenar campos con datos existentes */
+  const pre={
+    fAdults:   'TaBookings2021_Adults',
+    fChildren: 'TaBookings2021_Children',
+    fAges:     'TaBookings2021_Guest_ages_form',
+    fChildAges:'TaBookings2021_Guest_children_babies_ages_form',
+    fExtras:   'TaBookings2021_Guest_info',
+    fArrivalTime:'TaBookings2021_Arrival_Time_to_Menorca',
+    fCheckinTime:'TaBookings2021_Checkin_time',
+    fDepartureTime:'TaBookings2021_Departure_Time_to_Menorca',
+    fCheckoutTime:'TaBookings2021_Checkout_time',
+    fEmail:    'TaBookings2021_Segundo_email',
+    fPhone:    'TaBookings2021_Segundo_Telefono',
+    fFname:    'TaBookings2021_Fiscal_guest_name',
+    fLname:    'TaBookings2021_Fiscal_guest_surename',
+    fDni:      'TaBookings2021_Fiscal_guest_DNI_passport',
+    fAddress:  'TaBookings2021_Fiscal_guest_address',
+    fCity:     'TaBookings2021_Fiscal_guest_city',
+    fCountry:  'TaBookings2021_Fiscal_guest_Country',
+  };
+  Object.entries(pre).forEach(([elId, field])=>{
+    const val=g(field); const el=$(elId);
+    if(val && el) el.value=val;
+  });
+
+  $('stLoad').style.display='none';
+  $('content').style.display='block';
+}
+
+/* ════ SUBMIT ════ */
+async function submitForm(){
+  const errEl=$('formErr');
+  errEl.style.display='none';
+
+  /* Validar requeridos */
+  const required=['fAdults','fCheckinTime','fCheckoutTime','fFname','fLname','fDni','fAddress','fCity','fCountry'];
+  const missing=required.filter(id=>!$(id)||!$(id).value.trim());
+  if(missing.length){
+    errEl.textContent=t('err_required');
+    errEl.style.display='block';
+    $(missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  if(!$('fGdpr').checked){
+    errEl.textContent=t('err_gdpr');
+    errEl.style.display='block';
+    return;
+  }
+
+  const btn=$('btnSubmit');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px"></span>';
+
+  const record={
+    Guest_adults_nr_form:              $('fAdults').value||null,
+    Guest_ages_form:                   $('fAges').value.trim()||null,
+    Guest_children_nr_form:            $('fChildren').value||null,
+    Guest_children_babies_ages_form:   $('fChildAges').value.trim()||null,
+    Guest_info:                        $('fExtras').value.trim()||null,
+    Arrival_Time_to_Menorca:           $('fArrivalTime').value||null,
+    Checkin_time:                      $('fCheckinTime').value||null,
+    Departure_Time_to_Menorca:         $('fDepartureTime').value||null,
+    Checkout_time:                     $('fCheckoutTime').value||null,
+    Segundo_email:                     $('fEmail').value.trim()||null,
+    Segundo_Telefono:                  $('fPhone').value.trim()||null,
+    Fiscal_guest_name:                 $('fFname').value.trim()||null,
+    Fiscal_guest_surename:             $('fLname').value.trim()||null,
+    Fiscal_guest_DNI_passport:         $('fDni').value.trim()||null,
+    Fiscal_guest_address:              $('fAddress').value.trim()||null,
+    Fiscal_guest_city:                 $('fCity').value.trim()||null,
+    Fiscal_guest_Country:              $('fCountry').value||null,
+    Arrivalform_done:                  1,
+  };
+
+  try{
+    const where="FS_confirmation_code='"+_code+"'";
+    const url=WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT';
+    const resp=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(record),
+    });
+    if(!resp.ok){const e=await resp.json();throw new Error(e.Message||e.error||'Error '+resp.status);}
+    /* Éxito */
+    $('content').style.display='none';
+    $('stSuccess').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(err){
+    errEl.textContent=t('err_save')+' ('+err.message+')';
+    errEl.style.display='block';
+    btn.disabled=false;
+    btn.textContent=t('btn_submit');
+  }
+}
+
+/* ════ BOOT ════ */
+fillHours('fArrivalTime',  HOURS_ALL);
+fillHours('fCheckinTime',  HOURS_CHECKIN);
+fillHours('fDepartureTime',HOURS_ALL);
+fillHours('fCheckoutTime', HOURS_CHECKOUT);
+fillCountries();
+
+if(typeof CheckinAuth==='undefined'){
+  $('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px">' +
+    '<div style="font-size:36px;margin-bottom:12px">\u26a0\ufe0f</div>' +
+    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">Error: checkin-auth.js not found</p>' +
+    '<a href="mailto:bookings@3villas.com" style="font-size:12px;color:#C8102E;font-family:Montserrat,sans-serif">bookings@3villas.com</a></div>';
+}else{
+  CheckinAuth.init({
+    onVerified:function(booking){
+      _code=CheckinAuth.getCode();
+      _booking=booking;
+      render(booking);
+    }
+  });
+}
+</script>
+</body>
+</html>
+<!-- checkin-arrival.html v1 — 28/05/2026
+     Campos exactos del XML Caspio:
+       Adults(req), ages, Children, children_babies_ages, Guest_info(cots/extras),
+       Arrival_Time_to_Menorca, Checkin_time(req), Departure_Time_to_Menorca, Checkout_time(req),
+       Segundo_email, Segundo_Telefono, Fiscal_guest_name(req), Fiscal_guest_surename(req),
+       Fiscal_guest_DNI_passport(req), Fiscal_guest_address(req), Fiscal_guest_city(req),
+       Fiscal_guest_Country(req), Arrivalform_done=1 al enviar.
+     Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
+     Mismo diseño y tipografía Montserrat que checkin-online v33.
+     Guarda vía Worker PUT TaBookings2021. -->
