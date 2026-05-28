@@ -478,9 +478,20 @@ const CheckinAuth = (function(){
       const sess = getSession(_code);
       if(sess){
         wPost('verify-checkin-code', { bookingCode: _code, pin: sess.pin })
-          .then(j => { if(_cb && j.booking) _cb(j.booking); })
+          .then(j => {
+            if(_cb && j.booking){
+              _cb(j.booking);
+            } else {
+              /* booking null/undefined → sesión inválida, mostrar overlay */
+              sessionStorage.removeItem(SESSION_KEY);
+              const go = () => inject();
+              document.readyState === 'loading'
+                ? document.addEventListener('DOMContentLoaded', go)
+                : go();
+            }
+          })
           .catch(e => {
-            /* Si falla (pin expirado, etc.) → mostrar overlay de nuevo */
+            /* Si falla (pin expirado, error de red, etc.) → mostrar overlay */
             sessionStorage.removeItem(SESSION_KEY);
             const go = () => inject();
             document.readyState === 'loading'
