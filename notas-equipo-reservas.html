@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v34 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v35 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notas Equipo Reservas v34 — 3Villas</title>
-  <!-- notas-equipo-reservas.html v34 — 28/05/2026 -->
+  <title>Notas Equipo Reservas v35 — 3Villas</title>
+  <!-- notas-equipo-reservas.html v35 — 28/05/2026 -->
   <!--
     FIX v28/v29:
     1. Ecotasa_cobrada_select no existe en Caspio. El campo real es Ecotasa_cobrada
@@ -33,7 +33,7 @@
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1967d2;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--r:12px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
+    body{font-family:'Montserrat',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
     header{background:var(--red);color:#fff;padding:7px 14px;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(0,0,0,.25)}
     .h-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;opacity:.7;letter-spacing:1px}
     .h-villa{font-family:'Montserrat',sans-serif;font-size:clamp(11px,2.8vw,14px);font-weight:900;text-transform:uppercase;line-height:1.2;margin-top:1px}
@@ -121,6 +121,13 @@
     #toast.ok{background:var(--green)}#toast.err{background:var(--red)}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}}
 
+    /* ── Botones estilo listado entradas (lv-b) — v35 ── */
+    .lv-b{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap;border:none;cursor:pointer;transition:filter .15s}
+    .lv-b:hover{filter:brightness(.9)}
+    .lv-ok{background:var(--green-light);color:var(--green)}
+    .lv-no{background:var(--red-light);color:var(--red)}
+    .lv-na{background:var(--gray-2);color:var(--gray-4)}
+
     /* ── CI Buttons v31 ── */
     .ci-bar{display:flex;gap:6px;align-self:stretch}
     .ci-btn{flex:1;display:flex;flex-direction:column;align-items:center;
@@ -162,21 +169,17 @@
   <div style="display:flex;align-items:stretch;gap:10px;padding:12px 16px;">
     <h2 style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);margin:0;flex:1;display:flex;align-items:center">Checkin Online</h2>
     <div class="ci-bar">
-      <button class="ci-btn na" id="cibArrival" onclick="togCiSection('colArrival')">
-        <span class="ci-btn-name">Arrival</span>
-        <span class="ci-badge" id="cibBdgArrival">•</span>
+      <button class="lv-b lv-na" id="cibArrival" onclick="togCiSection('colArrival')">
+        <span id="cibBdgArrival">·</span> Arrival
       </button>
-      <button class="ci-btn na" id="cibPolicia" onclick="togCiSection('colPolicia')">
-        <span class="ci-btn-name">Policía</span>
-        <span class="ci-badge" id="cibBdgPolicia">•</span>
+      <button class="lv-b lv-na" id="cibPolicia" onclick="togCiSection('colPolicia')">
+        <span id="cibBdgPolicia">·</span> Policía
       </button>
-      <button class="ci-btn na" id="cibEcotasa" onclick="togCiSection('colEcotasa')">
-        <span class="ci-btn-name">Ecotasa</span>
-        <span class="ci-badge" id="cibBdgEcotasa">•</span>
+      <button class="lv-b lv-na" id="cibEcotasa" onclick="togCiSection('colEcotasa')">
+        <span id="cibBdgEcotasa">·</span> Ecotasa
       </button>
-      <button class="ci-btn na" id="cibDeposito" onclick="togCiSection('colDeposito')">
-        <span class="ci-btn-name">Depósito</span>
-        <span class="ci-badge" id="cibBdgDeposito">•</span>
+      <button class="lv-b lv-na" id="cibDeposito" onclick="togCiSection('colDeposito')">
+        <span id="cibBdgDeposito">·</span> Depósito
       </button>
     </div>
   </div>
@@ -1146,12 +1149,13 @@ window.togCiSection=function(colId){
 function updateCiBar(colId,done){
   var b=g(_ciBtn[colId]),bdg=g(_ciBdg[colId]);
   if(!b||!bdg)return;
-  b.classList.remove('done','pend','na');
-  if(done===true){b.classList.add('done');bdg.textContent='✓';}
-  else           {b.classList.add('pend');bdg.textContent='!';}
+  /* v35: colores lv-ok/lv-no/lv-na igual que _lvBdg de entradas-equipo */
+  b.classList.remove('lv-ok','lv-no','lv-na','done','pend','na');
+  if(done===true){b.classList.add('lv-ok');bdg.textContent='✓';}
+  else           {b.classList.add('lv-no');bdg.textContent='✗';}
 }
 })();
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v34 - Quitar ✅ header CI, bloque naranja waiver, quitar IBAN/BIC del desplegable, fSeWaver hardcoded Sí/No, FIX Cannot set properties of null fIBAN/fBIC | v33 - Quitar checkbox header CI, IBAN/BIC en resumen opción 3, desplegable "Más información" en depósito, checkbox terminado dentro del bloque peligro, importes en bloque naranja colapsable, fSeWaver solo Sí/No sin Pendiente, opciones cliente colapsadas, alias ID3=Transferencia ID4=No Waiver (airbnb) | v32 - Resumen actual depósito de seguridad: mensaje por opción (0=sin decidir, 1=Waiver, 2=Tarjeta+estado pago+devolución, 3=Transferencia+devolución, 4=Airbnb sin waiver). Campo Security_deposit_devuelto para estado devolución en opciones 2 y 3. Checkbox terminado actualiza el resumen en tiempo real | v31 - CI mini buttons, FIX ecotasa integer (Ecotasa_cobrada INTEGER), FIX multiunits filtrado por villa (ListingID_pms = VillaID_FSnumber) -->
+<!-- HISTORIAL: v35 - Botones CI con mismos colores/estilo que _lvBdg entradas-equipo (lv-ok/lv-no/lv-na), tipografía body Montserrat igual que btn-back2 | v34 - Quitar ✅ header CI, bloque naranja waiver, quitar IBAN/BIC del desplegable, fSeWaver hardcoded Sí/No, FIX Cannot set properties of null fIBAN/fBIC | v33 - Quitar checkbox header CI, IBAN/BIC en resumen opción 3, desplegable "Más información" en depósito, checkbox terminado dentro del bloque peligro, importes en bloque naranja colapsable, fSeWaver solo Sí/No sin Pendiente, opciones cliente colapsadas, alias ID3=Transferencia ID4=No Waiver (airbnb) | v32 - Resumen actual depósito de seguridad: mensaje por opción (0=sin decidir, 1=Waiver, 2=Tarjeta+estado pago+devolución, 3=Transferencia+devolución, 4=Airbnb sin waiver). Campo Security_deposit_devuelto para estado devolución en opciones 2 y 3. Checkbox terminado actualiza el resumen en tiempo real | v31 - CI mini buttons, FIX ecotasa integer (Ecotasa_cobrada INTEGER), FIX multiunits filtrado por villa (ListingID_pms = VillaID_FSnumber) -->
