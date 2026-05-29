@@ -102,9 +102,11 @@
 
     /* ══ Total strip ══ */
     .total-strip{background:linear-gradient(135deg,var(--red) 0%,var(--red-dk) 100%);
-      border-radius:var(--r-lg);padding:18px 20px;
+      border-radius:var(--r-lg);padding:16px 18px;
       display:flex;align-items:center;justify-content:space-between;
-      margin-bottom:16px;box-shadow:0 4px 20px rgba(200,16,46,.25)}
+      margin-bottom:16px;box-shadow:0 4px 20px rgba(200,16,46,.25);
+      cursor:pointer;transition:filter .15s}
+    .total-strip:hover{filter:brightness(.92)}
     .ts-lbl{font-size:11px;font-weight:800;text-transform:uppercase;
       letter-spacing:.7px;color:rgba(255,255,255,.75)}
     .ts-amt{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px}
@@ -366,11 +368,18 @@
     </div>
 
     <!-- Total -->
-    <div class="total-strip" id="totalRow" style="display:none">
+    <div class="total-strip" id="totalRow" style="display:none"
+         onclick="document.getElementById('payFormWrap').scrollIntoView({behavior:'smooth',block:'start'})"
+         style="cursor:pointer;display:none">
       <div>
         <div class="ts-lbl" data-i18n="lbl_total">Total due</div>
+        <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
       </div>
-      <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
+      <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;
+                  font-size:13px;font-weight:800;color:#fff;white-space:nowrap;
+                  display:flex;align-items:center;justify-content:center;gap:6px">
+        💳 <span data-i18n="btn_pay">Pay now</span>
+      </div>
     </div>
 
     <!-- Todo pagado -->
@@ -745,94 +754,101 @@ window.addEventListener('message',function(e){
    en el DOM y reemplazamos los textos con nuestro sistema i18n. ════ */
 
 /* Mapa de textos Caspio → clave i18n (o texto directo por idioma) */
-var CASPIO_TEXTS = {
-  /* Labels de tarjeta */
-  'Credit Card':              {key:'cc_number'},
-  'Expiration Date':          {key:'cc_expiry'},
-  'Security Code':            {key:'cc_cvv'},
-  'Total':                    {key:'lbl_total'},
-  /* Botón submit */
-  'Submit':                   {key:'btn_submit'},
-  'Pay':                      {key:'btn_submit'},
-  /* Mensajes del form */
-  'Reservation ID':           {key:'lbl_booking_id'},
-  'Adults':                   {key:'lbl_adults'},
-  'Nights':                   {key:'lbl_nights'},
-  'Checkin':                  {key:'lbl_checkin'},
-  'Checkout':                 {key:'lbl_checkout'},
+/* ═══════════════════════════════════════════════
+   TRADUCCIÓN EMBED CASPIO v3
+   Mapa completo de textos EN -> clave i18n.
+   Usa TreeWalker para recorrer TODOS los nodos de
+   texto del embed, sin depender de clases CSS.
+   ═══════════════════════════════════════════════ */
+
+var CASPIO_MAP = {
+  'Credit Card':           'cc_number',
+  'Expiration Date':       'cc_expiry',
+  'Security Code':         'cc_cvv',
+  'Total':                 'lbl_total',
+  'Submit':                'btn_submit',
+  'Pay Now':               'btn_submit',
+  'Pay now':               'btn_submit',
+  'Reservation ID':        'lbl_booking_id',
+  'Adults':                'lbl_adults',
+  'Nights':                'lbl_nights',
+  'Checkin':               'lbl_checkin',
+  'Checkout':              'lbl_checkout',
+  'Guest Name':            'lbl_guest',
+  'Villa':                 'lbl_villa',
 };
 
-/* Añadir claves de tarjeta a cada idioma */
-var CC_LANGS = {
-  en:{cc_number:'Card number', cc_expiry:'Expiration date', cc_cvv:'Security code',
-      btn_submit:'Pay now', lbl_booking_id:'Booking ID'},
+var CC_EXTRA = {
+  en:{cc_number:'Card number',    cc_expiry:'Expiration date', cc_cvv:'Security code',
+      btn_submit:'Pay now',       lbl_booking_id:'Booking ID', lbl_guest:'Guest', lbl_villa:'Property'},
   es:{cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
-      btn_submit:'Pagar ahora', lbl_booking_id:'ID de reserva'},
+      btn_submit:'Pagar ahora',   lbl_booking_id:'ID de reserva', lbl_guest:'Huésped', lbl_villa:'Propiedad'},
   fr:{cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
-      btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation'},
-  de:{cc_number:'Kartennummer', cc_expiry:'Ablaufdatum', cc_cvv:'Sicherheitscode',
-      btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID'},
+      btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété'},
+  de:{cc_number:'Kartennummer',   cc_expiry:'Ablaufdatum',     cc_cvv:'Sicherheitscode',
+      btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft'},
   it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
-      btn_submit:'Paga ora', lbl_booking_id:'ID prenotazione'},
-  nl:{cc_number:'Kaartnummer', cc_expiry:'Vervaldatum', cc_cvv:'Beveiligingscode',
-      btn_submit:'Nu betalen', lbl_booking_id:'Boekings-ID'},
+      btn_submit:'Paga ora',      lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà'},
+  nl:{cc_number:'Kaartnummer',    cc_expiry:'Vervaldatum',     cc_cvv:'Beveiligingscode',
+      btn_submit:'Nu betalen',    lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie'},
   pt:{cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
-      btn_submit:'Pagar agora', lbl_booking_id:'ID reserva'},
+      btn_submit:'Pagar agora',   lbl_booking_id:'ID reserva', lbl_guest:'Hóspede', lbl_villa:'Propriedade'},
   ca:{cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
-      btn_submit:'Pagar ara', lbl_booking_id:'ID reserva'},
+      btn_submit:'Pagar ara',     lbl_booking_id:'ID reserva', lbl_guest:'Hoste', lbl_villa:'Propietat'},
 };
-
-/* Combinar en LANG */
-Object.keys(CC_LANGS).forEach(function(lang){
-  if(LANG[lang]) Object.assign(LANG[lang], CC_LANGS[lang]);
+Object.keys(CC_EXTRA).forEach(function(lang){
+  if(LANG[lang]) Object.assign(LANG[lang], CC_EXTRA[lang]);
 });
 
-/* Traducir todos los textos visibles del embed Caspio */
 function translateCaspioEmbed(){
-  var wrap = $('caspioPay'); if(!wrap) return;
+  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
 
-  /* 1. Labels (cbLabel, cbFormCaption) */
-  wrap.querySelectorAll('.cbLabel, .cbFormCaption, label').forEach(function(el){
-    var txt = el.textContent.trim().replace(/\s*\*\s*$/, ''); /* quitar asterisco req */
-    var hasAsterisk = el.textContent.includes('*');
-    Object.keys(CASPIO_TEXTS).forEach(function(orig){
-      if(txt === orig || txt.startsWith(orig)){
-        var k = CASPIO_TEXTS[orig].key;
-        var translated = t(k);
-        if(translated && translated !== k){
-          el.textContent = translated + (hasAsterisk ? ' *' : '');
-        }
+  /* TreeWalker: recorre TODOS los nodos de texto del embed */
+  var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while((node=walker.nextNode())){
+    var raw=node.nodeValue||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt) continue;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var translated=t(key);
+      if(translated&&translated!==key&&translated!==txt){
+        node.nodeValue=translated+(raw.includes('*')?' *':'');
       }
-    });
-  });
-
-  /* 2. Botón submit */
-  wrap.querySelectorAll('#Submit_0, input[type=submit], button[type=submit]').forEach(function(el){
-    if(el.value) el.value = t('btn_submit');
-    else el.textContent = t('btn_submit');
-  });
-
-  /* 3. Placeholder de inputs de tarjeta (si los pone Caspio) */
-  wrap.querySelectorAll('input[placeholder]').forEach(function(el){
-    var ph = el.getAttribute('placeholder')||'';
-    if(ph.includes('Card') || ph.includes('card') || ph.includes('MM/YY') || ph.includes('CVC')){
-      /* Dejar los placeholders técnicos — Stripe los gestiona */
     }
+  }
+
+  /* Botones submit */
+  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
+    var lbl=t('btn_submit');
+    if(el.tagName==='INPUT') el.value=lbl;
+    else el.textContent=lbl;
   });
 
-  /* 4. Marcar como traducido para no repetir */
-  wrap.setAttribute('data-translated', _currentLang);
+  /* Placeholders */
+  wrap.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
+    var ph=el.getAttribute('placeholder')||'';
+    var key=CASPIO_MAP[ph];
+    if(key){var tr=t(key);if(tr&&tr!==key)el.placeholder=tr;}
+  });
+
+  /* Marcar y segunda pasada por si Caspio renderiza async */
+  var prev=wrap.getAttribute('data-translated');
+  wrap.setAttribute('data-translated',_currentLang);
+  if(prev!==_currentLang){
+    setTimeout(function(){
+      if(wrap.getAttribute('data-translated')===_currentLang) translateCaspioEmbed();
+    },1500);
+  }
 }
 
-/* Re-traducir cuando cambia el idioma */
-var _origApplyLang = applyLang;
-applyLang = function(lang){
+/* Re-traducir embed cuando cambia el idioma */
+var _origApplyLang=applyLang;
+applyLang=function(lang){
   _origApplyLang(lang);
-  /* Si el embed ya está en el DOM, re-traducirlo */
-  var wrap = $('caspioPay');
-  if(wrap && wrap.children.length > 0){
-    translateCaspioEmbed();
-  }
+  var wrap=$('caspioPay');
+  if(wrap&&wrap.children.length>0) translateCaspioEmbed();
 };
 
 function watchForSuccess(){
@@ -885,7 +901,7 @@ function render(r){
   var villa=fld('TaVillas_Name_villa_para_inquilinos')||fld('Name_villa_para_inquilinos')||fld('Property_Title')||'';
   var nights=fld('Nights');
 
-  $('pgGreeting').textContent=t('greeting')+', '+guest;
+  $('pgGreeting').textContent=guest;
   $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
   $('pgCode').textContent='Booking ID '+_code;
   $('langWrap').style.display='block';
