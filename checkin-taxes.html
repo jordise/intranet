@@ -419,10 +419,8 @@
         </div>
       </div>
       <div class="pfw-body">
-        <!-- Estructura oficial Caspio /emb:
-             Caspio busca el div hermano anterior al script para inyectar el form -->
-        <div id="CaspioFormDiv_353f7000e967b11dc2a34af68b4e"></div>
-        <div id="caspioScriptAnchor"></div>
+        <!-- El embed de Caspio se inyecta aquí -->
+        <div id="caspioPay"></div>
       </div>
     </div>
 
@@ -615,11 +613,9 @@ function applyLang(lang){
     /* Reinyectar embed al cambiar idioma */
     if(_embedObserver){ _embedObserver.disconnect(); _embedObserver = null; }
     if(_pollInterval){ clearInterval(_pollInterval); _pollInterval = null; }
-    var fDiv=document.getElementById('CaspioFormDiv_'+CASPIO_APP);
-    var anch=document.getElementById('caspioScriptAnchor');
-    if(fDiv) fDiv.innerHTML='';
-    if(anch) anch.innerHTML='';
-    _embedLoaded = false;
+    var wrap=$('caspioPay');
+    if(wrap) wrap.innerHTML='';
+    _embedLoaded=false;
     injectCaspioEmbed();
   }
 }
@@ -721,24 +717,15 @@ function injectCaspioEmbed(){
 
   $('payFormWrap').style.display='block';
 
-  /* Estructura oficial Caspio /emb:
-     El script debe ir como hermano DESPUÉS del div CaspioFormDiv_APPKEY.
-     Caspio inyecta el form dentro de ese div. */
-  var formDiv=document.getElementById('CaspioFormDiv_'+CASPIO_APP);
-  var anchor=document.getElementById('caspioScriptAnchor');
-  if(!formDiv||!anchor) return;
+  var target=$('caspioPay');
+  target.innerHTML='';
 
-  /* Limpiar cualquier contenido previo */
-  formDiv.innerHTML='';
-  anchor.innerHTML='';
+  /* Crear CaspioFormDiv con ID oficial DENTRO del target */
+  var formDiv=document.createElement('div');
+  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
+  target.appendChild(formDiv);
 
-  /* Spinner temporal dentro del formDiv */
-  formDiv.innerHTML='<div style="text-align:center;padding:24px 0">'+
-    '<div style="width:28px;height:28px;border:3px solid #dee2e6;border-top-color:#C8102E;'+
-    'border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 10px"></div>'+
-    '<div style="font-size:11px;font-weight:700;color:#868e96">Loading payment form…</div></div>';
-
-  /* Crear el script — Caspio lo detecta y busca el div hermano anterior */
+  /* Crear el script como hermano inmediato del formDiv (dentro del mismo target) */
   var s=document.createElement('script');
   s.type='text/javascript';
   s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
@@ -747,19 +734,12 @@ function injectCaspioEmbed(){
     +'&cbResetParam=1';
 
   s.onload=function(){
-    /* Limpiar spinner y arrancar traducción */
-    setTimeout(function(){
-      if(formDiv.querySelector('[style*="animation"]'))
-        formDiv.querySelector('[style*="animation"]').parentElement.innerHTML='';
-    },300);
     startEmbedTranslationPolling();
   };
 
   s.onerror=function(){
     formDiv.innerHTML=
       '<div style="text-align:center;padding:20px 0">'+
-      '<p style="font-size:13px;color:#868e96;margin-bottom:12px">'+
-      'If the payment form does not load, click below:</p>'+
       '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+
       '?FS_confirmation_code='+encodeURIComponent(_code)+
       '" target="_blank" style="display:inline-block;padding:12px 24px;'+
@@ -767,8 +747,8 @@ function injectCaspioEmbed(){
       'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
   };
 
-  /* Insertar el script como hermano del formDiv (estructura que Caspio espera) */
-  anchor.appendChild(s);
+  /* Script inmediatamente después del formDiv — estructura que /emb espera */
+  target.appendChild(s);
 }
 
 /* ════ DETECTAR ÉXITO DEL PAGO ════
@@ -846,7 +826,7 @@ Object.keys(CC_EXTRA).forEach(function(lang){
 });
 
 function translateCaspioEmbed(){
-  var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP)||$('caspioPay'); if(!wrap||!wrap.children.length) return;
+  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
 
   /* TreeWalker: recorre TODOS los nodos de texto del embed */
   var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
