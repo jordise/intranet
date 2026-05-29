@@ -6,10 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <title>Tourist Tax & Extras — 3Villas v4</title>
-  <!-- checkin-taxes.html v3 — 29/05/2026
-       Caspio /emb embed: formulario de pago Stripe inyectado directamente en el DOM.
-       CSS override para que el form Caspio parezca nativo.
-       Mismos permisos (checkin-auth.js v5) y sistema i18n que checkin-arrival. -->
+
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ══ Variables ══ */
@@ -103,11 +100,9 @@
 
     /* ══ Total strip ══ */
     .total-strip{background:linear-gradient(135deg,var(--red) 0%,var(--red-dk) 100%);
-      border-radius:var(--r-lg);padding:16px 18px;
+      border-radius:var(--r-lg);padding:18px 20px;
       display:flex;align-items:center;justify-content:space-between;
-      margin-bottom:16px;box-shadow:0 4px 20px rgba(200,16,46,.25);
-      cursor:pointer;transition:filter .15s}
-    .total-strip:hover{filter:brightness(.92)}
+      margin-bottom:16px;box-shadow:0 4px 20px rgba(200,16,46,.25)}
     .ts-lbl{font-size:11px;font-weight:800;text-transform:uppercase;
       letter-spacing:.7px;color:rgba(255,255,255,.75)}
     .ts-amt{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px}
@@ -209,14 +204,10 @@
       pointer-events: none !important;
     }
 
-    /* Botón Submit de Caspio — flex para centrado perfecto */
+    /* Botón Submit de Caspio */
     #Submit_0, input[type=submit], button[type=submit] {
       width: 100% !important;
-      height: 52px !important;
-      padding: 0 16px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      padding: 15px !important;
       background: var(--red) !important;
       color: #fff !important;
       border: none !important;
@@ -225,22 +216,13 @@
       font-size: 15px !important;
       font-weight: 900 !important;
       cursor: pointer !important;
-      letter-spacing: 1px !important;
-      text-transform: uppercase !important;
+      letter-spacing: .2px !important;
       transition: background .15s !important;
       box-shadow: 0 4px 20px rgba(200,16,46,.25) !important;
-      margin-top: 12px !important;
-      box-sizing: border-box !important;
+      margin-top: 8px !important;
     }
-    #Submit_0:hover, input[type=submit]:hover, button[type=submit]:hover {
+    #Submit_0:hover, input[type=submit]:hover {
       background: var(--red-dk) !important;
-    }
-    /* La celda padre del botón también necesita reset */
-    .cbFormTableCell:has(#Submit_0),
-    .cbFormTableCell:has(input[type=submit]),
-    .cbFormTableCell:has(button[type=submit]) {
-      display: block !important;
-      padding: 0 !important;
     }
 
     /* Mensajes de error Caspio */
@@ -382,18 +364,11 @@
     </div>
 
     <!-- Total -->
-    <div class="total-strip" id="totalRow" style="display:none"
-         onclick="document.getElementById('payFormWrap').scrollIntoView({behavior:'smooth',block:'start'})"
-         style="cursor:pointer;display:none">
+    <div class="total-strip" id="totalRow" style="display:none">
       <div>
         <div class="ts-lbl" data-i18n="lbl_total">Total due</div>
-        <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
       </div>
-      <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;
-                  font-size:13px;font-weight:800;color:#fff;white-space:nowrap;
-                  display:flex;align-items:center;justify-content:center;gap:6px">
-        💳
-      </div>
+      <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
     </div>
 
     <!-- Todo pagado -->
@@ -420,7 +395,7 @@
         </div>
       </div>
       <div class="pfw-body">
-        <!-- El embed de Caspio se inyecta aquí dinámicamente -->
+        <!-- El embed de Caspio se inyecta aquí -->
         <div id="caspioPay"></div>
       </div>
     </div>
@@ -433,10 +408,10 @@
 /* ════════════════════════════════════════════
    checkin-taxes.html v2
    Embed Caspio /emb — formulario pago Stripe
-   AppKey: 353f7000e967b11dc2a34af68b4e
+   AppKey: 353f70008194047f5b8b4cdc8970
    ════════════════════════════════════════════ */
 const WORKER        = 'https://caspio-proxy.jordi-89b.workers.dev';
-const CASPIO_APP    = '353f7000e967b11dc2a34af68b4e';
+const CASPIO_APP    = '353f70008194047f5b8b4cdc8970';
 const CASPIO_ORIGIN = 'https://c1abn932.caspio.com';
 const $ = id => document.getElementById(id);
 
@@ -595,32 +570,15 @@ function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k
 function applyLang(lang){
   if(!LANG[lang]) lang='en';
   _currentLang=lang;
-  var _embedExistedBeforeApply=_embedLoaded; /* capturar estado ANTES de renderItems */
-  /* Textos nativos data-i18n */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
     var hasHTML=['legal_info','all_paid_sub'];
     if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
     else el.textContent=t(k);
   });
-  /* Redibujar líneas de pago si ya hay datos */
   if(_booking) renderItems(_booking);
-  /* Guardar preferencia */
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
-  /* Overlay auth */
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-  /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
-     El observer permanente se encargará de re-renders futuros de Caspio. */
-  /* Solo reinyectar si el embed ya existía ANTES de entrar en applyLang.
-     Si acaba de inyectarse en renderItems() (esta misma llamada),
-     el onload ya se encarga de traducir. */
-  if(_embedLoaded && _embedExistedBeforeApply){
-    if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
-    var wrap=$('caspioPay');
-    if(wrap) wrap.innerHTML='';
-    _embedLoaded=false;
-    injectCaspioEmbed();
-  }
 }
 function initLang(){
   var sup=['en','es','fr','de','it','nl','pt','ca'];
@@ -701,8 +659,7 @@ function renderItems(r){
     $('totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    /* Solo inyectar si el embed no está ya cargado */
-    if(!_embedLoaded) injectCaspioEmbed();
+    injectCaspioEmbed();
   } else {
     $('totalRow').style.display='none';
     $('allPaid').style.display='block';
@@ -716,40 +673,52 @@ function renderItems(r){
 var _embedLoaded=false;
 function injectCaspioEmbed(){
   if(_embedLoaded) return;
-  _embedLoaded=true;  /* INMEDIATO — evita cualquier segunda llamada */
+  _embedLoaded=true;
 
   $('payFormWrap').style.display='block';
 
+  /* El script /emb de Caspio acepta el param por URL o por cbParamvirtual.
+     Lo más fiable: inyectar el script con el parámetro en el src */
   var target=$('caspioPay');
-  target.innerHTML='';
+  target.innerHTML='<div style="text-align:center;padding:24px 0">'+
+    '<div style="width:28px;height:28px;border:3px solid #dee2e6;border-top-color:#C8102E;'+
+    'border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 10px"></div>'+
+    '<div style="font-size:11px;font-weight:700;color:#868e96" data-i18n="loading_pay">Loading payment form…</div></div>';
 
-  /* Crear CaspioFormDiv con ID oficial que Caspio busca */
-  var formDiv=document.createElement('div');
-  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
-  target.appendChild(formDiv);
-
-  /* Script /emb como hermano inmediato del formDiv */
+  /* Crear el script de embed de Caspio */
   var s=document.createElement('script');
   s.type='text/javascript';
+  /* Pasar el código de reserva como parámetro a Caspio.
+     Caspio /emb acepta parámetros GET en el src del script */
   s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
     +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
     +'&FS_confirmation_code='+encodeURIComponent(_code)
     +'&cbResetParam=1';
 
   s.onload=function(){
-    /* UNA SOLA VEZ: instalar observer y traducir.
-       NUNCA reinyectar desde aquí — causaría el duplicado. */
-    installEmbedObserver();
-    [0,300,700,1400].forEach(function(d){
-      setTimeout(translateCaspioEmbed, d);
-    });
+    /* El form ya está en el DOM — limpiar el spinner */
+    setTimeout(function(){
+      target.querySelector('[data-i18n="loading_pay"]')&&
+        (target.querySelector('[data-i18n="loading_pay"]').parentElement.style.display='none');
+    }, 500);
   };
 
   s.onerror=function(){
-    formDiv.innerHTML='<div style="text-align:center;padding:20px"><a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+'?FS_confirmation_code='+encodeURIComponent(_code)+'" target="_blank" style="display:inline-block;padding:12px 24px;background:#C8102E;color:#fff;border-radius:10px;font-weight:800;font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
+    /* Fallback: si el embed falla, ofrecer link directo */
+    target.innerHTML=
+      '<div style="text-align:center;padding:20px 0">'+
+      '<p style="font-size:13px;color:#868e96;margin-bottom:12px">'+
+      'If the payment form does not load, click below:</p>'+
+      '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+
+      '?FS_confirmation_code='+encodeURIComponent(_code)+
+      '" target="_blank" style="display:inline-block;padding:12px 24px;'+
+      'background:#C8102E;color:#fff;border-radius:10px;font-weight:800;'+
+      'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
   };
 
-  target.appendChild(s);
+  /* Añadir el script al target — Caspio /emb inyecta el form en el div anterior */
+  target.innerHTML='';
+  document.getElementById('caspioPay').appendChild(s);
 }
 
 /* ════ DETECTAR ÉXITO DEL PAGO ════
@@ -767,219 +736,23 @@ window.addEventListener('message',function(e){
 });
 
 /* Observer DOM: Caspio muestra un mensaje de éxito en el DOM tras el pago */
-/* ════ TRADUCCIÓN DE TEXTOS DEL EMBED CASPIO ════
-   Caspio /emb inyecta HTML con textos en inglés hardcodeados.
-   Usamos un MutationObserver para detectar cuando el form aparece
-   en el DOM y reemplazamos los textos con nuestro sistema i18n. ════ */
-
-/* Mapa de textos Caspio → clave i18n (o texto directo por idioma) */
-/* ═══════════════════════════════════════════════
-   TRADUCCIÓN EMBED CASPIO v3
-   Mapa completo de textos EN -> clave i18n.
-   Usa TreeWalker para recorrer TODOS los nodos de
-   texto del embed, sin depender de clases CSS.
-   ═══════════════════════════════════════════════ */
-
-var CASPIO_MAP = {
-  'Credit Card':           'cc_number',
-  'Expiration Date':       'cc_expiry',
-  'Security Code':         'cc_cvv',
-  'Total':                 'lbl_total',
-  'Submit':                'btn_submit',
-  'Pay Now':               'btn_submit',
-  'Pay now':               'btn_submit',
-  'Reservation ID':        'lbl_booking_id',
-  'Reservation nr.':       'lbl_booking_id',
-  'Reservation Nr.':       'lbl_booking_id',
-  'Reservation number':    'lbl_booking_id',
-  'Reservation Number':    'lbl_booking_id',
-  'Adults':                'lbl_adults',
-  'Nights':                'lbl_nights',
-  'Checkin':               'lbl_checkin',
-  'Checkout':              'lbl_checkout',
-  'Check-in':              'lbl_checkin',
-  'Check-out':             'lbl_checkout',
-  'Guest Name':            'lbl_guest',
-  'Guest name':            'lbl_guest',
-  'Villa':                 'lbl_villa',
-};
-
-var CC_EXTRA = {
-  en:{cc_number:'Card number',    cc_expiry:'Expiration date', cc_cvv:'Security code',
-      btn_submit:'Pay now',       lbl_booking_id:'Booking ID', lbl_guest:'Guest', lbl_villa:'Property'},
-  es:{cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
-      btn_submit:'Pagar ahora',   lbl_booking_id:'ID de reserva', lbl_guest:'Huésped', lbl_villa:'Propiedad'},
-  fr:{cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
-      btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété'},
-  de:{cc_number:'Kartennummer',   cc_expiry:'Ablaufdatum',     cc_cvv:'Sicherheitscode',
-      btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft'},
-  it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
-      btn_submit:'Paga ora',      lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà'},
-  nl:{cc_number:'Kaartnummer',    cc_expiry:'Vervaldatum',     cc_cvv:'Beveiligingscode',
-      btn_submit:'Nu betalen',    lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie'},
-  pt:{cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
-      btn_submit:'Pagar agora',   lbl_booking_id:'ID reserva', lbl_guest:'Hóspede', lbl_villa:'Propriedade'},
-  ca:{cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
-      btn_submit:'Pagar ara',     lbl_booking_id:'ID reserva', lbl_guest:'Hoste', lbl_villa:'Propietat'},
-};
-Object.keys(CC_EXTRA).forEach(function(lang){
-  if(LANG[lang]) Object.assign(LANG[lang], CC_EXTRA[lang]);
-});
-
-function translateCaspioEmbed(){
-  /* Buscar el contenido del embed: primero CaspioFormDiv, luego #caspioPay como fallback */
-  var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP)||$('caspioPay');
-  if(!wrap||!wrap.children.length) return;
-
-  /* TreeWalker: recorre TODOS los nodos de texto del embed */
-  var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
-  var node;
-  while((node=walker.nextNode())){
-    var raw=node.nodeValue||'';
-    var txt=raw.trim().replace(/\s*\*\s*$/,'');
-    if(!txt) continue;
-    var key=CASPIO_MAP[txt];
-    if(key){
-      var translated=t(key);
-      if(translated&&translated!==key&&translated!==txt){
-        node.nodeValue=translated+(raw.includes('*')?' *':'');
-      }
-    }
-  }
-
-  /* Botones submit */
-  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
-    var lbl=t('btn_submit');
-    if(el.tagName==='INPUT') el.value=lbl;
-    else el.textContent=lbl;
-  });
-
-  /* Placeholders */
-  wrap.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
-    var ph=el.getAttribute('placeholder')||'';
-    var key=CASPIO_MAP[ph];
-    if(key){var tr=t(key);if(tr&&tr!==key)el.placeholder=tr;}
-  });
-
-  /* También buscar en elementos con innerText directo (tablas Caspio) */
-  wrap.querySelectorAll('td,th,span,div,p,label,legend,caption').forEach(function(el){
-    if(el.children.length>0) return; /* solo hoja */
-    var raw=el.textContent||'';
-    var txt=raw.trim().replace(/\s*\*\s*$/,'');
-    if(!txt||txt.length>60) return;
-    var key=CASPIO_MAP[txt];
-    if(key){
-      var tr=t(key);
-      if(tr&&tr!==key&&tr!==txt) el.textContent=tr+(raw.includes('*')?' *':'');
-    }
-  });
-
-  /* Marcar y segunda pasada por si Caspio renderiza async */
-  var prev=wrap.getAttribute('data-translated');
-  wrap.setAttribute('data-translated',_currentLang);
-  if(prev!==_currentLang){
-    setTimeout(function(){
-      if(wrap.getAttribute('data-translated')===_currentLang) translateCaspioEmbed();
-    },1500);
-  }
-}
-
-/* ══ OBSERVER PERMANENTE DEL EMBED ══
-   Un único MutationObserver que:
-   1. Traduce el texto cada vez que Caspio modifica el DOM
-   2. Detecta el éxito del pago
-   Se instala una sola vez cuando el embed se inyecta.
-   Como es permanente, captura CUALQUIER re-render de Caspio. ══ */
-
-var _embedObserver = null;
-var _translateTimer = null;
-
-/* ── Observer permanente sobre #caspioPay ──
-   Se instala una vez. Traduce automáticamente cada vez
-   que Caspio modifica el DOM. Detecta también el éxito del pago. */
-function installEmbedObserver(){
-  if(_embedObserver) return;
-  var wrap = $('caspioPay');
-  if(!wrap || !window.MutationObserver) return;
-
-  _embedObserver = new MutationObserver(function(mutations){
-    var hasChanges = false;
+function watchForSuccess(){
+  if(!window.MutationObserver) return;
+  var observer=new MutationObserver(function(mutations){
     mutations.forEach(function(m){
       m.addedNodes.forEach(function(node){
-        var txt = (node.textContent||'');
+        if(!node.textContent) return;
+        var txt=node.textContent||'';
         if(txt.includes('have been paid')||txt.includes('successfully paid')||
-           txt.includes('ha sido pagado')||txt.includes('COBRADO')||
-           txt.includes('Thank you')){
-          setTimeout(showSuccess, 1200);
+           txt.includes('ha sido pagado')||txt.includes('payment confirmed')||
+           txt.includes('COBRADO')||txt.includes('Thank you')){
+          setTimeout(showSuccess,1200);
         }
       });
-      if(m.addedNodes.length || m.characterData) hasChanges = true;
     });
-    if(hasChanges){
-      clearTimeout(_translateTimer);
-      _translateTimer = setTimeout(translateCaspioEmbed, 80);
-    }
   });
-
-  _embedObserver.observe(wrap, {childList:true, subtree:true, characterData:true});
-}
-
-/* ── Traducir todos los textos del embed ──
-   Usa $('caspioPay') como contenedor raíz. */
-function translateCaspioEmbed(){
-  var wrap = $('caspioPay');
-  if(!wrap || !wrap.children.length) return;
-
-  /* TreeWalker: todos los nodos de texto */
-  var walker = document.createTreeWalker(wrap, NodeFilter.SHOW_TEXT, null, false);
-  var node;
-  while((node = walker.nextNode())){
-    var raw = node.nodeValue || '';
-    var txt = raw.trim().replace(/\s*\*\s*$/, '');
-    if(!txt) continue;
-    var key = CASPIO_MAP[txt];
-    if(key){
-      var tr = t(key);
-      if(tr && tr !== key && tr !== txt)
-        node.nodeValue = tr + (raw.includes('*') ? ' *' : '');
-    }
-  }
-
-  /* Botones submit */
-  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
-    var lbl = t('btn_submit');
-    if(el.tagName === 'INPUT') el.value = lbl;
-    else el.textContent = lbl;
-  });
-
-  /* Elementos hoja (td, th, span, label…) */
-  wrap.querySelectorAll('td,th,span,div,p,label,legend').forEach(function(el){
-    if(el.children.length > 0) return;
-    var raw = el.textContent || '';
-    var txt = raw.trim().replace(/\s*\*\s*$/, '');
-    if(!txt || txt.length > 80) return;
-    var key = CASPIO_MAP[txt];
-    if(key){
-      var tr = t(key);
-      if(tr && tr !== key && tr !== txt)
-        el.textContent = tr + (raw.includes('*') ? ' *' : '');
-    }
-  });
-
-  /* Segunda pasada a 1.5s por si Caspio renderiza en dos fases */
-  var prev = wrap.getAttribute('data-translated');
-  wrap.setAttribute('data-translated', _currentLang);
-  if(prev !== _currentLang){
-    setTimeout(translateCaspioEmbed, 1500);
-  }
-}
-
-/* ── Polling inicial: esperar a que el embed tenga contenido,
-   instalar observer y traducir ── */
-var _pollInterval = null;
-function startEmbedTranslationPolling(){
-  installEmbedObserver();
-  translateCaspioEmbed();
+  observer.observe(document.getElementById('caspioPay')||document.body,
+    {childList:true,subtree:true});
 }
 
 function showSuccess(){
@@ -993,17 +766,14 @@ function showSuccess(){
 }
 
 /* ════ RENDER ════ */
-var _renderDone=false;
 function render(r){
-  if(_renderDone) return; /* evitar doble render */
-  _renderDone=true;
   _booking=r;
   function fld(k){return g(r,k)||'';}
   var guest=fld('Fiscal_guest_name')||fld('Guest_Full_Name')||fld('Guest_Name')||'';
   var villa=fld('TaVillas_Name_villa_para_inquilinos')||fld('Name_villa_para_inquilinos')||fld('Property_Title')||'';
   var nights=fld('Nights');
 
-  $('pgGreeting').textContent=guest;
+  $('pgGreeting').textContent=t('greeting')+', '+guest;
   $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
   $('pgCode').textContent='Booking ID '+_code;
   $('langWrap').style.display='block';
@@ -1019,31 +789,12 @@ function render(r){
   initLang();
   renderItems(r);
   watchForSuccess();
-  /* startEmbedTranslationPolling se lanza desde injectCaspioEmbed → s.onload */
 
   $('stLoad').style.display='none';
   $('stSummary').style.display='block';
 }
 
 /* ════ BOOT ════ */
-/* Aplicar idioma inmediatamente al cargar (antes de datos del booking) */
-(function(){
-  var sup=['en','es','fr','de','it','nl','pt','ca'];
-  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
-  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
-  var lang=saved||(sup.includes(nav)?nav:'en');
-  _currentLang=lang;
-  var sel=$('langSel'); if(sel) sel.value=lang;
-  /* Traducir elementos data-i18n nativos */
-  document.querySelectorAll('[data-i18n]').forEach(function(el){
-    var k=el.getAttribute('data-i18n');
-    var hasHTML=['legal_info','all_paid_sub'];
-    if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
-    else el.textContent=t(k);
-  });
-
-})();
-
 if(typeof CheckinAuth==='undefined'){
   $('stLoad').innerHTML='<div style="text-align:center;padding:40px">'+
     '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
@@ -1060,9 +811,9 @@ if(typeof CheckinAuth==='undefined'){
 </script>
 </body>
 </html>
-<!-- checkin-taxes.html v3 — 29/05/2026
+<!-- checkin-taxes.html v2 — 29/05/2026
      Estrategia: script /emb de Caspio inyectado directamente en el DOM.
      CSS override para que el formulario Caspio/Stripe parezca nativo (Montserrat, colores 3Villas).
      MutationObserver + postMessage para detectar éxito del pago sin salir de la página.
      Fallback a link externo si el embed falla. -->
-<!-- HISTORIAL: v4 - Fix duplicado embed (guard _embedExistedBeforeApply), traducción automática al idioma del dispositivo, observer permanente sobre caspioPay | v3 - Sistema de traducción del embed con MutationObserver y polling | v2 - Embed Caspio /emb dinámico, diseño premium, i18n 8 idiomas | v1 - Versión inicial -->
+<!-- HISTORIAL: v4 - Restaurado a versión original que funcionaba sin error de redirección | v3 - intentos de traducción embed | v2 - versión original 29/05/2026 | v1 - versión inicial -->
