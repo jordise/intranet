@@ -419,8 +419,9 @@
         </div>
       </div>
       <div class="pfw-body">
-        <!-- El embed de Caspio se inyecta aquí -->
-        <div id="caspioPay"></div>
+        <!-- Embed Caspio /emb estático: el script se ejecuta UNA vez al cargar -->
+        <div id="CaspioFormDiv_353f7000e967b11dc2a34af68b4e"></div>
+        <script type="text/javascript" src="https://c1abn932.caspio.com/dp/353f7000e967b11dc2a34af68b4e/emb"></script>
       </div>
     </div>
 
@@ -610,13 +611,8 @@ function applyLang(lang){
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
   if(_embedLoaded){
-    /* Reinyectar embed al cambiar idioma */
-    if(_embedObserver){ _embedObserver.disconnect(); _embedObserver = null; }
-    if(_pollInterval){ clearInterval(_pollInterval); _pollInterval = null; }
-    var wrap=$('caspioPay');
-    if(wrap) wrap.innerHTML='';
-    _embedLoaded=false;
-    injectCaspioEmbed();
+    /* Embed estático: solo re-traducir con el idioma actual */
+    translateCaspioEmbed();
   }
 }
 function initLang(){
@@ -714,41 +710,10 @@ var _embedLoaded=false;
 function injectCaspioEmbed(){
   if(_embedLoaded) return;
   _embedLoaded=true;
-
+  /* El embed ya está en el DOM estático — solo mostrar el contenedor
+     y arrancar la traducción cuando Caspio termine de renderizar */
   $('payFormWrap').style.display='block';
-
-  var target=$('caspioPay');
-  target.innerHTML='';
-
-  /* Crear CaspioFormDiv con ID oficial DENTRO del target */
-  var formDiv=document.createElement('div');
-  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
-  target.appendChild(formDiv);
-
-  /* Crear el script como hermano inmediato del formDiv (dentro del mismo target) */
-  var s=document.createElement('script');
-  s.type='text/javascript';
-  s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
-    +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
-    +'&FS_confirmation_code='+encodeURIComponent(_code)
-    +'&cbResetParam=1';
-
-  s.onload=function(){
-    startEmbedTranslationPolling();
-  };
-
-  s.onerror=function(){
-    formDiv.innerHTML=
-      '<div style="text-align:center;padding:20px 0">'+
-      '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+
-      '?FS_confirmation_code='+encodeURIComponent(_code)+
-      '" target="_blank" style="display:inline-block;padding:12px 24px;'+
-      'background:#C8102E;color:#fff;border-radius:10px;font-weight:800;'+
-      'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
-  };
-
-  /* Script inmediatamente después del formDiv — estructura que /emb espera */
-  target.appendChild(s);
+  startEmbedTranslationPolling();
 }
 
 /* ════ DETECTAR ÉXITO DEL PAGO ════
@@ -826,7 +791,7 @@ Object.keys(CC_EXTRA).forEach(function(lang){
 });
 
 function translateCaspioEmbed(){
-  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
+  var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP); if(!wrap||!wrap.children.length) return;
 
   /* TreeWalker: recorre TODOS los nodos de texto del embed */
   var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
@@ -893,7 +858,7 @@ var _translateTimer = null; /* debounce para no traducir en cada micro-mutación
 
 function installEmbedObserver(){
   if(_embedObserver) return; /* ya instalado */
-  var wrap = $('caspioPay');
+  var wrap = document.getElementById('CaspioFormDiv_'+CASPIO_APP);
   if(!wrap || !window.MutationObserver) return;
 
   _embedObserver = new MutationObserver(function(mutations){
