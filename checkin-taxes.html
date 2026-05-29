@@ -594,6 +594,7 @@ function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k
 function applyLang(lang){
   if(!LANG[lang]) lang='en';
   _currentLang=lang;
+  var _embedExistedBeforeApply=_embedLoaded; /* capturar estado ANTES de renderItems */
   /* Textos nativos data-i18n */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
@@ -609,10 +610,11 @@ function applyLang(lang){
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
-  if(_embedLoaded && !_internalTranslate){
-    /* Usuario cambió idioma manualmente: reinyectar embed con nuevo idioma */
+  /* Solo reinyectar si el embed ya existía ANTES de entrar en applyLang.
+     Si acaba de inyectarse en renderItems() (esta misma llamada),
+     el onload ya se encarga de traducir. */
+  if(_embedLoaded && _embedExistedBeforeApply){
     if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
-    if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
     var wrap=$('caspioPay');
     if(wrap) wrap.innerHTML='';
     _embedLoaded=false;
@@ -713,17 +715,19 @@ function renderItems(r){
 var _embedLoaded=false;
 function injectCaspioEmbed(){
   if(_embedLoaded) return;
-  _embedLoaded=true;
+  _embedLoaded=true;  /* INMEDIATO — evita cualquier segunda llamada */
+
   $('payFormWrap').style.display='block';
 
   var target=$('caspioPay');
   target.innerHTML='';
 
-  /* Crear CaspioFormDiv + script como hermanos dentro del target */
+  /* Crear CaspioFormDiv con ID oficial que Caspio busca */
   var formDiv=document.createElement('div');
   formDiv.id='CaspioFormDiv_'+CASPIO_APP;
   target.appendChild(formDiv);
 
+  /* Script /emb como hermano inmediato del formDiv */
   var s=document.createElement('script');
   s.type='text/javascript';
   s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
@@ -732,23 +736,12 @@ function injectCaspioEmbed(){
     +'&cbResetParam=1';
 
   s.onload=function(){
+    /* UNA SOLA VEZ: instalar observer y traducir.
+       NUNCA reinyectar desde aquí — causaría el duplicado. */
     installEmbedObserver();
-    if(_currentLang && _currentLang!=='en'){
-      /* Idioma no-inglés: reinyectar para que Caspio use el idioma correcto desde el inicio.
-         Esto da tiempo a que Caspio termine de renderizar antes de reinyectar. */
-      setTimeout(function(){
-        if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
-        var wrap=$('caspioPay');
-        if(wrap) wrap.innerHTML='';
-        _embedLoaded=false;
-        injectCaspioEmbed();
-      }, 800);
-    } else {
-      /* Inglés: solo traducir */
-      [0,400,900].forEach(function(d){
-        setTimeout(translateCaspioEmbed,d);
-      });
-    }
+    [0,300,700,1400].forEach(function(d){
+      setTimeout(translateCaspioEmbed, d);
+    });
   };
 
   s.onerror=function(){
@@ -832,7 +825,6 @@ Object.keys(CC_EXTRA).forEach(function(lang){
   if(LANG[lang]) Object.assign(LANG[lang], CC_EXTRA[lang]);
 });
 
-var _internalTranslate=false;
 function translateCaspioEmbed(){
   var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP); if(!wrap||!wrap.children.length) return;
 
