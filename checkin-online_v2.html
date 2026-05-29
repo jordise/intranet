@@ -1,1 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- VERSIÓN ACTUAL: v35 | Historial completo al final de este archivo -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#C8102E">
+  <title>Check-in Online v35 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#C8102E;--green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
+      --blue:#2563EB;--blue-lt:#EFF6FF;--blue-bd:#BFDBFE;
+      --amber:#B45309;--amber-lt:#FFFBEB;--amber-bd:#FCD34D;
+      --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
+      --gray-4:#868e96;--gray-5:#212529;--wa:#25D366;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Montserrat,sans-serif;background:#fff;color:var(--gray-5);min-height:100vh}
+    /* Loading */
+    #stLoad{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:80vh;gap:10px;text-align:center;padding:40px 20px}
+    .spinner{width:32px;height:32px;border:3px solid var(--gray-3);
+      border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Layout */
+    #content{display:none;max-width:540px;margin:0 auto;padding:0 20px 80px}
+    /* Header */
+    .page-header{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--gray-2);
+      margin-bottom:0;position:relative}
+    .page-logo{height:192px;display:block;margin:0 auto 18px;max-width:100%;object-fit:contain}
+    .page-title{font-family:Montserrat,sans-serif;font-size:24px;font-weight:900;color:var(--red);margin-bottom:12px}
+    .page-greeting{font-size:15px;font-weight:600;margin-bottom:2px}
+    .page-villa{font-size:13px;color:var(--gray-4)}
+    .page-code{display:inline-block;margin-top:6px;font-size:11px;color:var(--gray-4);
+      background:var(--gray-2);padding:3px 12px;border-radius:20px;
+      font-family:Montserrat,sans-serif;font-weight:700}
+    /* Lang */
+    #langWrap{position:absolute;top:16px;right:0;display:none}
+    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
+      background:#fff;color:var(--gray-5);cursor:pointer;outline:none;
+      appearance:none;-webkit-appearance:none;padding-right:6px}
 
+    /* ══ v35: BARRA DE NAVEGACIÓN DE PASOS ══ */
+    #stepNav{
+      display:none; /* se muestra cuando content está visible */
+      background:#fff;
+      border-bottom:2px solid var(--gray-2);
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+      position:sticky;
+      top:0;
+      z-index:200;
+    }
+    #stepNav::-webkit-scrollbar{display:none}
+    .snav-inner{
+      display:flex;
+      min-width:max-content;
+      padding:0 8px;
+    }
+    .snav-btn{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:3px;
+      padding:10px 12px;
+      border:none;
+      background:none;
+      cursor:pointer;
+      font-family:Montserrat,sans-serif;
+      font-size:9px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      color:var(--gray-4);
+      border-bottom:2.5px solid transparent;
+      margin-bottom:-2px;
+      white-space:nowrap;
+      text-decoration:none;
+      transition:color .15s, border-color .15s;
+      flex-shrink:0;
+    }
+    .snav-btn:hover{color:var(--gray-5)}
+    .snav-btn.active{color:var(--red);border-bottom-color:var(--red)}
+    .snav-btn.done-tab{color:var(--green)}
+    .snav-btn.done-tab.active{color:var(--green);border-bottom-color:var(--green)}
+    .snav-num{
+      width:24px;height:24px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:900;
+      background:var(--gray-2);color:var(--gray-4);
+      flex-shrink:0;
+    }
+    .snav-btn.active .snav-num{background:var(--red);color:#fff}
+    .snav-btn.done-tab .snav-num{background:var(--green);color:#fff}
+    .snav-btn.done-tab.active .snav-num{background:var(--green);color:#fff}
+
+    /* ══ PANELES ══ */
+    .panel{display:none;padding-top:20px}
+    .panel.active{display:block}
+
+    /* Key section (panel llaves) */
+    .key-grid{display:flex;flex-direction:column;gap:9px}
+    .key-row{background:#fff;border:1px solid var(--gray-3);border-radius:11px;padding:16px;}
+    .key-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);display:block;margin-bottom:10px;}
+    .key-val{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--gray-5);}
+    .key-val.code{font-size:28px;letter-spacing:5px;color:var(--red);font-weight:900;
+      background:var(--gray-1);display:inline-block;padding:6px 16px;
+      border-radius:8px;border:1px dashed var(--gray-3);}
+    .key-row-center{text-align:center}
+    .enter-note{font-family:Montserrat,sans-serif;font-size:11px;font-weight:500;
+      color:var(--gray-4);margin-top:8px;line-height:1.5;}
+    .addr-inline{display:flex;align-items:center;gap:10px;margin-top:4px}
+    .addr-text{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--gray-5);}
+    .btn-maps{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;
+      padding:6px 12px;background:var(--gray-2);color:var(--gray-5);border-radius:8px;
+      font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      text-decoration:none;border:1px solid var(--gray-3);}
+    .wifi-block{display:flex;align-items:flex-start;gap:12px}
+    .wifi-ico{flex-shrink:0;color:var(--gray-5);margin-top:2px}
+    .wifi-data{flex:1}
+    .wifi-line{font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;
+      color:var(--gray-5);margin-bottom:6px;line-height:1.4;}
+    .wifi-line:last-child{margin-bottom:0}
+    .wifi-line .wl-lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-right:6px;}
+    .wifi-line .wl-val{font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;color:var(--gray-5);}
+
+    /* Keys pending box */
+    .keys-pending{background:var(--gray-1);border:1.5px dashed var(--gray-3);
+      border-radius:12px;padding:28px 20px;text-align:center;margin-top:8px}
+    .keys-pending-ico{font-size:40px;margin-bottom:10px}
+    .keys-pending-title{font-size:14px;font-weight:900;color:var(--gray-5);margin-bottom:8px}
+    .keys-pending-desc{font-size:12px;color:var(--gray-4);line-height:1.6;font-weight:500}
+
+    /* During section */
+    #duringSection{display:none;border:1px solid var(--gray-3);border-radius:11px;
+      padding:16px;background:#fff;margin-bottom:22px;}
+    #duringSection .key-lbl{color:var(--green)}
+    .ds-desc{font-family:Montserrat,sans-serif;font-size:12px;font-weight:500;
+      color:var(--gray-4);line-height:1.5;margin-bottom:10px;}
+    .btn-wa-vm{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
+      background:var(--wa);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;
+      font-size:12px;font-weight:800;text-decoration:none}
+
+    /* Steps */
+    .steps-section{margin-bottom:24px}
+    .steps-label{font-size:11px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.7px;color:var(--gray-4);margin-bottom:16px;
+      padding-bottom:10px;border-bottom:1px solid var(--gray-2);text-align:center}
+    .progress-track{display:flex;align-items:center;margin-bottom:20px;
+      max-width:300px;margin-left:auto;margin-right:auto}
+    .pt-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
+    .pt-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;font-weight:900;font-size:13px;position:relative}
+    .pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
+    .pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
+    .pt-circle.done::after{content:'✓';position:absolute;top:-6px;right:-6px;
+      font-size:9px;background:#fff;color:var(--green);border-radius:50%;
+      width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+      border:1.5px solid var(--green-bd);font-weight:900;line-height:16px;text-align:center}
+    .pt-label{font-size:10px;font-weight:700;color:var(--gray-4);
+      text-align:center;max-width:56px;line-height:1.2}
+    .pt-label.done{color:var(--green)}
+    .pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 4px;margin-bottom:20px}
+    .pt-line.done{background:var(--green)}
+    .steps-cards{display:flex;flex-direction:column;gap:8px}
+    .step-card{border:1px solid var(--gray-3);border-radius:14px;padding:16px;
+      display:flex;align-items:center;gap:14px}
+    .step-card.done{border-color:var(--green);background:var(--green-lt)}
+    .sc-ico{width:48px;height:48px;border-radius:12px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center}
+    .step-card.pend .sc-ico{background:var(--blue-lt);color:var(--blue)}
+    .step-card.done .sc-ico{background:var(--green);border:none;color:#fff}
+    .sc-ico svg{width:24px;height:24px}
+    .step-card.pend .sc-ico svg{stroke:var(--blue)}
+    .step-card.done .sc-ico svg{stroke:#fff}
+    .sc-body{flex:1;min-width:0}
+    .sc-step-label{font-size:10px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.5px;margin-bottom:3px}
+    .step-card.pend .sc-step-label{color:var(--blue)}
+    .step-card.done .sc-step-label{color:var(--green)}
+    .sc-name{font-size:15px;font-weight:800;color:var(--gray-5);margin-bottom:3px}
+    .sc-desc{font-size:11px;color:var(--gray-4);line-height:1.5;margin-bottom:5px}
+    .sc-status{font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;display:inline-block}
+    .sc-status.pend{background:var(--amber-lt);color:var(--amber)}
+    .sc-status.done{background:var(--green);color:#fff}
+    .sc-btn{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+      width:40px;height:40px;padding:0;border:none;border-radius:10px;
+      cursor:pointer;text-decoration:none}
+    .sc-btn.pend{background:var(--blue);color:#fff}
+    .sc-btn.done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+    /* Contact footer */
+    .contact-footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-2);text-align:center}
+    .cf-title{font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:6px}
+    .cf-sub{font-size:11px;color:var(--gray-4);margin-bottom:14px}
+    .cf-btns{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
+      background:var(--wa);color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;text-decoration:none}
+    .btn-phone{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
+      background:#1a73e8;color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;text-decoration:none}
+    .btn-email{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;
+      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
+      border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;text-decoration:none}
+    #waFloat{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--wa);
+      width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(37,211,102,.35);text-decoration:none}
+    @media(max-width:420px){
+      .key-val.code{font-size:22px;letter-spacing:3px}
+      .cf-btns{flex-direction:column;align-items:center}
+      .snav-btn{padding:8px 9px;font-size:8px}
+    }
+  </style>
+  <script src="checkin-auth.js"></script>
+</head>
+<body>
+
+<div id="stLoad"><div class="spinner"></div></div>
+
+<!-- Barra de navegación de pasos -->
+<nav id="stepNav">
+  <div class="snav-inner">
+    <!-- Tab 0: Check-in Online -->
+    <button class="snav-btn active" id="tab0" onclick="showTab(0)">
+      <div class="snav-num">🏠</div>
+      <span data-i18n="tab_home">Check-in</span>
+    </button>
+    <!-- Tabs 1-4: navegan a páginas externas -->
+    <a class="snav-btn" id="tab1" href="#">
+      <div class="snav-num">1</div>
+      <span data-i18n="tab_arrival">Arrival</span>
+    </a>
+    <a class="snav-btn" id="tab2" href="#">
+      <div class="snav-num">2</div>
+      <span data-i18n="tab_police">Police</span>
+    </a>
+    <a class="snav-btn" id="tab3" href="#">
+      <div class="snav-num">3</div>
+      <span data-i18n="tab_deposit">Deposit</span>
+    </a>
+    <a class="snav-btn" id="tab4" href="#">
+      <div class="snav-num">4</div>
+      <span data-i18n="tab_tax">Tax</span>
+    </a>
+    <!-- Tab 5: Llaves -->
+    <button class="snav-btn" id="tab5" onclick="showTab(5)">
+      <div class="snav-num">🔑</div>
+      <span data-i18n="tab_keys">Keys</span>
+    </button>
+  </div>
+</nav>
+
+<div id="content">
+  <div class="page-header">
+    <div id="langWrap">
+      <select id="langSel" onchange="applyLang(this.value)">
+        <option value="en">🌐 EN</option>
+        <option value="es">ES</option>
+        <option value="fr">FR</option>
+        <option value="de">DE</option>
+        <option value="it">IT</option>
+        <option value="nl">NL</option>
+        <option value="pt">PT</option>
+        <option value="ca">CA</option>
+      </select>
+    </div>
+    <img class="page-logo" src="logo-negro.png" alt="3Villas"
+         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
+    <div class="page-title">Check-in Online</div>
+    <div class="page-greeting" id="pgGreeting"></div>
+    <div class="page-thanks" id="pgThanks" style="display:none;font-size:13px;color:var(--gray-4);margin-top:4px;line-height:1.5"></div>
+    <div class="page-villa" id="pgVilla"></div>
+    <div class="page-code" id="pgCode"></div>
+  </div>
+
+  <!-- ══ PANEL 0: Check-in Online (vista principal con steps) ══ -->
+  <div class="panel active" id="panel0">
+    <div id="duringSection">
+      <span class="key-lbl" data-i18n="during_lbl">Contact during your Stay</span>
+      <div class="ds-desc" id="vmDesc"></div>
+      <a class="btn-wa-vm" id="vmWaBtn" href="#" target="_blank">WhatsApp</a>
+    </div>
+
+    <div class="steps-section">
+      <div class="steps-label" data-i18n="steps_lbl">Steps</div>
+      <div class="progress-track">
+        <div class="pt-step"><div class="pt-circle pend" id="pd1">1</div><div class="pt-label" id="pdl1">Arrival</div></div>
+        <div class="pt-line" id="pl1"></div>
+        <div class="pt-step"><div class="pt-circle pend" id="pd2">2</div><div class="pt-label" id="pdl2">Police</div></div>
+        <div class="pt-line" id="pl2"></div>
+        <div class="pt-step"><div class="pt-circle pend" id="pd3">3</div><div class="pt-label" id="pdl3">Deposit</div></div>
+        <div class="pt-line" id="pl3"></div>
+        <div class="pt-step"><div class="pt-circle pend" id="pd4">4</div><div class="pt-label" id="pdl4">Tax</div></div>
+      </div>
+      <div class="steps-cards">
+        <div class="step-card pend" id="sc1">
+          <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg></div>
+          <div class="sc-body"><div class="sc-step-label" id="sl1">Step 1</div><div class="sc-name" data-i18n="s1_name">Arrival Form</div><div class="sc-desc" data-i18n="s1_desc">Some required info to prepare your stay.</div><span class="sc-status pend" id="ss1">Pending</span></div>
+          <a class="sc-btn pend" id="btnS1" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
+        </div>
+        <div class="step-card pend" id="sc2">
+          <div class="sc-ico">
+            <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M50 8 L27 24 L36 39 L64 39 L73 24 Z" stroke-width="5"/>
+              <path d="M35 39 C35 45,65 45,65 39" stroke-width="5"/>
+              <path d="M50 17 C54 17,55 21,50 26 C45 21,46 17,50 17 Z" fill="currentColor" stroke="none"/>
+              <path d="M35 45 C35 60,65 60,65 45" stroke-width="5"/>
+              <path d="M43 62 L50 71 L57 62" stroke-width="5"/>
+              <path d="M43 62 L48 67" stroke-width="5"/><path d="M57 62 L52 67" stroke-width="5"/>
+              <path d="M50 71 L45 92 L55 92 Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+              <path d="M21 92 L21 68 C21 60,35 59,43 62" stroke-width="5"/>
+              <path d="M79 92 L79 68 C79 60,65 59,57 62" stroke-width="5"/>
+              <line x1="33" y1="80" x2="33" y2="92" stroke-width="5"/>
+              <line x1="67" y1="80" x2="67" y2="92" stroke-width="5"/>
+            </svg>
+          </div>
+          <div class="sc-body"><div class="sc-step-label" id="sl2">Step 2</div><div class="sc-name" data-i18n="s2_name">Police Report</div><div class="sc-desc" data-i18n="s2_desc">Mandatory info required by the Spanish Police.</div><span class="sc-status pend" id="ss2">Pending</span></div>
+          <a class="sc-btn pend" id="btnS2" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
+        </div>
+        <div class="step-card pend" id="sc3">
+          <div class="sc-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 6v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <div class="sc-body"><div class="sc-step-label" id="sl3">Step 3</div><div class="sc-name" data-i18n="s3_name">Security Deposit</div><div class="sc-desc" data-i18n="s3_desc">Different options to make the deposit easier.</div><span class="sc-status pend" id="ss3">Pending</span></div>
+          <a class="sc-btn pend" id="btnS3" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
+        </div>
+        <div class="step-card pend" id="sc4">
+          <div class="sc-ico">
+            <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M32 10 C25 10,22 15,22 22 L22 74 C22 80,26 84,32 84" stroke-width="6"/>
+              <path d="M74 12 C82 18,84 25,80 35 L74 55" stroke-width="6"/>
+              <rect x="28" y="16" width="48" height="66" rx="10" stroke-width="6"/>
+              <line x1="40" y1="32" x2="64" y2="32" stroke-width="5"/>
+              <line x1="40" y1="42" x2="64" y2="42" stroke-width="5"/>
+              <line x1="40" y1="52" x2="64" y2="52" stroke-width="5"/>
+              <rect x="42" y="60" width="50" height="22" rx="8" fill="none" stroke="currentColor" stroke-width="3"/>
+              <text x="67" y="76" font-family="Arial,sans-serif" font-size="14" font-weight="900" text-anchor="middle" fill="currentColor">TAX</text>
+            </svg>
+          </div>
+          <div class="sc-body"><div class="sc-step-label" id="sl4">Step 4</div><div class="sc-name" data-i18n="s4_name">Tourist Tax</div><div class="sc-desc" data-i18n="s4_desc">Mandatory taxes that against our will we are forced to collect.</div><span class="sc-status pend" id="ss4">Pending</span></div>
+          <a class="sc-btn pend" id="btnS4" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="contact-footer">
+      <div class="cf-title" data-i18n="help_title">Need help?</div>
+      <div class="cf-sub" data-i18n="help_sub">If you need any help, do not hesitate to contact us.</div>
+      <div class="cf-btns">
+        <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
+        <a class="btn-phone" href="tel:+34659933434"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.1 6.1l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+34 659 93 34 34</a>
+        <a class="btn-email" href="mailto:bookings@3villas.com">bookings@3villas.com</a>
+      </div>
+    </div>
+  </div><!-- /#panel0 -->
+
+  <!-- ══ PANEL 5: Key code / Llaves ══ -->
+  <div class="panel" id="panel5">
+    <!-- Si allDone: mostrar info de llaves -->
+    <div id="keysReady" style="display:none">
+      <div class="key-grid">
+        <div class="key-row key-row-center">
+          <span class="key-lbl" data-i18n="keybox_lbl">🔑 Keybox code</span>
+          <div class="key-val code" id="kiKeybox">—</div>
+          <div id="kiApt" style="display:none;font-size:13px;margin-top:6px;color:var(--gray-4);font-weight:700"></div>
+          <div class="enter-note" data-i18n="keybox_note">Use this code to open the keybox at the entrance and get the keys.</div>
+        </div>
+        <div class="key-row">
+          <span class="key-lbl" data-i18n="arrive_lbl">How to arrive?</span>
+          <div class="addr-inline">
+            <a class="btn-maps" id="kiMaps" href="#" target="_blank" style="display:none">📍 Google Maps</a>
+            <div class="addr-text" id="kiAddr">—</div>
+          </div>
+        </div>
+        <div class="key-row">
+          <span class="key-lbl" data-i18n="wifi_lbl">Wifi</span>
+          <div class="wifi-block">
+            <svg class="wifi-ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+              <line x1="12" y1="20" x2="12.01" y2="20" stroke-width="3"/>
+            </svg>
+            <div class="wifi-data">
+              <div class="wifi-line"><span class="wl-lbl" data-i18n="wifi_net">WiFi</span><span class="wl-val" id="kiWifi">—</span></div>
+              <div class="wifi-line"><span class="wl-lbl" data-i18n="wifi_pass">Password</span><span class="wl-val" id="kiWifiPw">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- During section dentro del panel keys -->
+      <div id="duringSectionKeys" style="display:none;border:1px solid var(--gray-3);border-radius:11px;padding:16px;background:#fff;margin-top:9px">
+        <span class="key-lbl" style="color:var(--green)" data-i18n="during_lbl">Contact during your Stay</span>
+        <div class="ds-desc" id="vmDescKeys"></div>
+        <a class="btn-wa-vm" id="vmWaBtnKeys" href="#" target="_blank">WhatsApp</a>
+      </div>
+    </div>
+    <!-- Si NO allDone: mostrar mensaje -->
+    <div id="keysPending" style="display:none">
+      <div class="keys-pending">
+        <div class="keys-pending-ico">🔑</div>
+        <div class="keys-pending-title" data-i18n="s5_name">Key code</div>
+        <div class="keys-pending-desc" data-i18n="s5_pend">Once all the previous steps are completed, you will see the property keycode, Wi-Fi details, and all check-in instructions here.</div>
+      </div>
+    </div>
+  </div><!-- /#panel5 -->
+
+</div><!-- /#content -->
+
+<a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
+  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
+    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
+    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
+  </svg>
+</a>
+
+<script>
+const CASPIO = 'c1abn432.caspio.com';
+const DP = {a:'353f700036ea9d14f6134018b0d3',p:'353f700038fe5bd8229244cea489',
+            d:'353f7000f2d0c28229154bc5b63d',t:'353f70008194047f5b8b4cdc8970'};
+const $=id=>document.getElementById(id);
+
+function truthy(v){if(!v&&v!==0)return false;
+  return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+function cleanPh(s){return(s||'').replace(/[\s\-()]/g,'').replace(/^\+/,'');}
+
+/* ══ v35: control de tabs ══ */
+var _allDone = false;
+
+function showTab(n){
+  /* Desactivar todos */
+  [0,5].forEach(function(i){
+    var panel = $('panel'+i);
+    if(panel) panel.classList.remove('active');
+    var tab = $('tab'+i);
+    if(tab) tab.classList.remove('active');
+  });
+  /* Activar el seleccionado */
+  var panel = $('panel'+n);
+  if(panel) panel.classList.add('active');
+  var tab = $('tab'+n);
+  if(tab) tab.classList.add('active');
+  /* Scroll al top del content */
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function updateTabStates(s1,s2,s3,s4){
+  /* Tabs 1-4: marcar como done si el step está hecho */
+  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(function(pair){
+    var done=pair[0], n=pair[1];
+    var tab=$('tab'+n);
+    if(!tab) return;
+    if(done){
+      tab.classList.add('done-tab');
+      tab.querySelector('.snav-num').textContent='✓';
+    } else {
+      tab.classList.remove('done-tab');
+      tab.querySelector('.snav-num').textContent=n;
+    }
+  });
+  /* Tab 5 (llaves): done si allDone */
+  var tab5=$('tab5');
+  if(_allDone){
+    tab5.classList.add('done-tab');
+  } else {
+    tab5.classList.remove('done-tab');
+  }
+}
+
+function render(r, code){
+  function g(a,b){return r[a]||r[b]||'';}
+  var villa   = g('TaVillas_Name_villa_para_inquilinos')||'—';
+  var guest   = g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
+  var nights  = g('TaBookings2021_Nights');
+  var address = g('TaVillas_Address');
+  var maps    = g('TaVillas_Googlemaps_link');
+  var wifiU   = g('TaVillas_Wifi_user');
+  var wifiP   = g('TaVillas_Wifi_password');
+  var keybox  = g('TaVillas_Keybox_code');
+  var s1=truthy(g('TaBookings2021_Arrivalform_done'));
+  var s2=truthy(g('TaBookings2021_Registro_policia_done'));
+  var s3=truthy(g('TaBookings2021_Security_deposit_terminado'));
+  var s4=truthy(g('TaBookings2021_Ecotasa_cobrada'));
+  _allDone = r._allDone !== undefined ? r._allDone : (s1&&s2&&s3&&s4);
+
+  $('pgGreeting').textContent=t('greeting')+', '+guest;
+  $('pgThanks').style.display='block';
+  $('pgThanks').innerHTML=t('thanks1')+'<br>'+t('thanks2');
+  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
+  $('pgCode').textContent='Booking ID '+code;
+
+  /* URLs de los steps */
+  var ce=encodeURIComponent(code);
+  $('tab1').href='checkin-arrival.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('tab2').href='checkin-police.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('tab3').href='checkin-deposit.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('tab4').href='checkin-taxes.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('btnS1').href='checkin-arrival.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('btnS2').href='checkin-police.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('btnS3').href='checkin-deposit.html?TaBookings2021_FS_confirmation_code='+ce;
+  $('btnS4').href='checkin-taxes.html?TaBookings2021_FS_confirmation_code='+ce;
+
+  /* Estados de los 4 steps */
+  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(function(pair){
+    var done=pair[0], n=pair[1];
+    $('pd'+n).className='pt-circle '+(done?'done':'pend');
+    $('pdl'+n).className='pt-label'+(done?' done':'');
+    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
+    $('sc'+n).className='step-card '+(done?'done':'pend');
+    $('sl'+n).textContent=t('step')+' '+n;
+    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?t('done'):t('pending');
+    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');
+  });
+
+  /* Panel 5: llaves */
+  if(_allDone){
+    $('kiKeybox').textContent=(r._mu_keybox||keybox||'—');
+    $('kiAddr').textContent=address||'—';
+    $('kiWifi').textContent=wifiU||'—';
+    $('kiWifiPw').textContent=wifiP||'—';
+    if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
+    if(r._mu_name){$('kiApt').textContent='Apartment: '+r._mu_name;$('kiApt').style.display='block';}
+    $('keysReady').style.display='block';
+    $('keysPending').style.display='none';
+
+    /* Villa manager en panel keys */
+    if(r._vm_name){
+      $('duringSectionKeys').style.display='block';
+      $('vmDescKeys').innerHTML='<strong>'+r._vm_name+'</strong>'+t('vm_desc');
+      if(r._vm_phone) $('vmWaBtnKeys').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
+      else $('vmWaBtnKeys').style.display='none';
+    }
+  } else {
+    $('keysReady').style.display='none';
+    $('keysPending').style.display='block';
+  }
+
+  /* Villa manager en panel 0 (durante la estancia) */
+  if(r._vm_name && !_allDone){
+    $('duringSection').style.display='block';
+    $('vmDesc').innerHTML='<strong>'+r._vm_name+'</strong>'+t('vm_desc');
+    if(r._vm_phone) $('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
+    else $('vmWaBtn').style.display='none';
+  }
+
+  /* Actualizar estados de tabs */
+  updateTabStates(s1,s2,s3,s4);
+
+  /* Mostrar UI */
+  $('stLoad').style.display='none';
+  $('content').style.display='block';
+  $('stepNav').style.display='block';
+  $('langWrap').style.display='block';
+
+  /* Detectar idioma */
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||navigator.userLanguage||'en').split('-')[0].toLowerCase();
+  var detected=saved||(sup.includes(nav)?nav:'en');
+  $('langSel').value=detected;
+  applyLang(detected);
+
+  /* Tab inicial: si allDone → panel 5 (llaves), si no → panel 0 */
+  if(_allDone){
+    showTab(5);
+  } else {
+    showTab(0);
+  }
+}
+
+/* ═══ SISTEMA I18N ═══ */
+var LANG = {};
+LANG.en = {
+  tab_home:'Check-in', tab_arrival:'Arrival', tab_police:'Police',
+  tab_deposit:'Deposit', tab_tax:'Tax', tab_keys:'Keys',
+  congrats_title:'🎉 Congratulations!', congrats_sub:'You are ready to enjoy your stay.',
+  keybox_lbl:'🔑 Keybox code', keybox_note:'Use this code to open the keybox at the entrance and get the keys.',
+  arrive_lbl:'How to arrive?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
+  during_lbl:'Contact during your Stay',
+  steps_lbl:'Steps',
+  s1_name:'Arrival Form',    s1_desc:'Some required info to prepare your stay.',
+  s2_name:'Police Report',   s2_desc:'Mandatory info required by the Spanish Police.',
+  s3_name:'Security Deposit',s3_desc:'Different options to make the deposit easier.',
+  s4_name:'Tourist Tax',     s4_desc:'Mandatory taxes that against our will we are forced to collect.',
+  s5_name:'Key code',
+  s5_pend:'Once all the previous steps are completed, you will see the property keycode, Wi-Fi details, and all check-in instructions here.',
+  step:'Step', done:'Done', pending:'Pending',
+  dot_arrival:'Arrival', dot_police:'Police', dot_deposit:'Deposit', dot_tax:'Tax',
+  greeting:'Hello', thanks1:'Thanks for booking with us!', thanks2:"Let's prepare your stay!",
+  help_title:'Need help?', help_sub:'If you need any help, do not hesitate to contact us.',
+  vm_desc:' will be your contact during your stay, making sure everything goes as well as possible.'
+};
+LANG.es = {
+  tab_home:'Check-in', tab_arrival:'Llegada', tab_police:'Policía',
+  tab_deposit:'Depósito', tab_tax:'Tasa', tab_keys:'Llaves',
+  keybox_lbl:'🔑 Código del keybox', keybox_note:'Usa este código para abrir el keybox en la entrada y recoger las llaves.',
+  arrive_lbl:'¿Cómo llegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contraseña',
+  during_lbl:'Contacto durante tu estancia',
+  steps_lbl:'Pasos',
+  s1_name:'Formulario de llegada', s1_desc:'Información necesaria para preparar tu estancia.',
+  s2_name:'Registro policial',     s2_desc:'Información obligatoria requerida por la Policía española.',
+  s3_name:'Depósito de seguridad', s3_desc:'Diferentes opciones para facilitar el depósito.',
+  s4_name:'Tasa turística',        s4_desc:'Impuestos obligatorios que, muy a nuestro pesar, debemos recaudar.',
+  s5_name:'Código de acceso',
+  s5_pend:'Una vez completados todos los pasos anteriores, verás aquí el código de acceso, el WiFi y las instrucciones.',
+  step:'Paso', done:'Hecho', pending:'Pendiente',
+  dot_arrival:'Llegada', dot_police:'Policía', dot_deposit:'Depósito', dot_tax:'Tasa',
+  greeting:'Hola', thanks1:'¡Gracias por reservar con nosotros!', thanks2:'¡Preparemos tu estancia!',
+  help_title:'¿Necesitas ayuda?', help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
+  vm_desc:' será tu contacto durante tu estancia, asegurándose de que todo vaya lo mejor posible.'
+};
+LANG.fr = {
+  tab_home:'Check-in', tab_arrival:'Arrivée', tab_police:'Police',
+  tab_deposit:'Dépôt', tab_tax:'Taxe', tab_keys:'Clés',
+  keybox_lbl:'🔑 Code du keybox', keybox_note:"Utilisez ce code pour ouvrir le keybox à l'entrée et récupérer les clés.",
+  arrive_lbl:'Comment arriver ?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Mot de passe',
+  during_lbl:'Contact pendant votre séjour',
+  steps_lbl:'Étapes',
+  s1_name:"Formulaire d'arrivée", s1_desc:'Informations nécessaires pour préparer votre séjour.',
+  s2_name:'Registre de police',   s2_desc:'Informations obligatoires requises par la police espagnole.',
+  s3_name:'Dépôt de garantie',    s3_desc:'Différentes options pour faciliter le dépôt.',
+  s4_name:'Taxe touristique',     s4_desc:"Taxes obligatoires que, bien malgré nous, nous sommes contraints de collecter.",
+  s5_name:"Code d'accès",
+  s5_pend:"Une fois toutes les étapes précédentes complétées, vous verrez ici le code d'accès, le WiFi et les instructions.",
+  step:'Étape', done:'Fait', pending:'En attente',
+  dot_arrival:'Arrivée', dot_police:'Police', dot_deposit:'Dépôt', dot_tax:'Taxe',
+  greeting:'Bonjour', thanks1:'Merci de réserver avec nous !', thanks2:'Préparons votre séjour !',
+  help_title:"Besoin d'aide ?", help_sub:"Si vous avez besoin d'aide, n'hésitez pas à nous contacter.",
+  vm_desc:' sera votre contact pendant votre séjour, veillant à ce que tout se passe au mieux.'
+};
+LANG.de = {
+  tab_home:'Check-in', tab_arrival:'Ankunft', tab_police:'Polizei',
+  tab_deposit:'Kaution', tab_tax:'Steuer', tab_keys:'Schlüssel',
+  keybox_lbl:'🔑 Keybox-Code', keybox_note:'Verwenden Sie diesen Code, um die Keybox am Eingang zu öffnen und die Schlüssel zu holen.',
+  arrive_lbl:'Wie komme ich an?', wifi_lbl:'Wifi', wifi_net:'WLAN', wifi_pass:'Passwort',
+  during_lbl:'Kontakt während Ihres Aufenthalts',
+  steps_lbl:'Schritte',
+  s1_name:'Anmeldeformular',     s1_desc:'Erforderliche Informationen zur Vorbereitung Ihres Aufenthalts.',
+  s2_name:'Polizeiliche Meldung',s2_desc:'Pflichtangaben der spanischen Polizei.',
+  s3_name:'Sicherheitskaution',  s3_desc:'Verschiedene Optionen für die Kaution.',
+  s4_name:'Kurtaxe',             s4_desc:'Pflichtabgaben, die wir leider erheben müssen.',
+  s5_name:'Zugangscode',
+  s5_pend:'Sobald alle vorherigen Schritte abgeschlossen sind, sehen Sie hier den Zugangscode, WLAN und Anweisungen.',
+  step:'Schritt', done:'Erledigt', pending:'Ausstehend',
+  dot_arrival:'Ankunft', dot_police:'Polizei', dot_deposit:'Kaution', dot_tax:'Steuer',
+  greeting:'Hallo', thanks1:'Danke für Ihre Buchung!', thanks2:'Bereiten wir Ihren Aufenthalt vor!',
+  help_title:'Brauchen Sie Hilfe?', help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
+  vm_desc:' ist Ihr Kontakt während des Aufenthalts und sorgt dafür, dass alles reibungslos verläuft.'
+};
+LANG.it = {
+  tab_home:'Check-in', tab_arrival:'Arrivo', tab_police:'Polizia',
+  tab_deposit:'Deposito', tab_tax:'Tassa', tab_keys:'Chiavi',
+  keybox_lbl:'🔑 Codice keybox', keybox_note:"Usate questo codice per aprire la keybox all'ingresso e prendere le chiavi.",
+  arrive_lbl:'Come arrivare?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
+  during_lbl:'Contatto durante il soggiorno',
+  steps_lbl:'Passi',
+  s1_name:'Modulo di arrivo',     s1_desc:'Informazioni necessarie per preparare il soggiorno.',
+  s2_name:'Denuncia alla polizia',s2_desc:'Informazioni obbligatorie richieste dalla Polizia spagnola.',
+  s3_name:'Deposito cauzionale',  s3_desc:'Diverse opzioni per facilitare il deposito.',
+  s4_name:'Tassa turistica',      s4_desc:'Tasse obbligatorie che purtroppo siamo costretti a riscuotere.',
+  s5_name:'Codice di accesso',
+  s5_pend:'Una volta completati tutti i passaggi precedenti, vedrete qui il codice di accesso, il WiFi e le istruzioni.',
+  step:'Passo', done:'Fatto', pending:'In attesa',
+  dot_arrival:'Arrivo', dot_police:'Polizia', dot_deposit:'Deposito', dot_tax:'Tassa',
+  greeting:'Ciao', thanks1:'Grazie per aver prenotato con noi!', thanks2:'Prepariamo il vostro soggiorno!',
+  help_title:'Hai bisogno di aiuto?', help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
+  vm_desc:' sarà il vostro contatto durante il soggiorno, assicurandosi che tutto vada per il meglio.'
+};
+LANG.nl = {
+  tab_home:'Check-in', tab_arrival:'Aankomst', tab_police:'Politie',
+  tab_deposit:'Borg', tab_tax:'Belasting', tab_keys:'Sleutels',
+  keybox_lbl:'🔑 Keybox-code', keybox_note:'Gebruik deze code om de keybox bij de ingang te openen en de sleutels te halen.',
+  arrive_lbl:'Hoe te arriveren?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Wachtwoord',
+  during_lbl:'Contact tijdens uw verblijf',
+  steps_lbl:'Stappen',
+  s1_name:'Aankomstformulier',   s1_desc:'Vereiste informatie om uw verblijf voor te bereiden.',
+  s2_name:'Politieregistratie',  s2_desc:'Verplichte informatie vereist door de Spaanse politie.',
+  s3_name:'Borg',                s3_desc:'Verschillende opties om de borg gemakkelijker te maken.',
+  s4_name:'Toeristenbelasting',  s4_desc:'Verplichte belastingen die wij helaas moeten innen.',
+  s5_name:'Toegangscode',
+  s5_pend:'Zodra alle vorige stappen zijn voltooid, ziet u hier de toegangscode, WiFi en instructies.',
+  step:'Stap', done:'Klaar', pending:'In behandeling',
+  dot_arrival:'Aankomst', dot_police:'Politie', dot_deposit:'Borg', dot_tax:'Belasting',
+  greeting:'Hallo', thanks1:'Bedankt voor uw reservering!', thanks2:'Laten we uw verblijf voorbereiden!',
+  help_title:'Hulp nodig?', help_sub:'Als u hulp nodig heeft, aarzel niet om contact met ons op te nemen.',
+  vm_desc:' is uw contactpersoon tijdens uw verblijf en zorgt ervoor dat alles zo goed mogelijk verloopt.'
+};
+LANG.pt = {
+  tab_home:'Check-in', tab_arrival:'Chegada', tab_police:'Polícia',
+  tab_deposit:'Depósito', tab_tax:'Taxa', tab_keys:'Chaves',
+  keybox_lbl:'🔑 Código da keybox', keybox_note:'Use este código para abrir a keybox na entrada e pegar as chaves.',
+  arrive_lbl:'Como chegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Senha',
+  during_lbl:'Contacto durante a sua estadia',
+  steps_lbl:'Passos',
+  s1_name:'Formulário de chegada', s1_desc:'Informações necessárias para preparar a sua estadia.',
+  s2_name:'Registo policial',      s2_desc:'Informações obrigatórias exigidas pela Polícia espanhola.',
+  s3_name:'Depósito de segurança', s3_desc:'Diferentes opções para facilitar o depósito.',
+  s4_name:'Taxa turística',        s4_desc:'Impostos obrigatórios que, infelizmente, somos obrigados a cobrar.',
+  s5_name:'Código de acesso',
+  s5_pend:'Após completar todas as etapas anteriores, verá aqui o código de acesso, WiFi e instruções.',
+  step:'Passo', done:'Feito', pending:'Pendente',
+  dot_arrival:'Chegada', dot_police:'Polícia', dot_deposit:'Depósito', dot_tax:'Taxa',
+  greeting:'Olá', thanks1:'Obrigado por reservar connosco!', thanks2:'Vamos preparar a sua estadia!',
+  help_title:'Precisa de ajuda?', help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
+  vm_desc:' será o seu contacto durante a estadia, garantindo que tudo corra o melhor possível.'
+};
+LANG.ca = {
+  tab_home:'Check-in', tab_arrival:'Arribada', tab_police:'Policia',
+  tab_deposit:'Dipòsit', tab_tax:'Taxa', tab_keys:'Claus',
+  keybox_lbl:"🔑 Codi del keybox", keybox_note:"Feu servir aquest codi per obrir el keybox a l'entrada i agafar les claus.",
+  arrive_lbl:'Com arribar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contrasenya',
+  during_lbl:"Contacte durant la vostra estada",
+  steps_lbl:'Passos',
+  s1_name:"Formulari d'arribada", s1_desc:"Informació necessària per preparar la vostra estada.",
+  s2_name:'Registre policial',    s2_desc:'Informació obligatòria requerida per la Policia espanyola.',
+  s3_name:'Dipòsit de seguretat', s3_desc:'Diferents opcions per facilitar el dipòsit.',
+  s4_name:'Taxa turística',       s4_desc:"Impostos obligatoris que, molt a contracor, estem obligats a recaptar.",
+  s5_name:"Codi d'accés",
+  s5_pend:"Un cop completats tots els passos anteriors, veureu aquí el codi d'accés, el WiFi i les instruccions.",
+  step:'Pas', done:'Fet', pending:'Pendent',
+  dot_arrival:'Arribada', dot_police:'Policia', dot_deposit:'Dipòsit', dot_tax:'Taxa',
+  greeting:'Hola', thanks1:'Gràcies per reservar amb nosaltres!', thanks2:"Preparem la vostra estada!",
+  help_title:"Necessiteu ajuda?", help_sub:"Si necessiteu ajuda, no dubteu a contactar-nos.",
+  vm_desc:" serà el vostre contacte durant l'estada, assegurant-se que tot vagi el millor possible."
+};
+
+var _currentLang = 'en';
+function t(key){ return (LANG[_currentLang] && LANG[_currentLang][key]) || (LANG.en[key]) || key; }
+
+function applyLang(lang){
+  if(!LANG[lang]) lang='en';
+  _currentLang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  /* Dot labels */
+  ['pdl1','pdl2','pdl3','pdl4'].forEach(function(id,i){
+    var el=document.getElementById(id);
+    var keys=['dot_arrival','dot_police','dot_deposit','dot_tax'];
+    if(el) el.textContent=t(keys[i]);
+  });
+  /* Step labels y status */
+  for(var n=1;n<=4;n++){
+    var sl=document.getElementById('sl'+n);
+    if(sl) sl.textContent=t('step')+' '+n;
+    var ss=document.getElementById('ss'+n);
+    if(ss){var isDone=ss.classList.contains('done');ss.textContent=isDone?t('done'):t('pending');}
+  }
+  /* Thanks */
+  var pgThanks=document.getElementById('pgThanks');
+  if(pgThanks&&pgThanks.style.display!=='none'){
+    pgThanks.innerHTML=t('thanks1')+'<br>'+t('thanks2');
+  }
+  /* vmDesc */
+  ['vmDesc','vmDescKeys'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.innerHTML){
+      var strong=el.querySelector('strong');
+      if(strong){var vmN=strong.textContent;el.innerHTML='<strong>'+vmN+'</strong>'+t('vm_desc');}
+    }
+  });
+  /* s5_pend si no allDone */
+  var pendDesc=document.querySelector('#keysPending .keys-pending-desc');
+  if(pendDesc) pendDesc.textContent=t('s5_pend');
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  if(typeof CheckinAuth !== 'undefined' && CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+}
+
+if(typeof CheckinAuth === 'undefined'){
+  document.getElementById('stLoad').innerHTML =
+    '<div style="text-align:center;padding:40px 20px">' +
+    '<div style="font-size:36px;margin-bottom:12px">⚠️</div>' +
+    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">' +
+    'Error: checkin-auth.js not found</p></div>';
+} else {
+  CheckinAuth.init({
+    onVerified: function(booking){
+      var code = CheckinAuth.getCode();
+      render(booking, code);
+    }
+  });
+}
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v35 - Barra de navegación con 6 tabs (🏠 Check-in, 1-4 steps externos, 🔑 Llaves). Al entrar: allDone→tab llaves, pendiente→tab check-in. Panel llaves: info si allDone, mensaje si no. | v34 - i18n extendido al overlay checkin-auth | v33 - Sistema i18n propio 8 idiomas | v32 - Botones play → páginas GitHub locales | v31 - Homogeneizar 3 boxes key-row | v30 - versión anterior -->
