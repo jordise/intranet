@@ -609,8 +609,8 @@ function applyLang(lang){
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
-  if(_embedLoaded){
-    /* Reinyectar el embed con el nuevo idioma */
+  if(_embedLoaded && !_internalTranslate){
+    /* Usuario cambió idioma manualmente: reinyectar embed con nuevo idioma */
     if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
     if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
     var wrap=$('caspioPay');
@@ -732,11 +732,23 @@ function injectCaspioEmbed(){
     +'&cbResetParam=1';
 
   s.onload=function(){
-    /* Instalar observer permanente + traducir con reintentos */
     installEmbedObserver();
-    [0,400,900,1800].forEach(function(d){
-      setTimeout(translateCaspioEmbed,d);
-    });
+    if(_currentLang && _currentLang!=='en'){
+      /* Idioma no-inglés: reinyectar para que Caspio use el idioma correcto desde el inicio.
+         Esto da tiempo a que Caspio termine de renderizar antes de reinyectar. */
+      setTimeout(function(){
+        if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
+        var wrap=$('caspioPay');
+        if(wrap) wrap.innerHTML='';
+        _embedLoaded=false;
+        injectCaspioEmbed();
+      }, 800);
+    } else {
+      /* Inglés: solo traducir */
+      [0,400,900].forEach(function(d){
+        setTimeout(translateCaspioEmbed,d);
+      });
+    }
   };
 
   s.onerror=function(){
@@ -820,6 +832,7 @@ Object.keys(CC_EXTRA).forEach(function(lang){
   if(LANG[lang]) Object.assign(LANG[lang], CC_EXTRA[lang]);
 });
 
+var _internalTranslate=false;
 function translateCaspioEmbed(){
   var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP); if(!wrap||!wrap.children.length) return;
 
