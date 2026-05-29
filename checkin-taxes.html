@@ -611,8 +611,11 @@ function applyLang(lang){
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
   if(_embedLoaded){
-    /* Embed estático: solo re-traducir con el idioma actual */
-    translateCaspioEmbed();
+    /* Re-traducir embed con el nuevo idioma */
+    var delays=[0,300,700];
+    delays.forEach(function(d){
+      setTimeout(translateCaspioEmbed, d);
+    });
   }
 }
 function initLang(){
@@ -710,10 +713,16 @@ var _embedLoaded=false;
 function injectCaspioEmbed(){
   if(_embedLoaded) return;
   _embedLoaded=true;
-  /* El embed ya está en el DOM estático — solo mostrar el contenedor
-     y arrancar la traducción cuando Caspio termine de renderizar */
   $('payFormWrap').style.display='block';
-  startEmbedTranslationPolling();
+
+  /* El form de Caspio ya está en el DOM (el script /emb es estático).
+     Instalamos el observer permanente y traducimos ahora mismo.
+     Reintentos con backoff por si Caspio aún está terminando de renderizar. */
+  installEmbedObserver();
+  var delays=[0,300,700,1400,2500];
+  delays.forEach(function(d){
+    setTimeout(translateCaspioEmbed, d);
+  });
 }
 
 /* ════ DETECTAR ÉXITO DEL PAGO ════
@@ -902,32 +911,12 @@ function watchForSuccess(){
   /* El observer de watchForSuccess ahora está integrado en installEmbedObserver */
 }
 
-/* startEmbedTranslationPolling: arranca el observer permanente
-   y hace una primera traducción cuando el form aparece */
+/* startEmbedTranslationPolling — ya no necesario con embed estático,
+   mantenido por compatibilidad */
 var _pollInterval = null;
 function startEmbedTranslationPolling(){
-  if(_pollInterval) clearInterval(_pollInterval);
-
-  var attempts = 0;
-  _pollInterval = setInterval(function(){
-    attempts++;
-    var wrap = $('caspioPay');
-
-    if(!wrap || !wrap.children.length){
-      if(attempts >= 60) clearInterval(_pollInterval);
-      return;
-    }
-
-    /* El embed ya tiene contenido — instalar el observer permanente */
-    installEmbedObserver();
-
-    /* Primera traducción */
-    translateCaspioEmbed();
-
-    /* Parar el polling — el observer se encarga de todo lo demás */
-    clearInterval(_pollInterval);
-    _pollInterval = null;
-  }, 200);
+  installEmbedObserver();
+  translateCaspioEmbed();
 }
 
 function showSuccess(){
@@ -982,12 +971,18 @@ function render(r){
   var lang=saved||(sup.includes(nav)?nav:'en');
   _currentLang=lang;
   var sel=$('langSel'); if(sel) sel.value=lang;
-  /* Traducir elementos data-i18n que ya están en el DOM */
+  /* Traducir elementos data-i18n nativos */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
     var hasHTML=['legal_info','all_paid_sub'];
     if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
     else el.textContent=t(k);
+  });
+  /* Traducir el embed de Caspio — ya está en el DOM desde el script estático.
+     Múltiples intentos con delay porque Caspio puede tardar en renderizar. */
+  installEmbedObserver();
+  [0,500,1000,2000,3500].forEach(function(d){
+    setTimeout(translateCaspioEmbed, d);
   });
 })();
 
