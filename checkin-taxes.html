@@ -826,7 +826,9 @@ Object.keys(CC_EXTRA).forEach(function(lang){
 });
 
 function translateCaspioEmbed(){
-  var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP); if(!wrap||!wrap.children.length) return;
+  /* Buscar el contenido del embed: primero CaspioFormDiv, luego #caspioPay como fallback */
+  var wrap=document.getElementById('CaspioFormDiv_'+CASPIO_APP)||$('caspioPay');
+  if(!wrap||!wrap.children.length) return;
 
   /* TreeWalker: recorre TODOS los nodos de texto del embed */
   var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
@@ -889,56 +891,90 @@ function translateCaspioEmbed(){
    Como es permanente, captura CUALQUIER re-render de Caspio. ══ */
 
 var _embedObserver = null;
-var _translateTimer = null; /* debounce para no traducir en cada micro-mutación */
+var _translateTimer = null;
 
+/* ── Observer permanente sobre #caspioPay ──
+   Se instala una vez. Traduce automáticamente cada vez
+   que Caspio modifica el DOM. Detecta también el éxito del pago. */
 function installEmbedObserver(){
-  if(_embedObserver) return; /* ya instalado */
-  var wrap = document.getElementById('CaspioFormDiv_'+CASPIO_APP);
+  if(_embedObserver) return;
+  var wrap = $('caspioPay');
   if(!wrap || !window.MutationObserver) return;
 
   _embedObserver = new MutationObserver(function(mutations){
     var hasChanges = false;
-    var successDetected = false;
-
     mutations.forEach(function(m){
-      /* ── Detectar éxito del pago ── */
       m.addedNodes.forEach(function(node){
         var txt = (node.textContent||'');
-        if(txt.includes('have been paid') || txt.includes('successfully paid') ||
-           txt.includes('ha sido pagado') || txt.includes('COBRADO') ||
+        if(txt.includes('have been paid')||txt.includes('successfully paid')||
+           txt.includes('ha sido pagado')||txt.includes('COBRADO')||
            txt.includes('Thank you')){
-          successDetected = true;
+          setTimeout(showSuccess, 1200);
         }
       });
-      /* ── Detectar cambios en el DOM del form ── */
       if(m.addedNodes.length || m.characterData) hasChanges = true;
     });
-
-    if(successDetected){ setTimeout(showSuccess, 1200); return; }
-
-    /* Debounce: esperar 80ms tras el último cambio antes de traducir.
-       Caspio a veces hace varias mutaciones seguidas al renderizar. */
     if(hasChanges){
       clearTimeout(_translateTimer);
-      _translateTimer = setTimeout(function(){
-        translateCaspioEmbed();
-      }, 80);
+      _translateTimer = setTimeout(translateCaspioEmbed, 80);
     }
   });
 
-  _embedObserver.observe(wrap, {
-    childList: true,
-    subtree: true,
-    characterData: true
+  _embedObserver.observe(wrap, {childList:true, subtree:true, characterData:true});
+}
+
+/* ── Traducir todos los textos del embed ──
+   Usa $('caspioPay') como contenedor raíz. */
+function translateCaspioEmbed(){
+  var wrap = $('caspioPay');
+  if(!wrap || !wrap.children.length) return;
+
+  /* TreeWalker: todos los nodos de texto */
+  var walker = document.createTreeWalker(wrap, NodeFilter.SHOW_TEXT, null, false);
+  var node;
+  while((node = walker.nextNode())){
+    var raw = node.nodeValue || '';
+    var txt = raw.trim().replace(/\s*\*\s*$/, '');
+    if(!txt) continue;
+    var key = CASPIO_MAP[txt];
+    if(key){
+      var tr = t(key);
+      if(tr && tr !== key && tr !== txt)
+        node.nodeValue = tr + (raw.includes('*') ? ' *' : '');
+    }
+  }
+
+  /* Botones submit */
+  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
+    var lbl = t('btn_submit');
+    if(el.tagName === 'INPUT') el.value = lbl;
+    else el.textContent = lbl;
   });
+
+  /* Elementos hoja (td, th, span, label…) */
+  wrap.querySelectorAll('td,th,span,div,p,label,legend').forEach(function(el){
+    if(el.children.length > 0) return;
+    var raw = el.textContent || '';
+    var txt = raw.trim().replace(/\s*\*\s*$/, '');
+    if(!txt || txt.length > 80) return;
+    var key = CASPIO_MAP[txt];
+    if(key){
+      var tr = t(key);
+      if(tr && tr !== key && tr !== txt)
+        el.textContent = tr + (raw.includes('*') ? ' *' : '');
+    }
+  });
+
+  /* Segunda pasada a 1.5s por si Caspio renderiza en dos fases */
+  var prev = wrap.getAttribute('data-translated');
+  wrap.setAttribute('data-translated', _currentLang);
+  if(prev !== _currentLang){
+    setTimeout(translateCaspioEmbed, 1500);
+  }
 }
 
-function watchForSuccess(){
-  /* El observer de watchForSuccess ahora está integrado en installEmbedObserver */
-}
-
-/* startEmbedTranslationPolling — ya no necesario con embed estático,
-   mantenido por compatibilidad */
+/* ── Polling inicial: esperar a que el embed tenga contenido,
+   instalar observer y traducir ── */
 var _pollInterval = null;
 function startEmbedTranslationPolling(){
   installEmbedObserver();
