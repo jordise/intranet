@@ -581,15 +581,22 @@ function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k
 function applyLang(lang){
   if(!LANG[lang]) lang='en';
   _currentLang=lang;
+  /* Textos nativos data-i18n */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
     var hasHTML=['legal_info','all_paid_sub'];
     if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
     else el.textContent=t(k);
   });
+  /* Redibujar líneas de pago si ya hay datos */
   if(_booking) renderItems(_booking);
+  /* Guardar preferencia */
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  /* Overlay auth */
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  /* Embed Caspio — traducir si ya está en el DOM */
+  var wrap=$('caspioPay');
+  if(wrap&&wrap.children.length>0) translateCaspioEmbed();
 }
 function initLang(){
   var sup=['en','es','fr','de','it','nl','pt','ca'];
@@ -770,11 +777,18 @@ var CASPIO_MAP = {
   'Pay Now':               'btn_submit',
   'Pay now':               'btn_submit',
   'Reservation ID':        'lbl_booking_id',
+  'Reservation nr.':       'lbl_booking_id',
+  'Reservation Nr.':       'lbl_booking_id',
+  'Reservation number':    'lbl_booking_id',
+  'Reservation Number':    'lbl_booking_id',
   'Adults':                'lbl_adults',
   'Nights':                'lbl_nights',
   'Checkin':               'lbl_checkin',
   'Checkout':              'lbl_checkout',
+  'Check-in':              'lbl_checkin',
+  'Check-out':             'lbl_checkout',
   'Guest Name':            'lbl_guest',
+  'Guest name':            'lbl_guest',
   'Villa':                 'lbl_villa',
 };
 
@@ -833,6 +847,19 @@ function translateCaspioEmbed(){
     if(key){var tr=t(key);if(tr&&tr!==key)el.placeholder=tr;}
   });
 
+  /* También buscar en elementos con innerText directo (tablas Caspio) */
+  wrap.querySelectorAll('td,th,span,div,p,label,legend,caption').forEach(function(el){
+    if(el.children.length>0) return; /* solo hoja */
+    var raw=el.textContent||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt||txt.length>60) return;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var tr=t(key);
+      if(tr&&tr!==key&&tr!==txt) el.textContent=tr+(raw.includes('*')?' *':'');
+    }
+  });
+
   /* Marcar y segunda pasada por si Caspio renderiza async */
   var prev=wrap.getAttribute('data-translated');
   wrap.setAttribute('data-translated',_currentLang);
@@ -842,14 +869,6 @@ function translateCaspioEmbed(){
     },1500);
   }
 }
-
-/* Re-traducir embed cuando cambia el idioma */
-var _origApplyLang=applyLang;
-applyLang=function(lang){
-  _origApplyLang(lang);
-  var wrap=$('caspioPay');
-  if(wrap&&wrap.children.length>0) translateCaspioEmbed();
-};
 
 function watchForSuccess(){
   if(!window.MutationObserver) return;
@@ -923,6 +942,23 @@ function render(r){
 }
 
 /* ════ BOOT ════ */
+/* Aplicar idioma inmediatamente al cargar (antes de datos del booking) */
+(function(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  _currentLang=lang;
+  var sel=$('langSel'); if(sel) sel.value=lang;
+  /* Traducir elementos data-i18n que ya están en el DOM */
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var k=el.getAttribute('data-i18n');
+    var hasHTML=['legal_info','all_paid_sub'];
+    if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
+    else el.textContent=t(k);
+  });
+})();
+
 if(typeof CheckinAuth==='undefined'){
   $('stLoad').innerHTML='<div style="text-align:center;padding:40px">'+
     '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
