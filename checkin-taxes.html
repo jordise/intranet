@@ -5,8 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Tourist Tax & Extras — 3Villas v4</title>
-
+  <title>Tourist Tax & Extras — 3Villas v3</title>
+  <!-- checkin-taxes.html v3 — 29/05/2026
+       Caspio /emb embed: formulario de pago Stripe inyectado directamente en el DOM.
+       CSS override para que el form Caspio parezca nativo.
+       Mismos permisos (checkin-auth.js v5) y sistema i18n que checkin-arrival. -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ══ Variables ══ */
@@ -408,10 +411,10 @@
 /* ════════════════════════════════════════════
    checkin-taxes.html v2
    Embed Caspio /emb — formulario pago Stripe
-   AppKey: 353f70008194047f5b8b4cdc8970
+   AppKey: 353f7000e967b11dc2a34af68b4e
    ════════════════════════════════════════════ */
 const WORKER        = 'https://caspio-proxy.jordi-89b.workers.dev';
-const CASPIO_APP    = '353f70008194047f5b8b4cdc8970';
+const CASPIO_APP    = '353f7000e967b11dc2a34af68b4e';
 const CASPIO_ORIGIN = 'https://c1abn932.caspio.com';
 const $ = id => document.getElementById(id);
 
@@ -696,11 +699,12 @@ function injectCaspioEmbed(){
     +'&cbResetParam=1';
 
   s.onload=function(){
-    /* El form ya está en el DOM — limpiar el spinner */
+    /* El form ya está en el DOM — limpiar el spinner y traducir */
     setTimeout(function(){
-      target.querySelector('[data-i18n="loading_pay"]')&&
-        (target.querySelector('[data-i18n="loading_pay"]').parentElement.style.display='none');
-    }, 500);
+      var sp=target.querySelector('[data-i18n="loading_pay"]');
+      if(sp) sp.parentElement.style.display='none';
+      translateCaspioEmbed();
+    }, 600);
   };
 
   s.onerror=function(){
@@ -736,20 +740,129 @@ window.addEventListener('message',function(e){
 });
 
 /* Observer DOM: Caspio muestra un mensaje de éxito en el DOM tras el pago */
+/* ════ TRADUCCIÓN DE TEXTOS DEL EMBED CASPIO ════
+   Caspio /emb inyecta HTML con textos en inglés hardcodeados.
+   Usamos un MutationObserver para detectar cuando el form aparece
+   en el DOM y reemplazamos los textos con nuestro sistema i18n. ════ */
+
+/* Mapa de textos Caspio → clave i18n (o texto directo por idioma) */
+var CASPIO_TEXTS = {
+  /* Labels de tarjeta */
+  'Credit Card':              {key:'cc_number'},
+  'Expiration Date':          {key:'cc_expiry'},
+  'Security Code':            {key:'cc_cvv'},
+  'Total':                    {key:'lbl_total'},
+  /* Botón submit */
+  'Submit':                   {key:'btn_submit'},
+  'Pay':                      {key:'btn_submit'},
+  /* Mensajes del form */
+  'Reservation ID':           {key:'lbl_booking_id'},
+  'Adults':                   {key:'lbl_adults'},
+  'Nights':                   {key:'lbl_nights'},
+  'Checkin':                  {key:'lbl_checkin'},
+  'Checkout':                 {key:'lbl_checkout'},
+};
+
+/* Añadir claves de tarjeta a cada idioma */
+var CC_LANGS = {
+  en:{cc_number:'Card number', cc_expiry:'Expiration date', cc_cvv:'Security code',
+      btn_submit:'Pay now', lbl_booking_id:'Booking ID'},
+  es:{cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
+      btn_submit:'Pagar ahora', lbl_booking_id:'ID de reserva'},
+  fr:{cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
+      btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation'},
+  de:{cc_number:'Kartennummer', cc_expiry:'Ablaufdatum', cc_cvv:'Sicherheitscode',
+      btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID'},
+  it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
+      btn_submit:'Paga ora', lbl_booking_id:'ID prenotazione'},
+  nl:{cc_number:'Kaartnummer', cc_expiry:'Vervaldatum', cc_cvv:'Beveiligingscode',
+      btn_submit:'Nu betalen', lbl_booking_id:'Boekings-ID'},
+  pt:{cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
+      btn_submit:'Pagar agora', lbl_booking_id:'ID reserva'},
+  ca:{cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
+      btn_submit:'Pagar ara', lbl_booking_id:'ID reserva'},
+};
+
+/* Combinar en LANG */
+Object.keys(CC_LANGS).forEach(function(lang){
+  if(LANG[lang]) Object.assign(LANG[lang], CC_LANGS[lang]);
+});
+
+/* Traducir todos los textos visibles del embed Caspio */
+function translateCaspioEmbed(){
+  var wrap = $('caspioPay'); if(!wrap) return;
+
+  /* 1. Labels (cbLabel, cbFormCaption) */
+  wrap.querySelectorAll('.cbLabel, .cbFormCaption, label').forEach(function(el){
+    var txt = el.textContent.trim().replace(/\s*\*\s*$/, ''); /* quitar asterisco req */
+    var hasAsterisk = el.textContent.includes('*');
+    Object.keys(CASPIO_TEXTS).forEach(function(orig){
+      if(txt === orig || txt.startsWith(orig)){
+        var k = CASPIO_TEXTS[orig].key;
+        var translated = t(k);
+        if(translated && translated !== k){
+          el.textContent = translated + (hasAsterisk ? ' *' : '');
+        }
+      }
+    });
+  });
+
+  /* 2. Botón submit */
+  wrap.querySelectorAll('#Submit_0, input[type=submit], button[type=submit]').forEach(function(el){
+    if(el.value) el.value = t('btn_submit');
+    else el.textContent = t('btn_submit');
+  });
+
+  /* 3. Placeholder de inputs de tarjeta (si los pone Caspio) */
+  wrap.querySelectorAll('input[placeholder]').forEach(function(el){
+    var ph = el.getAttribute('placeholder')||'';
+    if(ph.includes('Card') || ph.includes('card') || ph.includes('MM/YY') || ph.includes('CVC')){
+      /* Dejar los placeholders técnicos — Stripe los gestiona */
+    }
+  });
+
+  /* 4. Marcar como traducido para no repetir */
+  wrap.setAttribute('data-translated', _currentLang);
+}
+
+/* Re-traducir cuando cambia el idioma */
+var _origApplyLang = applyLang;
+applyLang = function(lang){
+  _origApplyLang(lang);
+  /* Si el embed ya está en el DOM, re-traducirlo */
+  var wrap = $('caspioPay');
+  if(wrap && wrap.children.length > 0){
+    translateCaspioEmbed();
+  }
+};
+
 function watchForSuccess(){
   if(!window.MutationObserver) return;
   var observer=new MutationObserver(function(mutations){
+    var needsTranslate=false;
     mutations.forEach(function(m){
       m.addedNodes.forEach(function(node){
         if(!node.textContent) return;
         var txt=node.textContent||'';
+        /* Detectar éxito del pago */
         if(txt.includes('have been paid')||txt.includes('successfully paid')||
            txt.includes('ha sido pagado')||txt.includes('payment confirmed')||
            txt.includes('COBRADO')||txt.includes('Thank you')){
           setTimeout(showSuccess,1200);
         }
+        /* Detectar que el form Caspio ha cargado (tiene labels de tarjeta) */
+        if(txt.includes('Credit Card')||txt.includes('Expiration')||
+           txt.includes('Security Code')||node.querySelector){
+          needsTranslate=true;
+        }
       });
     });
+    if(needsTranslate){
+      var wrap=$('caspioPay');
+      if(wrap&&wrap.getAttribute('data-translated')!==_currentLang){
+        setTimeout(translateCaspioEmbed,200);
+      }
+    }
   });
   observer.observe(document.getElementById('caspioPay')||document.body,
     {childList:true,subtree:true});
@@ -766,7 +879,10 @@ function showSuccess(){
 }
 
 /* ════ RENDER ════ */
+var _renderDone=false;
 function render(r){
+  if(_renderDone) return;
+  _renderDone=true;
   _booking=r;
   function fld(k){return g(r,k)||'';}
   var guest=fld('Fiscal_guest_name')||fld('Guest_Full_Name')||fld('Guest_Name')||'';
@@ -811,9 +927,9 @@ if(typeof CheckinAuth==='undefined'){
 </script>
 </body>
 </html>
-<!-- checkin-taxes.html v2 — 29/05/2026
+<!-- checkin-taxes.html v3 — 29/05/2026
      Estrategia: script /emb de Caspio inyectado directamente en el DOM.
      CSS override para que el formulario Caspio/Stripe parezca nativo (Montserrat, colores 3Villas).
      MutationObserver + postMessage para detectar éxito del pago sin salir de la página.
      Fallback a link externo si el embed falla. -->
-<!-- HISTORIAL: v4 - Restaurado a versión original que funcionaba sin error de redirección | v3 - intentos de traducción embed | v2 - versión original 29/05/2026 | v1 - versión inicial -->
+<!-- HISTORIAL: v4 - Fix duplicado (_renderDone en render) | v3..v2 - versiones intermedias | v1 - versión inicial -->
