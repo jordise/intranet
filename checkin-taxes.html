@@ -610,14 +610,12 @@ function applyLang(lang){
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
   if(_embedLoaded){
-    /* Reinyectar el embed completo — es la forma más fiable de forzar
-       la traducción: Caspio recarga el form con los textos en inglés
-       y el MutationObserver permanente los traduce inmediatamente */
-    _embedLoaded = false;
+    /* Reinyectar embed al cambiar idioma */
     if(_embedObserver){ _embedObserver.disconnect(); _embedObserver = null; }
     if(_pollInterval){ clearInterval(_pollInterval); _pollInterval = null; }
     var wrap = $('caspioPay');
     if(wrap) wrap.innerHTML = '';
+    _embedLoaded = false;
     injectCaspioEmbed();
   }
 }
@@ -700,7 +698,8 @@ function renderItems(r){
     $('totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    injectCaspioEmbed();
+    /* Solo inyectar si el embed no está ya cargado */
+    if(!_embedLoaded) injectCaspioEmbed();
   } else {
     $('totalRow').style.display='none';
     $('allPaid').style.display='block';
@@ -1053,3 +1052,4 @@ if(typeof CheckinAuth==='undefined'){
      CSS override para que el formulario Caspio/Stripe parezca nativo (Montserrat, colores 3Villas).
      MutationObserver + postMessage para detectar éxito del pago sin salir de la página.
      Fallback a link externo si el embed falla. -->
+     
