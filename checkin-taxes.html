@@ -499,7 +499,7 @@ LANG.it={
   lbl_total:'Totale dovuto',
   all_paid_title:'Tutti i pagamenti completati!',
   all_paid_sub:'Non ci sono addebiti in sospeso para la tua prenotazione.',
-  legal_info:"<strong>La tassa turistica</strong> \u00e8 obbligatoria ai sensi della legge delle Baleari. L'importo dipende dal numero di adulti e notti.",
+  legal_info:"<strong>La tassa turistica</strong> \u00e8 obbligatoria ai sensi della legge delle Baleari. L'importo depende dal numero di adulti e notti.",
   form_title:'Dati della carta',
   modal_secure:'Protetto da Stripe',
   ok_title:'Pagamento ricevuto!',
@@ -568,6 +568,7 @@ var _currentLang='en';
 function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k;}
 
 function applyLang(lang){
+  var langChanged = (_currentLang !== lang);
   if(!LANG[lang]) lang='en';
   _currentLang=lang;
   /* Textos nativos data-i18n */
@@ -583,9 +584,8 @@ function applyLang(lang){
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   /* Overlay auth */
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-  /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
-     El observer permanente se encargará de re-renders futuros de Caspio. */
-  if(_embedLoaded){
+  /* Embed Caspio: SOLO reinyectar si el embed ya está listo Y de verdad ha habido un cambio manual de idioma */
+  if(_embedLoaded && langChanged){
     /* Reinyectar embed al cambiar idioma */
     if(_embedObserver){ _embedObserver.disconnect(); _embedObserver = null; }
     if(_pollInterval){ clearInterval(_pollInterval); _pollInterval = null; }
@@ -788,7 +788,7 @@ var CC_EXTRA = {
       btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété'},
   de:{cc_number:'Kartennummer',   cc_expiry:'Ablaufdatum',     cc_cvv:'Sicherheitscode',
       btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft'},
-  it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
+  it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di seguridad',
       btn_submit:'Paga ora',       lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà'},
   nl:{cc_number:'Kaartnummer',    cc_expiry:'Vervaldatum',     cc_cvv:'Beveiligingscode',
       btn_submit:'Nu betalen',     lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie'},
@@ -975,9 +975,8 @@ function render(r){
   var adults=fld('Guest_adults_nr_form')||fld('Adults')||'';
   $('bAdults').textContent=adults||'—';
 
-  /* CAMBIO DE ORDEN: Primero cargamos los conceptos para fijar _embedLoaded en true y evitar la inyección doble de initLang */
-  renderItems(r);
   initLang();
+  renderItems(r);
   watchForSuccess();
   /* startEmbedTranslationPolling se lanza desde injectCaspioEmbed → s.onload */
 
