@@ -607,9 +607,13 @@ function applyLang(lang){
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   /* Overlay auth */
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-  /* Embed Caspio: al cambiar idioma, relanzar polling siempre.
-     El polling se encarga de esperar y traducir cuando el embed esté listo. */
-  if(_embedLoaded) startEmbedTranslationPolling();
+  /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
+     El observer permanente se encargará de re-renders futuros de Caspio. */
+  if(_embedLoaded){
+    var wrap=$('caspioPay');
+    if(wrap&&wrap.children.length>0) translateCaspioEmbed();
+    else startEmbedTranslationPolling();
+  }
 }
 function initLang(){
   var sup=['en','es','fr','de','it','nl','pt','ca'];
@@ -880,66 +884,88 @@ function translateCaspioEmbed(){
   }
 }
 
-function watchForSuccess(){
-  if(!window.MutationObserver) return;
-  /* Observer solo para detectar ÉXITO del pago */
-  var observer=new MutationObserver(function(mutations){
+/* ══ OBSERVER PERMANENTE DEL EMBED ══
+   Un único MutationObserver que:
+   1. Traduce el texto cada vez que Caspio modifica el DOM
+   2. Detecta el éxito del pago
+   Se instala una sola vez cuando el embed se inyecta.
+   Como es permanente, captura CUALQUIER re-render de Caspio. ══ */
+
+var _embedObserver = null;
+var _translateTimer = null; /* debounce para no traducir en cada micro-mutación */
+
+function installEmbedObserver(){
+  if(_embedObserver) return; /* ya instalado */
+  var wrap = $('caspioPay');
+  if(!wrap || !window.MutationObserver) return;
+
+  _embedObserver = new MutationObserver(function(mutations){
+    var hasChanges = false;
+    var successDetected = false;
+
     mutations.forEach(function(m){
+      /* ── Detectar éxito del pago ── */
       m.addedNodes.forEach(function(node){
-        if(!node.textContent) return;
-        var txt=node.textContent||'';
-        if(txt.includes('have been paid')||txt.includes('successfully paid')||
-           txt.includes('ha sido pagado')||txt.includes('payment confirmed')||
-           txt.includes('COBRADO')||txt.includes('Thank you')){
-          setTimeout(showSuccess,1200);
+        var txt = (node.textContent||'');
+        if(txt.includes('have been paid') || txt.includes('successfully paid') ||
+           txt.includes('ha sido pagado') || txt.includes('COBRADO') ||
+           txt.includes('Thank you')){
+          successDetected = true;
         }
       });
+      /* ── Detectar cambios en el DOM del form ── */
+      if(m.addedNodes.length || m.characterData) hasChanges = true;
     });
+
+    if(successDetected){ setTimeout(showSuccess, 1200); return; }
+
+    /* Debounce: esperar 80ms tras el último cambio antes de traducir.
+       Caspio a veces hace varias mutaciones seguidas al renderizar. */
+    if(hasChanges){
+      clearTimeout(_translateTimer);
+      _translateTimer = setTimeout(function(){
+        translateCaspioEmbed();
+      }, 80);
+    }
   });
-  observer.observe(document.getElementById('caspioPay')||document.body,
-    {childList:true,subtree:true});
+
+  _embedObserver.observe(wrap, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
 }
 
-/* ── Polling de traducción del embed ──
-   Caspio renderiza en múltiples pasadas asíncronas.
-   Seguimos intentando traducir cada 400ms hasta que
-   todos los textos clave estén traducidos (max 20s). ── */
-var _pollInterval=null; /* referencia global para cancelar el poll anterior */
+function watchForSuccess(){
+  /* El observer de watchForSuccess ahora está integrado en installEmbedObserver */
+}
 
+/* startEmbedTranslationPolling: arranca el observer permanente
+   y hace una primera traducción cuando el form aparece */
+var _pollInterval = null;
 function startEmbedTranslationPolling(){
-  /* Cancelar cualquier poll anterior */
   if(_pollInterval) clearInterval(_pollInterval);
 
-  var attempts=0, maxAttempts=60; /* 60 x 300ms = 18s máximo */
-  _pollInterval=setInterval(function(){
+  var attempts = 0;
+  _pollInterval = setInterval(function(){
     attempts++;
-    var wrap=$('caspioPay');
+    var wrap = $('caspioPay');
 
-    /* Limpiar spinner si existe */
-    var sp=wrap&&wrap.querySelector('[style*="animation:spin"]');
-    if(sp&&sp.parentElement) sp.parentElement.style.display='none';
-
-    /* Si el embed aún no tiene contenido, esperar */
-    if(!wrap||!wrap.children.length){
-      if(attempts>=maxAttempts) clearInterval(_pollInterval);
+    if(!wrap || !wrap.children.length){
+      if(attempts >= 60) clearInterval(_pollInterval);
       return;
     }
 
-    /* Ejecutar traducción */
+    /* El embed ya tiene contenido — instalar el observer permanente */
+    installEmbedObserver();
+
+    /* Primera traducción */
     translateCaspioEmbed();
 
-    /* Verificar si quedan textos EN sin traducir */
-    var fullText=wrap.textContent||'';
-    var enTexts=['Credit Card','Expiration Date','Security Code',
-                 'Reservation nr.','Reservation ID','Reservation Nr.'];
-    var pendingEN=enTexts.some(function(et){ return fullText.includes(et); });
-
-    /* Parar si todo está traducido o si superamos el máximo */
-    if(!pendingEN||attempts>=maxAttempts){
-      clearInterval(_pollInterval);
-      _pollInterval=null;
-    }
-  },300);
+    /* Parar el polling — el observer se encarga de todo lo demás */
+    clearInterval(_pollInterval);
+    _pollInterval = null;
+  }, 200);
 }
 
 function showSuccess(){
