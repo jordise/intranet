@@ -419,9 +419,8 @@
         </div>
       </div>
       <div class="pfw-body">
-        <!-- Embed Caspio /emb estático: el script se ejecuta UNA vez al cargar -->
-        <div id="CaspioFormDiv_353f7000e967b11dc2a34af68b4e"></div>
-        <script type="text/javascript" src="https://c1abn932.caspio.com/dp/353f7000e967b11dc2a34af68b4e/emb"></script>
+        <!-- El embed de Caspio se inyecta aquí dinámicamente -->
+        <div id="caspioPay"></div>
       </div>
     </div>
 
@@ -611,11 +610,13 @@ function applyLang(lang){
   /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
      El observer permanente se encargará de re-renders futuros de Caspio. */
   if(_embedLoaded){
-    /* Re-traducir embed con el nuevo idioma */
-    var delays=[0,300,700];
-    delays.forEach(function(d){
-      setTimeout(translateCaspioEmbed, d);
-    });
+    /* Reinyectar el embed con el nuevo idioma */
+    if(_embedObserver){ _embedObserver.disconnect(); _embedObserver=null; }
+    if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
+    var wrap=$('caspioPay');
+    if(wrap) wrap.innerHTML='';
+    _embedLoaded=false;
+    injectCaspioEmbed();
   }
 }
 function initLang(){
@@ -715,14 +716,34 @@ function injectCaspioEmbed(){
   _embedLoaded=true;
   $('payFormWrap').style.display='block';
 
-  /* El form de Caspio ya está en el DOM (el script /emb es estático).
-     Instalamos el observer permanente y traducimos ahora mismo.
-     Reintentos con backoff por si Caspio aún está terminando de renderizar. */
-  installEmbedObserver();
-  var delays=[0,300,700,1400,2500];
-  delays.forEach(function(d){
-    setTimeout(translateCaspioEmbed, d);
-  });
+  var target=$('caspioPay');
+  target.innerHTML='';
+
+  /* Crear CaspioFormDiv + script como hermanos dentro del target */
+  var formDiv=document.createElement('div');
+  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
+  target.appendChild(formDiv);
+
+  var s=document.createElement('script');
+  s.type='text/javascript';
+  s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
+    +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
+    +'&FS_confirmation_code='+encodeURIComponent(_code)
+    +'&cbResetParam=1';
+
+  s.onload=function(){
+    /* Instalar observer permanente + traducir con reintentos */
+    installEmbedObserver();
+    [0,400,900,1800].forEach(function(d){
+      setTimeout(translateCaspioEmbed,d);
+    });
+  };
+
+  s.onerror=function(){
+    formDiv.innerHTML='<div style="text-align:center;padding:20px"><a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+'?FS_confirmation_code='+encodeURIComponent(_code)+'" target="_blank" style="display:inline-block;padding:12px 24px;background:#C8102E;color:#fff;border-radius:10px;font-weight:800;font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
+  };
+
+  target.appendChild(s);
 }
 
 /* ════ DETECTAR ÉXITO DEL PAGO ════
@@ -978,12 +999,7 @@ function render(r){
     if(hasHTML.indexOf(k)>=0) el.innerHTML=t(k);
     else el.textContent=t(k);
   });
-  /* Traducir el embed de Caspio — ya está en el DOM desde el script estático.
-     Múltiples intentos con delay porque Caspio puede tardar en renderizar. */
-  installEmbedObserver();
-  [0,500,1000,2000,3500].forEach(function(d){
-    setTimeout(translateCaspioEmbed, d);
-  });
+
 })();
 
 if(typeof CheckinAuth==='undefined'){
