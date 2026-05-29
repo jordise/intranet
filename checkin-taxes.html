@@ -208,10 +208,14 @@
       pointer-events: none !important;
     }
 
-    /* Botón Submit de Caspio */
+    /* Botón Submit de Caspio — flex para centrado perfecto */
     #Submit_0, input[type=submit], button[type=submit] {
       width: 100% !important;
-      padding: 15px !important;
+      height: 52px !important;
+      padding: 0 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
       background: var(--red) !important;
       color: #fff !important;
       border: none !important;
@@ -220,13 +224,22 @@
       font-size: 15px !important;
       font-weight: 900 !important;
       cursor: pointer !important;
-      letter-spacing: .2px !important;
+      letter-spacing: 1px !important;
+      text-transform: uppercase !important;
       transition: background .15s !important;
       box-shadow: 0 4px 20px rgba(200,16,46,.25) !important;
-      margin-top: 8px !important;
+      margin-top: 12px !important;
+      box-sizing: border-box !important;
     }
-    #Submit_0:hover, input[type=submit]:hover {
+    #Submit_0:hover, input[type=submit]:hover, button[type=submit]:hover {
       background: var(--red-dk) !important;
+    }
+    /* La celda padre del botón también necesita reset */
+    .cbFormTableCell:has(#Submit_0),
+    .cbFormTableCell:has(input[type=submit]),
+    .cbFormTableCell:has(button[type=submit]) {
+      display: block !important;
+      padding: 0 !important;
     }
 
     /* Mensajes de error Caspio */
@@ -594,9 +607,9 @@ function applyLang(lang){
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   /* Overlay auth */
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-  /* Embed Caspio — traducir si ya está en el DOM */
-  var wrap=$('caspioPay');
-  if(wrap&&wrap.children.length>0) translateCaspioEmbed();
+  /* Embed Caspio: al cambiar idioma, relanzar polling siempre.
+     El polling se encarga de esperar y traducir cuando el embed esté listo. */
+  if(_embedLoaded) startEmbedTranslationPolling();
 }
 function initLang(){
   var sup=['en','es','fr','de','it','nl','pt','ca'];
@@ -714,12 +727,9 @@ function injectCaspioEmbed(){
     +'&cbResetParam=1';
 
   s.onload=function(){
-    /* El form ya está en el DOM — limpiar el spinner y traducir */
-    setTimeout(function(){
-      var sp=target.querySelector('[data-i18n="loading_pay"]');
-      if(sp) sp.parentElement.style.display='none';
-      translateCaspioEmbed();
-    }, 600);
+    /* El /emb inyecta el DOM de forma asíncrona tras el onload.
+       Lanzamos el polling AQUÍ — es el momento correcto. */
+    startEmbedTranslationPolling();
   };
 
   s.onerror=function(){
@@ -872,34 +882,64 @@ function translateCaspioEmbed(){
 
 function watchForSuccess(){
   if(!window.MutationObserver) return;
+  /* Observer solo para detectar ÉXITO del pago */
   var observer=new MutationObserver(function(mutations){
-    var needsTranslate=false;
     mutations.forEach(function(m){
       m.addedNodes.forEach(function(node){
         if(!node.textContent) return;
         var txt=node.textContent||'';
-        /* Detectar éxito del pago */
         if(txt.includes('have been paid')||txt.includes('successfully paid')||
            txt.includes('ha sido pagado')||txt.includes('payment confirmed')||
            txt.includes('COBRADO')||txt.includes('Thank you')){
           setTimeout(showSuccess,1200);
         }
-        /* Detectar que el form Caspio ha cargado (tiene labels de tarjeta) */
-        if(txt.includes('Credit Card')||txt.includes('Expiration')||
-           txt.includes('Security Code')||node.querySelector){
-          needsTranslate=true;
-        }
       });
     });
-    if(needsTranslate){
-      var wrap=$('caspioPay');
-      if(wrap&&wrap.getAttribute('data-translated')!==_currentLang){
-        setTimeout(translateCaspioEmbed,200);
-      }
-    }
   });
   observer.observe(document.getElementById('caspioPay')||document.body,
     {childList:true,subtree:true});
+}
+
+/* ── Polling de traducción del embed ──
+   Caspio renderiza en múltiples pasadas asíncronas.
+   Seguimos intentando traducir cada 400ms hasta que
+   todos los textos clave estén traducidos (max 20s). ── */
+var _pollInterval=null; /* referencia global para cancelar el poll anterior */
+
+function startEmbedTranslationPolling(){
+  /* Cancelar cualquier poll anterior */
+  if(_pollInterval) clearInterval(_pollInterval);
+
+  var attempts=0, maxAttempts=60; /* 60 x 300ms = 18s máximo */
+  _pollInterval=setInterval(function(){
+    attempts++;
+    var wrap=$('caspioPay');
+
+    /* Limpiar spinner si existe */
+    var sp=wrap&&wrap.querySelector('[style*="animation:spin"]');
+    if(sp&&sp.parentElement) sp.parentElement.style.display='none';
+
+    /* Si el embed aún no tiene contenido, esperar */
+    if(!wrap||!wrap.children.length){
+      if(attempts>=maxAttempts) clearInterval(_pollInterval);
+      return;
+    }
+
+    /* Ejecutar traducción */
+    translateCaspioEmbed();
+
+    /* Verificar si quedan textos EN sin traducir */
+    var fullText=wrap.textContent||'';
+    var enTexts=['Credit Card','Expiration Date','Security Code',
+                 'Reservation nr.','Reservation ID','Reservation Nr.'];
+    var pendingEN=enTexts.some(function(et){ return fullText.includes(et); });
+
+    /* Parar si todo está traducido o si superamos el máximo */
+    if(!pendingEN||attempts>=maxAttempts){
+      clearInterval(_pollInterval);
+      _pollInterval=null;
+    }
+  },300);
 }
 
 function showSuccess(){
@@ -936,6 +976,7 @@ function render(r){
   initLang();
   renderItems(r);
   watchForSuccess();
+  /* startEmbedTranslationPolling se lanza desde injectCaspioEmbed → s.onload */
 
   $('stLoad').style.display='none';
   $('stSummary').style.display='block';
