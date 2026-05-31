@@ -40,6 +40,9 @@ var _menuAdmin = [
     label: 'Configuración', icon: '⚙️',
     children: [
       { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
+      { label: 'Test1', url: 'XXtest1XX.html', icon: '1' }
+      { label: 'Test2', url: 'XXtest2XX', icon: '2' }
+      { label: 'Test3', url: 'XXtest3XX', icon: '3' }
     ]
   },
   { label: 'Login', url: 'login.html', icon: '🔑' }
