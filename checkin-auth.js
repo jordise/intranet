@@ -603,5 +603,3 @@ const CheckinAuth = (function(){
   };
 
 })();
-
-================
