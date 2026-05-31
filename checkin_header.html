@@ -54,22 +54,91 @@
   </div>
 <script>
 (function(){
-  /* Mostrar todos los elementos del header */
-  var ids = ['langWrap','hdrTabs','hdrStepsLbl','hdrSteps'];
-  ids.forEach(function(id){
-    var el=document.getElementById(id);
-    if(!el) return;
-    el.style.display=(id==='hdrTabs'||id==='hdrSteps')?'flex':'block';
+  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+  function truthy(v){if(!v&&v!==0)return false;
+  return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+
+  function updateTabStates(s1,s2,s3,s4){
+  var states=[s1,s2,s3,s4];
+  states.forEach(function(done,i){
+    var n=i+1;
+    /* Progress-track del header */
+    var hpd=$('hpd'+n);
+    if(hpd) hpd.className='pt-circle '+(done?'done':'pend');
+    var hpl=$('hpl'+n);
+    if(hpl) hpl.className='pt-line'+(done?' done':'');
+    var hpdl=$('hpdl'+n);
+    if(hpdl) hpdl.className='pt-label'+(done?' done':'');
+    /* Tabs snav (ocultos pero mantenemos por compatibilidad) */
+    var tab=$('tab'+n);
+    if(tab){
+      if(done){ tab.classList.add('done-tab'); }
+      else { tab.classList.remove('done-tab'); }
+    }
   });
-  /* Selector de idioma: usar localStorage o navegador */
-  var sel=document.getElementById('langSel');
-  if(sel){
-    var sup=['en','es','fr','de','it','nl','pt','ca'];
-    var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
-    var nav=(navigator.language||'en').split('-')[0].toLowerCase();
-    var lang=saved||(sup.indexOf(nav)>=0?nav:'en');
-    sel.value=lang;
-    sel.onchange=function(){ try{localStorage.setItem('3v_lang',this.value);}catch(e){} };
+  /* Tab 5 (llaves) */
+  var tab5=$('tab5');
+  if(tab5){
+    if(_allDone){ tab5.classList.add('done','keys'); tab5.classList.remove('keys'); tab5.className='hdr-tab keys done'+(_allDone?' done':''); }
+    else { tab5.className='hdr-tab keys'; }
+  }
+}
+
+  /* Leer código de reserva de la URL */
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('TaBookings2021_FS_confirmation_code') || '';
+  var ce = encodeURIComponent(code);
+
+  /* Mostrar todos los elementos del header */
+  ['langWrap','hdrTabs','hdrStepsLbl','hdrSteps'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = (id === 'hdrTabs' || id === 'hdrSteps') ? 'flex' : 'block';
+  });
+
+  /* Selector de idioma */
+  var sel = document.getElementById('langSel');
+  if (sel) {
+    var sup = ['en','es','fr','de','it','nl','pt','ca'];
+    var saved = null; try{ saved = localStorage.getItem('3v_lang'); }catch(e){}
+    var nav = (navigator.language || 'en').split('-')[0].toLowerCase();
+    var lang = saved || (sup.indexOf(nav) >= 0 ? nav : 'en');
+    sel.value = lang;
+    sel.onchange = function(){ try{ localStorage.setItem('3v_lang', this.value); }catch(e){} };
+  }
+
+  /* Asignar links a los 4 pasos y a los tabs */
+  var pages = ['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
+  pages.forEach(function(page, i){
+    var n = i + 1;
+    var el = document.getElementById('hpd' + n);
+    if (el) el.href = page + '?TaBookings2021_FS_confirmation_code=' + ce;
+  });
+  var tab0 = document.getElementById('tab0');
+  if (tab0) tab0.href = 'checkin-online.html?TaBookings2021_FS_confirmation_code=' + ce;
+  var tab5 = document.getElementById('tab5');
+  if (tab5) tab5.href = 'checkin-online.html?TaBookings2021_FS_confirmation_code=' + ce;
+
+  /* Si hay código: fetch al worker para obtener estados reales */
+  if (code) {
+    var url = WORKER + '?action=data&table=TaBookings2021'
+      + '&where=' + encodeURIComponent("FS_confirmation_code='" + code + "'")
+      + '&fields=TaBookings2021_Arrivalform_done,TaBookings2021_Registro_policia_done,'
+      + 'TaBookings2021_Security_deposit_terminado,TaBookings2021_Ecotasa_cobrada';
+
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var r = (data.Result && data.Result[0]) || {};
+        var g = function(k){ return r[k] || ''; };
+        var s1 = truthy(g('TaBookings2021_Arrivalform_done'));
+        var s2 = truthy(g('TaBookings2021_Registro_policia_done'));
+        var s3 = truthy(g('TaBookings2021_Security_deposit_terminado'));
+        var s4 = truthy(g('TaBookings2021_Ecotasa_cobrada'));
+        updateTabStates(s1, s2, s3, s4);
+      })
+      .catch(function(e){ console.warn('checkin_header: error fetch estados', e); });
   }
 })();
 </script>
