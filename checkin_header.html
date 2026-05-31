@@ -1,477 +1,186 @@
+<!-- checkin_header.html — cabecera compartida de todas las páginas de check-in
+     SOLO HTML + CSS + función updateCheckinHeader().
+     Sin CheckinAuth, sin i18n propio, sin fetch propio.
+     Cada subpágina llama a updateCheckinHeader() tras verificar/guardar. -->
 <style>
-  #langWrap{display:block !important}
-  #hdrTabs{display:flex !important}
-  #hdrStepsLbl{display:block !important}
-  #hdrSteps{display:flex !important}
+  .chk-header{
+    text-align:center;padding:12px 16px 10px;border-bottom:2px solid var(--gray-2);
+    background:#fff;position:sticky;top:0;z-index:200;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+  }
+  .chk-logo{height:42px;display:block;margin:0 auto 5px;max-width:150px;object-fit:contain}
+  .chk-title{font-family:Montserrat,sans-serif;font-size:13px;font-weight:900;
+    color:var(--red);margin-bottom:7px}
+  #chkLangWrap{position:absolute;top:10px;right:10px}
+  #chkLangSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+    border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
+    background:#fff;color:var(--gray-5);cursor:pointer;outline:none;
+    appearance:none;-webkit-appearance:none}
+  .chk-tabs{display:flex;gap:8px;justify-content:center;margin:0 0 8px}
+  .chk-tab{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
+    border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;
+    font-weight:800;text-decoration:none;transition:opacity .15s}
+  .chk-tab:hover{opacity:.85}
+  .chk-tab.info{background:var(--blue);color:#fff}
+  .chk-tab.keys{background:var(--gray-2);color:var(--gray-4);border:1.5px solid var(--gray-3)}
+  .chk-tab.keys.done{background:var(--green);color:#fff;border-color:var(--green)}
+  .chk-steps{display:flex;align-items:center;max-width:270px;margin:0 auto}
+  .chk-pt-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto}
+  .chk-pt-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;
+    text-decoration:none;position:relative;transition:all .2s}
+  .chk-pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
+  .chk-pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
+  .chk-pt-circle.active{background:var(--blue);color:#fff;border:2px solid var(--blue)}
+  .chk-pt-circle.done::after{content:'✓';position:absolute;top:-5px;right:-5px;
+    font-size:8px;background:#fff;color:var(--green);border-radius:50%;
+    width:14px;height:14px;display:flex;align-items:center;justify-content:center;
+    border:1.5px solid var(--green-bd,#86efac);font-weight:900;line-height:14px;text-align:center}
+  .chk-pt-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;
+    color:var(--gray-4);text-align:center;max-width:52px;line-height:1.2}
+  .chk-pt-label.done{color:var(--green)}
+  .chk-pt-label.active{color:var(--blue)}
+  .chk-pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 3px;margin-bottom:18px}
+  .chk-pt-line.done{background:var(--green)}
 </style>
-<div class="page-header">
-    <!-- Logo arriba del todo -->
-    <img class="page-logo" src="logo-negro.png" alt="3Villas"
-         onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='32px'">
-    <!-- Título debajo del logo -->
-    <div class="page-title">Check-in Online</div>
-    <!-- Selector de idioma -->
-    <div id="langWrap" style="display:block">
-      <select id="langSel" onchange="applyLang(this.value)">
-        <option value="en">🌐 EN</option>
-        <option value="es">ES</option>
-        <option value="fr">FR</option>
-        <option value="de">DE</option>
-        <option value="it">IT</option>
-        <option value="nl">NL</option>
-        <option value="pt">PT</option>
-        <option value="ca">CA</option>
-      </select>
+
+<header class="chk-header" id="chkHeader">
+  <div id="chkLangWrap">
+    <select id="chkLangSel">
+      <option value="en">🌐 EN</option>
+      <option value="es">ES</option><option value="fr">FR</option>
+      <option value="de">DE</option><option value="it">IT</option>
+      <option value="nl">NL</option><option value="pt">PT</option>
+      <option value="ca">CA</option>
+    </select>
+  </div>
+  <img class="chk-logo" src="logo-negro.png" alt="3Villas"
+       onerror="this.onerror=null;this.src='3villas_simbolo_rojo_sin_fondo.png';this.style.height='28px'">
+  <div class="chk-title">Check-in Online</div>
+  <div class="chk-tabs">
+    <a class="chk-tab info" id="chkTabInfo" href="checkin-online.html">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 5.25a1.4 1.4 0 110 2.8 1.4 1.4 0 010-2.8zM13.4 17h-2.8v-5.6h2.8V17z"/></svg>
+      <span id="chkTabInfoLbl">Info</span>
+    </a>
+    <a class="chk-tab keys" id="chkTabKeys" href="checkin-online.html">
+      🔑 <span id="chkTabKeysLbl">Keys</span>
+    </a>
+  </div>
+  <div class="chk-steps">
+    <div class="chk-pt-step">
+      <a class="chk-pt-circle pend" id="chkC1" href="checkin-arrival.html">1</a>
+      <div class="chk-pt-label" id="chkL1">Arrival</div>
     </div>
-    <!-- Tabs Info + Keys -->
-    <div class="hdr-tabs" id="hdrTabs" style="display:flex">
-      <a class="hdr-tab info active" id="tab0" href="checkin-online.html">
-        <span class="info-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 5.25a1.4 1.4 0 110 2.8 1.4 1.4 0 010-2.8zM13.4 17h-2.8v-5.6h2.8V17z"/></svg></span>
-        <span data-i18n="tab_home">Info</span>
-      </a>
-      <a class="hdr-tab keys" id="tab5" href="checkin-online.html">
-        <span class="hdr-tab-ico">🔑</span>
-        <span data-i18n="tab_keys">Keys</span>
-      </a>
+    <div class="chk-pt-line" id="chkLine1"></div>
+    <div class="chk-pt-step">
+      <a class="chk-pt-circle pend" id="chkC2" href="checkin-police.html">2</a>
+      <div class="chk-pt-label" id="chkL2">Police</div>
     </div>
-    <div class="hdr-steps-lbl" id="hdrStepsLbl" style="display:block">4 Steps</div>
-    <!-- Progress track en el header — círculos clicables -->
-    <div class="progress-track" id="hdrSteps" style="display:flex;margin-bottom:8px">
-      <div class="pt-step">
-        <a class="pt-circle pend" id="hpd1" href="#" style="text-decoration:none">1</a>
-        <div class="pt-label" id="hpdl1">Arrival</div>
-      </div>
-      <div class="pt-line" id="hpl1"></div>
-      <div class="pt-step">
-        <a class="pt-circle pend" id="hpd2" href="#" style="text-decoration:none">2</a>
-        <div class="pt-label" id="hpdl2">Police</div>
-      </div>
-      <div class="pt-line" id="hpl2"></div>
-      <div class="pt-step">
-        <a class="pt-circle pend" id="hpd3" href="#" style="text-decoration:none">3</a>
-        <div class="pt-label" id="hpdl3">Deposit</div>
-      </div>
-      <div class="pt-line" id="hpl3"></div>
-      <div class="pt-step">
-        <a class="pt-circle pend" id="hpd4" href="#" style="text-decoration:none">4</a>
-        <div class="pt-label" id="hpdl4">Tax</div>
-      </div>
+    <div class="chk-pt-line" id="chkLine2"></div>
+    <div class="chk-pt-step">
+      <a class="chk-pt-circle pend" id="chkC3" href="checkin-deposit.html">3</a>
+      <div class="chk-pt-label" id="chkL3">Deposit</div>
+    </div>
+    <div class="chk-pt-line" id="chkLine3"></div>
+    <div class="chk-pt-step">
+      <a class="chk-pt-circle pend" id="chkC4" href="checkin-taxes.html">4</a>
+      <div class="chk-pt-label" id="chkL4">Tax</div>
     </div>
   </div>
+</header>
+
 <script>
-(function(){
-  var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+/* ══════════════════════════════════════════════════════
+   updateCheckinHeader(opts)
+   Llamado por cada subpágina tras verificar la reserva y/o guardar.
 
-  function truthy(v){if(!v&&v!==0)return false;
-  return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+   opts = {
+     code:    string   — código de reserva (para construir los links)
+     s1,s2,s3,s4: bool — estado completado de cada step
+     active:  1|2|3|4  — círculo de esta página → se pinta azul
+     allDone: bool      — si true, tab Keys se pinta verde
+     lang:    string    — idioma actual ('en','es','fr',…)
+   }
+══════════════════════════════════════════════════════ */
+window.updateCheckinHeader = function(opts) {
+  var code    = opts.code    || '';
+  var states  = [false, !!opts.s1, !!opts.s2, !!opts.s3, !!opts.s4];
+  var active  = opts.active  || 0;
+  var allDone = !!opts.allDone;
+  var lang    = opts.lang    || 'en';
+  var qs      = code ? '?TaBookings2021_FS_confirmation_code=' + encodeURIComponent(code) : '';
 
-  function updateTabStates(s1,s2,s3,s4){
-  var states=[s1,s2,s3,s4];
-  states.forEach(function(done,i){
-    var n=i+1;
-    /* Progress-track del header */
-    var hpd=$('hpd'+n);
-    if(hpd) hpd.className='pt-circle '+(done?'done':'pend');
-    var hpl=$('hpl'+n);
-    if(hpl) hpl.className='pt-line'+(done?' done':'');
-    var hpdl=$('hpdl'+n);
-    if(hpdl) hpdl.className='pt-label'+(done?' done':'');
-    /* Tabs snav (ocultos pero mantenemos por compatibilidad) */
-    var tab=$('tab'+n);
-    if(tab){
-      if(done){ tab.classList.add('done-tab'); }
-      else { tab.classList.remove('done-tab'); }
+  /* ── Links de los tabs (siempre a checkin-online.html con el code) ── */
+  var tabInfo = document.getElementById('chkTabInfo');
+  var tabKeys = document.getElementById('chkTabKeys');
+  if (tabInfo) tabInfo.href = 'checkin-online.html' + qs;
+  if (tabKeys) {
+    tabKeys.href = 'checkin-online.html' + qs;
+    if (allDone) tabKeys.classList.add('done');
+    else         tabKeys.classList.remove('done');
+  }
+
+  /* ── Links y estados de los 4 círculos ── */
+  var pages = [
+    'checkin-arrival.html',
+    'checkin-police.html',
+    'checkin-deposit.html',
+    'checkin-taxes.html'
+  ];
+  for (var i = 1; i <= 4; i++) {
+    var circle = document.getElementById('chkC' + i);
+    var label  = document.getElementById('chkL' + i);
+    var line   = i < 4 ? document.getElementById('chkLine' + i) : null;
+
+    if (circle) {
+      circle.href = pages[i - 1] + qs;
+      if (i === active)     circle.className = 'chk-pt-circle active';
+      else if (states[i])   circle.className = 'chk-pt-circle done';
+      else                  circle.className = 'chk-pt-circle pend';
     }
-  });
-  /* Tab 5 (llaves) */
-  var tab5=$('tab5');
-  if(tab5){
-    if(_allDone){ tab5.classList.add('done','keys'); tab5.classList.remove('keys'); tab5.className='hdr-tab keys done'+(_allDone?' done':''); }
-    else { tab5.className='hdr-tab keys'; }
-  }
-}
-
-function render(r, code){
-  function g(a,b){return r[a]||r[b]||'';}
-  var villa   = g('TaVillas_Name_villa_para_inquilinos')||'—';
-  var guest   = g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
-  var nights  = g('TaBookings2021_Nights');
-  var address = g('TaVillas_Address');
-  var maps    = g('TaVillas_Googlemaps_link');
-  var wifiU   = g('TaVillas_Wifi_user');
-  var wifiP   = g('TaVillas_Wifi_password');
-  var keybox  = g('TaVillas_Keybox_code');
-  var s1=truthy(g('TaBookings2021_Arrivalform_done'));
-  var s2=truthy(g('TaBookings2021_Registro_policia_done'));
-  var s3=truthy(g('TaBookings2021_Security_deposit_terminado'));
-  var s4=truthy(g('TaBookings2021_Ecotasa_cobrada'));
-  _allDone = r._allDone !== undefined ? r._allDone : (s1&&s2&&s3&&s4);
-
-  $('pgGreeting').textContent=t('greeting')+', '+guest;
-  $('pgThanks').style.display='block';
-  $('pgThanks').innerHTML=t('thanks1')+'<br>'+t('thanks2');
-  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
-  $('pgCode').textContent='Booking ID '+code;
-
-  /* URLs de los steps */
-  var ce=encodeURIComponent(code);
-  var urls=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
-  urls.forEach(function(url,i){
-    var n=i+1;
-    var fullUrl=url+'?TaBookings2021_FS_confirmation_code='+ce;
-    if($('tab'+n)) $('tab'+n).href=fullUrl;
-    if($('btnS'+n)) $('btnS'+n).href=fullUrl;
-    if($('hpd'+n)) $('hpd'+n).href=fullUrl;
-  });
-
-  /* Estados de los 4 steps */
-  [[s1,1],[s2,2],[s3,3],[s4,4]].forEach(function(pair){
-    var done=pair[0], n=pair[1];
-    $('pd'+n).className='pt-circle '+(done?'done':'pend');
-    $('pdl'+n).className='pt-label'+(done?' done':'');
-    var pl=$('pl'+n);if(pl)pl.className='pt-line'+(done?' done':'');
-    $('sc'+n).className='step-card '+(done?'done':'pend');
-    $('sl'+n).textContent=t('step')+' '+n;
-    var ss=$('ss'+n);ss.className='sc-status '+(done?'done':'pend');ss.textContent=done?t('done'):t('pending');
-    var btn=$('btnS'+n);btn.className='sc-btn '+(done?'done':'pend');
-  });
-
-  /* Panel 5: llaves */
-  if(_allDone){
-    $('kiKeybox').textContent=(r._mu_keybox||keybox||'—');
-    $('kiAddr').textContent=address||'—';
-    $('kiWifi').textContent=wifiU||'—';
-    $('kiWifiPw').textContent=wifiP||'—';
-    if(maps){$('kiMaps').href=maps;$('kiMaps').style.display='inline-flex';}
-    if(r._mu_name){$('kiApt').textContent='Apartment: '+r._mu_name;$('kiApt').style.display='block';}
-    $('keysReady').style.display='block';
-    $('keysPending').style.display='none';
-
-    /* Villa manager en panel keys */
-    if(r._vm_name){
-      $('duringSectionKeys').style.display='block';
-      $('vmDescKeys').innerHTML='<strong>'+r._vm_name+'</strong>'+t('vm_desc');
-      if(r._vm_phone) $('vmWaBtnKeys').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
-      else $('vmWaBtnKeys').style.display='none';
+    if (label) {
+      label.className = 'chk-pt-label' +
+        (states[i] ? ' done' : (i === active ? ' active' : ''));
     }
-  } else {
-    $('keysReady').style.display='none';
-    $('keysPending').style.display='block';
-  }
-
-  /* Villa manager en panel 0 (durante la estancia) */
-  if(r._vm_name && !_allDone){
-    $('duringSection').style.display='block';
-    $('vmDesc').innerHTML='<strong>'+r._vm_name+'</strong>'+t('vm_desc');
-    if(r._vm_phone) $('vmWaBtn').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
-    else $('vmWaBtn').style.display='none';
-  }
-
-  /* Actualizar estados de tabs */
-  updateTabStates(s1,s2,s3,s4);
-
-  /* Mostrar UI */
-  $('stLoad').style.display='none';
-  $('content').style.display='block';
-  $('stepNav').style.display='none'; /* stepNav oculto — nav en el header */
-  $('langWrap').style.display='block';
-  $('hdrTabs').style.display='flex';
-  $('hdrSteps').style.display='flex';
-  var sl=$('hdrStepsLbl');if(sl)sl.style.display='block';
-
-  /* Detectar idioma */
-  var sup=['en','es','fr','de','it','nl','pt','ca'];
-  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
-  var nav=(navigator.language||navigator.userLanguage||'en').split('-')[0].toLowerCase();
-  var detected=saved||(sup.includes(nav)?nav:'en');
-  $('langSel').value=detected;
-  applyLang(detected);
-
-  /* Tab inicial: si allDone → panel 5 (llaves), si no → panel 0 */
-  if(_allDone){
-    showTab(5);
-  } else {
-    showTab(0);
-  }
-}
-
-/* ═══ SISTEMA I18N ═══ */
-var LANG = {};
-LANG.en = {
-  tab_home:'Check-in', tab_arrival:'Arrival', tab_police:'Police',
-  tab_deposit:'Deposit', tab_tax:'Tax', tab_keys:'Keys',
-  congrats_title:'🎉 Congratulations!', congrats_sub:'You are ready to enjoy your stay.',
-  keybox_lbl:'🔑 Keybox code', keybox_note:'Use this code to open the keybox at the entrance and get the keys.',
-  arrive_lbl:'How to arrive?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
-  during_lbl:'Contact during your Stay',
-  steps_lbl:'Steps',
-  s1_name:'Arrival Form',    s1_desc:'Some required info to prepare your stay.',
-  s2_name:'Police Report',   s2_desc:'Mandatory info required by the Spanish Police.',
-  s3_name:'Security Deposit',s3_desc:'Different options to make the deposit easier.',
-  s4_name:'Tourist Tax',     s4_desc:'Mandatory taxes that against our will we are forced to collect.',
-  s5_name:'Key code',
-  s5_pend:'Once all the previous steps are completed, you will see the property keycode, Wi-Fi details, and all check-in instructions here.',
-  step:'Step', done:'Done', pending:'Pending',
-  dot_arrival:'Arrival', dot_police:'Police', dot_deposit:'Deposit', dot_tax:'Tax',
-  greeting:'Hello', thanks1:'Thanks for booking with us!', thanks2:"Let's prepare your stay!",
-  help_title:'Need help?', help_sub:'If you need any help, do not hesitate to contact us.',
-  vm_desc:' will be your contact during your stay, making sure everything goes as well as possible.'
-};
-LANG.es = {
-  tab_home:'Check-in', tab_arrival:'Llegada', tab_police:'Policía',
-  tab_deposit:'Depósito', tab_tax:'Tasa', tab_keys:'Llaves',
-  keybox_lbl:'🔑 Código del keybox', keybox_note:'Usa este código para abrir el keybox en la entrada y recoger las llaves.',
-  arrive_lbl:'¿Cómo llegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contraseña',
-  during_lbl:'Contacto durante tu estancia',
-  steps_lbl:'Pasos',
-  s1_name:'Formulario de llegada', s1_desc:'Información necesaria para preparar tu estancia.',
-  s2_name:'Registro policial',     s2_desc:'Información obligatoria requerida por la Policía española.',
-  s3_name:'Depósito de seguridad', s3_desc:'Diferentes opciones para facilitar el depósito.',
-  s4_name:'Tasa turística',        s4_desc:'Impuestos obligatorios que, muy a nuestro pesar, debemos recaudar.',
-  s5_name:'Código de acceso',
-  s5_pend:'Una vez completados todos los pasos anteriores, verás aquí el código de acceso, el WiFi y las instrucciones.',
-  step:'Paso', done:'Hecho', pending:'Pendiente',
-  dot_arrival:'Llegada', dot_police:'Policía', dot_deposit:'Depósito', dot_tax:'Tasa',
-  greeting:'Hola', thanks1:'¡Gracias por reservar con nosotros!', thanks2:'¡Preparemos tu estancia!',
-  help_title:'¿Necesitas ayuda?', help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
-  vm_desc:' será tu contacto durante tu estancia, asegurándose de que todo vaya lo mejor posible.'
-};
-LANG.fr = {
-  tab_home:'Check-in', tab_arrival:'Arrivée', tab_police:'Police',
-  tab_deposit:'Dépôt', tab_tax:'Taxe', tab_keys:'Clés',
-  keybox_lbl:'🔑 Code du keybox', keybox_note:"Utilisez ce code pour ouvrir le keybox à l'entrée et récupérer les clés.",
-  arrive_lbl:'Comment arriver ?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Mot de passe',
-  during_lbl:'Contact pendant votre séjour',
-  steps_lbl:'Étapes',
-  s1_name:"Formulaire d'arrivée", s1_desc:'Informations nécessaires pour préparer votre séjour.',
-  s2_name:'Registre de police',   s2_desc:'Informations obligatoires requises par la police espagnole.',
-  s3_name:'Dépôt de garantie',    s3_desc:'Différentes options pour faciliter le dépôt.',
-  s4_name:'Taxe touristique',     s4_desc:"Taxes obligatoires que, bien malgré nous, nous sommes contraints de collecter.",
-  s5_name:"Code d'accès",
-  s5_pend:"Une fois toutes les étapes précédentes complétées, vous verrez ici le code d'accès, le WiFi et les instructions.",
-  step:'Étape', done:'Fait', pending:'En attente',
-  dot_arrival:'Arrivée', dot_police:'Police', dot_deposit:'Dépôt', dot_tax:'Taxe',
-  greeting:'Bonjour', thanks1:'Merci de réserver avec nous !', thanks2:'Préparons votre séjour !',
-  help_title:"Besoin d'aide ?", help_sub:"Si vous avez besoin d'aide, n'hésitez pas à nous contacter.",
-  vm_desc:' sera votre contact pendant votre séjour, veillant à ce que tout se passe au mieux.'
-};
-LANG.de = {
-  tab_home:'Check-in', tab_arrival:'Ankunft', tab_police:'Polizei',
-  tab_deposit:'Kaution', tab_tax:'Steuer', tab_keys:'Schlüssel',
-  keybox_lbl:'🔑 Keybox-Code', keybox_note:'Verwenden Sie diesen Code, um die Keybox am Eingang zu öffnen und die Schlüssel zu holen.',
-  arrive_lbl:'Wie komme ich an?', wifi_lbl:'Wifi', wifi_net:'WLAN', wifi_pass:'Passwort',
-  during_lbl:'Kontakt während Ihres Aufenthalts',
-  steps_lbl:'Schritte',
-  s1_name:'Anmeldeformular',     s1_desc:'Erforderliche Informationen zur Vorbereitung Ihres Aufenthalts.',
-  s2_name:'Polizeiliche Meldung',s2_desc:'Pflichtangaben der spanischen Polizei.',
-  s3_name:'Sicherheitskaution',  s3_desc:'Verschiedene Optionen für die Kaution.',
-  s4_name:'Kurtaxe',             s4_desc:'Pflichtabgaben, die wir leider erheben müssen.',
-  s5_name:'Zugangscode',
-  s5_pend:'Sobald alle vorherigen Schritte abgeschlossen sind, sehen Sie hier den Zugangscode, WLAN und Anweisungen.',
-  step:'Schritt', done:'Erledigt', pending:'Ausstehend',
-  dot_arrival:'Ankunft', dot_police:'Polizei', dot_deposit:'Kaution', dot_tax:'Steuer',
-  greeting:'Hallo', thanks1:'Danke für Ihre Buchung!', thanks2:'Bereiten wir Ihren Aufenthalt vor!',
-  help_title:'Brauchen Sie Hilfe?', help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
-  vm_desc:' ist Ihr Kontakt während des Aufenthalts und sorgt dafür, dass alles reibungslos verläuft.'
-};
-LANG.it = {
-  tab_home:'Check-in', tab_arrival:'Arrivo', tab_police:'Polizia',
-  tab_deposit:'Deposito', tab_tax:'Tassa', tab_keys:'Chiavi',
-  keybox_lbl:'🔑 Codice keybox', keybox_note:"Usate questo codice per aprire la keybox all'ingresso e prendere le chiavi.",
-  arrive_lbl:'Come arrivare?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
-  during_lbl:'Contatto durante il soggiorno',
-  steps_lbl:'Passi',
-  s1_name:'Modulo di arrivo',     s1_desc:'Informazioni necessarie per preparare il soggiorno.',
-  s2_name:'Denuncia alla polizia',s2_desc:'Informazioni obbligatorie richieste dalla Polizia spagnola.',
-  s3_name:'Deposito cauzionale',  s3_desc:'Diverse opzioni per facilitare il deposito.',
-  s4_name:'Tassa turistica',      s4_desc:'Tasse obbligatorie che purtroppo siamo costretti a riscuotere.',
-  s5_name:'Codice di accesso',
-  s5_pend:'Una volta completati tutti i passaggi precedenti, vedrete qui il codice di accesso, il WiFi e le istruzioni.',
-  step:'Passo', done:'Fatto', pending:'In attesa',
-  dot_arrival:'Arrivo', dot_police:'Polizia', dot_deposit:'Deposito', dot_tax:'Tassa',
-  greeting:'Ciao', thanks1:'Grazie per aver prenotato con noi!', thanks2:'Prepariamo il vostro soggiorno!',
-  help_title:'Hai bisogno di aiuto?', help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
-  vm_desc:' sarà il vostro contatto durante il soggiorno, assicurandosi che tutto vada per il meglio.'
-};
-LANG.nl = {
-  tab_home:'Check-in', tab_arrival:'Aankomst', tab_police:'Politie',
-  tab_deposit:'Borg', tab_tax:'Belasting', tab_keys:'Sleutels',
-  keybox_lbl:'🔑 Keybox-code', keybox_note:'Gebruik deze code om de keybox bij de ingang te openen en de sleutels te halen.',
-  arrive_lbl:'Hoe te arriveren?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Wachtwoord',
-  during_lbl:'Contact tijdens uw verblijf',
-  steps_lbl:'Stappen',
-  s1_name:'Aankomstformulier',   s1_desc:'Vereiste informatie om uw verblijf voor te bereiden.',
-  s2_name:'Politieregistratie',  s2_desc:'Verplichte informatie vereist door de Spaanse politie.',
-  s3_name:'Borg',                s3_desc:'Verschillende opties om de borg gemakkelijker te maken.',
-  s4_name:'Toeristenbelasting',  s4_desc:'Verplichte belastingen die wij helaas moeten innen.',
-  s5_name:'Toegangscode',
-  s5_pend:'Zodra alle vorige stappen zijn voltooid, ziet u hier de toegangscode, WiFi en instructies.',
-  step:'Stap', done:'Klaar', pending:'In behandeling',
-  dot_arrival:'Aankomst', dot_police:'Politie', dot_deposit:'Borg', dot_tax:'Belasting',
-  greeting:'Hallo', thanks1:'Bedankt voor uw reservering!', thanks2:'Laten we uw verblijf voorbereiden!',
-  help_title:'Hulp nodig?', help_sub:'Als u hulp nodig heeft, aarzel niet om contact met ons op te nemen.',
-  vm_desc:' is uw contactpersoon tijdens uw verblijf en zorgt ervoor dat alles zo goed mogelijk verloopt.'
-};
-LANG.pt = {
-  tab_home:'Check-in', tab_arrival:'Chegada', tab_police:'Polícia',
-  tab_deposit:'Depósito', tab_tax:'Taxa', tab_keys:'Chaves',
-  keybox_lbl:'🔑 Código da keybox', keybox_note:'Use este código para abrir a keybox na entrada e pegar as chaves.',
-  arrive_lbl:'Como chegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Senha',
-  during_lbl:'Contacto durante a sua estadia',
-  steps_lbl:'Passos',
-  s1_name:'Formulário de chegada', s1_desc:'Informações necessárias para preparar a sua estadia.',
-  s2_name:'Registo policial',      s2_desc:'Informações obrigatórias exigidas pela Polícia espanhola.',
-  s3_name:'Depósito de segurança', s3_desc:'Diferentes opções para facilitar o depósito.',
-  s4_name:'Taxa turística',        s4_desc:'Impostos obrigatórios que, infelizmente, somos obrigados a cobrar.',
-  s5_name:'Código de acesso',
-  s5_pend:'Após completar todas as etapas anteriores, verá aqui o código de acesso, WiFi e instruções.',
-  step:'Passo', done:'Feito', pending:'Pendente',
-  dot_arrival:'Chegada', dot_police:'Polícia', dot_deposit:'Depósito', dot_tax:'Taxa',
-  greeting:'Olá', thanks1:'Obrigado por reservar connosco!', thanks2:'Vamos preparar a sua estadia!',
-  help_title:'Precisa de ajuda?', help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
-  vm_desc:' será o seu contacto durante a estadia, garantindo que tudo corra o melhor possível.'
-};
-LANG.ca = {
-  tab_home:'Check-in', tab_arrival:'Arribada', tab_police:'Policia',
-  tab_deposit:'Dipòsit', tab_tax:'Taxa', tab_keys:'Claus',
-  keybox_lbl:"🔑 Codi del keybox", keybox_note:"Feu servir aquest codi per obrir el keybox a l'entrada i agafar les claus.",
-  arrive_lbl:'Com arribar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contrasenya',
-  during_lbl:"Contacte durant la vostra estada",
-  steps_lbl:'Passos',
-  s1_name:"Formulari d'arribada", s1_desc:"Informació necessària per preparar la vostra estada.",
-  s2_name:'Registre policial',    s2_desc:'Informació obligatòria requerida per la Policia espanyola.',
-  s3_name:'Dipòsit de seguretat', s3_desc:'Diferents opcions per facilitar el dipòsit.',
-  s4_name:'Taxa turística',       s4_desc:"Impostos obligatoris que, molt a contracor, estem obligats a recaptar.",
-  s5_name:"Codi d'accés",
-  s5_pend:"Un cop completats tots els passos anteriors, veureu aquí el codi d'accés, el WiFi i les instruccions.",
-  step:'Pas', done:'Fet', pending:'Pendent',
-  dot_arrival:'Arribada', dot_police:'Policia', dot_deposit:'Dipòsit', dot_tax:'Taxa',
-  greeting:'Hola', thanks1:'Gràcies per reservar amb nosaltres!', thanks2:"Preparem la vostra estada!",
-  help_title:"Necessiteu ajuda?", help_sub:"Si necessiteu ajuda, no dubteu a contactar-nos.",
-  vm_desc:" serà el vostre contacte durant l'estada, assegurant-se que tot vagi el millor possible."
-};
-
-var _currentLang = 'en';
-function t(key){ return (LANG[_currentLang] && LANG[_currentLang][key]) || (LANG.en[key]) || key; }
-
-function applyLang(lang){
-  if(!LANG[lang]) lang='en';
-  _currentLang = lang;
-  document.querySelectorAll('[data-i18n]').forEach(function(el){
-    el.textContent = t(el.getAttribute('data-i18n'));
-  });
-  /* Dot labels */
-  ['pdl1','pdl2','pdl3','pdl4'].forEach(function(id,i){
-    var el=document.getElementById(id);
-    var keys=['dot_arrival','dot_police','dot_deposit','dot_tax'];
-    if(el) el.textContent=t(keys[i]);
-  });
-  /* Step labels y status */
-  for(var n=1;n<=4;n++){
-    var sl=document.getElementById('sl'+n);
-    if(sl) sl.textContent=t('step')+' '+n;
-    var ss=document.getElementById('ss'+n);
-    if(ss){var isDone=ss.classList.contains('done');ss.textContent=isDone?t('done'):t('pending');}
-  }
-  /* Thanks */
-  var pgThanks=document.getElementById('pgThanks');
-  if(pgThanks&&pgThanks.style.display!=='none'){
-    pgThanks.innerHTML=t('thanks1')+'<br>'+t('thanks2');
-  }
-  /* vmDesc */
-  ['vmDesc','vmDescKeys'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el&&el.innerHTML){
-      var strong=el.querySelector('strong');
-      if(strong){var vmN=strong.textContent;el.innerHTML='<strong>'+vmN+'</strong>'+t('vm_desc');}
-    }
-  });
-  /* s5_pend si no allDone */
-  var pendDesc=document.querySelector('#keysPending .keys-pending-desc');
-  if(pendDesc) pendDesc.textContent=t('s5_pend');
-  /* Actualizar labels del progress-track del header */
-  var dotKeys=['dot_arrival','dot_police','dot_deposit','dot_tax'];
-  for(var n=1;n<=4;n++){
-    var hpdl=document.getElementById('hpdl'+n);
-    if(hpdl) hpdl.textContent=t(dotKeys[n-1]);
-  }
-  /* Actualizar texto tabs header */
-  var t0=document.querySelector('#tab0 [data-i18n]'); if(t0) t0.textContent=t('tab_home');
-  var t5=document.querySelector('#tab5 [data-i18n]'); if(t5) t5.textContent=t('tab_keys');
-  var sl2=$('hdrStepsLbl'); if(sl2) sl2.textContent='4 '+t('steps_lbl');
-  try{localStorage.setItem('3v_lang',lang);}catch(e){}
-  if(typeof CheckinAuth !== 'undefined' && CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-}
-
-if(typeof CheckinAuth === 'undefined'){
-  document.getElementById('stLoad').innerHTML =
-    '<div style="text-align:center;padding:40px 20px">' +
-    '<div style="font-size:36px;margin-bottom:12px">⚠️</div>' +
-    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">' +
-    'Error: checkin-auth.js not found</p></div>';
-} else {
-  CheckinAuth.init({
-    onVerified: function(booking){
-      var code = CheckinAuth.getCode();
-      render(booking, code);
-    }
-  });
-}
-</script>
-</body>
-</html>
-<!-- HISTORIAL: v43 - Greeting al panel0, steps ocultos en cuerpo, i SVG correcta, "4 Steps" con margen | v42 - Solo CSS: header compacto, logo pequeño, idioma top-right, Info azul SVG, título Steps; sin tocar HTML funcional | v41 - Fix: steps en header son progress-track (círculos) clicables, no mini-cards | v40 - Cabecera rediseñada: logo arriba, título debajo, tabs Info+Keys, mini step-cards 1-4 en header | v39 - Copia estable de v38 (versión de referencia) | v38 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v37 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v36 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v35 - Barra de navegación con 6 tabs (🏠 Check-in, 1-4 steps externos, 🔑 Llaves). Al entrar: allDone→tab llaves, pendiente→tab check-in. Panel llaves: info si allDone, mensaje si no. | v34 - i18n extendido al overlay checkin-auth | v33 - Sistema i18n propio 8 idiomas | v32 - Botones play → páginas GitHub locales | v31 - Homogeneizar 3 boxes key-row | v30 - versión anterior --
-
-  function initHeader() {
-    var params = new URLSearchParams(window.location.search);
-    var code = params.get('TaBookings2021_FS_confirmation_code') || '';
-    var ce = encodeURIComponent(code);
-
-    /* Selector de idioma */
-    var sel = document.getElementById('langSel');
-    if (sel) {
-      var sup = ['en','es','fr','de','it','nl','pt','ca'];
-      var saved = null; try{ saved = localStorage.getItem('3v_lang'); }catch(e){}
-      var nav = (navigator.language || 'en').split('-')[0].toLowerCase();
-      var lang = saved || (sup.indexOf(nav) >= 0 ? nav : 'en');
-      sel.value = lang;
-      sel.onchange = function(){ try{ localStorage.setItem('3v_lang', this.value); }catch(e){} };
-    }
-
-    /* Links en hpd1-4 */
-    var pages = ['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
-    pages.forEach(function(page, i){
-      var el = document.getElementById('hpd' + (i+1));
-      if (el) el.href = page + (code ? '?TaBookings2021_FS_confirmation_code=' + ce : '');
-    });
-
-    /* Links en tab0 y tab5 */
-    var tab0 = document.getElementById('tab0');
-    if (tab0) tab0.href = 'checkin-online.html' + (code ? '?TaBookings2021_FS_confirmation_code=' + ce : '');
-    var tab5 = document.getElementById('tab5');
-    if (tab5) tab5.href = 'checkin-online.html' + (code ? '?TaBookings2021_FS_confirmation_code=' + ce : '');
-
-    /* Fetch estados reales si hay código */
-    if (code) {
-      fetch(WORKER + '?action=data&table=TaBookings2021'
-        + '&where=' + encodeURIComponent("FS_confirmation_code='" + code + "'")
-        + '&fields=TaBookings2021_Arrivalform_done,TaBookings2021_Registro_policia_done,'
-        + 'TaBookings2021_Security_deposit_terminado,TaBookings2021_Ecotasa_cobrada')
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          var r = (data.Result && data.Result[0]) || {};
-          var g = function(k){ return r[k] || ''; };
-          updateTabStates(
-            truthy(g('TaBookings2021_Arrivalform_done')),
-            truthy(g('TaBookings2021_Registro_policia_done')),
-            truthy(g('TaBookings2021_Security_deposit_terminado')),
-            truthy(g('TaBookings2021_Ecotasa_cobrada'))
-          );
-        })
-        .catch(function(e){ console.warn('checkin_header: error fetch', e); });
+    if (line) {
+      line.className = 'chk-pt-line' + (states[i] ? ' done' : '');
     }
   }
 
-  setTimeout(initHeader, 0);
-})();
+  /* ── Selector de idioma: sincronizar con applyLang() de la subpágina ── */
+  var sel = document.getElementById('chkLangSel');
+  if (sel) {
+    sel.value = lang;
+    sel.onchange = function() {
+      if (typeof window.applyLang === 'function') window.applyLang(this.value);
+    };
+  }
+
+  /* ── Labels traducidos ── */
+  var lbls = {
+    en:['Arrival','Police','Deposit','Tax'],
+    es:['Llegada','Policía','Depósito','Tasa'],
+    fr:['Arrivée','Police','Dépôt','Taxe'],
+    de:['Ankunft','Polizei','Kaution','Steuer'],
+    it:['Arrivo','Polizia','Deposito','Tassa'],
+    nl:['Aankomst','Politie','Borg','Belasting'],
+    pt:['Chegada','Polícia','Depósito','Taxa'],
+    ca:['Arribada','Policia','Dipòsit','Taxa']
+  };
+  var tabLbls = {
+    en:['Info','Keys'],    es:['Info','Llaves'],  fr:['Info','Clés'],
+    de:['Info','Schlüssel'],it:['Info','Chiavi'], nl:['Info','Sleutels'],
+    pt:['Info','Chaves'],  ca:['Info','Claus']
+  };
+  var ll = lbls[lang]    || lbls.en;
+  var tl = tabLbls[lang] || tabLbls.en;
+  for (var j = 1; j <= 4; j++) {
+    var lbl = document.getElementById('chkL' + j);
+    if (lbl) lbl.textContent = ll[j - 1];
+  }
+  var ti = document.getElementById('chkTabInfoLbl');
+  var tk = document.getElementById('chkTabKeysLbl');
+  if (ti) ti.textContent = tl[0];
+  if (tk) tk.textContent = tl[1];
+};
 </script>
