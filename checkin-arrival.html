@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v41 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v42 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -651,6 +651,7 @@ LANG.en={
   ph_extras:'Cot for 1-year-old, high chair\u2026',
   ph_email:'your@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
   greeting:'Hello',
+  dot_arrival:'Arrival', dot_police:'Police', dot_deposit:'Deposit', dot_tax:'Tax', tab_home:'Info', tab_keys:'Keys', steps_lbl:'Steps'
 };
 LANG.es={
   page_title:'Formulario de llegada',
@@ -687,6 +688,7 @@ LANG.es={
   ph_extras:'Cuna para 1 a\u00f1o, trona\u2026',
   ph_email:'tu@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
   greeting:'Hola',
+  dot_arrival:'Llegada', dot_police:'Polic\u00eda', dot_deposit:'Dep\u00f3sito', dot_tax:'Tasa', tab_home:'Info', tab_keys:'Llaves', steps_lbl:'Pasos'
 };
 LANG.fr={
   page_title:"Formulaire d\u2019arriv\u00e9e",
@@ -723,6 +725,7 @@ LANG.fr={
   ph_extras:'Berceau pour 1 an, chaise haute\u2026',
   ph_email:'votre@email.com', ph_phone:'+33 6 00 00 00 00', ph_dni:'12345678',
   greeting:'Bonjour',
+  dot_arrival:'Arriv\u00e9e', dot_police:'Police', dot_deposit:'D\u00e9p\u00f4t', dot_tax:'Taxe', tab_home:'Info', tab_keys:'Cl\u00e9s', steps_lbl:'\u00c9tapes'
 };
 LANG.de={
   page_title:'Anmeldeformular',
@@ -759,6 +762,7 @@ LANG.de={
   ph_extras:'Kinderbett f\u00fcr 1-J\u00e4hrigen, Hochstuhl\u2026',
   ph_email:'ihre@email.com', ph_phone:'+49 600 000 000', ph_dni:'12345678',
   greeting:'Hallo',
+  dot_arrival:'Ankunft', dot_police:'Polizei', dot_deposit:'Kaution', dot_tax:'Steuer', tab_home:'Info', tab_keys:'Schl\u00fcssel', steps_lbl:'Schritte'
 };
 LANG.it={
   page_title:'Modulo di arrivo',
@@ -795,6 +799,7 @@ LANG.it={
   ph_extras:'Culla per 1 anno, seggiolone\u2026',
   ph_email:'tuo@email.com', ph_phone:'+39 600 000 000', ph_dni:'12345678',
   greeting:'Ciao',
+  dot_arrival:'Arrivo', dot_police:'Polizia', dot_deposit:'Deposito', dot_tax:'Tassa', tab_home:'Info', tab_keys:'Chiavi', steps_lbl:'Passi'
 };
 LANG.nl={
   page_title:'Aankomstformulier',
@@ -831,6 +836,7 @@ LANG.nl={
   ph_extras:'Bedje voor 1 jaar, kinderstoel\u2026',
   ph_email:'uw@email.com', ph_phone:'+31 6 00 00 00 00', ph_dni:'12345678',
   greeting:'Hallo',
+  dot_arrival:'Aankomst', dot_police:'Politie', dot_deposit:'Borg', dot_tax:'Belasting', tab_home:'Info', tab_keys:'Sleutels', steps_lbl:'Stappen'
 };
 LANG.pt={
   page_title:'Formul\u00e1rio de chegada',
@@ -867,6 +873,7 @@ LANG.pt={
   ph_extras:'Ber\u00e7o para 1 ano, cadeira alta\u2026',
   ph_email:'seu@email.com', ph_phone:'+351 600 000 000', ph_dni:'12345678',
   greeting:'Ol\u00e1',
+  dot_arrival:'Chegada', dot_police:'Pol\u00edcia', dot_deposit:'Dep\u00f3sito', dot_tax:'Taxa', tab_home:'Info', tab_keys:'Chaves', steps_lbl:'Passos'
 };
 LANG.ca={
   page_title:"Formulari d\u2019arribada",
@@ -903,6 +910,7 @@ LANG.ca={
   ph_extras:'Bressol per a 1 any, trona\u2026',
   ph_email:"el_vostre@email.com", ph_phone:'+34 600 000 000', ph_dni:'12345678A',
   greeting:'Hola',
+  dot_arrival:'Arribada', dot_police:'Policia', dot_deposit:'Dip\u00f2sit', dot_tax:'Taxa', tab_home:'Info', tab_keys:'Claus', steps_lbl:'Passos'
 };
 
 var _currentLang='en';
@@ -923,6 +931,14 @@ function applyLang(lang){
   document.querySelectorAll('[data-i18n-ph]').forEach(function(el){
     el.placeholder=t(el.getAttribute('data-i18n-ph'));
   });
+  /* Labels progress-track header */
+  var dotKeys=['dot_arrival','dot_police','dot_deposit','dot_tax'];
+  for(var n=1;n<=4;n++){
+    var hpdl=document.getElementById('hpdl'+n);
+    if(hpdl) hpdl.textContent=t(dotKeys[n-1]);
+  }
+  var hsl=document.getElementById('hdrStepsLbl');
+  if(hsl) hsl.textContent='4 '+t('steps_lbl');
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   /* Mostrar header */
 (function(){
@@ -992,6 +1008,31 @@ function render(r){
     if(val && el) el.value=val;
   });
 
+  /* ── Actualizar header: estados de pasos y tabs (igual que checkin-online) ── */
+  (function(){
+    function truthy(v){if(!v&&v!==0)return false;
+      return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+    var s1=truthy(g('TaBookings2021_Arrivalform_done'));
+    var s2=truthy(g('TaBookings2021_Registro_policia_done'));
+    var s3=truthy(g('TaBookings2021_Security_deposit_terminado'));
+    var s4=truthy(g('TaBookings2021_Ecotasa_cobrada'));
+    var states=[s1,s2,s3,s4];
+    states.forEach(function(done,i){
+      var n=i+1;
+      var hpd=$('hpd'+n); if(hpd) hpd.className='pt-circle '+(done?'done':'pend');
+      var hpl=$('hpl'+n); if(hpl) hpl.className='pt-line'+(done?' done':'');
+      var hpdl=$('hpdl'+n); if(hpdl) hpdl.className='pt-label'+(done?' done':'');
+    });
+    /* Tab Keys: verde si todos hechos */
+    var allDone=s1&&s2&&s3&&s4;
+    var tab5=$('tab5');
+    if(tab5) tab5.className='hdr-tab keys'+(allDone?' done-tab':'');
+    /* Mostrar hdrTabs, hdrSteps, langWrap */
+    var ht=$('hdrTabs'); if(ht) ht.style.display='flex';
+    var hs=$('hdrSteps'); if(hs) hs.style.display='flex';
+    var sl=$('hdrStepsLbl'); if(sl) sl.style.display='block';
+    var lw=$('langWrap'); if(lw) lw.style.display='block';
+  })();
   $('stLoad').style.display='none';
   $('content').style.display='block';
 }
@@ -1112,4 +1153,4 @@ if(typeof CheckinAuth==='undefined'){
      Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
      Mismo diseño y tipografía Montserrat que checkin-online v33.
      Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v41 - Desde v39 (auth OK): header exacto CO, footer+waFloat, botón Guardar | v39 - Header/footer checkin-online añadidos correctamente (sin div#content duplicado) | v37 - Copia estable de v36 (versión de referencia) | v36 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v35 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v34 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v33 - versión anterior -->
+<!-- HISTORIAL: v42 - Header igual que CO: truthy+updateTabStates en render(), dot labels en applyLang | v41 - Desde v39 (auth OK): header exacto CO, footer+waFloat, botón Guardar | v39 - Header/footer checkin-online añadidos correctamente (sin div#content duplicado) | v37 - Copia estable de v36 (versión de referencia) | v36 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v35 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v34 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v33 - versión anterior -->
