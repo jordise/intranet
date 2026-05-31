@@ -1,7 +1,7 @@
-/* checkin-auth.js v5 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v6 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
-      → pantalla verificación email → PIN → sesión guardada en sessionStorage → onVerified(booking)
+      → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
    2. Páginas hijas (checkin-arrival, police, deposit, taxes):
       → si hay sesión válida → cargar datos del Worker directamente, SIN pedir PIN de nuevo
       → si no hay sesión → redirigir a checkin-online con el code en la URL
@@ -12,7 +12,7 @@ const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const SESSION_TTL = 4 * 60 * 60 * 1000; // 4h
+  const SESSION_TTL = 15 * 24 * 60 * 60 * 1000; // 15 días
   const MAX_ATT     = 5;
   const CHECKIN_MAIN = 'checkin-online.html'; // página principal
 
@@ -240,17 +240,17 @@ const CheckinAuth = (function(){
   /* ── Session ── */
   function getSession(code){
     try {
-      const s = sessionStorage.getItem(SESSION_KEY);
+      const s = localStorage.getItem(SESSION_KEY);
       if(!s) return null;
       const obj = JSON.parse(s);
-      if(Date.now() > obj.expires){ sessionStorage.removeItem(SESSION_KEY); return null; }
+      if(Date.now() > obj.expires){ localStorage.removeItem(SESSION_KEY); return null; }
       /* Si se pasa code específico, verificar que coincide */
       if(code && obj.code !== code){ return null; }
       return obj;
     } catch(e){ return null; }
   }
   function setSession(code, pin){
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
       code, pin, expires: Date.now() + SESSION_TTL
     }));
   }
@@ -547,7 +547,7 @@ const CheckinAuth = (function(){
               .then(booking => { if(_cb) _cb(booking); })
               .catch(() => {
                 /* Sesión caducada o inválida → pedir verificación de nuevo */
-                sessionStorage.removeItem(SESSION_KEY);
+                localStorage.removeItem(SESSION_KEY);
                 inject();
               });
           };
@@ -576,7 +576,7 @@ const CheckinAuth = (function(){
           loadBookingData(sess.code, sess.pin)
             .then(booking => { if(_cb) _cb(booking); })
             .catch(() => {
-              sessionStorage.removeItem(SESSION_KEY);
+              localStorage.removeItem(SESSION_KEY);
               redirectToMain(sess.code);
             });
         };
@@ -603,3 +603,5 @@ const CheckinAuth = (function(){
   };
 
 })();
+
+================
