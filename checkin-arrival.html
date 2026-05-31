@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v36 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v37 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Arrival Form v36 — 3Villas</title>
+  <title>Arrival Form v37 — 3Villas</title>
   <!-- checkin-arrival.html v1 — 28/05/2026
        Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
        Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
@@ -727,6 +727,10 @@ function applyLang(lang){
   });
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   if(typeof CheckinAuth !== 'undefined' && CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  /* Sincronizar idioma en la cabecera compartida */
+  if(typeof updateCheckinHeader==='function' && typeof _code!=='undefined' && _code){
+    updateCheckinHeader({code:_code,lang:lang,active:1});
+  }
 }
 
 function initLang(){
@@ -789,6 +793,15 @@ function render(r){
 
   $('stLoad').style.display='none';
   $('content').style.display='block';
+
+  /* ── Actualizar cabecera compartida ── */
+  var _s1=truthy(r['TaBookings2021_Arrivalform_done']);
+  var _s2=truthy(r['TaBookings2021_Registro_policia_done']);
+  var _s3=truthy(r['TaBookings2021_Security_deposit_terminado']);
+  var _s4=truthy(r['TaBookings2021_Ecotasa_cobrada']);
+  if(typeof updateCheckinHeader==='function'){
+    updateCheckinHeader({code:_code,s1:_s1,s2:_s2,s3:_s3,s4:_s4,active:1,allDone:_s1&&_s2&&_s3&&_s4,lang:_currentLang});
+  }
 }
 
 /* ════ SUBMIT ════ */
@@ -849,6 +862,10 @@ async function submitForm(){
     $('content').style.display='none';
     $('stSuccess').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
+    /* Marcar step 1 como done en la cabecera */
+    if(typeof updateCheckinHeader==='function'){
+      updateCheckinHeader({code:_code,s1:true,active:1,lang:_currentLang});
+    }
   }catch(err){
     errEl.textContent=t('err_save')+' ('+err.message+')';
     errEl.style.display='block';
@@ -879,31 +896,32 @@ if(typeof CheckinAuth==='undefined'){
   });
 }
 </script>
+
 <div id="site-footer"></div>
 
 <script>
-(function() {
-  var base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-  function inject(url, id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    fetch(base + url)
-      .then(function(r){ return r.text(); })
+/* ── Inject header y footer compartidos ── */
+(function(){
+  var base=window.location.href.substring(0,window.location.href.lastIndexOf('/')+1);
+  function inject(url,id){
+    var el=document.getElementById(id);
+    if(!el)return;
+    fetch(base+url)
+      .then(function(r){return r.text();})
       .then(function(html){
-        el.innerHTML = html;
+        el.innerHTML=html;
         el.querySelectorAll('script').forEach(function(s){
-          var ns = document.createElement('script');
-          ns.textContent = s.textContent;
+          var ns=document.createElement('script');
+          ns.textContent=s.textContent;
           document.body.appendChild(ns);
         });
       })
-      .catch(function(e){ console.warn('Error cargando ' + url, e); });
+      .catch(function(e){console.warn('Error cargando '+url,e);});
   }
-  inject('checkin_header.html', 'site-header');
-  inject('checkin_footer.html', 'site-footer');
+  inject('checkin_header.html','site-header');
+  inject('checkin_footer.html','site-footer');
 })();
 </script>
-
 </body>
 </html>
 <!-- checkin-arrival.html v1 — 28/05/2026
@@ -916,4 +934,4 @@ if(typeof CheckinAuth==='undefined'){
      Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
      Mismo diseño y tipografía Montserrat que checkin-online v33.
      Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v36 - Añadido checkin_header.html y checkin_footer.html (inject dinámico); eliminado page-header interno | v35 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v34 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v33 - versión anterior -->
+<!-- HISTORIAL: v37 - Header/footer compartidos via inject (checkin_header.html + checkin_footer.html); página-header interno eliminado; llamadas a updateCheckinHeader() en render(), applyLang() y submitForm() | v36 - Intento anterior de inject (revertido) | v35 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v34 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v33 - versión anterior -->
