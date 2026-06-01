@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Cobros Inquilinos v1 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .then(r => console.log('SW registrado:', r.scope))
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <style>
+    :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--blue:#1565c0;--blue-light:#e8f0fe;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+
+    /* ── Nav ── */
+    .top-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+    .nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+    .nav-logo img{height:26px;object-fit:contain}
+    .nav-center{flex:1;min-width:0;padding:0 6px}
+    .h-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+    .h-count{font-family:'Montserrat',sans-serif;font-size:11px;color:var(--gray-4);margin-top:1px}
+    .nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .nav-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;transition:background .15s}
+    .nav-menu-btn:hover{background:var(--red-dark)}
+    .user-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;text-decoration:none}
+
+    /* ── Filter panel ── */
+    #filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:12px 16px;position:sticky;top:48px;z-index:200;box-shadow:var(--shadow-sm)}
+    .filter-grid{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+    .f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+    .f-group.narrow{flex:0 0 130px}
+    .f-group.wide{flex:2;min-width:200px}
+    .f-label{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+    .f-input:focus,.f-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+    .f-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+    .pill-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+    .pill-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .pill-opts{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px}
+    .pill-opt{border:none;border-radius:18px;padding:4px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .pill-opt.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    .btn-buscar{height:36px;padding:0 18px;background:var(--red);color:#fff;border:none;border-radius:7px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0}
+    .btn-buscar:hover{background:var(--red-dark)}
+    .btn-clear-f{height:36px;padding:0 12px;background:none;border:1.5px solid var(--gray-2);border-radius:7px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+    .btn-clear-f:hover{border-color:var(--red);color:var(--red)}
+
+    /* ── Stats bar ── */
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    .stat{display:flex;align-items:baseline;gap:5px}
+    .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
+
+    /* ── States ── */
+    main{padding:18px 22px;max-width:1400px;margin:0 auto}
+    .state-box{text-align:center;padding:70px 20px;color:var(--gray-4)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner-3v{width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+
+    /* ── Tabla ── */
+    #tableWrap{display:none;overflow-x:auto;border-radius:12px;box-shadow:var(--shadow-sm)}
+    table{width:100%;border-collapse:collapse;background:#fff;font-size:13px;min-width:900px}
+    thead tr{background:var(--gray-5);color:#fff}
+    thead th{padding:10px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
+    thead th:hover{background:var(--red-dark)}
+    thead th .sort-icon{margin-left:4px;opacity:.5;font-size:9px}
+    thead th.sorted .sort-icon{opacity:1;color:#fff}
+    tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
+    tbody tr:hover{background:var(--gray-1)}
+    tbody tr:last-child{border-bottom:none}
+    tbody td{padding:9px 12px;vertical-align:middle}
+
+    /* ── Badges ── */
+    .bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+    .b-ok{background:var(--green-light);color:var(--green)}
+    .b-no{background:var(--red-light);color:var(--red)}
+    .b-pend{background:var(--orange-light);color:var(--orange)}
+    .b-na{background:var(--gray-2);color:var(--gray-4)}
+    .b-blue{background:var(--blue-light);color:var(--blue)}
+
+    /* ── Inline edit ── */
+    .inline-sel{height:28px;border:1.5px solid var(--gray-2);border-radius:6px;padding:0 6px;font-size:12px;color:var(--gray-5);background:#fff;outline:none;cursor:pointer;transition:border-color .15s}
+    .inline-sel:focus{border-color:var(--red)}
+    .inline-check{width:16px;height:16px;accent-color:var(--red);cursor:pointer}
+    .inline-txt{width:100%;min-width:120px;border:1.5px solid var(--gray-2);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--gray-5);background:#fff;outline:none;resize:vertical;transition:border-color .15s;font-family:'Open Sans',sans-serif}
+    .inline-txt:focus{border-color:var(--red)}
+    .save-indicator{font-size:10px;color:var(--green);font-family:'Montserrat',sans-serif;font-weight:700;margin-left:4px;opacity:0;transition:opacity .3s}
+    .save-indicator.show{opacity:1}
+
+    /* ── Links externos ── */
+    .ext-link{color:var(--blue);text-decoration:none;font-weight:600;font-size:12px}
+    .ext-link:hover{text-decoration:underline}
+
+    /* ── Agrupación por fecha ── */
+    .group-row td{background:var(--gray-1);padding:6px 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;color:var(--gray-4);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray-2)}
+
+    /* ── Pagination ── */
+    #pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px 0}
+    .pg-btn{background:#fff;border:1.5px solid var(--gray-2);border-radius:7px;padding:6px 14px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-5);cursor:pointer;transition:all .15s}
+    .pg-btn:hover:not(:disabled){border-color:var(--red);color:var(--red)}
+    .pg-btn:disabled{opacity:.4;cursor:default}
+    .pg-info{font-family:'Montserrat',sans-serif;font-size:12px;color:var(--gray-4)}
+
+    @media(max-width:700px){
+      #filterPanel{padding:10px 12px}
+      main{padding:12px 10px}
+      .f-group{min-width:calc(50% - 5px)}
+    }
+  </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('entradas');</script>
+
+<!-- ── Nav ── -->
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">
+    <img src="logo-negro.png" alt="3Villas">
+  </a>
+  <div class="nav-center">
+    <div class="h-title">💳 Control Cobros Inquilinos</div>
+    <div class="h-count"><span id="hCount"></span></div>
+  </div>
+  <div class="nav-btns">
+    <a class="user-pill" href="usuario-valores-por-defecto.html" style="cursor:pointer">⚙️ <span id="hUserName"></span></a>
+    <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
+  </div>
+</nav>
+
+<!-- ── Filter panel ── -->
+<div id="filterPanel">
+  <div class="filter-grid">
+
+    <div class="f-group narrow">
+      <span class="f-label">Código reserva</span>
+      <input class="f-input" id="fCode" type="text" placeholder="HAxxxxxxx" maxlength="30">
+    </div>
+
+    <div class="f-group narrow">
+      <span class="f-label">Transaction ID</span>
+      <input class="f-input" id="fTxId" type="text" placeholder="pi_xxx..." maxlength="100">
+    </div>
+
+    <div class="f-group narrow">
+      <span class="f-label">Fecha cobro desde</span>
+      <input class="f-input" id="fDateFrom" type="date">
+    </div>
+
+    <div class="f-group narrow">
+      <span class="f-label">hasta</span>
+      <input class="f-input" id="fDateTo" type="date">
+    </div>
+
+    <div class="f-group narrow">
+      <span class="f-label">Depósito cobrado</span>
+      <select class="f-select" id="fDepCobrado">
+        <option value="">Todos</option>
+        <option value="1" selected>Cobrado</option>
+        <option value="0">Pendiente</option>
+      </select>
+    </div>
+
+    <div class="pill-group">
+      <span class="pill-label">Depósito devuelto</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" data-val="" onclick="setPillDev(this)">Todos</button>
+        <button class="pill-opt" data-val="0" onclick="setPillDev(this)">Pendiente</button>
+        <button class="pill-opt" data-val="1" onclick="setPillDev(this)">Devuelto</button>
+      </div>
+    </div>
+
+    <div class="f-group narrow">
+      <span class="f-label">Deposit options</span>
+      <select class="f-select" id="fDepOptions">
+        <option value="">Todos</option>
+      </select>
+    </div>
+
+    <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
+    <button class="btn-clear-f" onclick="clearFilters()">✕ Limpiar</button>
+
+  </div>
+</div>
+
+<!-- ── Stats bar ── -->
+<div id="statsBar">
+  <div class="stat"><strong id="statTotal">0</strong> registros</div>
+  <div class="stat"><strong id="statDev">0</strong> devueltos</div>
+  <div class="stat"><strong id="statPend">0</strong> pendientes devolver</div>
+</div>
+
+<main>
+
+  <!-- Estado inicial -->
+  <div id="stInit" class="state-box">
+    <div style="font-size:48px;margin-bottom:12px">💳</div>
+    <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:700;color:var(--gray-5);margin-bottom:6px">Control de Cobros</div>
+    <div style="font-size:14px">Usa los filtros y pulsa <strong>Buscar</strong></div>
+  </div>
+
+  <!-- Cargando -->
+  <div id="stLoad" class="state-box" style="display:none">
+    <div class="spinner-3v"></div>
+    <div style="font-size:14px;color:var(--gray-4)">Cargando registros…</div>
+  </div>
+
+  <!-- Error -->
+  <div id="stErr" class="state-box" style="display:none">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <div id="errMsg" style="color:var(--red);font-weight:600"></div>
+  </div>
+
+  <!-- Sin resultados -->
+  <div id="stEmpty" class="state-box" style="display:none">
+    <div style="font-size:44px;margin-bottom:10px">🔍</div>
+    <div style="font-family:Montserrat,sans-serif;font-size:15px;font-weight:700;color:var(--gray-5);margin-bottom:6px">Sin resultados</div>
+    <div style="font-size:13px;color:var(--gray-4)">Prueba con otros filtros</div>
+  </div>
+
+  <!-- Tabla -->
+  <div id="tableWrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('date')" title="Ordenar por fecha">Fecha cobro<span class="sort-icon" id="si-date">↕</span></th>
+          <th onclick="sortBy('devuelto')" title="Ordenar por devolución">Devuelto<span class="sort-icon" id="si-devuelto">↕</span></th>
+          <th onclick="sortBy('villa')" title="Ordenar por villa">Villa<span class="sort-icon" id="si-villa">↕</span></th>
+          <th>Inquilino</th>
+          <th onclick="sortBy('checkin')" title="Ordenar por check-in">Check-in<span class="sort-icon" id="si-checkin">↕</span></th>
+          <th>Reserva</th>
+          <th>Stripe (Transaction ID)</th>
+          <th>Token ID</th>
+          <th>Dep. seguridad (€)</th>
+          <th>Dep. cobrado</th>
+          <th>Dep. options</th>
+          <th style="min-width:160px">Comentarios devolución</th>
+          <th>Dep. waver (€)</th>
+          <th>Dep. waver cobrado</th>
+          <th>Pago dep. waver</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  <div id="pagination" style="display:none">
+    <button class="pg-btn" id="pgPrev" onclick="goPage(-1)" disabled>← Anterior</button>
+    <span class="pg-info" id="pgInfo"></span>
+    <button class="pg-btn" id="pgNext" onclick="goPage(1)">Siguiente →</button>
+  </div>
+
+</main>
+
+<script>
+const WORKER  = 'https://caspio-proxy.jordi-89b.workers.dev';
+const VIEW    = 'Vi_bookings_and_payments_editboo';
+const PAGE_SZ = 24;
+
+let _allRecs   = [];
+let _filtered  = [];
+let _curPage   = 1;
+let _sortField = 'date';
+let _sortDir   = 'desc';
+let _devFilter = '';
+
+// Opciones de deposit options (se cargan dinámicamente)
+const DEP_OPTIONS_LABELS = {};  // id → description
+
+function $(id){ return document.getElementById(id); }
+
+// ── Auth: mostrar nombre de usuario ─────────────────────────
+window.addEventListener('load', () => {
+  if(typeof Auth !== 'undefined'){
+    const name = Auth.name ? Auth.name() : '';
+    if($('hUserName')) $('hUserName').textContent = name;
+  }
+  loadDepOptions();
+});
+
+// ── Deposit options: cargar de Caspio ────────────────────────
+async function loadDepOptions(){
+  try {
+    const url = Auth.url(`${WORKER}?action=data&table=TaSecurityDepositOptions&limit=100`);
+    const res = await fetch(url);
+    const json = await res.json();
+    const rows = json.Result || [];
+    const sel = $('fDepOptions');
+    rows.forEach(r => {
+      const id   = r['deposit_options_ID'] || r['TableID'] || '';
+      const desc = r['Option_description'] || r['TableName'] || String(id);
+      DEP_OPTIONS_LABELS[String(id)] = desc;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = desc;
+      sel.appendChild(opt);
+    });
+  } catch(e){ /* no bloquear */ }
+}
+
+// ── Pill devolución ──────────────────────────────────────────
+function setPillDev(btn){
+  document.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  _devFilter = btn.dataset.val;
+}
+
+// ── Limpiar filtros ──────────────────────────────────────────
+function clearFilters(){
+  $('fCode').value = '';
+  $('fTxId').value = '';
+  $('fDateFrom').value = '';
+  $('fDateTo').value = '';
+  $('fDepCobrado').value = '1';
+  $('fDepOptions').value = '';
+  setPillDev(document.querySelector('.pill-opt[data-val=""]'));
+}
+
+// ── Búsqueda ─────────────────────────────────────────────────
+async function doSearch(){
+  show('stLoad');
+  $('statsBar').style.display = 'none';
+  $('tableWrap').style.display = 'none';
+  $('pagination').style.display = 'none';
+  if($('hCount')) $('hCount').textContent = '';
+
+  try {
+    const clauses = [];
+
+    const code = $('fCode').value.trim();
+    if(code) clauses.push(`Ta_payments_HS_confirmation_code='${esc(code)}'`);
+
+    const txId = $('fTxId').value.trim();
+    if(txId) clauses.push(`Ta_payments_Transaction_ID='${esc(txId)}'`);
+
+    const df = $('fDateFrom').value;
+    if(df) clauses.push(`Ta_payments_Transactiaon_date>='${df}'`);
+
+    const dt = $('fDateTo').value;
+    if(dt) clauses.push(`Ta_payments_Transactiaon_date<='${dt}'`);
+
+    const depCob = $('fDepCobrado').value;
+    if(depCob !== '') clauses.push(`TaBookings2021_Security_deposit_cobrado=${depCob}`);
+
+    if(_devFilter !== ''){
+      if(_devFilter === '1') clauses.push(`TaBookings2021_Security_deposit_devuelto=true`);
+      else                   clauses.push(`TaBookings2021_Security_deposit_devuelto=false`);
+    }
+
+    const depOpt = $('fDepOptions').value;
+    if(depOpt !== '') clauses.push(`TaBookings2021_Security_deposit_options=${depOpt}`);
+
+    const where = clauses.join(' AND ');
+    const url   = Auth.url(
+      `${WORKER}?action=view&view=${VIEW}&limit=500${where ? '&where='+encodeURIComponent(where) : ''}&orderBy=${encodeURIComponent('Ta_payments_Transactiaon_date DESC')}`
+    );
+
+    const res  = await fetch(url);
+    const json = await res.json();
+    _allRecs   = json.Result || json.result || [];
+
+    if(!_allRecs.length){ show('stEmpty'); return; }
+
+    _curPage = 1;
+    renderTable();
+    updateStats();
+
+  } catch(err){
+    show('stErr');
+    if($('errMsg')) $('errMsg').textContent = err.message;
+  }
+}
+
+// ── Render tabla ─────────────────────────────────────────────
+function renderTable(){
+  // Ordenar
+  const recs = [..._allRecs].sort((a,b) => {
+    let va, vb;
+    if(_sortField === 'date'){
+      va = a['Ta_payments_Transactiaon_date'] || '';
+      vb = b['Ta_payments_Transactiaon_date'] || '';
+    } else if(_sortField === 'devuelto'){
+      va = a['TaBookings2021_Security_deposit_devuelto'] ? 1 : 0;
+      vb = b['TaBookings2021_Security_deposit_devuelto'] ? 1 : 0;
+    } else if(_sortField === 'villa'){
+      va = a['TaBookings2021_Property_Title'] || '';
+      vb = b['TaBookings2021_Property_Title'] || '';
+    } else if(_sortField === 'checkin'){
+      va = a['TaBookings2021_Checkin'] || '';
+      vb = b['TaBookings2021_Checkin'] || '';
+    }
+    if(va < vb) return _sortDir === 'asc' ? -1 : 1;
+    if(va > vb) return _sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  // Paginar
+  const total   = recs.length;
+  const pages   = Math.ceil(total / PAGE_SZ);
+  const start   = (_curPage - 1) * PAGE_SZ;
+  const pagRecs = recs.slice(start, start + PAGE_SZ);
+
+  const tbody = $('tableBody');
+  tbody.innerHTML = '';
+
+  let lastDate = '';
+  pagRecs.forEach(r => {
+    const txDate = fmtDate(r['Ta_payments_Transactiaon_date']);
+
+    // Fila de agrupación por fecha
+    if(txDate !== lastDate){
+      lastDate = txDate;
+      const gr = document.createElement('tr');
+      gr.className = 'group-row';
+      gr.innerHTML = `<td colspan="15">📅 ${txDate || '—'}</td>`;
+      tbody.appendChild(gr);
+    }
+
+    const devuelto  = isTruthy(r['TaBookings2021_Security_deposit_devuelto']);
+    const depCobr   = r['TaBookings2021_Security_deposit_cobrado'];
+    const rowId     = r['Ta_payments_Transaction_ID'] || r['Ta_payments_ID'] || Math.random();
+    const bookCode  = r['Ta_payments_HS_confirmation_code'] || '';
+    const txId      = r['Ta_payments_Transaction_ID'] || '';
+    const villa     = r['TaBookings2021_Property_Title'] || '—';
+    const nombre    = [r['TaBookings2021_Fiscal_guest_name']||'', r['TaBookings2021_Fiscal_guest_surename']||''].filter(Boolean).join(' ') || '—';
+    const checkin   = fmtDate(r['TaBookings2021_Checkin']);
+    const depEUR    = r['TaBookings2021_Security_deposit_EUR'];
+    const depOpt    = r['TaBookings2021_Security_deposit_options'];
+    const comentDev = r['TaBookings2021_Comentarios_devolucion_deposito'] || '';
+    const waverEUR  = r['TaBookings2021_Deposit_waver_EUR'];
+    const waverCob  = r['TaBookings2021_Deposit_waver_cobrado'];
+    const pagoWaver = r['Ta_payments_Pago_deposit_waiver'];
+    const tokenId   = r['Ta_payments_Token_id'] || '';
+    const safeId    = CSS.escape ? CSS.escape(String(rowId)) : String(rowId).replace(/[^a-zA-Z0-9_-]/g,'_');
+
+    const tr = document.createElement('tr');
+    tr.dataset.txId = String(rowId);
+    tr.innerHTML = `
+      <td style="white-space:nowrap;font-size:12px">${txDate || '—'}</td>
+      <td>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" class="inline-check" ${devuelto ? 'checked' : ''}
+            onchange="saveDevuelto(this, '${esc(bookCode)}')">
+          <span class="bdg ${devuelto ? 'b-ok' : 'b-no'}">${devuelto ? '✓ Devuelto' : '✗ Pendiente'}</span>
+        </label>
+      </td>
+      <td style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">${villa}</td>
+      <td style="font-size:12px">${nombre}</td>
+      <td style="white-space:nowrap;font-size:12px">${checkin}</td>
+      <td>
+        ${bookCode
+          ? `<a class="ext-link" href="https://dashboard.hostaway.com/reservations/${esc(bookCode)}" target="_blank">${esc(bookCode)}</a>`
+          : '—'}
+      </td>
+      <td>
+        ${txId
+          ? `<a class="ext-link" href="https://dashboard.stripe.com/payments/${esc(txId)}" target="_blank" title="${esc(txId)}">${esc(txId.slice(0,18))}…</a>`
+          : '—'}
+      </td>
+      <td>
+        <input class="inline-txt" style="min-width:80px;height:28px;resize:none"
+          value="${esc(tokenId)}"
+          onchange="saveField(this, '${esc(bookCode)}', 'Token_id')">
+        <span class="save-indicator" id="si-tok-${safeId}">✓</span>
+      </td>
+      <td style="text-align:right;font-family:Montserrat,sans-serif;font-weight:700">
+        ${depEUR != null ? fmtEUR(depEUR) : '—'}
+      </td>
+      <td>${badgeCobrado(depCobr)}</td>
+      <td style="font-size:12px">${DEP_OPTIONS_LABELS[String(depOpt)] || (depOpt != null ? String(depOpt) : '—')}</td>
+      <td>
+        <textarea class="inline-txt" rows="2" style="min-width:140px"
+          onchange="saveComent(this, '${esc(bookCode)}')">${esc(comentDev)}</textarea>
+        <span class="save-indicator" id="si-com-${safeId}">✓</span>
+      </td>
+      <td style="text-align:right;font-family:Montserrat,sans-serif;font-weight:700">
+        ${waverEUR != null ? fmtEUR(waverEUR) : '—'}
+      </td>
+      <td>${badgeCobrado(waverCob)}</td>
+      <td>${badgeCobrado(pagoWaver)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Mostrar tabla
+  show('');
+  $('tableWrap').style.display = 'block';
+
+  // Paginación
+  if(pages > 1){
+    $('pagination').style.display = 'flex';
+    $('pgInfo').textContent = `Página ${_curPage} de ${pages}`;
+    $('pgPrev').disabled = _curPage <= 1;
+    $('pgNext').disabled = _curPage >= pages;
+  } else {
+    $('pagination').style.display = 'none';
+  }
+
+  // Icono de orden
+  ['date','devuelto','villa','checkin'].forEach(f => {
+    const el = $('si-'+f);
+    if(!el) return;
+    if(f === _sortField) el.textContent = _sortDir === 'asc' ? '↑' : '↓';
+    else el.textContent = '↕';
+    el.closest('th').classList.toggle('sorted', f === _sortField);
+  });
+
+  if($('hCount')) $('hCount').textContent = `${total} registros`;
+}
+
+// ── Stats ────────────────────────────────────────────────────
+function updateStats(){
+  const devueltos = _allRecs.filter(r => isTruthy(r['TaBookings2021_Security_deposit_devuelto'])).length;
+  $('statTotal').textContent  = _allRecs.length;
+  $('statDev').textContent    = devueltos;
+  $('statPend').textContent   = _allRecs.length - devueltos;
+  $('statsBar').style.display = 'flex';
+}
+
+// ── Guardado inline ──────────────────────────────────────────
+async function saveDevuelto(chk, bookCode){
+  const val = chk.checked;
+  // Actualizar badge visualmente
+  const bdg = chk.nextElementSibling;
+  if(bdg){ bdg.className = 'bdg ' + (val ? 'b-ok' : 'b-no'); bdg.textContent = val ? '✓ Devuelto' : '✗ Pendiente'; }
+  try {
+    const where = `TaBookings2021_FS_confirmation_code='${esc(bookCode)}'`;
+    const url   = Auth.url(`${WORKER}?action=save&table=TaBookings2021&method=PUT&where=${encodeURIComponent(where)}`);
+    await fetch(url, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ Security_deposit_devuelto: val ? true : false })
+    });
+    // Actualizar en memoria
+    const rec = _allRecs.find(r => (r['Ta_payments_HS_confirmation_code']||r['TaBookings2021_FS_confirmation_code']||'') === bookCode);
+    if(rec) rec['TaBookings2021_Security_deposit_devuelto'] = val;
+    updateStats();
+  } catch(e){ console.error('saveDevuelto:', e); }
+}
+
+async function saveField(input, bookCode, field){
+  const val   = input.value.trim();
+  const rowId = input.closest('tr').dataset.txId;
+  const safeId = rowId.replace(/[^a-zA-Z0-9_-]/g,'_');
+  try {
+    const where = `TaBookings2021_FS_confirmation_code='${esc(bookCode)}'`;
+    const url   = Auth.url(`${WORKER}?action=save&table=Ta_payments&method=PUT&where=${encodeURIComponent(where)}`);
+    await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({[field]: val}) });
+    flashSave('si-tok-'+safeId);
+  } catch(e){ console.error('saveField:', e); }
+}
+
+async function saveComent(ta, bookCode){
+  const val   = ta.value;
+  const rowId = ta.closest('tr').dataset.txId;
+  const safeId = rowId.replace(/[^a-zA-Z0-9_-]/g,'_');
+  try {
+    const where = `TaBookings2021_FS_confirmation_code='${esc(bookCode)}'`;
+    const url   = Auth.url(`${WORKER}?action=save&table=TaBookings2021&method=PUT&where=${encodeURIComponent(where)}`);
+    await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({Comentarios_devolucion_deposito: val}) });
+    flashSave('si-com-'+safeId);
+  } catch(e){ console.error('saveComent:', e); }
+}
+
+function flashSave(id){
+  const el = $(id);
+  if(!el) return;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ── Ordenación ───────────────────────────────────────────────
+function sortBy(field){
+  if(_sortField === field) _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  else { _sortField = field; _sortDir = 'asc'; }
+  renderTable();
+}
+
+// ── Paginación ───────────────────────────────────────────────
+function goPage(dir){
+  const pages = Math.ceil(_allRecs.length / PAGE_SZ);
+  _curPage = Math.max(1, Math.min(pages, _curPage + dir));
+  renderTable();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ── UI helpers ───────────────────────────────────────────────
+function show(st){
+  ['stInit','stLoad','stErr','stEmpty'].forEach(id => {
+    const el = $(id);
+    if(el) el.style.display = (id === st ? '' : 'none');
+  });
+}
+
+function isTruthy(v){ return !!(v && ['1','-1','true','yes'].includes(String(v).toLowerCase())); }
+
+function fmtDate(v){
+  if(!v) return '—';
+  try { return new Date(v).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+  catch(e){ return String(v).slice(0,10); }
+}
+
+function fmtEUR(v){
+  const n = parseFloat(v);
+  if(isNaN(n)) return '—';
+  return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+}
+
+function badgeCobrado(v){
+  if(v == null || v === '') return '<span class="bdg b-na">—</span>';
+  const n = parseInt(v);
+  if(n === 1) return '<span class="bdg b-ok">✓ Cobrado</span>';
+  if(n === 0) return '<span class="bdg b-no">✗ Pendiente</span>';
+  return `<span class="bdg b-na">${v}</span>`;
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// ── Enter en los campos lanza búsqueda ───────────────────────
+['fCode','fTxId','fDateFrom','fDateTo'].forEach(id => {
+  const el = $(id);
+  if(el) el.addEventListener('keydown', e => { if(e.key === 'Enter') doSearch(); });
+});
+
+// ── Búsqueda inicial al cargar (con filtro por defecto: cobrado=1) ──
+window.addEventListener('load', () => { setTimeout(doSearch, 400); });
+</script>
+
+<!-- HISTORIAL: v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+</body>
+</html>
