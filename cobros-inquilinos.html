@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v3 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v2 — 3Villas</title>
+  <title>Control Cobros Inquilinos v3 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -170,8 +170,8 @@
     <div class="f-group narrow">
       <span class="f-label">Depósito cobrado</span>
       <select class="f-select" id="fDepCobrado">
-        <option value="">Todos</option>
-        <option value="1" selected>Cobrado</option>
+        <option value="" selected>Todos</option>
+        <option value="1">Cobrado</option>
         <option value="0">Pendiente</option>
       </select>
     </div>
@@ -344,7 +344,7 @@ async function doSearch(){
     const clauses = [];
 
     const code = $('fCode').value.trim();
-    if(code) clauses.push(`Ta_payments_HS_confirmation_code='${esc(code)}'`);
+    if(code) clauses.push(`TaBookings2021_FS_confirmation_code='${esc(code)}'`);
 
     const txId = $('fTxId').value.trim();
     if(txId) clauses.push(`Ta_payments_Transaction_ID='${esc(txId)}'`);
@@ -367,6 +367,7 @@ async function doSearch(){
     if(depOpt !== '') clauses.push(`TaBookings2021_Security_deposit_options=${depOpt}`);
 
     const where = clauses.join(' AND ');
+    console.log('[cobros] WHERE:', where);
     const url   = Auth.url(
       `${WORKER}?action=view&view=${VIEW}&limit=500${where ? '&where='+encodeURIComponent(where) : ''}&orderBy=${encodeURIComponent('Ta_payments_Transactiaon_date DESC')}`
     );
@@ -435,7 +436,7 @@ function renderTable(){
     const devuelto  = isTruthy(r['TaBookings2021_Security_deposit_devuelto']);
     const depCobr   = r['TaBookings2021_Security_deposit_cobrado'];
     const rowId     = r['Ta_payments_Transaction_ID'] || r['Ta_payments_ID'] || Math.random();
-    const bookCode  = r['Ta_payments_HS_confirmation_code'] || '';
+    const bookCode  = r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '';
     const txId      = r['Ta_payments_Transaction_ID'] || '';
     const villa     = r['TaBookings2021_Property_Title'] || '—';
     const nombre    = [r['TaBookings2021_Fiscal_guest_name']||'', r['TaBookings2021_Fiscal_guest_surename']||''].filter(Boolean).join(' ') || '—';
@@ -649,6 +650,6 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 window.addEventListener('load', () => { setTimeout(doSearch, 400); });
 </script>
 
-<!-- HISTORIAL: v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
