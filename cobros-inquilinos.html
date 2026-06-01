@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v15 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v16 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v15 — 3Villas</title>
+  <title>Control Cobros Inquilinos v16 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -115,7 +115,32 @@
     .pg-btn:disabled{opacity:.4;cursor:default}
     .pg-info{font-family:'Montserrat',sans-serif;font-size:12px;color:var(--gray-4)}
 
-    .desg-line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 0;font-size:11px;border-bottom:1px solid var(--gray-2)}
+    /* ── Selector de vista ── */
+    .view-toggle{display:flex;background:var(--gray-2);border-radius:20px;padding:2px;gap:1px;flex-shrink:0}
+    .vp{border:none;border-radius:18px;width:36px;height:32px;font-size:15px;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;display:flex;align-items:center;justify-content:center;padding:0}
+    .vp.on{background:#fff;color:var(--gray-5);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+    /* ── Grid fichas ── */
+    #cardsView{display:none;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+    #cardsView.active{display:grid}
+    .ficha{background:#fff;border-radius:14px;box-shadow:var(--shadow-md);overflow:hidden;border-top:3px solid var(--blue)}
+    .ficha-head{background:var(--blue);color:#fff;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .ficha-villa{font-family:Montserrat,sans-serif;font-size:13px;font-weight:900;text-transform:uppercase}
+    .ficha-code{font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:4px;font-family:Montserrat,sans-serif;font-weight:700}
+    .ficha-sect{padding:10px 14px;border-bottom:1px solid var(--gray-2)}
+    .ficha-sect:last-child{border-bottom:none}
+    .ficha-sect-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:6px}
+    .ficha-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;border-bottom:1px solid var(--gray-2)}
+    .ficha-row:last-child{border-bottom:none}
+    .ficha-lbl{color:var(--gray-4);font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase}
+    .ficha-val{color:var(--gray-5);font-weight:600;text-align:right}
+    .ficha-val.money{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--gray-5)}
+    .ficha-val.big{font-size:16px;font-weight:900;font-family:Montserrat,sans-serif}
+    .ficha-ext{color:var(--blue);text-decoration:none;font-weight:700}
+    .ficha-ext:hover{text-decoration:underline}
+    .empty-grid{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--gray-4)}
+
+        .desg-line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 0;font-size:11px;border-bottom:1px solid var(--gray-2)}
     .desg-line:last-child{border-bottom:none}
     .desg-lbl{color:var(--gray-4);font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
     .desg-eur{color:var(--gray-5);font-family:Montserrat,sans-serif;font-weight:800;white-space:nowrap}
@@ -143,6 +168,10 @@
   </div>
   <div class="nav-btns">
     <a class="user-pill" href="usuario-valores-por-defecto.html" style="cursor:pointer">⚙️ <span id="hUserName"></span></a>
+    <div class="view-toggle">
+      <button class="vp on" id="vpT" onclick="setView('table')" title="Tabla">≡</button>
+      <button class="vp" id="vpF" onclick="setView('cards')" title="Fichas">⊞</button>
+    </div>
     <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
   </div>
 </nav>
@@ -224,6 +253,15 @@
       </select>
     </div>
 
+    <div class="pill-group">
+      <span class="pill-label">Cobros</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" data-val="con" onclick="setPillCobros(this)">Con cobros</button>
+        <button class="pill-opt" data-val="sin" onclick="setPillCobros(this)">Sin cobros</button>
+        <button class="pill-opt" data-val="" onclick="setPillCobros(this)">Todos</button>
+      </div>
+    </div>
+
     <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
     <button class="btn-clear-f" onclick="clearFilters()">✕ Limpiar</button>
 
@@ -266,6 +304,9 @@
   </div>
 
   <!-- Tabla -->
+  <!-- Grid fichas -->
+  <div id="cardsView"></div>
+
   <div id="tableWrap">
     <table id="mainTable">
       <thead>
@@ -315,6 +356,8 @@ let _curPage   = 1;
 let _sortField = 'date';
 let _sortDir   = 'desc';
 let _devFilter = '';
+let _cobrosFilter = 'con';  // 'con' | 'sin' | ''
+let _viewMode = 'table';    // 'table' | 'cards'
 
 // Opciones de deposit options (se cargan dinámicamente)
 const DEP_OPTIONS_LABELS = {};  // id → description
@@ -351,6 +394,28 @@ async function loadDepOptions(){
 }
 
 // ── Pill devolución ──────────────────────────────────────────
+function setPillCobros(btn){
+  document.querySelectorAll('.pill-opt[data-val="con"],[data-val="sin"],[data-val=""]').forEach(b => {
+    if(b.dataset.val === 'con' || b.dataset.val === 'sin' || b.dataset.val === '') b.classList.remove('on');
+  });
+  // Solo desactivar los del grupo de cobros
+  btn.parentElement.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  _cobrosFilter = btn.dataset.val;
+}
+
+function setView(mode){
+  _viewMode = mode;
+  const vT = $('vpT'), vF = $('vpF');
+  if(vT) vT.classList.toggle('on', mode === 'table');
+  if(vF) vF.classList.toggle('on', mode === 'cards');
+  const tw = $('tableWrap'), pg = $('pagination'), cv = $('cardsView');
+  if(tw) tw.style.display = (mode === 'table' && _allRecs.length) ? 'block' : 'none';
+  if(pg) pg.style.display = (mode === 'table' && _allRecs.length > 24) ? 'flex' : 'none';
+  if(cv) cv.classList.toggle('active', mode === 'cards');
+  if(mode === 'cards') renderCards();
+}
+
 function setPillDev(btn){
   document.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
@@ -370,6 +435,13 @@ function clearFilters(){
   $('fDepOptions').value  = '';
   $('fStatus').value      = 'no-cancelled';
   setPillDev(document.querySelector('.pill-opt[data-val=""]'));
+  _cobrosFilter = 'con';
+  document.querySelectorAll('#filterPanel .pill-opts').forEach(g => {
+    g.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
+  });
+  document.querySelector('.pill-opt[data-val=""]').classList.add('on');
+  const cobBtn = document.querySelector('.pill-opt[data-val="con"]');
+  if(cobBtn){ cobBtn.closest('.pill-opts').querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobBtn.classList.add('on'); }
 }
 
 // ── Búsqueda ─────────────────────────────────────────────────
@@ -420,6 +492,10 @@ async function doSearch(){
     if(status === 'no-cancelled') clauses.push(`TaBookings2021_BookingStatus<>'cancelled'`);
     else if(status !== '')        clauses.push(`TaBookings2021_BookingStatus='${esc(status)}'`);
 
+    // Filtro cobros: con cobros (Payment_ID NOT NULL) / sin cobros (NULL)
+    if(_cobrosFilter === 'con')      clauses.push(`Ta_payments_Payment_ID IS NOT NULL`);
+    else if(_cobrosFilter === 'sin') clauses.push(`Ta_payments_Payment_ID IS NULL`);
+
     const where = clauses.join(' AND ');
     console.log('[cobros WHERE]', where);
 
@@ -438,6 +514,7 @@ async function doSearch(){
     _curPage = 1;
     renderTable();
     updateStats();
+    setView(_viewMode);
 
   } catch(err){
     show('stErr');
@@ -725,6 +802,64 @@ function fmtDepOption(r){
   return `<span class="bdg b-blue" style="white-space:normal;text-align:left">${label||'—'}${eurStr}</span>`;
 }
 
+function renderCards(){
+  const cv = $('cardsView');
+  if(!cv) return;
+  if(!_allRecs.length){ cv.innerHTML = '<div class="empty-grid"><div style="font-size:40px;margin-bottom:10px">🔍</div><div>Sin resultados</div></div>'; return; }
+  cv.innerHTML = _allRecs.map(r => {
+    const bookCode  = r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '';
+    const txId      = r['Ta_payments_Transaction_ID'] || '';
+    const villa     = r['TaBookings2021_Property_Title'] || '—';
+    const nombre    = [r['TaBookings2021_Fiscal_guest_name']||'', r['TaBookings2021_Fiscal_guest_surename']||''].filter(Boolean).join(' ') || r['TaBookings2021_Guest_Full_Name'] || '—';
+    const checkin   = fmtDate(r['TaBookings2021_Checkin']);
+    const txDate    = fmtDate(r['Ta_payments_Transactiaon_date']);
+    const status    = r['TaBookings2021_BookingStatus'] || '';
+    const devuelto  = isTruthy(r['TaBookings2021_Security_deposit_devuelto']);
+    const importe   = r['Ta_payments_Importe'];
+    const depEUR    = r['TaBookings2021_Security_deposit_EUR'];
+    const depOpt    = r['TaBookings2021_Security_deposit_options'];
+    const comentDev = r['TaBookings2021_Comentarios_devolucion_deposito'] || '';
+    const waverEUR  = r['TaBookings2021_Deposit_waver_EUR'];
+
+    return `<div class="ficha">
+      <div class="ficha-head">
+        <div class="ficha-villa">${esc(villa)}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="bdg ${badgeStatus(status)}">${esc(status)||'—'}</span>
+          ${bookCode ? `<a class="ficha-code" href="https://dashboard.hostaway.com/reservations/${esc(bookCode)}" target="_blank">${esc(bookCode)}</a>` : ''}
+        </div>
+      </div>
+
+      <div class="ficha-sect">
+        <div class="ficha-sect-title">Inquilino</div>
+        <div class="ficha-row"><span class="ficha-lbl">Nombre</span><span class="ficha-val">${esc(nombre)}</span></div>
+        <div class="ficha-row"><span class="ficha-lbl">Check-in</span><span class="ficha-val">${checkin}</span></div>
+      </div>
+
+      <div class="ficha-sect">
+        <div class="ficha-sect-title">💳 Pago</div>
+        <div class="ficha-row"><span class="ficha-lbl">Fecha cobro</span><span class="ficha-val">${txDate}</span></div>
+        <div class="ficha-row"><span class="ficha-lbl">Total</span><span class="ficha-val money">${importe != null ? fmtEUR(importe) : '—'}</span></div>
+        <div class="ficha-row"><span class="ficha-lbl">Stripe ID</span><span class="ficha-val">${txId ? `<a class="ficha-ext" href="https://dashboard.stripe.com/payments/${esc(txId)}" target="_blank">${esc(txId.slice(0,20))}…</a>` : '—'}</span></div>
+        <div class="ficha-sect-title" style="margin-top:8px">Desglose</div>
+        ${fmtDesglose(r)}
+      </div>
+
+      <div class="ficha-sect">
+        <div class="ficha-sect-title">🏦 Depósito seguridad</div>
+        <div class="ficha-row"><span class="ficha-lbl">Opción cliente</span><span class="ficha-val">${fmtDepOption(r)}</span></div>
+        <div class="ficha-row"><span class="ficha-lbl">Importe</span><span class="ficha-val money">${depEUR != null ? fmtEUR(depEUR) : '—'}</span></div>
+        <div class="ficha-row"><span class="ficha-lbl">Deposit waver</span><span class="ficha-val money">${waverEUR != null ? fmtEUR(waverEUR) : '—'}</span></div>
+        <div class="ficha-row">
+          <span class="ficha-lbl">Devuelto</span>
+          <span class="bdg ${devuelto ? 'b-ok' : 'b-no'}">${devuelto ? '✓ Devuelto' : '✗ Pendiente'}</span>
+        </div>
+        ${comentDev ? `<div style="margin-top:6px;font-size:11px;color:var(--gray-4);padding:4px 8px;background:var(--gray-1);border-radius:6px;border-left:2px solid var(--gray-3)">${esc(comentDev)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function badgeStatus(v){
   const s = String(v||'').toLowerCase();
   if(s==='confirmed')    return 'b-ok';
@@ -756,6 +891,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
