@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v21 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v22 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v21 — 3Villas</title>
+  <title>Control Cobros Inquilinos v22 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -123,7 +123,7 @@
     /* ── Grid fichas ── */
     #cardsView{display:none;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
     #cardsView.active{display:grid}
-    .ficha{background:#fff;border-radius:14px;box-shadow:var(--shadow-md);overflow:hidden;border-top:3px solid var(--blue)}
+    .ficha{background:#fff;border-radius:14px;box-shadow:var(--shadow-md);overflow:hidden}
     .ficha-head{background:var(--blue);color:#fff;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
     .ficha-villa{font-family:Montserrat,sans-serif;font-size:13px;font-weight:900;text-transform:uppercase}
     .ficha-code{font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:4px;font-family:Montserrat,sans-serif;font-weight:700}
@@ -459,13 +459,23 @@ async function doSearch(){
     const txId = $('fTxId').value.trim();
     if(txId) clauses.push(`Ta_payments_Transaction_ID='${esc(txId)}'`);
 
-    // Fecha cobro (campo Ta_payments) — solo si hay cobros, si no tienen fecha quedarían excluidos
+    // Fecha cobro según opción:
+    // con cobros → filtra por rango
+    // sin cobros → no aplica fecha (no tienen)
+    // todos      → filtra por rango OR NULL (con OR sin)
     const df = $('fDateFrom').value;
     const dt = $('fDateTo').value;
-    if(_cobrosFilter !== 'sin') {
+    if(_cobrosFilter === 'con') {
       if(df) clauses.push(`Ta_payments_Transactiaon_date>='${df}T00:00:00'`);
       if(dt) clauses.push(`Ta_payments_Transactiaon_date<='${dt}T23:59:59'`);
+    } else if(_cobrosFilter === '') {
+      // Todos: con cobro en rango OR sin cobro (NULL)
+      const desde = df ? `Ta_payments_Transactiaon_date>='${df}T00:00:00'` : '';
+      const hasta = dt ? `Ta_payments_Transactiaon_date<='${dt}T23:59:59'` : '';
+      const rango = [desde, hasta].filter(Boolean).join(' AND ');
+      if(rango) clauses.push(`(${rango} OR Ta_payments_Transactiaon_date IS NULL)`);
     }
+    // sin cobros → no se añade nada de fecha
 
     // Depósito cobrado
     const depCob = $('fDepCobrado').value;
@@ -490,9 +500,10 @@ async function doSearch(){
     if(status === 'no-cancelled') clauses.push(`TaBookings2021_BookingStatus<>'cancelled'`);
     else if(status !== '')        clauses.push(`TaBookings2021_BookingStatus='${esc(status)}'`);
 
-    // Filtro cobros: detectar por fecha de cobro (más fiable que Payment_ID)
+    // Detección cobros por fecha de transacción
     if(_cobrosFilter === 'con')      clauses.push(`Ta_payments_Transactiaon_date IS NOT NULL`);
     else if(_cobrosFilter === 'sin') clauses.push(`Ta_payments_Transactiaon_date IS NULL`);
+    // 'todos' → sin filtro adicional, el OR en fechas ya cubre ambos casos
 
     const where = clauses.join(' AND ');
     console.log('[cobros WHERE]', where);
@@ -820,7 +831,7 @@ function renderCards(){
     const waverEUR  = r['TaBookings2021_Deposit_waver_EUR'];
 
     return `<div class="ficha">
-      <div class="ficha-head">
+      <div class="ficha-head" style="background:${txId || r['Ta_payments_Transactiaon_date'] ? '#1e9e4e' : '#e07b00'}">
         <div class="ficha-villa">${esc(villa)}</div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="bdg ${badgeStatus(status)}">${esc(status)||'—'}</span>
@@ -889,6 +900,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
