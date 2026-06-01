@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v17 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v18 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v17 — 3Villas</title>
+  <title>Control Cobros Inquilinos v18 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -211,7 +211,7 @@
 
     <div class="pill-group">
       <span class="pill-label">Depósito devuelto</span>
-      <div class="pill-opts">
+      <div class="pill-opts" id="pillDevGroup">
         <button class="pill-opt on" data-val="" onclick="setPillDev(this);doSearch()">Todos</button>
         <button class="pill-opt" data-val="0" onclick="setPillDev(this);doSearch()">Pendiente</button>
         <button class="pill-opt" data-val="1" onclick="setPillDev(this);doSearch()">Devuelto</button>
@@ -255,7 +255,7 @@
 
     <div class="pill-group">
       <span class="pill-label">Cobros</span>
-      <div class="pill-opts">
+      <div class="pill-opts" id="pillCobrosGroup">
         <button class="pill-opt on" data-val="con" onclick="setPillCobros(this);doSearch()">Con cobros</button>
         <button class="pill-opt" data-val="sin" onclick="setPillCobros(this);doSearch()">Sin cobros</button>
         <button class="pill-opt" data-val="" onclick="setPillCobros(this);doSearch()">Todos</button>
@@ -395,10 +395,6 @@ async function loadDepOptions(){
 
 // ── Pill devolución ──────────────────────────────────────────
 function setPillCobros(btn){
-  document.querySelectorAll('.pill-opt[data-val="con"],[data-val="sin"],[data-val=""]').forEach(b => {
-    if(b.dataset.val === 'con' || b.dataset.val === 'sin' || b.dataset.val === '') b.classList.remove('on');
-  });
-  // Solo desactivar los del grupo de cobros
   btn.parentElement.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   _cobrosFilter = btn.dataset.val;
@@ -417,7 +413,7 @@ function setView(mode){
 }
 
 function setPillDev(btn){
-  document.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
+  btn.parentElement.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   _devFilter = btn.dataset.val;
 }
@@ -434,14 +430,14 @@ function clearFilters(){
   $('fDepCobrado').value  = '';
   $('fDepOptions').value  = '';
   $('fStatus').value      = 'no-cancelled';
-  setPillDev(document.querySelector('.pill-opt[data-val=""]'));
+  // Reset pill devuelto
+  const devGroup = document.getElementById('pillDevGroup');
+  if(devGroup){ devGroup.querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); devGroup.querySelector('[data-val=""]').classList.add('on'); }
+  _devFilter = '';
+  // Reset pill cobros
+  const cobGroup = document.getElementById('pillCobrosGroup');
+  if(cobGroup){ cobGroup.querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobGroup.querySelector('[data-val="con"]').classList.add('on'); }
   _cobrosFilter = 'con';
-  document.querySelectorAll('#filterPanel .pill-opts').forEach(g => {
-    g.querySelectorAll('.pill-opt').forEach(b => b.classList.remove('on'));
-  });
-  document.querySelector('.pill-opt[data-val=""]').classList.add('on');
-  const cobBtn = document.querySelector('.pill-opt[data-val="con"]');
-  if(cobBtn){ cobBtn.closest('.pill-opts').querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobBtn.classList.add('on'); }
 }
 
 // ── Búsqueda ─────────────────────────────────────────────────
@@ -891,6 +887,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
