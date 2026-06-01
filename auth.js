@@ -135,6 +135,7 @@ const Auth = (function () {
     // ── MANUALES ───────────────────────────────────────────────
     // generar.html + manual-*.html → Auth.require('manuales')
     'manuales'              : ['admin', 'manager'],
+    'cobros-inquilinos'     : ['admin', 'manager'],
     'generar'               : ['admin', 'manager'],
 
     // ── CONFIGURACIÓN ──────────────────────────────────────────
