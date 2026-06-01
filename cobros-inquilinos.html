@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v12 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v11 — 3Villas</title>
+  <title>Control Cobros Inquilinos v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -376,63 +376,55 @@ async function doSearch(){
   try {
     const clauses = [];
 
+    // Código reserva
     const code = $('fCode').value.trim();
     if(code) clauses.push(`TaBookings2021_FS_confirmation_code='${esc(code)}'`);
 
+    // Transaction ID Stripe
     const txId = $('fTxId').value.trim();
     if(txId) clauses.push(`Ta_payments_Transaction_ID='${esc(txId)}'`);
 
+    // Fecha cobro (campo Ta_payments)
     const df = $('fDateFrom').value;
     if(df) clauses.push(`Ta_payments_Transactiaon_date>='${df}'`);
-
     const dt = $('fDateTo').value;
     if(dt) clauses.push(`Ta_payments_Transactiaon_date<='${dt}'`);
 
+    // Depósito cobrado
     const depCob = $('fDepCobrado').value;
     if(depCob !== '') clauses.push(`TaBookings2021_Security_deposit_cobrado=${depCob}`);
 
-    /* DESACTIVADO TEMPORALMENTE para debug
-    if(_devFilter !== ''){
-      if(_devFilter === '1') clauses.push(`TaBookings2021_Security_deposit_devuelto=-1`);
-      else                   clauses.push(`TaBookings2021_Security_deposit_devuelto=0`);
-    }
-    */
+    // Depósito devuelto
+    if(_devFilter === '1') clauses.push(`TaBookings2021_Security_deposit_devuelto=-1`);
+    else if(_devFilter === '0') clauses.push(`TaBookings2021_Security_deposit_devuelto=0`);
 
+    // Deposit options
     const depOpt = $('fDepOptions').value;
     if(depOpt !== '') clauses.push(`TaBookings2021_Security_deposit_options=${depOpt}`);
 
+    // Check-in desde/hasta
     const cfrom = $('fCheckinFrom').value;
     if(cfrom) clauses.push(`TaBookings2021_Checkin>='${cfrom}'`);
-
     const cto = $('fCheckinTo').value;
     if(cto) clauses.push(`TaBookings2021_Checkin<='${cto}'`);
 
+    // Estado reserva
     const status = $('fStatus').value;
     if(status === 'no-cancelled') clauses.push(`TaBookings2021_BookingStatus<>'cancelled'`);
     else if(status !== '')        clauses.push(`TaBookings2021_BookingStatus='${esc(status)}'`);
 
     const where = clauses.join(' AND ');
+    console.log('[cobros WHERE]', where);
 
-    // ── Paginación Caspio: máx 1000 por llamada, hasta 4000 registros ──
-    _allRecs = [];
-    const BATCH = 1000;
-    const MAX_PAGES = 4;
-    if($('hCount')) $('hCount').textContent = 'Cargando…';
+    const url = Auth.url(
+      `${WORKER}?action=view&view=${VIEW}&limit=1000` +
+      (where ? '&where=' + encodeURIComponent(where) : '') +
+      `&orderBy=${encodeURIComponent('Ta_payments_Transactiaon_date DESC')}`
+    );
 
-    for(let page = 0; page < MAX_PAGES; page++){
-      const url = Auth.url(
-        `${WORKER}?action=view&view=${VIEW}&limit=${BATCH}` +
-        (where ? '&where=' + encodeURIComponent(where) : '') +
-        `&orderBy=${encodeURIComponent('Ta_payments_Transactiaon_date DESC')}` +
-        `&pageNumber=${page + 1}`
-      );
-      const res  = await fetch(url);
-      const json = await res.json();
-      const rows = json.Result || json.result || [];
-      _allRecs = _allRecs.concat(rows);
-      if($('hCount')) $('hCount').textContent = `Cargando… ${_allRecs.length} registros`;
-      if(rows.length < BATCH) break; // última página
-    }
+    const res  = await fetch(url);
+    const json = await res.json();
+    _allRecs   = json.Result || json.result || [];
 
     if(!_allRecs.length){ show('stEmpty'); return; }
 
@@ -721,6 +713,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
