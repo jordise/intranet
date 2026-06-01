@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v22 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v24 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v22 — 3Villas</title>
+  <title>Control Cobros Inquilinos v24 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -163,15 +163,11 @@
     <img src="logo-negro.png" alt="3Villas">
   </a>
   <div class="nav-center">
-    <div class="h-title">💳 Control Cobros Inquilinos</div>
+    <div class="h-title">Control Cobros Inquilinos</div>
     <div class="h-count"><span id="hCount"></span></div>
   </div>
   <div class="nav-btns">
     <a class="user-pill" href="usuario-valores-por-defecto.html" style="cursor:pointer">⚙️ <span id="hUserName"></span></a>
-    <div class="view-toggle">
-      <button class="vp on" id="vpT" onclick="setView('table')" title="Tabla">≡</button>
-      <button class="vp" id="vpF" onclick="setView('cards')" title="Fichas">⊞</button>
-    </div>
     <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
   </div>
 </nav>
@@ -256,13 +252,17 @@
     <div class="pill-group">
       <span class="pill-label">Cobros</span>
       <div class="pill-opts" id="pillCobrosGroup">
-        <button class="pill-opt on" data-val="con" onclick="setPillCobros(this);doSearch()">Con cobros</button>
+        <button class="pill-opt on" data-val="" onclick="setPillCobros(this);doSearch()">Todos</button>
+        <button class="pill-opt" data-val="con" onclick="setPillCobros(this);doSearch()">Con cobros</button>
         <button class="pill-opt" data-val="sin" onclick="setPillCobros(this);doSearch()">Sin cobros</button>
-        <button class="pill-opt" data-val="" onclick="setPillCobros(this);doSearch()">Todos</button>
       </div>
     </div>
 
-    <button class="btn-buscar" onclick="doSearch()">🔍 Buscar</button>
+    <div class="view-toggle" style="flex-shrink:0">
+      <button class="vp" id="vpT" onclick="setView('table')" title="Lista">≡</button>
+      <button class="vp on" id="vpF" onclick="setView('cards')" title="Fichas">⊞</button>
+    </div>
+    <button class="btn-buscar" onclick="doSearch()">Buscar</button>
     <button class="btn-clear-f" onclick="clearFilters()">✕ Limpiar</button>
 
   </div>
@@ -356,8 +356,8 @@ let _curPage   = 1;
 let _sortField = 'date';
 let _sortDir   = 'desc';
 let _devFilter = '';
-let _cobrosFilter = 'con';  // 'con' | 'sin' | ''
-let _viewMode = 'table';    // 'table' | 'cards'
+let _cobrosFilter = '';     // '' | 'con' | 'sin'
+let _viewMode = 'cards';    // 'table' | 'cards'
 
 // Opciones de deposit options (se cargan dinámicamente)
 const DEP_OPTIONS_LABELS = {};  // id → description
@@ -436,8 +436,8 @@ function clearFilters(){
   _devFilter = '';
   // Reset pill cobros
   const cobGroup = document.getElementById('pillCobrosGroup');
-  if(cobGroup){ cobGroup.querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobGroup.querySelector('[data-val="con"]').classList.add('on'); }
-  _cobrosFilter = 'con';
+  if(cobGroup){ cobGroup.querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobGroup.querySelector('[data-val=""]').classList.add('on'); }
+  _cobrosFilter = '';
 }
 
 // ── Búsqueda ─────────────────────────────────────────────────
@@ -896,10 +896,25 @@ function setDefaultDates(){
 // ── Búsqueda inicial al cargar (con filtro por defecto: cobrado=1) ──
 window.addEventListener('load', () => {
   setDefaultDates();
-  setTimeout(doSearch, 400);
+  // Leer parámetro de URL: ?code=XXXXXXX
+  const _urlCode = new URLSearchParams(window.location.search).get('code') || '';
+  if(_urlCode){
+    const fCode = $('fCode');
+    if(fCode) fCode.value = _urlCode;
+    // Si viene código no filtrar por fechas ni cobros — mostrar todo de esa reserva
+    const fDateFrom = $('fDateFrom'); if(fDateFrom) fDateFrom.value = '';
+    const fDateTo   = $('fDateTo');   if(fDateTo)   fDateTo.value   = '';
+    _cobrosFilter = '';
+    const cobGroup = document.getElementById('pillCobrosGroup');
+    if(cobGroup){ cobGroup.querySelectorAll('.pill-opt').forEach(b=>b.classList.remove('on')); cobGroup.querySelector('[data-val=""]').classList.add('on'); }
+    // Cambiar a vista fichas automáticamente si viene de enlace
+    setTimeout(() => { doSearch().then(() => setView('cards')); }, 400);
+  } else {
+    setTimeout(doSearch, 400);
+  }
 });
 </script>
 
-<!-- HISTORIAL: v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v24 - Cobros default Todos; orden pills Todos/Con/Sin; vista default fichas; selector vista en filtros antes de Buscar; sin iconos en título y botón | v23 - Parámetro URL ?code=RESERVA: precarga el código, quita filtro fechas y cobros, abre vista fichas | v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
