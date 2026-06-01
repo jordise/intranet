@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v14 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v15 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v14 — 3Villas</title>
+  <title>Control Cobros Inquilinos v15 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -115,6 +115,10 @@
     .pg-btn:disabled{opacity:.4;cursor:default}
     .pg-info{font-family:'Montserrat',sans-serif;font-size:12px;color:var(--gray-4)}
 
+    .desg-line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 0;font-size:11px;border-bottom:1px solid var(--gray-2)}
+    .desg-line:last-child{border-bottom:none}
+    .desg-lbl{color:var(--gray-4);font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    .desg-eur{color:var(--gray-5);font-family:Montserrat,sans-serif;font-weight:800;white-space:nowrap}
     @media(max-width:700px){
       #filterPanel{padding:10px 12px}
       main{padding:12px 10px}
@@ -275,6 +279,9 @@
           <th>Reserva</th>
           <th>Stripe (Transaction ID)</th>
           <th>Token ID</th>
+          <th style="min-width:80px">Total cobrado</th>
+          <th style="min-width:180px">Desglose pago</th>
+          <th>Opción depósito</th>
           <th>Dep. seguridad (€)</th>
           <th>Dep. cobrado</th>
           <th>Dep. options</th>
@@ -479,7 +486,7 @@ function renderTable(){
       lastDate = txDate;
       const gr = document.createElement('tr');
       gr.className = 'group-row';
-      gr.innerHTML = `<td colspan="16">📅 ${txDate || '—'}</td>`;
+      gr.innerHTML = `<td colspan="19">📅 ${txDate || '—'}</td>`;
       tbody.appendChild(gr);
     }
 
@@ -531,6 +538,11 @@ function renderTable(){
           onchange="saveField(this, '${esc(bookCode)}', 'Token_id')">
         <span class="save-indicator" id="si-tok-${safeId}">✓</span>
       </td>
+      <td style="text-align:right;font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--gray-5)">
+        ${r['Ta_payments_Importe'] != null ? fmtEUR(r['Ta_payments_Importe']) : '—'}
+      </td>
+      <td style="min-width:180px;padding:6px 12px">${fmtDesglose(r)}</td>
+      <td>${fmtDepOption(r)}</td>
       <td style="text-align:right;font-family:Montserrat,sans-serif;font-weight:700">
         ${depEUR != null ? fmtEUR(depEUR) : '—'}
       </td>
@@ -682,6 +694,37 @@ function badgeCobrado(v){
   return `<span class="bdg b-na">${v}</span>`;
 }
 
+function fmtDesglose(r){
+  const lines = [];
+  function add(pago, importe, label){
+    const p = pago != null ? String(pago) : '';
+    const imp = parseFloat(importe);
+    if(!p || p==='0' || p==='' || isNaN(imp) || imp===0) return;
+    lines.push(`<div class="desg-line"><span class="desg-lbl">${label}</span><span class="desg-eur">${imp.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span></div>`);
+  }
+  add(r['Ta_payments_Pago_ecotasa'],               r['Ta_payments_importe_ecotasa'],                'Ecotasa');
+  // Upselling: usar texto de la reserva si existe
+  const u1txt = r['TaBookings2021_Upselling1_text'] || 'Extra 1';
+  const u2txt = r['TaBookings2021_Upselling2_text'] || 'Extra 2';
+  const u3txt = r['TaBookings2021_Upselling3_text'] || 'Extra 3';
+  add(r['Ta_payments_Pago_Linea1'],                r['Ta_payments_importe_upselling1'],             u1txt);
+  add(r['Ta_payments_Pago_Linea2'],                r['Ta_payments_importe_upselling2'],             u2txt);
+  add(r['Ta_payments_Pago_Linea3'],                r['Ta_payments_importe_upselling3'],             u3txt);
+  add(r['Ta_payments_Pago_deposit_waiver'],        r['Ta_payments_importe_deposit_waiver'],         'Dep. waver');
+  add(r['Ta_payments_Pago_deposito_seguridad'],    r['Ta_payments_importe_deposito_seguridad'],     'Dep. seguridad');
+  add(r['Ta_payments_Pago_gastos_tarjeta_dep_segurida'], r['Ta_payments_importe_tarjeta_depos_seguridad'], 'Gastos tarjeta dep.');
+  return lines.length ? lines.join('') : '<span style="color:var(--gray-3);font-size:11px">—</span>';
+}
+
+function fmtDepOption(r){
+  const opt = r['TaBookings2021_Security_deposit_options'];
+  const eur = r['TaBookings2021_Security_deposit_EUR'];
+  const label = DEP_OPTIONS_LABELS[String(opt)] || '';
+  if(!label && !eur) return '—';
+  const eurStr = eur ? ` <span style="font-family:Montserrat,sans-serif;font-weight:700">${parseFloat(eur).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span>` : '';
+  return `<span class="bdg b-blue" style="white-space:normal;text-align:left">${label||'—'}${eurStr}</span>`;
+}
+
 function badgeStatus(v){
   const s = String(v||'').toLowerCase();
   if(s==='confirmed')    return 'b-ok';
@@ -713,6 +756,6 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
 </body>
 </html>
