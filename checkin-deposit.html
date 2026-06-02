@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v3 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Security Deposit v3 — 3Villas</title>
+  <title>Security Deposit v5 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -109,6 +109,7 @@
     }
     @keyframes spin-3v { to { transform: rotate(360deg); } }
   </style>
+  <script src="auth.js"></script>
   <script src="checkin-auth.js"></script>
 </head>
 <body>
@@ -498,18 +499,23 @@ async function guardar(){
       fields.Numero_swift_bic_bancario_guest=($('fBic').value||'').trim();
     }
 
-    var isAdmin=(typeof Auth!=='undefined'&&Auth.isLoggedIn&&Auth.isLoggedIn());
+    // Intentar con pin de sesión de checkin primero (huésped)
+    // Si no hay pin, intentar con Auth del intranet (admin/manager)
     var res;
-    if(isAdmin){
+    var sess=null;
+    try{var s=sessionStorage.getItem('3v_checkin_auth'); if(s) sess=JSON.parse(s);}catch(e){}
+    var pin=sess&&sess.pin?sess.pin:'';
+
+    if(pin){
+      // Huésped verificado: usar checkin-save con pin
+      res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingCode:code, pin:pin, fields:fields})});
+    } else if(typeof Auth!=='undefined'&&Auth.isLoggedIn&&Auth.isLoggedIn()){
+      // Admin/manager del intranet: usar action=save con sesión Auth
       var where="FS_confirmation_code='"+code+"'";
       var url=Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
       res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
     } else {
-      var sess=null;
-      try{var s=sessionStorage.getItem('3v_checkin_auth'); if(s) sess=JSON.parse(s);}catch(e){}
-      var pin=sess&&sess.pin?sess.pin:'';
-      if(!pin){ throw new Error('Session expired. Please go back to check-in and verify your code again.'); }
-      res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingCode:code, pin:pin, fields:fields})});
+      throw new Error('No active session. Please verify your identity first.');
     }
 
     if(!res.ok){var e=await res.json(); throw new Error(e.Message||e.error||'Error '+res.status);}
@@ -545,6 +551,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
+<!-- HISTORIAL: v5 - Añadir auth.js para que Admin pueda guardar sin pin de huésped | v4 - Fix guardar: pin de sesión primero, Auth como fallback para admin; sin "Session expired" para admin | v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
 </body>
 </html>
