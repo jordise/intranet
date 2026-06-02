@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v41 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v42 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Arrival Form v41 — 3Villas</title>
+  <title>Arrival Form v42 — 3Villas</title>
   <!-- checkin-arrival.html v1 — 28/05/2026
        Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
        Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
@@ -149,6 +149,13 @@
       display:none;margin-bottom:14px;font-family:Montserrat,sans-serif}
 
     /* ── Sticky submit bar ── */
+    /* ── Toast error ── */
+    #errToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+      background:#C8102E;color:#fff;padding:12px 20px;border-radius:12px;
+      font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;
+      box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:9999;max-width:90vw;text-align:center;
+      opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;line-height:1.45}
+    #errToast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
     #submitBar{padding:12px 0 0}
     .btn-submit{width:100%;padding:14px;background:var(--red);color:#fff;border:none;
       border-radius:12px;font-family:Montserrat,sans-serif;font-size:15px;
@@ -936,22 +943,30 @@ function render(r){
 }
 
 /* ════ SUBMIT ════ */
+var _toastTimer=null;
+function showToast(msg){
+  var t=document.getElementById('errToast');
+  if(!t) return;
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){t.classList.remove('show');},5000);
+}
+
 async function submitForm(){
   const errEl=$('formErr');
-  errEl.style.display='none';
+  // errEl ya no se usa — mensajes via showToast()
 
   /* Validar requeridos */
   const required=['fAdults','fCheckinTime','fCheckoutTime','fFname','fLname','fDni','fAddress','fCity','fCountry'];
   const missing=required.filter(id=>!$(id)||!$(id).value.trim());
   if(missing.length){
-    errEl.textContent=t('err_required');
-    errEl.style.display='block';
+    showToast(t('err_required'));
     $(missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }
   if(!$('fGdpr').checked){
-    errEl.textContent=t('err_gdpr');
-    errEl.style.display='block';
+    showToast(t('err_gdpr'));
     return;
   }
 
@@ -1012,9 +1027,7 @@ async function submitForm(){
     $('stSuccess').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(err){
-    errEl.textContent=t('err_save')+' ('+err.message+')';
-    errEl.style.display='block';
-    errEl.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast(t('err_save')+' ('+err.message+')');
     btn.disabled=false;
     btn.textContent=t('btn_submit');
   }
@@ -1064,6 +1077,7 @@ if(typeof CheckinAuth==='undefined'){
     <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
   </svg>
 </a>
+  <div id="errToast"></div>
 </body>
 </html>
 <!-- checkin-arrival.html v1 — 28/05/2026
@@ -1076,4 +1090,4 @@ if(typeof CheckinAuth==='undefined'){
      Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
      Mismo diseño y tipografía Montserrat que checkin-online v33.
      Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v41 - Error de save movido junto al botón Guardar con scrollIntoView para que siempre sea visible | v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
+<!-- HISTORIAL: v42 - Errores como toast flotante (bottom center, fijo) en lugar de formErr estático | v41 - Error de save movido junto al botón Guardar con scrollIntoView para que siempre sea visible | v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
