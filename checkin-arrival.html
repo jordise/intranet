@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v39 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v40 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Arrival Form v39 — 3Villas</title>
+  <title>Arrival Form v40 — 3Villas</title>
   <!-- checkin-arrival.html v1 — 28/05/2026
        Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
        Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
@@ -182,6 +182,7 @@
     }
     @keyframes spin-3v { to { transform: rotate(360deg); } }
   </style>
+  <script src="auth.js"></script>
   <script src="checkin-auth.js"></script>
 </head>
 <body>
@@ -981,13 +982,31 @@ async function submitForm(){
   };
 
   try{
-    const where="FS_confirmation_code='"+_code+"'";
-    const url=WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT';
-    const resp=await fetch(url,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(record),
-    });
+    // Pin de sesión del huésped (sessionStorage) o token Admin (Auth)
+    var _sess=null;
+    try{var _s=sessionStorage.getItem('3v_checkin_auth'); if(_s) _sess=JSON.parse(_s);}catch(e){}
+    var _pin=_sess&&_sess.pin?_sess.pin:'';
+
+    var resp;
+    if(_pin){
+      // Huésped verificado: usar checkin-save con pin
+      resp=await fetch(WORKER+'?action=checkin-save',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({bookingCode:_code, pin:_pin, fields:record}),
+      });
+    } else if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()){
+      // Admin/manager: usar action=save con sesión Auth
+      const where="FS_confirmation_code='"+_code+"'";
+      const authUrl=Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
+      resp=await fetch(authUrl,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(record),
+      });
+    } else {
+      throw new Error('No active session');
+    }
     if(!resp.ok){const e=await resp.json();throw new Error(e.Message||e.error||'Error '+resp.status);}
     /* Éxito */
     $('content').style.display='none';
@@ -1056,4 +1075,4 @@ if(typeof CheckinAuth==='undefined'){
      Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
      Mismo diseño y tipografía Montserrat que checkin-online v33.
      Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
+<!-- HISTORIAL: v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
