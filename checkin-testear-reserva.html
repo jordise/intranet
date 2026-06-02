@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checkin Test Reserva v1 — 3Villas</title>
+<title>Checkin Test Reserva v2 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -135,6 +135,42 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 .toggle input:checked+.toggle-slider{background:var(--green)}
 .toggle input:checked+.toggle-slider::before{transform:translateX(18px)}
 .toggle-lbl{font-size:12px;font-weight:700;color:var(--gray-5)}
+.impact-hostaway{background:#fff3e0;color:#e65100;border:1px solid #ffb74d}
+.impact-arrival{background:#e3f2fd;color:#1565c0;border:1px solid #64b5f6}
+.field-hostaway .field-label{color:#e65100}
+.field-hostaway .field-name{background:#fff3e0;color:#e65100}
+.field-arrival .field-label{color:#1565c0}
+.field-arrival .field-name{background:#e3f2fd;color:#1565c0}
+.field-hostaway .inp,.field-hostaway .sel,.field-hostaway .ta{border-color:#ffb74d;background:#fffbf7}
+.field-arrival .inp,.field-arrival .sel,.field-arrival .ta{border-color:#64b5f6;background:#f0f8ff}
+.pin-box{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-radius:14px;
+  padding:20px;margin:0 0 16px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.pin-digit{font-family:var(--mono);font-size:36px;font-weight:900;letter-spacing:8px;
+  color:#fff;background:rgba(255,255,255,.1);padding:10px 20px;border-radius:10px;
+  border:2px solid rgba(255,255,255,.2);flex-shrink:0}
+.pin-info{flex:1;min-width:200px}
+.pin-info-title{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
+  color:rgba(255,255,255,.6);margin-bottom:6px}
+.pin-info-desc{font-size:12px;color:rgba(255,255,255,.8);line-height:1.6}
+.pin-warn{background:#ff6b6b;color:#fff;border-radius:8px;padding:8px 14px;
+  font-size:11px;font-weight:700;margin-top:8px;display:inline-block}
+.police-field-row{padding:10px 16px;border-bottom:1px solid var(--gray-2);display:grid;
+  grid-template-columns:200px 1fr auto;gap:8px;align-items:start;font-size:12px}
+.police-field-row:last-child{border-bottom:none}
+.pf-name{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--gray-4)}
+.pf-val{font-weight:600;color:var(--gray-5);word-break:break-all}
+.pf-val.missing{color:var(--red);font-style:italic}
+.pf-desc{font-size:10px;color:var(--gray-4);line-height:1.4;text-align:right}
+.pf-status{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pf-ok{background:var(--green-lt);color:var(--green)}
+.pf-missing{background:var(--red-lt);color:var(--red)}
+.pf-warn{background:var(--amber-lt);color:var(--amber)}
+.src-badge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.3px;display:inline-block;margin-top:3px}
+.src-villa{background:#f3e8ff;color:#7c3aed}
+.src-reserva{background:#dcfce7;color:#15803d}
+.date-error{background:var(--red-lt);border:1.5px solid var(--red);border-radius:8px;
+  padding:10px 14px;font-size:12px;font-weight:700;color:var(--red);margin:10px 16px}
 .field-val-display{font-family:var(--mono);font-size:11px;background:var(--gray-1);
   padding:4px 8px;border-radius:6px;color:var(--gray-5);border:1px solid var(--gray-2)}
 
@@ -182,6 +218,18 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
       </div>
       <span class="bh-code" id="bhCode">—</span>
       <span class="bh-status" id="bhStatus">—</span>
+    </div>
+
+    <!-- ══ 0. PIN ══ -->
+    <div id="pinBox" class="pin-box" style="display:none">
+      <div class="pin-info">
+        <div class="pin-info-title">🔐 PIN de acceso al checkin online</div>
+        <div class="pin-info-desc">El huésped necesita este PIN para verificar su identidad en checkin-online.html.<br>
+        Son los últimos 5 dígitos del <strong>teléfono principal</strong> (Guest_phonenumber).<br>
+        Si está vacío, usa los últimos 5 del <strong>segundo teléfono</strong> (Segundo_Telefono). Fallback: <strong>35111</strong>.</div>
+        <div id="pinSource" style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.6)"></div>
+      </div>
+      <div class="pin-digit" id="pinDisplay">—</div>
     </div>
 
     <!-- ══ 1. CHECKIN ONLINE (estados) ══ -->
@@ -256,48 +304,79 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
       <div class="sec-body">
         <div class="fields-grid">
 
+          <div class="sec-divider" style="background:#fff3e0;color:#e65100;border-color:#ffb74d">🟠 Datos Hostaway (naranja) — vienen de la reserva original, el cliente NO los edita</div>
+
+          <div class="field-row field-hostaway">
+            <div class="field-label">Nombre (Hostaway) <span class="field-name">Guest_Name</span></div>
+            <div class="field-desc">Nombre del inquilino según Hostaway. Solo lectura.</div>
+            <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
+            <div class="field-val-display" id="d_Guest_Name">—</div>
+          </div>
+
+          <div class="field-row field-hostaway">
+            <div class="field-label">Apellidos (Hostaway) <span class="field-name">Guest_Surename</span></div>
+            <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
+            <div class="field-val-display" id="d_Guest_Surename">—</div>
+          </div>
+
+          <div class="field-row field-hostaway">
+            <div class="field-label">Email (Hostaway) <span class="field-name">Guest_email</span></div>
+            <div class="field-desc">Email de la reserva. El cliente puede confirmar otro email en el formulario (Segundo_email).</div>
+            <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
+            <div class="field-val-display" id="d_Guest_email">—</div>
+          </div>
+
+          <div class="field-row field-hostaway">
+            <div class="field-label">Teléfono (Hostaway) <span class="field-name">Guest_phonenumber</span></div>
+            <div class="field-desc">⚠️ Los últimos 5 dígitos son el PIN de acceso al checkin.</div>
+            <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway · <strong>Fuente del PIN</strong></span>
+            <div class="field-val-display" id="d_Guest_phonenumber">—</div>
+          </div>
+
+          <div class="sec-divider" style="background:#e3f2fd;color:#1565c0;border-color:#64b5f6">🔵 Datos confirmados por el cliente (azul) — el cliente los edita en el arrival form</div>
+
           <div class="sec-divider">Huéspedes</div>
 
           <div class="field-row">
             <div class="field-label">Adultos (Hostaway) <span class="field-name">Adults</span></div>
             <div class="field-desc">Número de adultos según Hostaway. Solo lectura — se usa como valor por defecto en el select del formulario.</div>
             <div class="field-impact impact-internal">🔒 Solo interno</div>
-            <input class="inp" id="f_Adults" type="number" min="1" max="20">
+            <input class="inp" id="f_Adults" class="inp" type="number" min="1" max="20">
           </div>
 
           <div class="field-row">
             <div class="field-label">Adultos confirmados por huésped <span class="field-name">Guest_adults_nr_form</span></div>
             <div class="field-desc">Lo que el cliente confirma en el formulario. Se muestra en checkin-arrival como select obligatorio. Precarga con "Adults" si está vacío.</div>
             <div class="field-impact impact-client">✏️ Cliente edita</div>
-            <input class="inp" id="f_Guest_adults_nr_form" type="number" min="0" max="20">
+            <input class="inp" id="f_Guest_adults_nr_form" class="inp" type="number" min="0" max="20">
           </div>
 
           <div class="field-row">
             <div class="field-label">Edades adultos <span class="field-name">Guest_adults_ages_form</span></div>
             <div class="field-desc">El cliente indica las edades de los adultos (ej: "42, 38, 21"). Campo de texto libre obligatorio.</div>
             <div class="field-impact impact-client">✏️ Cliente edita</div>
-            <input class="inp" id="f_Guest_adults_ages_form" type="text" placeholder="42, 38, 21">
+            <input class="inp" id="f_Guest_adults_ages_form" class="inp" type="text" placeholder="42, 38, 21">
           </div>
 
           <div class="field-row">
             <div class="field-label">Niños (Hostaway) <span class="field-name">Children</span></div>
             <div class="field-desc">Número de niños según Hostaway. Solo lectura — valor por defecto en el formulario.</div>
             <div class="field-impact impact-internal">🔒 Solo interno</div>
-            <input class="inp" id="f_Children" type="number" min="0" max="20">
+            <input class="inp" id="f_Children" class="inp" type="number" min="0" max="20">
           </div>
 
           <div class="field-row">
             <div class="field-label">Niños confirmados <span class="field-name">Guest_children_nr_form</span></div>
             <div class="field-desc">Número de niños/bebés que el cliente confirma en el formulario.</div>
             <div class="field-impact impact-client">✏️ Cliente edita</div>
-            <input class="inp" id="f_Guest_children_nr_form" type="number" min="0" max="20">
+            <input class="inp" id="f_Guest_children_nr_form" class="inp" type="number" min="0" max="20">
           </div>
 
           <div class="field-row">
             <div class="field-label">Edades niños/bebés <span class="field-name">Guest_children_babies_ages_form</span></div>
             <div class="field-desc">El cliente indica las edades de niños y bebés (ej: "8, 3, 1"). Campo de texto libre.</div>
             <div class="field-impact impact-client">✏️ Cliente edita</div>
-            <input class="inp" id="f_Guest_children_babies_ages_form" type="text" placeholder="8, 3, 1">
+            <input class="inp" id="f_Guest_children_babies_ages_form" class="inp" type="text" placeholder="8, 3, 1">
           </div>
 
           <div class="sec-divider">Horas de llegada y salida</div>
@@ -451,10 +530,11 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
           </div>
 
           <div class="field-row full">
-            <div class="field-label">Link policial generado</div>
-            <div class="field-desc">URL completa que se mostrará al huésped en checkin-police.html. Incluye datos de la reserva ya rellenados.</div>
-            <div class="field-impact impact-client">👁 Cliente ve este link</div>
-            <div class="field-val-display" id="d_police_link" style="word-break:break-all;font-size:10px;line-height:1.6">—</div>
+            <div class="field-label">Diagnóstico del link policial</div>
+            <div class="field-desc">Análisis campo a campo del link generado. Verde = OK · Rojo = falta el dato (el link fallará) · Naranja = advertencia</div>
+            <div class="field-impact impact-client">👁 Cliente usa este link</div>
+            <div id="d_police_diag">—</div>
+            <div id="d_police_link" style="margin-top:8px;word-break:break-all;font-size:10px;line-height:1.6;background:var(--gray-1);padding:8px;border-radius:6px;font-family:var(--mono);display:none"></div>
           </div>
 
         </div>
@@ -479,7 +559,17 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
             <div class="field-label">Portal / OTA <span class="field-name">Portal_Name</span></div>
             <div class="field-desc">⚠️ CRÍTICO. Si contiene "airbnb", el huésped solo ve opciones 1 (Waiver) y 4 (No waiver/Airbnb). En cualquier otro portal ve opciones 1, 2 (tarjeta) y 3 (transferencia).</div>
             <div class="field-impact impact-critical">⚠️ Determina qué opciones ve el cliente</div>
-            <input class="inp" id="f_Portal_Name" type="text" placeholder="Airbnb / Booking / Direct">
+            <select class="sel" id="f_Portal_Name" onchange="updatePortalPreview()">
+              <option value="">— Sin especificar —</option>
+              <option value="Airbnb">Airbnb</option>
+              <option value="Booking.com">Booking.com</option>
+              <option value="VRBO">VRBO</option>
+              <option value="Expedia">Expedia</option>
+              <option value="HomeAway">HomeAway</option>
+              <option value="Direct">Direct (Reserva directa)</option>
+              <option value="Other">Other</option>
+            </select>
+            <div id="portalPreview" style="margin-top:6px;font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;display:none"></div>
           </div>
 
           <div class="field-row">
@@ -494,22 +584,31 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 
           <div class="field-row">
             <div class="field-label">Importe depósito <span class="field-name">Security_deposit_EUR</span></div>
-            <div class="field-desc">Importe del depósito en EUR. Se muestra como precio en las opciones 2 y 3. Aparece como "{depEUR} EUR" en los textos de procedimiento.</div>
-            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <div class="field-desc">Importe del depósito en EUR. Se muestra como precio en las opciones 2 y 3.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+              <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+              <span class="src-reserva">📋 Campo de la RESERVA — solo afecta a esta reserva</span>
+            </div>
             <input class="inp" id="f_Security_deposit_EUR" type="number" min="0" step="0.01">
           </div>
 
           <div class="field-row">
             <div class="field-label">Importe Deposit Waver <span class="field-name">Deposit_waver_EUR</span></div>
-            <div class="field-desc">Coste del waiver en EUR. Se muestra como precio en la opción 1 y como "{waverEUR} EUR".</div>
-            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <div class="field-desc">Coste del waiver en EUR. Se muestra como precio en la opción 1.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+              <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+              <span class="src-reserva">📋 Campo de la RESERVA — solo afecta a esta reserva</span>
+            </div>
             <input class="inp" id="f_Deposit_waver_EUR" type="number" min="0" step="0.01">
           </div>
 
           <div class="field-row">
             <div class="field-label">Gasto tarjeta depósito <span class="field-name">Gasto_tarjeta_deposito_seguridad</span></div>
-            <div class="field-desc">Comisión por pagar con tarjeta (opción 2). Aparece como "Coste de transacción: {gastoEUR} EUR".</div>
-            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <div class="field-desc">Comisión por pagar con tarjeta (opción 2). Aparece como "Coste de transacción: X EUR".</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+              <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+              <span class="src-reserva">📋 Campo de la RESERVA — solo afecta a esta reserva</span>
+            </div>
             <input class="inp" id="f_Gasto_tarjeta_deposito_seguridad" type="number" min="0" step="0.01">
           </div>
 
@@ -629,6 +728,34 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
             <textarea class="ta" id="f_Ecotasa_comentarios" rows="2"></textarea>
           </div>
 
+          <div class="sec-divider">Extras y Upselling (también se cobran con la ecotasa)</div>
+
+          <div class="field-row">
+            <div class="field-label">Deposit Waver <span class="field-name">Deposit_waver_EUR + Deposit_waver_cobrado</span></div>
+            <div class="field-desc">Si el cliente elige opción 1 (Waiver), el importe del waver se cobra junto con la ecotasa en el paso 4. Se_permite_waver debe ser true.</div>
+            <div class="field-impact impact-client">👁 Se cobra en Taxes si opción 1</div>
+            <div class="field-val-display" id="d_waver_taxes">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Upselling 1 <span class="field-name">Upselling1_text / Upselling1_EUR / Upselling1_cobrado</span></div>
+            <div class="field-desc">Extra 1 contratado. Se muestra en la página de taxes con su importe. Si Upselling1_cobrado=1 ya está pagado.</div>
+            <div class="field-impact impact-client">👁 Se cobra en Taxes</div>
+            <div class="field-val-display" id="d_up1">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Upselling 2 <span class="field-name">Upselling2_text / Upselling2_EUR / Upselling2_cobrado</span></div>
+            <div class="field-impact impact-client">👁 Se cobra en Taxes</div>
+            <div class="field-val-display" id="d_up2">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Upselling 3 <span class="field-name">Upselling3_text / Upselling3_EUR / Upselling3_cobrado</span></div>
+            <div class="field-impact impact-client">👁 Se cobra en Taxes</div>
+            <div class="field-val-display" id="d_up3">—</div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -681,6 +808,23 @@ function togSec(head){
   body.classList.toggle('open');
   arr.classList.toggle('open');
 }
+
+function updatePortalPreview(){
+  var val=($('f_Portal_Name').value||'').toLowerCase();
+  var prev=$('portalPreview'); if(!prev) return;
+  if(!val){prev.style.display='none';return;}
+  var isAirbnb=val.includes('airbnb');
+  prev.style.display='block';
+  prev.style.background=isAirbnb?'#fff3e0':'#f0fdf4';
+  prev.style.color=isAirbnb?'#e65100':'#15803d';
+  prev.style.border='1.5px solid '+(isAirbnb?'#ffb74d':'#86efac');
+  prev.textContent=isAirbnb
+    ? '🟠 Airbnb → El cliente verá: Opción 1 (Waiver si permitido) + Opción 4 (No waiver/Airbnb)'
+    : '🟢 '+($('f_Portal_Name').value)+' → El cliente verá: Opción 1 (Waiver) + Opción 2 (Tarjeta) + Opción 3 (Transferencia)';
+}
+
+function fmtPol(v){if(!v)return'';var d=new Date(v);var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+m+dd;}
+function todayPol(){var d=new Date();var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+m+dd;}
 
 function lastDigits(phone, n){
   var d=(phone||'').replace(/\D/g,'');
@@ -853,6 +997,94 @@ function renderBooking(){
     return '<a href="'+l.href+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:'+l.bg+';border:1.5px solid '+l.border+';color:'+l.border+';border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;text-decoration:none">'+l.label+' ↗</a>';
   }).join('');
 
+  // ── PIN (arriba del todo) ──
+  var phone1=g('TaBookings2021_Guest_phonenumber');
+  var phone2v=g('TaBookings2021_Segundo_Telefono');
+  var pinSrc='', pinVal='';
+  if(lastDigits(phone1,5)){pinVal=lastDigits(phone1,5); pinSrc='Fuente: Guest_phonenumber ('+phone1+')';}
+  else if(lastDigits(phone2v,5)){pinVal=lastDigits(phone2v,5); pinSrc='Fuente: Segundo_Telefono ('+phone2v+') — Guest_phonenumber vacío';}
+  else{pinVal='35111'; pinSrc='⚠️ Fallback: ningún teléfono disponible → PIN por defecto 35111';}
+  $('pinDisplay').textContent=pinVal;
+  $('pinSource').textContent=pinSrc;
+  $('pinBox').style.display='flex';
+
+  // ── Hostaway fields (display solo) ──
+  setDisplay('d_Guest_Name', g('TaBookings2021_Guest_Name'));
+  setDisplay('d_Guest_Surename', g('TaBookings2021_Guest_Surename'));
+  setDisplay('d_Guest_email', g('TaBookings2021_Guest_email'));
+  setDisplay('d_Guest_phonenumber', g('TaBookings2021_Guest_phonenumber'));
+
+  // ── Portal preview ──
+  updatePortalPreview();
+
+  // ── Police: diagnóstico campo a campo ──
+  var checkinDate=g('TaBookings2021_Checkin');
+  var today=new Date(); today.setHours(0,0,0,0);
+  var checkinD=checkinDate?new Date(checkinDate):null;
+  var dateError = checkinD && checkinD < today;
+
+  var polFields=[
+    {param:'organization', val:g('TaVillas_Link_Registrodepolicia'), desc:'UUID de la villa en el sistema policial (de TaVillas)', critical:true},
+    {param:'reservation', val:code, desc:'Código de confirmación de la reserva', critical:true},
+    {param:'checkInDate', val:checkinDate?fmtPol(checkinDate):'', desc:'Fecha check-in en formato YYYYMMDD', critical:true, warn:dateError?'⚠️ Fecha PASADA — el link fallará si el check-in ya ocurrió':null},
+    {param:'checkOutDate', val:g('TaBookings2021_Checkout')?fmtPol(g('TaBookings2021_Checkout')):'', desc:'Fecha check-out en formato YYYYMMDD', critical:true},
+    {param:'contractDate', val:todayPol(), desc:'Fecha de hoy (se genera automáticamente)', critical:false},
+    {param:'number', val:String((parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0)), desc:'Total de ocupantes (adultos + niños)', critical:true},
+    {param:'firstName', val:g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name'), desc:'Nombre del titular (Fiscal_guest_name o Guest_Name)', critical:false},
+    {param:'lastName1', val:g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename'), desc:'Apellido del titular', critical:false},
+    {param:'phone', val:(g('TaBookings2021_Guest_phonenumber')||'').replace(/\D/g,''), desc:'Teléfono sin caracteres especiales', critical:false},
+  ];
+
+  var diagHtml='';
+  if(dateError){
+    diagHtml+='<div class="date-error">⛔ ERROR: La fecha de check-in ('+fmtDate(checkinDate)+') es anterior a hoy. El link policial puede fallar. Esto solo es válido si el huésped ya está alojado.</div>';
+  }
+  diagHtml+='<div style="border:1px solid var(--gray-3);border-radius:8px;overflow:hidden">';
+  polFields.forEach(function(pf){
+    var ok=!!pf.val;
+    var statusClass=ok?(pf.warn?'pf-warn':'pf-ok'):'pf-missing';
+    var statusTxt=ok?(pf.warn?'⚠️ AVISO':'✓ OK'):'✗ FALTA';
+    diagHtml+='<div class="police-field-row">';
+    diagHtml+='<div><div class="pf-name">?'+pf.param+'=</div>';
+    diagHtml+=(pf.critical?'<span class="pf-status pf-missing" style="font-size:8px">CRÍTICO</span>':'<span class="pf-status pf-ok" style="font-size:8px">OPCIONAL</span>')+'</div>';
+    diagHtml+='<div><div class="pf-val '+(ok?'':'missing')+'">'+(pf.val||'— sin valor —')+'</div>';
+    if(pf.warn) diagHtml+='<div class="pf-warn" style="font-size:10px;font-weight:700;color:var(--amber);margin-top:3px">'+pf.warn+'</div>';
+    diagHtml+='</div>';
+    diagHtml+='<span class="pf-status '+statusClass+'">'+statusTxt+'</span></div>';
+  });
+  diagHtml+='</div>';
+  $('d_police_diag').innerHTML=diagHtml;
+
+  // Link completo
+  if(g('TaVillas_Link_Registrodepolicia')&&code){
+    var pn=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name')||'';
+    var pa=g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename')||'';
+    var pp=(g('TaBookings2021_Guest_phonenumber')||'').replace(/\D/g,'');
+    var tot=(parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0);
+    var polUrl='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96/organization/'+
+      encodeURIComponent(g('TaVillas_Link_Registrodepolicia'))+'/reservation/'+encodeURIComponent(code)+
+      '?checkInDate='+fmtPol(g('TaBookings2021_Checkin'))+'&checkOutDate='+fmtPol(g('TaBookings2021_Checkout'))+
+      '&contractDate='+todayPol()+'&number='+tot+
+      '&firstName='+encodeURIComponent(pn)+'&lastName1='+encodeURIComponent(pa)+'&phone='+encodeURIComponent(pp);
+    $('d_police_link').textContent=polUrl;
+    $('d_police_link').style.display='block';
+  }
+
+  // ── Upselling y waver en Taxes ──
+  function upRow(n){
+    var txt=g('TaBookings2021_Upselling'+n+'_text');
+    var eur=parseFloat(g('TaBookings2021_Upselling'+n+'_EUR'))||0;
+    var cob=g('TaBookings2021_Upselling'+n+'_cobrado');
+    if(!txt&&!eur) return '— No configurado';
+    return (txt||'Extra '+n)+' · '+eur.toFixed(2)+' € · '+(isTruthy(cob)?'✓ Cobrado':'⏳ Pendiente');
+  }
+  setDisplay('d_up1', upRow(1));
+  setDisplay('d_up2', upRow(2));
+  setDisplay('d_up3', upRow(3));
+  var waverEUR=parseFloat(g('TaBookings2021_Deposit_waver_EUR'))||0;
+  var waverCob=g('TaBookings2021_Deposit_waver_cobrado');
+  setDisplay('d_waver_taxes', 'Importe: '+waverEUR.toFixed(2)+' € · '+(isTruthy(waverCob)?'✓ Cobrado':'⏳ Pendiente cobro (si cliente elige opción 1)'));
+
   $('stLoad').style.display='none';
   $('main').style.display='block';
   $('btnSave').disabled=false;
@@ -932,6 +1164,6 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
-<!-- HISTORIAL: v1 - Página inicial: test completo de reserva para checkin online; todos los campos de arrival/police/deposit/taxes; guardar vía Auth; acceso admin+manager -->
+<!-- HISTORIAL: v2 - Portal→select con preview; badges origen villa/reserva; campos Hostaway naranja; PIN arriba del todo; diagnóstico link policial campo a campo; upselling 1-3 y waver en ecotasa | v1 - Página inicial --> Página inicial: test completo de reserva para checkin online; todos los campos de arrival/police/deposit/taxes; guardar vía Auth; acceso admin+manager -->
 </body>
 </html>
