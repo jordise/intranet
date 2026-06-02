@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkin Test Reserva v1 — 3Villas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
+  --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
+  --blue:#2563EB;--blue-lt:#eff6ff;
+  --amber:#d97706;--amber-lt:#fffbeb;--amber-bd:#fcd34d;
+  --purple:#7c3aed;--purple-lt:#f5f3ff;
+  --teal:#0d9488;--teal-lt:#f0fdfa;
+  --gray-1:#f9fafb;--gray-2:#f1f3f5;--gray-3:#dee2e6;
+  --gray-4:#868e96;--gray-5:#212529;
+  --mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);min-height:100vh}
+
+/* ── NAV ── */
+.top-nav{display:flex;align-items:center;gap:12px;padding:10px 20px;background:#fff;
+  border-bottom:2px solid var(--red);box-shadow:0 2px 8px rgba(0,0,0,.08);
+  position:sticky;top:0;z-index:200}
+.nav-logo img{height:28px}
+.nav-title{font-size:13px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.5px;flex:1}
+.nav-badge{background:var(--red);color:#fff;font-size:9px;font-weight:800;padding:3px 8px;
+  border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── SEARCH BAR ── */
+.search-wrap{background:#fff;border-bottom:1px solid var(--gray-3);padding:16px 20px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search-inp{flex:1;min-width:200px;padding:10px 14px;border:2px solid var(--gray-3);
+  border-radius:10px;font-family:var(--mono);font-size:14px;font-weight:600;
+  color:var(--gray-5);outline:none;transition:border-color .15s}
+.search-inp:focus{border-color:var(--blue)}
+.btn-search{padding:10px 22px;background:var(--blue);color:#fff;border:none;border-radius:10px;
+  font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;
+  white-space:nowrap;transition:background .15s}
+.btn-search:hover{background:#1d4ed8}
+.btn-save-all{padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:10px;
+  font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;cursor:pointer;
+  white-space:nowrap;transition:background .15s}
+.btn-save-all:hover{background:#15803d}
+.btn-save-all:disabled{background:var(--gray-3);cursor:not-allowed}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--gray-5);color:#fff;padding:11px 22px;border-radius:10px;
+  font-size:13px;font-weight:700;font-family:Montserrat,sans-serif;
+  box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:9999;
+  opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:var(--green)}
+#toast.err{background:var(--red)}
+
+/* ── LAYOUT ── */
+.page{max-width:960px;margin:0 auto;padding:24px 20px 80px}
+.booking-header{background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.bh-villa{font-size:16px;font-weight:900;color:var(--gray-5);flex:1}
+.bh-code{font-family:var(--mono);font-size:12px;background:var(--gray-2);
+  padding:4px 10px;border-radius:6px;color:var(--gray-4);font-weight:600}
+.bh-status{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase}
+.bh-status.confirmed{background:var(--green-lt);color:var(--green)}
+.bh-status.cancelled{background:var(--red-lt);color:var(--red)}
+.bh-dates{font-size:12px;color:var(--gray-4);font-weight:600}
+
+/* ── SECTIONS ── */
+.section{background:#fff;border-radius:14px;margin-bottom:16px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.sec-head{display:flex;align-items:center;gap:12px;padding:14px 20px;
+  border-bottom:1px solid var(--gray-2);cursor:pointer;user-select:none}
+.sec-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0}
+.sec-title-wrap{flex:1}
+.sec-title{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+.sec-sub{font-size:11px;color:var(--gray-4);margin-top:2px;font-weight:600}
+.sec-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.sec-arrow{color:var(--gray-4);font-size:12px;transition:transform .2s;flex-shrink:0}
+.sec-arrow.open{transform:rotate(180deg)}
+.sec-body{padding:0;display:none}
+.sec-body.open{display:block}
+
+/* ── COLORS per section ── */
+.s-arrival .sec-ico{background:#eff6ff}
+.s-arrival .sec-title{color:var(--blue)}
+.s-arrival .sec-badge{background:var(--blue-lt);color:var(--blue)}
+.s-police .sec-ico{background:#f5f3ff}
+.s-police .sec-title{color:var(--purple)}
+.s-police .sec-badge{background:var(--purple-lt);color:var(--purple)}
+.s-deposit .sec-ico{background:#f0fdfa}
+.s-deposit .sec-title{color:var(--teal)}
+.s-deposit .sec-badge{background:var(--teal-lt);color:var(--teal)}
+.s-taxes .sec-ico{background:#fffbeb}
+.s-taxes .sec-title{color:var(--amber)}
+.s-taxes .sec-badge{background:var(--amber-lt);color:var(--amber)}
+.s-online .sec-ico{background:var(--red-lt)}
+.s-online .sec-title{color:var(--red)}
+.s-online .sec-badge{background:var(--red-lt);color:var(--red)}
+
+/* ── FIELDS ── */
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:4px 0}
+@media(max-width:600px){.fields-grid{grid-template-columns:1fr}}
+.field-row{padding:14px 20px;border-bottom:1px solid var(--gray-2);display:flex;
+  flex-direction:column;gap:6px}
+.field-row:last-child{border-bottom:none}
+.field-row.full{grid-column:1/-1}
+.field-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--gray-4);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.field-name{font-family:var(--mono);font-size:9px;background:var(--gray-2);
+  padding:2px 6px;border-radius:4px;color:var(--gray-4);font-weight:400}
+.field-desc{font-size:10px;color:var(--gray-4);line-height:1.5;font-weight:500}
+.field-impact{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;margin-top:2px;display:inline-flex;align-items:center;gap:4px}
+.impact-client{background:#eff6ff;color:var(--blue)}
+.impact-internal{background:var(--gray-2);color:var(--gray-4)}
+.impact-critical{background:var(--red-lt);color:var(--red)}
+.inp,.sel,.ta{width:100%;padding:8px 11px;border:1.5px solid var(--gray-3);border-radius:8px;
+  font-size:13px;font-family:Montserrat,sans-serif;font-weight:600;color:var(--gray-5);
+  background:#fff;outline:none;transition:border-color .15s}
+.inp:focus,.sel:focus,.ta:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.ta{resize:vertical;min-height:60px;font-size:12px;font-weight:500}
+.toggle-wrap{display:flex;align-items:center;gap:10px}
+.toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--gray-3);border-radius:24px;
+  cursor:pointer;transition:background .2s}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;
+  left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input:checked+.toggle-slider{background:var(--green)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(18px)}
+.toggle-lbl{font-size:12px;font-weight:700;color:var(--gray-5)}
+.field-val-display{font-family:var(--mono);font-size:11px;background:var(--gray-1);
+  padding:4px 8px;border-radius:6px;color:var(--gray-5);border:1px solid var(--gray-2)}
+
+/* ── SECTION DIVIDER ── */
+.sec-divider{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--gray-4);padding:10px 20px 6px;background:var(--gray-1);
+  border-bottom:1px solid var(--gray-2);grid-column:1/-1}
+
+/* ── LOADING ── */
+#stLoad{display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;
+  color:var(--gray-4);font-weight:700}
+.spin{width:32px;height:32px;border:3px solid var(--gray-2);border-top-color:var(--red);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<script src="auth.js"></script>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-title">🧪 Checkin Test Reserva</div>
+  <span class="nav-badge">Solo Admin / Manager</span>
+</nav>
+
+<div class="search-wrap">
+  <input class="search-inp" id="inpCode" type="text" value="15620847"
+    placeholder="Código de reserva..." onkeydown="if(event.key==='Enter')loadBooking()">
+  <button class="btn-search" onclick="loadBooking()">Cargar reserva</button>
+  <button class="btn-save-all" id="btnSave" onclick="saveAll()" disabled>💾 Guardar cambios</button>
+</div>
+
+<div class="page">
+  <div id="stLoad" style="display:none"><div class="spin"></div><span>Cargando reserva…</span></div>
+  <div id="stEmpty" style="text-align:center;padding:60px 20px;color:var(--gray-4);font-weight:700">
+    Introduce un código de reserva y pulsa "Cargar reserva"
+  </div>
+  <div id="main" style="display:none">
+
+    <!-- BOOKING HEADER -->
+    <div class="booking-header">
+      <div style="flex:1">
+        <div class="bh-villa" id="bhVilla">—</div>
+        <div class="bh-dates" id="bhDates">—</div>
+      </div>
+      <span class="bh-code" id="bhCode">—</span>
+      <span class="bh-status" id="bhStatus">—</span>
+    </div>
+
+    <!-- ══ 1. CHECKIN ONLINE (estados) ══ -->
+    <div class="section s-online">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico">🏠</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title">Checkin Online — Estados</div>
+          <div class="sec-sub">Los 4 pasos del checkin online. Marcar como hecho o pendiente</div>
+        </div>
+        <span class="sec-badge">CONTROL</span>
+        <span class="sec-arrow open">▾</span>
+      </div>
+      <div class="sec-body open">
+        <div class="fields-grid">
+
+          <div class="field-row">
+            <div class="field-label">Arrival Form <span class="field-name">Arrivalform_done</span></div>
+            <div class="field-desc">✅ Paso 1. El huésped ha rellenado el formulario de llegada (horas, vuelos, nº adultos, datos fiscales). Si está en true, el círculo 1 del checkin online aparece verde.</div>
+            <div class="field-impact impact-client">👁 Cliente ve el estado</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Arrivalform_done"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Arrivalform_done">—</span>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Police Registration <span class="field-name">Registro_policia_done</span></div>
+            <div class="field-desc">✅ Paso 2. El huésped ha confirmado el registro policial. Si está en true, el círculo 2 aparece verde.</div>
+            <div class="field-impact impact-client">👁 Cliente ve el estado</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Registro_policia_done"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Registro_policia_done">—</span>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Security Deposit terminado <span class="field-name">Security_deposit_terminado</span></div>
+            <div class="field-desc">✅ Paso 3. El depósito de seguridad está resuelto. Si está en true, el círculo 3 aparece verde. Se activa cuando el cliente selecciona una opción de depósito.</div>
+            <div class="field-impact impact-client">👁 Cliente ve el estado</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Security_deposit_terminado"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Security_deposit_terminado">—</span>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Ecotasa cobrada <span class="field-name">Ecotasa_cobrada</span></div>
+            <div class="field-desc">✅ Paso 4. La ecotasa ha sido cobrada. Si está en true, el círculo 4 aparece verde. Se activa tras el pago en la página de taxes.</div>
+            <div class="field-impact impact-client">👁 Cliente ve el estado</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Ecotasa_cobrada"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Ecotasa_cobrada">—</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 2. ARRIVAL ══ -->
+    <div class="section s-arrival">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico">✈️</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title">Arrival Form — Paso 1</div>
+          <div class="sec-sub">Datos que el huésped rellena en checkin-arrival.html</div>
+        </div>
+        <span class="sec-badge">ARRIVAL</span>
+        <span class="sec-arrow">▾</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid">
+
+          <div class="sec-divider">Huéspedes</div>
+
+          <div class="field-row">
+            <div class="field-label">Adultos (Hostaway) <span class="field-name">Adults</span></div>
+            <div class="field-desc">Número de adultos según Hostaway. Solo lectura — se usa como valor por defecto en el select del formulario.</div>
+            <div class="field-impact impact-internal">🔒 Solo interno</div>
+            <input class="inp" id="f_Adults" type="number" min="1" max="20">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Adultos confirmados por huésped <span class="field-name">Guest_adults_nr_form</span></div>
+            <div class="field-desc">Lo que el cliente confirma en el formulario. Se muestra en checkin-arrival como select obligatorio. Precarga con "Adults" si está vacío.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Guest_adults_nr_form" type="number" min="0" max="20">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Edades adultos <span class="field-name">Guest_adults_ages_form</span></div>
+            <div class="field-desc">El cliente indica las edades de los adultos (ej: "42, 38, 21"). Campo de texto libre obligatorio.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Guest_adults_ages_form" type="text" placeholder="42, 38, 21">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Niños (Hostaway) <span class="field-name">Children</span></div>
+            <div class="field-desc">Número de niños según Hostaway. Solo lectura — valor por defecto en el formulario.</div>
+            <div class="field-impact impact-internal">🔒 Solo interno</div>
+            <input class="inp" id="f_Children" type="number" min="0" max="20">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Niños confirmados <span class="field-name">Guest_children_nr_form</span></div>
+            <div class="field-desc">Número de niños/bebés que el cliente confirma en el formulario.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Guest_children_nr_form" type="number" min="0" max="20">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Edades niños/bebés <span class="field-name">Guest_children_babies_ages_form</span></div>
+            <div class="field-desc">El cliente indica las edades de niños y bebés (ej: "8, 3, 1"). Campo de texto libre.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Guest_children_babies_ages_form" type="text" placeholder="8, 3, 1">
+          </div>
+
+          <div class="sec-divider">Horas de llegada y salida</div>
+
+          <div class="field-row">
+            <div class="field-label">Hora llegada a Menorca <span class="field-name">Arrival_Time_to_Menorca</span></div>
+            <div class="field-desc">Hora en que el huésped llega a la isla (no a la villa). Afecta a la coordinación del keyholder.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Arrival_Time_to_Menorca" type="text" placeholder="14:30">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Hora check-in villa <span class="field-name">Checkin_time</span></div>
+            <div class="field-desc">Hora acordada para entrar en la villa. El cliente elige entre las opciones disponibles.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Checkin_time" type="text" placeholder="17:00">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Hora salida de Menorca <span class="field-name">Departure_Time_to_Menorca</span></div>
+            <div class="field-desc">Hora del vuelo o ferry de salida. Ayuda a planificar la limpieza y el checkout.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Departure_Time_to_Menorca" type="text" placeholder="18:00">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Hora check-out villa <span class="field-name">Checkout_time</span></div>
+            <div class="field-desc">Hora acordada para dejar la villa. El cliente elige entre las opciones disponibles (normalmente hasta las 10h).</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Checkout_time" type="text" placeholder="10:00">
+          </div>
+
+          <div class="sec-divider">Datos fiscales del titular</div>
+
+          <div class="field-row">
+            <div class="field-label">Nombre <span class="field-name">Fiscal_guest_name</span></div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_name" type="text" placeholder="Maria">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Apellidos <span class="field-name">Fiscal_guest_surename</span></div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_surename" type="text" placeholder="García López">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">DNI / Pasaporte <span class="field-name">Fiscal_guest_DNI_passport</span></div>
+            <div class="field-desc">Usado para el enlace de registro policial y para facturación.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_DNI_passport" type="text" placeholder="12345678X">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Dirección <span class="field-name">Fiscal_guest_address</span></div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_address" type="text">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Ciudad <span class="field-name">Fiscal_guest_city</span></div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_city" type="text">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">País <span class="field-name">Fiscal_guest_Country</span></div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Fiscal_guest_Country" type="text">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Email confirmación <span class="field-name">Segundo_email</span></div>
+            <div class="field-desc">Email donde el cliente quiere recibir confirmaciones. Puede ser diferente al email de reserva.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Segundo_email" type="email">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Teléfono confirmación <span class="field-name">Segundo_Telefono</span></div>
+            <div class="field-desc">Teléfono de contacto durante la estancia. También se usa como fallback del PIN de acceso al checkin.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <input class="inp" id="f_Segundo_Telefono" type="tel">
+          </div>
+
+          <div class="field-row full">
+            <div class="field-label">Información adicional <span class="field-name">Guest_info</span></div>
+            <div class="field-desc">Campo libre donde el cliente indica necesidades especiales: cunas, tronas, accesibilidad, dietas, etc.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita</div>
+            <textarea class="ta" id="f_Guest_info" rows="3" placeholder="Necesitamos una cuna y una trona"></textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 3. POLICE ══ -->
+    <div class="section s-police">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico">🏛️</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title">Police Registration — Paso 2</div>
+          <div class="sec-sub">Datos usados para construir el link de registro policial</div>
+        </div>
+        <span class="sec-badge">POLICE</span>
+        <span class="sec-arrow">▾</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid">
+
+          <div class="field-row">
+            <div class="field-label">Teléfono principal <span class="field-name">Guest_phonenumber</span></div>
+            <div class="field-desc">⚠️ MUY IMPORTANTE. Los últimos 5 dígitos son el PIN de acceso al checkin online. Si cambias este campo, el PIN del huésped cambia.</div>
+            <div class="field-impact impact-critical">⚠️ Define el PIN de acceso</div>
+            <input class="inp" id="f_Guest_phonenumber" type="tel">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Segundo teléfono <span class="field-name">Segundo_Telefono</span></div>
+            <div class="field-desc">Fallback para el PIN si Guest_phonenumber está vacío. Los últimos 5 dígitos también sirven como PIN.</div>
+            <div class="field-impact impact-critical">⚠️ Fallback del PIN</div>
+            <div class="field-val-display" id="d_Segundo_Telefono">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">PIN calculado</div>
+            <div class="field-desc">PIN que usará el huésped para acceder al checkin online. Son los últimos 5 dígitos del teléfono principal, o del segundo si el principal está vacío. Fallback: 35111.</div>
+            <div class="field-impact impact-critical">⚠️ PIN de acceso</div>
+            <div class="field-val-display" id="d_pin" style="font-size:18px;font-weight:900;color:var(--red);letter-spacing:4px">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Check-in fecha <span class="field-name">Checkin</span></div>
+            <div class="field-desc">Se pasa al link de policía como checkInDate en formato YYYYMMDD.</div>
+            <div class="field-impact impact-internal">🔒 Solo lectura</div>
+            <div class="field-val-display" id="d_Checkin">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Check-out fecha <span class="field-name">Checkout</span></div>
+            <div class="field-desc">Se pasa al link de policía como checkOutDate. También aparece en el texto "devuelto 1-15 días tras el checkout (fecha)".</div>
+            <div class="field-impact impact-internal">🔒 Solo lectura</div>
+            <div class="field-val-display" id="d_Checkout">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Link Registro Policía <span class="field-name">TaVillas: Link_Registrodepolicia</span></div>
+            <div class="field-desc">UUID de la villa en el sistema de policía. Se obtiene de TaVillas. Se usa para construir la URL de registro policial.</div>
+            <div class="field-impact impact-internal">🔒 Viene de TaVillas</div>
+            <div class="field-val-display" id="d_Link_Registrodepolicia">—</div>
+          </div>
+
+          <div class="field-row full">
+            <div class="field-label">Link policial generado</div>
+            <div class="field-desc">URL completa que se mostrará al huésped en checkin-police.html. Incluye datos de la reserva ya rellenados.</div>
+            <div class="field-impact impact-client">👁 Cliente ve este link</div>
+            <div class="field-val-display" id="d_police_link" style="word-break:break-all;font-size:10px;line-height:1.6">—</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 4. DEPOSIT ══ -->
+    <div class="section s-deposit">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico">🏦</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title">Security Deposit — Paso 3</div>
+          <div class="sec-sub">Opciones de depósito y condiciones que ve el huésped</div>
+        </div>
+        <span class="sec-badge">DEPOSIT</span>
+        <span class="sec-arrow">▾</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid">
+
+          <div class="field-row">
+            <div class="field-label">Portal / OTA <span class="field-name">Portal_Name</span></div>
+            <div class="field-desc">⚠️ CRÍTICO. Si contiene "airbnb", el huésped solo ve opciones 1 (Waiver) y 4 (No waiver/Airbnb). En cualquier otro portal ve opciones 1, 2 (tarjeta) y 3 (transferencia).</div>
+            <div class="field-impact impact-critical">⚠️ Determina qué opciones ve el cliente</div>
+            <input class="inp" id="f_Portal_Name" type="text" placeholder="Airbnb / Booking / Direct">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Se permite Waiver <span class="field-name">Se_permite_waver</span></div>
+            <div class="field-desc">Si es 0 o falso, la opción 1 (Waiver) aparece deshabilitada con mensaje explicativo. El propietario debe autorizar el waiver.</div>
+            <div class="field-impact impact-critical">⚠️ Habilita/deshabilita opción Waiver</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Se_permite_waver"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Se_permite_waver">—</span>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Importe depósito <span class="field-name">Security_deposit_EUR</span></div>
+            <div class="field-desc">Importe del depósito en EUR. Se muestra como precio en las opciones 2 y 3. Aparece como "{depEUR} EUR" en los textos de procedimiento.</div>
+            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <input class="inp" id="f_Security_deposit_EUR" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Importe Deposit Waver <span class="field-name">Deposit_waver_EUR</span></div>
+            <div class="field-desc">Coste del waiver en EUR. Se muestra como precio en la opción 1 y como "{waverEUR} EUR".</div>
+            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <input class="inp" id="f_Deposit_waver_EUR" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Gasto tarjeta depósito <span class="field-name">Gasto_tarjeta_deposito_seguridad</span></div>
+            <div class="field-desc">Comisión por pagar con tarjeta (opción 2). Aparece como "Coste de transacción: {gastoEUR} EUR".</div>
+            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <input class="inp" id="f_Gasto_tarjeta_deposito_seguridad" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Opción seleccionada <span class="field-name">Security_deposit_options</span></div>
+            <div class="field-desc">Lo que el cliente ha elegido: 0=No decidido, 1=Waiver, 2=Tarjeta, 3=Transferencia, 4=No waiver (Airbnb). Determina el estado del paso 3.</div>
+            <div class="field-impact impact-client">✏️ Cliente elige</div>
+            <select class="sel" id="f_Security_deposit_options">
+              <option value="0">0 — No decidido todavía</option>
+              <option value="1">1 — Security Deposit Waiver</option>
+              <option value="2">2 — Pago con Tarjeta de Crédito</option>
+              <option value="3">3 — Transferencia Bancaria</option>
+              <option value="4">4 — No Waiver (Airbnb)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">IBAN del huésped <span class="field-name">Numero_cuenta_bancaria_guest</span></div>
+            <div class="field-desc">Solo se rellena si el cliente elige opción 3 (Transferencia). Necesario para devolver el depósito.</div>
+            <div class="field-impact impact-client">✏️ Cliente edita (solo opción 3)</div>
+            <input class="inp" id="f_Numero_cuenta_bancaria_guest" type="text" placeholder="ES3031400001910012804500">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">BIC/SWIFT del huésped <span class="field-name">Numero_swift_bic_bancario_guest</span></div>
+            <div class="field-desc">Solo se rellena si el cliente elige opción 3 (Transferencia).</div>
+            <div class="field-impact impact-client">✏️ Cliente edita (solo opción 3)</div>
+            <input class="inp" id="f_Numero_swift_bic_bancario_guest" type="text" placeholder="CGUIESBAXXX">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Depósito cobrado <span class="field-name">Security_deposit_cobrado</span></div>
+            <div class="field-desc">Marca interna de si el depósito ya ha sido cobrado. No lo ve el cliente pero afecta a notas-equipo-reservas.</div>
+            <div class="field-impact impact-internal">🔒 Solo interno</div>
+            <input class="inp" id="f_Security_deposit_cobrado" type="number" min="0" max="1" placeholder="0 o 1">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Depósito devuelto <span class="field-name">Security_deposit_devuelto</span></div>
+            <div class="field-desc">Marca interna de si el depósito ha sido devuelto al huésped. Aparece en las fichas de cobros-inquilinos.</div>
+            <div class="field-impact impact-internal">🔒 Solo interno</div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="f_Security_deposit_devuelto"><span class="toggle-slider"></span></label>
+              <span class="toggle-lbl" id="l_Security_deposit_devuelto">—</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 5. TAXES ══ -->
+    <div class="section s-taxes">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico">🌿</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title">Ecotasa — Paso 4</div>
+          <div class="sec-sub">Importes y estado del pago de la ecotasa turística</div>
+        </div>
+        <span class="sec-badge">TAXES</span>
+        <span class="sec-arrow">▾</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid">
+
+          <div class="field-row">
+            <div class="field-label">Ecotasa final <span class="field-name">Ecotasa_final</span></div>
+            <div class="field-desc">Importe calculado de la ecotasa (fórmula de Caspio). Se muestra al cliente como el importe a pagar. Solo lectura.</div>
+            <div class="field-impact impact-client">👁 Cliente ve este importe</div>
+            <div class="field-val-display" id="d_Ecotasa_final">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Ecotasa entrada manual <span class="field-name">Ecotasa_entrada_manualmente</span></div>
+            <div class="field-desc">Si se rellena este campo, sobreescribe la fórmula automática. Útil para casos especiales.</div>
+            <div class="field-impact impact-internal">🔒 Solo admin/manager</div>
+            <input class="inp" id="f_Ecotasa_entrada_manualmente" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Noches totales <span class="field-name">Nights</span></div>
+            <div class="field-desc">Número de noches de la reserva. Afecta al cálculo de la ecotasa (tarifa diferente para estancias ≤7 o >7 días).</div>
+            <div class="field-impact impact-internal">🔒 Solo lectura</div>
+            <div class="field-val-display" id="d_Nights">—</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Precio día temp. alta ≤7d <span class="field-name">Importe_ecotasa_dia_temp_alta</span></div>
+            <div class="field-desc">Tarifa de ecotasa por persona/noche en temporada alta para estancias de 7 días o menos.</div>
+            <div class="field-impact impact-internal">🔒 Configuración villa</div>
+            <input class="inp" id="f_Importe_ecotasa_dia_temp_alta" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Precio día temp. alta >7d <span class="field-name">Importe_ecotasa_dia_temp_alta2</span></div>
+            <div class="field-desc">Tarifa de ecotasa por persona/noche en temporada alta para estancias de más de 7 días.</div>
+            <div class="field-impact impact-internal">🔒 Configuración villa</div>
+            <input class="inp" id="f_Importe_ecotasa_dia_temp_alta2" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Precio día temp. baja ≤7d <span class="field-name">Importe_ecotasa_dia_temp_baja</span></div>
+            <div class="field-impact impact-internal">🔒 Configuración villa</div>
+            <input class="inp" id="f_Importe_ecotasa_dia_temp_baja" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row">
+            <div class="field-label">Precio día temp. baja >7d <span class="field-name">Importe_ecotasa_dia_temp_baja2</span></div>
+            <div class="field-impact impact-internal">🔒 Configuración villa</div>
+            <input class="inp" id="f_Importe_ecotasa_dia_temp_baja2" type="number" min="0" step="0.01">
+          </div>
+
+          <div class="field-row full">
+            <div class="field-label">Comentarios ecotasa <span class="field-name">Ecotasa_comentarios</span></div>
+            <div class="field-desc">Notas internas sobre la ecotasa. No las ve el cliente.</div>
+            <div class="field-impact impact-internal">🔒 Solo interno</div>
+            <textarea class="ta" id="f_Ecotasa_comentarios" rows="2"></textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Links de prueba -->
+    <div class="section" style="border:2px dashed var(--gray-3);background:var(--gray-1)">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico" style="background:#fff">🔗</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title" style="color:var(--gray-5)">Links de prueba del Checkin Online</div>
+          <div class="sec-sub">Accede directamente a cada página con el código de esta reserva</div>
+        </div>
+        <span class="sec-arrow open">▾</span>
+      </div>
+      <div class="sec-body open">
+        <div style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:10px" id="linkPanel">
+          <span style="color:var(--gray-4);font-size:12px">Carga una reserva para ver los links</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /page -->
+
+<div id="toast"></div>
+
+<script>
+Auth.require('checkin-test-reserva');
+
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+const VIEW   = 'Vi_villas_and_bookings2021';
+const TABLE  = 'TaBookings2021';
+const $ = id => document.getElementById(id);
+
+var _booking = null;
+var _code = '';
+var _toastT = null;
+
+function toast(msg, type='ok'){
+  var el=$('toast');
+  el.textContent=msg;
+  el.className='show '+(type==='err'?'err':'ok');
+  clearTimeout(_toastT);
+  _toastT=setTimeout(()=>el.className='',3500);
+}
+
+function togSec(head){
+  var body=head.nextElementSibling;
+  var arr=head.querySelector('.sec-arrow');
+  body.classList.toggle('open');
+  arr.classList.toggle('open');
+}
+
+function lastDigits(phone, n){
+  var d=(phone||'').replace(/\D/g,'');
+  return d.length>=n?d.slice(-n):'';
+}
+
+function fmtDate(v){
+  if(!v) return '—';
+  try{var d=new Date(v); return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}
+  catch(e){return String(v).slice(0,10);}
+}
+
+function g(field){ return _booking ? (_booking[field]??'') : ''; }
+
+function isTruthy(v){ return !!(v&&['1','-1','true','yes'].includes(String(v).toLowerCase())); }
+
+function setToggle(id, val){
+  var el=$(id); if(!el) return;
+  el.checked = isTruthy(val);
+  var lbl=$(id.replace('f_','l_')); if(lbl) lbl.textContent=el.checked?'✓ Sí':'✗ No';
+  el.onchange=function(){ var l=$(id.replace('f_','l_')); if(l) l.textContent=el.checked?'✓ Sí':'✗ No'; };
+}
+
+function setVal(id, val){
+  var el=$(id); if(!el) return;
+  el.value = (val===null||val===undefined) ? '' : val;
+}
+
+function setDisplay(id, val){
+  var el=$(id); if(!el) return;
+  el.textContent = (val===null||val===undefined||val==='') ? '—' : val;
+}
+
+function loadBooking(){
+  var code=$('inpCode').value.trim();
+  if(!code){toast('Introduce un código de reserva','err'); return;}
+  _code=code;
+  $('stEmpty').style.display='none';
+  $('main').style.display='none';
+  $('stLoad').style.display='flex';
+  $('btnSave').disabled=true;
+
+  var where=`TaBookings2021_FS_confirmation_code='${code}'`;
+  var url=Auth.url(`${WORKER}?action=view&view=${VIEW}&where=${encodeURIComponent(where)}&limit=1`);
+
+  fetch(url)
+    .then(r=>r.json())
+    .then(j=>{
+      var rows=j.Result||j.result||j||[];
+      if(!rows.length){
+        $('stLoad').style.display='none';
+        $('stEmpty').textContent=`No se encontró ninguna reserva con código "${code}"`;
+        $('stEmpty').style.display='block';
+        return;
+      }
+      _booking=rows[0];
+      renderBooking();
+    })
+    .catch(e=>{
+      $('stLoad').style.display='none';
+      $('stEmpty').style.display='block';
+      toast('Error cargando reserva: '+e.message,'err');
+    });
+}
+
+function renderBooking(){
+  var r=_booking;
+  var code=g('TaBookings2021_FS_confirmation_code');
+
+  // Header
+  $('bhVilla').textContent = g('TaBookings2021_Property_Title')||'—';
+  $('bhDates').textContent = `${fmtDate(g('TaBookings2021_Checkin'))} → ${fmtDate(g('TaBookings2021_Checkout'))} · ${g('TaBookings2021_Nights')||'?'} noches · ${g('TaBookings2021_Adults')||'?'} adultos`;
+  $('bhCode').textContent  = code;
+  var st=$('bhStatus');
+  var status=(g('TaBookings2021_BookingStatus')||'').toLowerCase();
+  st.textContent=status||'—';
+  st.className='bh-status '+(status==='confirmed'||status==='new'?'confirmed':'cancelled');
+
+  // ── ONLINE STATES ──
+  setToggle('f_Arrivalform_done', g('TaBookings2021_Arrivalform_done'));
+  setToggle('f_Registro_policia_done', g('TaBookings2021_Registro_policia_done'));
+  setToggle('f_Security_deposit_terminado', g('TaBookings2021_Security_deposit_terminado'));
+  setToggle('f_Ecotasa_cobrada', g('TaBookings2021_Ecotasa_cobrada'));
+
+  // ── ARRIVAL ──
+  setVal('f_Adults', g('TaBookings2021_Adults'));
+  setVal('f_Guest_adults_nr_form', g('TaBookings2021_Guest_adults_nr_form'));
+  setVal('f_Guest_adults_ages_form', g('TaBookings2021_Guest_adults_ages_form'));
+  setVal('f_Children', g('TaBookings2021_Children'));
+  setVal('f_Guest_children_nr_form', g('TaBookings2021_Guest_children_nr_form'));
+  setVal('f_Guest_children_babies_ages_form', g('TaBookings2021_Guest_children_babies_ages_form'));
+  setVal('f_Arrival_Time_to_Menorca', g('TaBookings2021_Arrival_Time_to_Menorca'));
+  setVal('f_Checkin_time', g('TaBookings2021_Checkin_time'));
+  setVal('f_Departure_Time_to_Menorca', g('TaBookings2021_Departure_Time_to_Menorca'));
+  setVal('f_Checkout_time', g('TaBookings2021_Checkout_time'));
+  setVal('f_Fiscal_guest_name', g('TaBookings2021_Fiscal_guest_name'));
+  setVal('f_Fiscal_guest_surename', g('TaBookings2021_Fiscal_guest_surename'));
+  setVal('f_Fiscal_guest_DNI_passport', g('TaBookings2021_Fiscal_guest_DNI_passport'));
+  setVal('f_Fiscal_guest_address', g('TaBookings2021_Fiscal_guest_address'));
+  setVal('f_Fiscal_guest_city', g('TaBookings2021_Fiscal_guest_city'));
+  setVal('f_Fiscal_guest_Country', g('TaBookings2021_Fiscal_guest_Country'));
+  setVal('f_Segundo_email', g('TaBookings2021_Segundo_email'));
+  setVal('f_Segundo_Telefono', g('TaBookings2021_Segundo_Telefono'));
+  setVal('f_Guest_info', g('TaBookings2021_Guest_info'));
+
+  // ── POLICE (solo lectura) ──
+  setVal('f_Guest_phonenumber', g('TaBookings2021_Guest_phonenumber'));
+  setDisplay('d_Segundo_Telefono', g('TaBookings2021_Segundo_Telefono'));
+  setDisplay('d_Checkin', fmtDate(g('TaBookings2021_Checkin')));
+  setDisplay('d_Checkout', fmtDate(g('TaBookings2021_Checkout')));
+  setDisplay('d_Link_Registrodepolicia', g('TaVillas_Link_Registrodepolicia'));
+
+  // PIN calculado
+  var phone1=g('TaBookings2021_Guest_phonenumber');
+  var phone2=g('TaBookings2021_Segundo_Telefono');
+  var pin=lastDigits(phone1,5)||lastDigits(phone2,5)||'35111';
+  setDisplay('d_pin', pin);
+
+  // Link policial
+  var villaLink=g('TaVillas_Link_Registrodepolicia');
+  var chkIn=g('TaBookings2021_Checkin');
+  var chkOut=g('TaBookings2021_Checkout');
+  var adults=(parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0);
+  function fmtPol(v){if(!v)return'';var d=new Date(v);var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+m+dd;}
+  function todayPol(){var d=new Date();var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+m+dd;}
+  var nombre=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name')||'';
+  var apellido=g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename')||'';
+  var phone=phone1.replace(/\D/g,'');
+  if(villaLink&&code){
+    var polUrl='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96/organization/'+
+      encodeURIComponent(villaLink)+'/reservation/'+encodeURIComponent(code)+
+      '?checkInDate='+fmtPol(chkIn)+'&checkOutDate='+fmtPol(chkOut)+
+      '&contractDate='+todayPol()+'&number='+adults+
+      '&firstName='+encodeURIComponent(nombre)+'&lastName1='+encodeURIComponent(apellido)+
+      '&phone='+encodeURIComponent(phone);
+    setDisplay('d_police_link', polUrl);
+  }
+
+  // ── DEPOSIT ──
+  setVal('f_Portal_Name', g('TaBookings2021_Portal_Name'));
+  setToggle('f_Se_permite_waver', g('TaBookings2021_Se_permite_waver'));
+  setVal('f_Security_deposit_EUR', g('TaBookings2021_Security_deposit_EUR'));
+  setVal('f_Deposit_waver_EUR', g('TaBookings2021_Deposit_waver_EUR'));
+  setVal('f_Gasto_tarjeta_deposito_seguridad', g('TaBookings2021_Gasto_tarjeta_deposito_seguridad'));
+  setVal('f_Security_deposit_options', g('TaBookings2021_Security_deposit_options')||'0');
+  setVal('f_Numero_cuenta_bancaria_guest', g('TaBookings2021_Numero_cuenta_bancaria_guest'));
+  setVal('f_Numero_swift_bic_bancario_guest', g('TaBookings2021_Numero_swift_bic_bancario_guest'));
+  setVal('f_Security_deposit_cobrado', g('TaBookings2021_Security_deposit_cobrado'));
+  setToggle('f_Security_deposit_devuelto', g('TaBookings2021_Security_deposit_devuelto'));
+
+  // ── TAXES ──
+  setDisplay('d_Ecotasa_final', g('TaBookings2021_Ecotasa_final') ? parseFloat(g('TaBookings2021_Ecotasa_final')).toFixed(2)+' €' : '—');
+  setDisplay('d_Nights', g('TaBookings2021_Nights'));
+  setVal('f_Ecotasa_entrada_manualmente', g('TaBookings2021_Ecotasa_entrada_manualmente'));
+  setVal('f_Importe_ecotasa_dia_temp_alta', g('TaBookings2021_Importe_ecotasa_dia_temp_alta'));
+  setVal('f_Importe_ecotasa_dia_temp_alta2', g('TaBookings2021_Importe_ecotasa_dia_temp_alta2'));
+  setVal('f_Importe_ecotasa_dia_temp_baja', g('TaBookings2021_Importe_ecotasa_dia_temp_baja'));
+  setVal('f_Importe_ecotasa_dia_temp_baja2', g('TaBookings2021_Importe_ecotasa_dia_temp_baja2'));
+  setVal('f_Ecotasa_comentarios', g('TaBookings2021_Ecotasa_comentarios'));
+
+  // ── LINKS ──
+  var qs='?TaBookings2021_FS_confirmation_code='+encodeURIComponent(code);
+  $('linkPanel').innerHTML=[
+    {label:'🏠 Checkin Online', href:'checkin-online.html'+qs, bg:'#fce8eb', border:'#C8102E'},
+    {label:'✈️ Arrival',        href:'checkin-arrival.html'+qs, bg:'#eff6ff', border:'#2563EB'},
+    {label:'🏛️ Police',         href:'checkin-police.html'+qs,  bg:'#f5f3ff', border:'#7c3aed'},
+    {label:'🏦 Deposit',        href:'checkin-deposit.html'+qs, bg:'#f0fdfa', border:'#0d9488'},
+    {label:'🌿 Taxes',          href:'checkin-taxes.html'+qs,   bg:'#fffbeb', border:'#d97706'},
+  ].map(l=>{
+    return '<a href="'+l.href+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:'+l.bg+';border:1.5px solid '+l.border+';color:'+l.border+';border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;text-decoration:none">'+l.label+' ↗</a>';
+  }).join('');
+
+  $('stLoad').style.display='none';
+  $('main').style.display='block';
+  $('btnSave').disabled=false;
+  toast('Reserva '+code+' cargada correctamente');
+}
+
+async function saveAll(){
+  if(!_booking){toast('No hay reserva cargada','err');return;}
+  $('btnSave').disabled=true;
+  $('btnSave').textContent='Guardando…';
+
+  var fields={
+    // STATES
+    Arrivalform_done: $('f_Arrivalform_done').checked ? 1 : 0,
+    Registro_policia_done: $('f_Registro_policia_done').checked ? 1 : 0,
+    Security_deposit_terminado: $('f_Security_deposit_terminado').checked ? 1 : 0,
+    Ecotasa_cobrada: $('f_Ecotasa_cobrada').checked ? 1 : 0,
+    // ARRIVAL
+    Adults: parseInt($('f_Adults').value)||null,
+    Guest_adults_nr_form: parseInt($('f_Guest_adults_nr_form').value)||null,
+    Guest_adults_ages_form: $('f_Guest_adults_ages_form').value.trim()||null,
+    Children: parseInt($('f_Children').value)||null,
+    Guest_children_nr_form: parseInt($('f_Guest_children_nr_form').value)||null,
+    Guest_children_babies_ages_form: $('f_Guest_children_babies_ages_form').value.trim()||null,
+    Arrival_Time_to_Menorca: $('f_Arrival_Time_to_Menorca').value.trim()||null,
+    Checkin_time: $('f_Checkin_time').value.trim()||null,
+    Departure_Time_to_Menorca: $('f_Departure_Time_to_Menorca').value.trim()||null,
+    Checkout_time: $('f_Checkout_time').value.trim()||null,
+    Fiscal_guest_name: $('f_Fiscal_guest_name').value.trim()||null,
+    Fiscal_guest_surename: $('f_Fiscal_guest_surename').value.trim()||null,
+    Fiscal_guest_DNI_passport: $('f_Fiscal_guest_DNI_passport').value.trim()||null,
+    Fiscal_guest_address: $('f_Fiscal_guest_address').value.trim()||null,
+    Fiscal_guest_city: $('f_Fiscal_guest_city').value.trim()||null,
+    Fiscal_guest_Country: $('f_Fiscal_guest_Country').value.trim()||null,
+    Segundo_email: $('f_Segundo_email').value.trim()||null,
+    Segundo_Telefono: $('f_Segundo_Telefono').value.trim()||null,
+    Guest_info: $('f_Guest_info').value.trim()||null,
+    // POLICE
+    Guest_phonenumber: $('f_Guest_phonenumber').value.trim()||null,
+    // DEPOSIT
+    Portal_Name: $('f_Portal_Name').value.trim()||null,
+    Se_permite_waver: $('f_Se_permite_waver').checked ? 1 : 0,
+    Security_deposit_EUR: parseFloat($('f_Security_deposit_EUR').value)||null,
+    Deposit_waver_EUR: parseFloat($('f_Deposit_waver_EUR').value)||null,
+    Gasto_tarjeta_deposito_seguridad: parseFloat($('f_Gasto_tarjeta_deposito_seguridad').value)||null,
+    Security_deposit_options: parseInt($('f_Security_deposit_options').value)||0,
+    Numero_cuenta_bancaria_guest: $('f_Numero_cuenta_bancaria_guest').value.trim()||null,
+    Numero_swift_bic_bancario_guest: $('f_Numero_swift_bic_bancario_guest').value.trim()||null,
+    Security_deposit_cobrado: parseInt($('f_Security_deposit_cobrado').value)||null,
+    Security_deposit_devuelto: $('f_Security_deposit_devuelto').checked ? 1 : 0,
+    // TAXES
+    Ecotasa_entrada_manualmente: parseFloat($('f_Ecotasa_entrada_manualmente').value)||null,
+    Importe_ecotasa_dia_temp_alta: parseFloat($('f_Importe_ecotasa_dia_temp_alta').value)||null,
+    Importe_ecotasa_dia_temp_alta2: parseFloat($('f_Importe_ecotasa_dia_temp_alta2').value)||null,
+    Importe_ecotasa_dia_temp_baja: parseFloat($('f_Importe_ecotasa_dia_temp_baja').value)||null,
+    Importe_ecotasa_dia_temp_baja2: parseFloat($('f_Importe_ecotasa_dia_temp_baja2').value)||null,
+    Ecotasa_comentarios: $('f_Ecotasa_comentarios').value.trim()||null,
+  };
+
+  try{
+    var where=`FS_confirmation_code='${_code}'`;
+    var url=Auth.url(`${WORKER}?action=save&table=${TABLE}&where=${encodeURIComponent(where)}&method=PUT`);
+    var resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+    if(!resp.ok){var e=await resp.json(); throw new Error(e.Message||e.error||'Error '+resp.status);}
+    toast('✓ Guardado correctamente');
+  }catch(e){
+    toast('Error: '+e.message,'err');
+  }finally{
+    $('btnSave').disabled=false;
+    $('btnSave').textContent='💾 Guardar cambios';
+  }
+}
+
+// Fix syntax error in link panel — usar strings en lugar de template literals con variables CSS
+window.addEventListener('DOMContentLoaded', function(){
+  loadBooking();
+});
+</script>
+
+<!-- HISTORIAL: v1 - Página inicial: test completo de reserva para checkin online; todos los campos de arrival/police/deposit/taxes; guardar vía Auth; acceso admin+manager -->
+</body>
+</html>
