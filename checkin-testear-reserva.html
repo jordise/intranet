@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v4 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checkin Test Reserva v2 — 3Villas</title>
+<title>Checkin Test Reserva v4 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -143,17 +143,11 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 .field-arrival .field-name{background:#e3f2fd;color:#1565c0}
 .field-hostaway .inp,.field-hostaway .sel,.field-hostaway .ta{border-color:#ffb74d;background:#fffbf7}
 .field-arrival .inp,.field-arrival .sel,.field-arrival .ta{border-color:#64b5f6;background:#f0f8ff}
-.pin-box{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-radius:14px;
-  padding:20px;margin:0 0 16px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.pin-digit{font-family:var(--mono);font-size:36px;font-weight:900;letter-spacing:8px;
-  color:#fff;background:rgba(255,255,255,.1);padding:10px 20px;border-radius:10px;
-  border:2px solid rgba(255,255,255,.2);flex-shrink:0}
-.pin-info{flex:1;min-width:200px}
-.pin-info-title{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
-  color:rgba(255,255,255,.6);margin-bottom:6px}
-.pin-info-desc{font-size:12px;color:rgba(255,255,255,.8);line-height:1.6}
-.pin-warn{background:#ff6b6b;color:#fff;border-radius:8px;padding:8px 14px;
-  font-size:11px;font-weight:700;margin-top:8px;display:inline-block}
+.villa-sel-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
+.villa-sel{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);
+  border:none;background:transparent;cursor:pointer;padding:0;outline:none;max-width:100%;
+  flex:1;min-width:120px}
+.villa-sel option{font-weight:600;font-size:13px}
 .police-field-row{padding:10px 16px;border-bottom:1px solid var(--gray-2);display:grid;
   grid-template-columns:200px 1fr auto;gap:8px;align-items:start;font-size:12px}
 .police-field-row:last-child{border-bottom:none}
@@ -212,8 +206,12 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 
     <!-- BOOKING HEADER -->
     <div class="booking-header">
-      <div style="flex:1">
-        <div class="bh-villa" id="bhVilla">—</div>
+      <div style="flex:1;min-width:0">
+        <div class="villa-sel-wrap">
+          <select class="villa-sel" id="bhVillaSelect" onchange="changeVilla(this.value)" title="Cambiar villa">
+            <option id="bhVillaOpt">—</option>
+          </select>
+        </div>
         <div class="bh-dates" id="bhDates">—</div>
       </div>
       <span class="bh-code" id="bhCode">—</span>
@@ -221,15 +219,29 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
     </div>
 
     <!-- ══ 0. PIN ══ -->
-    <div id="pinBox" class="pin-box" style="display:none">
-      <div class="pin-info">
-        <div class="pin-info-title">🔐 PIN de acceso al checkin online</div>
-        <div class="pin-info-desc">El huésped necesita este PIN para verificar su identidad en checkin-online.html.<br>
-        Son los últimos 5 dígitos del <strong>teléfono principal</strong> (Guest_phonenumber).<br>
-        Si está vacío, usa los últimos 5 del <strong>segundo teléfono</strong> (Segundo_Telefono). Fallback: <strong>35111</strong>.</div>
-        <div id="pinSource" style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.6)"></div>
+    <div id="pinBox" class="section" style="display:none">
+      <div class="sec-head" onclick="togSec(this)">
+        <div class="sec-ico" style="background:#fff3cd">🔐</div>
+        <div class="sec-title-wrap">
+          <div class="sec-title" style="color:#856404">PIN de acceso al Checkin Online</div>
+          <div class="sec-sub">El huésped usa este PIN para verificar su identidad</div>
+        </div>
+        <span class="sec-badge" style="background:#fff3cd;color:#856404">PIN: <span id="pinDisplay">—</span></span>
+        <span class="sec-arrow open">▾</span>
       </div>
-      <div class="pin-digit" id="pinDisplay">—</div>
+      <div class="sec-body open">
+        <div class="fields-grid">
+          <div class="field-row full">
+            <div class="field-label">Cómo se calcula</div>
+            <div class="field-desc" style="font-size:12px;line-height:1.7">
+              Son los <strong>últimos 5 dígitos</strong> del <strong>teléfono principal</strong> (Guest_phonenumber).<br>
+              Si Guest_phonenumber está vacío, usa los últimos 5 del <strong>Segundo_Telefono</strong>.<br>
+              Si ninguno tiene 5 dígitos → fallback: <strong>35111</strong>.
+            </div>
+            <div id="pinSource" style="margin-top:8px;font-size:12px;font-weight:700;padding:8px 12px;background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:8px;color:var(--amber)"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ══ 1. CHECKIN ONLINE (estados) ══ -->
@@ -308,29 +320,29 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 
           <div class="field-row field-hostaway">
             <div class="field-label">Nombre (Hostaway) <span class="field-name">Guest_Name</span></div>
-            <div class="field-desc">Nombre del inquilino según Hostaway. Solo lectura.</div>
+            <div class="field-desc">Nombre del inquilino según Hostaway.</div>
             <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
-            <div class="field-val-display" id="d_Guest_Name">—</div>
+            <input class="inp" id="f_Guest_Name" type="text">
           </div>
 
           <div class="field-row field-hostaway">
             <div class="field-label">Apellidos (Hostaway) <span class="field-name">Guest_Surename</span></div>
             <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
-            <div class="field-val-display" id="d_Guest_Surename">—</div>
+            <input class="inp" id="f_Guest_Surename" type="text">
           </div>
 
           <div class="field-row field-hostaway">
             <div class="field-label">Email (Hostaway) <span class="field-name">Guest_email</span></div>
-            <div class="field-desc">Email de la reserva. El cliente puede confirmar otro email en el formulario (Segundo_email).</div>
+            <div class="field-desc">Email de la reserva. El cliente puede confirmar otro en Segundo_email.</div>
             <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway</span>
-            <div class="field-val-display" id="d_Guest_email">—</div>
+            <input class="inp" id="f_Guest_email" type="email">
           </div>
 
           <div class="field-row field-hostaway">
             <div class="field-label">Teléfono (Hostaway) <span class="field-name">Guest_phonenumber</span></div>
-            <div class="field-desc">⚠️ Los últimos 5 dígitos son el PIN de acceso al checkin.</div>
+            <div class="field-desc">⚠️ Los últimos 5 dígitos son el PIN de acceso al checkin. Cambiar este campo cambia el PIN.</div>
             <span class="src-reserva" style="display:inline-block;margin-top:2px">📋 Hostaway · <strong>Fuente del PIN</strong></span>
-            <div class="field-val-display" id="d_Guest_phonenumber">—</div>
+            <input class="inp" id="f_Guest_phonenumber_ha" type="tel" oninput="recalcPin()">
           </div>
 
           <div class="sec-divider" style="background:#e3f2fd;color:#1565c0;border-color:#64b5f6">🔵 Datos confirmados por el cliente (azul) — el cliente los edita en el arrival form</div>
@@ -489,37 +501,30 @@ body{font-family:Montserrat,sans-serif;background:#f0f2f5;color:var(--gray-5);mi
 
           <div class="field-row">
             <div class="field-label">Teléfono principal <span class="field-name">Guest_phonenumber</span></div>
-            <div class="field-desc">⚠️ MUY IMPORTANTE. Los últimos 5 dígitos son el PIN de acceso al checkin online. Si cambias este campo, el PIN del huésped cambia.</div>
-            <div class="field-impact impact-critical">⚠️ Define el PIN de acceso</div>
-            <input class="inp" id="f_Guest_phonenumber" type="tel">
+            <div class="field-desc">⚠️ Editable en la sección Arrival (naranja). Los últimos 5 dígitos son el PIN. El bloque PIN en la cabecera se actualiza al cambiarlo.</div>
+            <div class="field-impact impact-critical">⚠️ Define el PIN — editar en sección Arrival</div>
+            <div class="field-val-display" id="d_phone_police">—</div>
           </div>
 
           <div class="field-row">
             <div class="field-label">Segundo teléfono <span class="field-name">Segundo_Telefono</span></div>
-            <div class="field-desc">Fallback para el PIN si Guest_phonenumber está vacío. Los últimos 5 dígitos también sirven como PIN.</div>
+            <div class="field-desc">Fallback para el PIN si Guest_phonenumber está vacío.</div>
             <div class="field-impact impact-critical">⚠️ Fallback del PIN</div>
             <div class="field-val-display" id="d_Segundo_Telefono">—</div>
           </div>
 
           <div class="field-row">
-            <div class="field-label">PIN calculado</div>
-            <div class="field-desc">PIN que usará el huésped para acceder al checkin online. Son los últimos 5 dígitos del teléfono principal, o del segundo si el principal está vacío. Fallback: 35111.</div>
-            <div class="field-impact impact-critical">⚠️ PIN de acceso</div>
-            <div class="field-val-display" id="d_pin" style="font-size:18px;font-weight:900;color:var(--red);letter-spacing:4px">—</div>
-          </div>
-
-          <div class="field-row">
             <div class="field-label">Check-in fecha <span class="field-name">Checkin</span></div>
-            <div class="field-desc">Se pasa al link de policía como checkInDate en formato YYYYMMDD.</div>
-            <div class="field-impact impact-internal">🔒 Solo lectura</div>
-            <div class="field-val-display" id="d_Checkin">—</div>
+            <div class="field-desc">Se pasa al link de policía como checkInDate. Al cambiarla el diagnóstico del link se recalcula.</div>
+            <div class="field-impact impact-critical">⚠️ Cambia el link policial y las fechas del checkin</div>
+            <input class="inp" id="f_Checkin" type="date" oninput="onDateChange()">
           </div>
 
           <div class="field-row">
             <div class="field-label">Check-out fecha <span class="field-name">Checkout</span></div>
-            <div class="field-desc">Se pasa al link de policía como checkOutDate. También aparece en el texto "devuelto 1-15 días tras el checkout (fecha)".</div>
-            <div class="field-impact impact-internal">🔒 Solo lectura</div>
-            <div class="field-val-display" id="d_Checkout">—</div>
+            <div class="field-desc">Se pasa al link de policía como checkOutDate. Aparece en "devuelto 1-15 días tras el checkout (fecha)".</div>
+            <div class="field-impact impact-critical">⚠️ Cambia el link policial y las fechas del checkout</div>
+            <input class="inp" id="f_Checkout" type="date" oninput="onDateChange()">
           </div>
 
           <div class="field-row">
@@ -809,6 +814,136 @@ function togSec(head){
   arr.classList.toggle('open');
 }
 
+function toInputDate(v){ if(!v) return ''; try{ return new Date(v).toISOString().slice(0,10); } catch(e){ return ''; } }
+
+function updateDatesHeader(){
+  var ci=$('f_Checkin')&&$('f_Checkin').value ? $('f_Checkin').value : (g('TaBookings2021_Checkin')||'');
+  var co=$('f_Checkout')&&$('f_Checkout').value ? $('f_Checkout').value : (g('TaBookings2021_Checkout')||'');
+  var nights=g('TaBookings2021_Nights')||'?';
+  var adults=g('TaBookings2021_Adults')||'?';
+  // Recalcular noches si ambas fechas disponibles
+  if(ci&&co){
+    var d1=new Date(ci), d2=new Date(co);
+    var n=Math.round((d2-d1)/(1000*60*60*24));
+    if(n>0) nights=n;
+  }
+  var fmt=function(v){if(!v)return'—';try{var d=new Date(v);return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return v;}};
+  var el=$('bhDates');
+  if(el) el.textContent=fmt(ci)+' → '+fmt(co)+' · '+nights+' noches · '+adults+' adultos';
+}
+
+function onDateChange(){
+  updateDatesHeader();
+  // Regenerar diagnóstico policial con nuevas fechas
+  if(_booking) updatePoliceDiag();
+}
+
+function updatePoliceDiag(){
+  var code=g('TaBookings2021_FS_confirmation_code');
+  var checkinDate=$('f_Checkin')&&$('f_Checkin').value ? $('f_Checkin').value+'T00:00:00' : g('TaBookings2021_Checkin');
+  var checkoutDate=$('f_Checkout')&&$('f_Checkout').value ? $('f_Checkout').value+'T00:00:00' : g('TaBookings2021_Checkout');
+  var today=new Date(); today.setHours(0,0,0,0);
+  var checkinD=checkinDate?new Date(checkinDate):null;
+  var dateError=checkinD&&checkinD<today;
+  var polFields=[
+    {param:'organization', val:g('TaVillas_Link_Registrodepolicia'), desc:'UUID villa en sistema policial', critical:true},
+    {param:'reservation', val:code, desc:'Código confirmación reserva', critical:true},
+    {param:'checkInDate', val:checkinDate?fmtPol(checkinDate):'', desc:'Fecha check-in YYYYMMDD', critical:true, warn:dateError?'⚠️ Fecha PASADA — el link puede fallar':null},
+    {param:'checkOutDate', val:checkoutDate?fmtPol(checkoutDate):'', desc:'Fecha check-out YYYYMMDD', critical:true},
+    {param:'contractDate', val:todayPol(), desc:'Fecha de hoy (automático)', critical:false},
+    {param:'number', val:String((parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0)), desc:'Total ocupantes', critical:true},
+    {param:'firstName', val:($('f_Guest_Name')||{value:''}).value||g('TaBookings2021_Guest_Name'), desc:'Nombre titular', critical:false},
+    {param:'lastName1', val:($('f_Guest_Surename')||{value:''}).value||g('TaBookings2021_Guest_Surename'), desc:'Apellido titular', critical:false},
+    {param:'phone', val:(($('f_Guest_phonenumber_ha')||{value:''}).value||g('TaBookings2021_Guest_phonenumber')).replace(/\D/g,''), desc:'Teléfono sin especiales', critical:false},
+  ];
+  var diagHtml='';
+  if(dateError) diagHtml+='<div class="date-error">⛔ ERROR: La fecha de check-in es anterior a hoy. El link policial puede fallar.</div>';
+  diagHtml+='<div style="border:1px solid var(--gray-3);border-radius:8px;overflow:hidden">';
+  polFields.forEach(function(pf){
+    var ok=!!pf.val;
+    var statusClass=ok?(pf.warn?'pf-warn':'pf-ok'):'pf-missing';
+    var statusTxt=ok?(pf.warn?'⚠️ AVISO':'✓ OK'):'✗ FALTA';
+    diagHtml+='<div class="police-field-row">';
+    diagHtml+='<div><div class="pf-name">?'+pf.param+'=</div>';
+    diagHtml+=(pf.critical?'<span class="pf-status pf-missing" style="font-size:8px">CRÍTICO</span>':'<span class="pf-status pf-ok" style="font-size:8px">OPCIONAL</span>')+'</div>';
+    diagHtml+='<div><div class="pf-val '+(ok?'':'missing')+'">'+(pf.val||'— sin valor —')+'</div>';
+    if(pf.warn) diagHtml+='<div style="font-size:10px;font-weight:700;color:var(--amber);margin-top:3px">'+pf.warn+'</div>';
+    diagHtml+='</div>';
+    diagHtml+='<span class="pf-status '+statusClass+'">'+statusTxt+'</span></div>';
+  });
+  diagHtml+='</div>';
+  var diagEl=$('d_police_diag'); if(diagEl) diagEl.innerHTML=diagHtml;
+  // Link completo
+  if(g('TaVillas_Link_Registrodepolicia')&&code){
+    var tot=(parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0);
+    var pn=($('f_Guest_Name')||{value:''}).value||g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name')||'';
+    var pa=($('f_Guest_Surename')||{value:''}).value||g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename')||'';
+    var pp=(($('f_Guest_phonenumber_ha')||{value:''}).value||g('TaBookings2021_Guest_phonenumber')).replace(/\D/g,'');
+    var polUrl='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96/organization/'+
+      encodeURIComponent(g('TaVillas_Link_Registrodepolicia'))+'/reservation/'+encodeURIComponent(code)+
+      '?checkInDate='+fmtPol(checkinDate)+'&checkOutDate='+fmtPol(checkoutDate)+
+      '&contractDate='+todayPol()+'&number='+tot+
+      '&firstName='+encodeURIComponent(pn)+'&lastName1='+encodeURIComponent(pa)+'&phone='+encodeURIComponent(pp);
+    var lkEl=$('d_police_link'); if(lkEl){lkEl.textContent=polUrl;lkEl.style.display='block';}
+  }
+}
+
+function recalcPin(){
+  var ph1=($('f_Guest_phonenumber_ha')||{value:''}).value;
+  var ph2=($('f_Segundo_Telefono')||{value:''}).value||(_booking?g('TaBookings2021_Segundo_Telefono'):'');
+  var pinVal='', pinSrc='';
+  if(lastDigits(ph1,5)){pinVal=lastDigits(ph1,5);pinSrc='Fuente: Guest_phonenumber ('+ph1+')';}
+  else if(lastDigits(ph2,5)){pinVal=lastDigits(ph2,5);pinSrc='Fuente: Segundo_Telefono — Guest_phonenumber sin 5 dígitos';}
+  else{pinVal='35111';pinSrc='⚠️ Fallback: ningún teléfono con 5 dígitos → PIN 35111';}
+  var pd=$('pinDisplay'); if(pd) pd.textContent=pinVal;
+  var ps=$('pinSource'); if(ps) ps.textContent=pinSrc;
+  var dp=$('d_phone_police'); if(dp) dp.textContent=ph1||'—';
+}
+
+var _villas=[];
+function loadVillaList(){
+  var url=Auth.url(WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent("TaBookings2021_BookingStatus<>'cancelled'")+'&limit=200');
+  fetch(url).then(r=>r.json()).then(j=>{
+    var rows=j.Result||j.result||[];
+    // Obtener villas únicas
+    var seen={};
+    _villas=[];
+    rows.forEach(function(r){
+      var code=r['TaBookings2021_FS_confirmation_code']||'';
+      if(code&&!seen[code]){seen[code]=true;_villas.push({code:code,villa:r['TaBookings2021_Property_Title']||code});}
+    });
+    updateVillaSelect();
+  }).catch(function(){});
+}
+
+function updateVillaSelect(){
+  var sel=$('bhVillaSelect'); if(!sel||!_booking) return;
+  var currentCode=g('TaBookings2021_FS_confirmation_code');
+  // Limpiar y reconstruir
+  sel.innerHTML='';
+  _villas.forEach(function(v){
+    var opt=document.createElement('option');
+    opt.value=v.code;
+    opt.textContent=v.villa+' ('+v.code+')';
+    if(v.code===currentCode) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  // Si no está en la lista, añadirla
+  if(!_villas.find(v=>v.code===currentCode)){
+    var opt=document.createElement('option');
+    opt.value=currentCode;
+    opt.textContent=(g('TaBookings2021_Property_Title')||currentCode)+' ('+currentCode+')';
+    opt.selected=true;
+    sel.insertBefore(opt,sel.firstChild);
+  }
+}
+
+function changeVilla(code){
+  if(!code) return;
+  $('inpCode').value=code;
+  loadBooking();
+}
+
 function updatePortalPreview(){
   var val=($('f_Portal_Name').value||'').toLowerCase();
   var prev=$('portalPreview'); if(!prev) return;
@@ -896,7 +1031,7 @@ function renderBooking(){
 
   // Header
   $('bhVilla').textContent = g('TaBookings2021_Property_Title')||'—';
-  $('bhDates').textContent = `${fmtDate(g('TaBookings2021_Checkin'))} → ${fmtDate(g('TaBookings2021_Checkout'))} · ${g('TaBookings2021_Nights')||'?'} noches · ${g('TaBookings2021_Adults')||'?'} adultos`;
+  updateDatesHeader();
   $('bhCode').textContent  = code;
   var st=$('bhStatus');
   var status=(g('TaBookings2021_BookingStatus')||'').toLowerCase();
@@ -933,8 +1068,10 @@ function renderBooking(){
   // ── POLICE (solo lectura) ──
   setVal('f_Guest_phonenumber', g('TaBookings2021_Guest_phonenumber'));
   setDisplay('d_Segundo_Telefono', g('TaBookings2021_Segundo_Telefono'));
-  setDisplay('d_Checkin', fmtDate(g('TaBookings2021_Checkin')));
-  setDisplay('d_Checkout', fmtDate(g('TaBookings2021_Checkout')));
+  // input[type=date] necesita formato YYYY-MM-DD
+  function toInputDate(v){ if(!v) return ''; try{ return new Date(v).toISOString().slice(0,10); } catch(e){ return ''; } }
+  setVal('f_Checkin', toInputDate(g('TaBookings2021_Checkin')));
+  setVal('f_Checkout', toInputDate(g('TaBookings2021_Checkout')));
   setDisplay('d_Link_Registrodepolicia', g('TaVillas_Link_Registrodepolicia'));
 
   // PIN calculado
@@ -964,7 +1101,22 @@ function renderBooking(){
   }
 
   // ── DEPOSIT ──
-  setVal('f_Portal_Name', g('TaBookings2021_Portal_Name'));
+  // Portal: set valor actual; si no está en options, añadirlo
+  var portalVal=g('TaBookings2021_Portal_Name')||'';
+  var portalSel=$('f_Portal_Name');
+  var portalFound=false;
+  if(portalSel){
+    for(var oi=0;oi<portalSel.options.length;oi++){
+      if(portalSel.options[oi].value===portalVal){portalFound=true;break;}
+    }
+    if(!portalFound&&portalVal){
+      var newOpt=document.createElement('option');
+      newOpt.value=portalVal; newOpt.textContent=portalVal;
+      portalSel.insertBefore(newOpt, portalSel.options[1]);
+    }
+    portalSel.value=portalVal;
+  }
+  updatePortalPreview();
   setToggle('f_Se_permite_waver', g('TaBookings2021_Se_permite_waver'));
   setVal('f_Security_deposit_EUR', g('TaBookings2021_Security_deposit_EUR'));
   setVal('f_Deposit_waver_EUR', g('TaBookings2021_Deposit_waver_EUR'));
@@ -997,94 +1149,24 @@ function renderBooking(){
     return '<a href="'+l.href+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:'+l.bg+';border:1.5px solid '+l.border+';color:'+l.border+';border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;text-decoration:none">'+l.label+' ↗</a>';
   }).join('');
 
-  // ── PIN (arriba del todo) ──
-  var phone1=g('TaBookings2021_Guest_phonenumber');
-  var phone2v=g('TaBookings2021_Segundo_Telefono');
-  var pinSrc='', pinVal='';
-  if(lastDigits(phone1,5)){pinVal=lastDigits(phone1,5); pinSrc='Fuente: Guest_phonenumber ('+phone1+')';}
-  else if(lastDigits(phone2v,5)){pinVal=lastDigits(phone2v,5); pinSrc='Fuente: Segundo_Telefono ('+phone2v+') — Guest_phonenumber vacío';}
-  else{pinVal='35111'; pinSrc='⚠️ Fallback: ningún teléfono disponible → PIN por defecto 35111';}
-  $('pinDisplay').textContent=pinVal;
-  $('pinSource').textContent=pinSrc;
-  $('pinBox').style.display='flex';
+  // ── PIN ──
+  $('pinBox').style.display='';  // mostrar sección
+  recalcPin();
 
   // ── Hostaway fields (display solo) ──
-  setDisplay('d_Guest_Name', g('TaBookings2021_Guest_Name'));
-  setDisplay('d_Guest_Surename', g('TaBookings2021_Guest_Surename'));
-  setDisplay('d_Guest_email', g('TaBookings2021_Guest_email'));
-  setDisplay('d_Guest_phonenumber', g('TaBookings2021_Guest_phonenumber'));
+  setVal('f_Guest_Name', g('TaBookings2021_Guest_Name'));
+  setVal('f_Guest_Surename', g('TaBookings2021_Guest_Surename'));
+  setVal('f_Guest_email', g('TaBookings2021_Guest_email'));
+  setVal('f_Guest_phonenumber_ha', g('TaBookings2021_Guest_phonenumber'));
+  setDisplay('d_phone_police', g('TaBookings2021_Guest_phonenumber'));
 
   // ── Portal preview ──
   updatePortalPreview();
 
-  // ── Police: diagnóstico campo a campo ──
-  var checkinDate=g('TaBookings2021_Checkin');
-  var today=new Date(); today.setHours(0,0,0,0);
-  var checkinD=checkinDate?new Date(checkinDate):null;
-  var dateError = checkinD && checkinD < today;
+  // ── Police: diagnóstico ──
+  updatePoliceDiag();
 
-  var polFields=[
-    {param:'organization', val:g('TaVillas_Link_Registrodepolicia'), desc:'UUID de la villa en el sistema policial (de TaVillas)', critical:true},
-    {param:'reservation', val:code, desc:'Código de confirmación de la reserva', critical:true},
-    {param:'checkInDate', val:checkinDate?fmtPol(checkinDate):'', desc:'Fecha check-in en formato YYYYMMDD', critical:true, warn:dateError?'⚠️ Fecha PASADA — el link fallará si el check-in ya ocurrió':null},
-    {param:'checkOutDate', val:g('TaBookings2021_Checkout')?fmtPol(g('TaBookings2021_Checkout')):'', desc:'Fecha check-out en formato YYYYMMDD', critical:true},
-    {param:'contractDate', val:todayPol(), desc:'Fecha de hoy (se genera automáticamente)', critical:false},
-    {param:'number', val:String((parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0)), desc:'Total de ocupantes (adultos + niños)', critical:true},
-    {param:'firstName', val:g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name'), desc:'Nombre del titular (Fiscal_guest_name o Guest_Name)', critical:false},
-    {param:'lastName1', val:g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename'), desc:'Apellido del titular', critical:false},
-    {param:'phone', val:(g('TaBookings2021_Guest_phonenumber')||'').replace(/\D/g,''), desc:'Teléfono sin caracteres especiales', critical:false},
-  ];
-
-  var diagHtml='';
-  if(dateError){
-    diagHtml+='<div class="date-error">⛔ ERROR: La fecha de check-in ('+fmtDate(checkinDate)+') es anterior a hoy. El link policial puede fallar. Esto solo es válido si el huésped ya está alojado.</div>';
-  }
-  diagHtml+='<div style="border:1px solid var(--gray-3);border-radius:8px;overflow:hidden">';
-  polFields.forEach(function(pf){
-    var ok=!!pf.val;
-    var statusClass=ok?(pf.warn?'pf-warn':'pf-ok'):'pf-missing';
-    var statusTxt=ok?(pf.warn?'⚠️ AVISO':'✓ OK'):'✗ FALTA';
-    diagHtml+='<div class="police-field-row">';
-    diagHtml+='<div><div class="pf-name">?'+pf.param+'=</div>';
-    diagHtml+=(pf.critical?'<span class="pf-status pf-missing" style="font-size:8px">CRÍTICO</span>':'<span class="pf-status pf-ok" style="font-size:8px">OPCIONAL</span>')+'</div>';
-    diagHtml+='<div><div class="pf-val '+(ok?'':'missing')+'">'+(pf.val||'— sin valor —')+'</div>';
-    if(pf.warn) diagHtml+='<div class="pf-warn" style="font-size:10px;font-weight:700;color:var(--amber);margin-top:3px">'+pf.warn+'</div>';
-    diagHtml+='</div>';
-    diagHtml+='<span class="pf-status '+statusClass+'">'+statusTxt+'</span></div>';
-  });
-  diagHtml+='</div>';
-  $('d_police_diag').innerHTML=diagHtml;
-
-  // Link completo
-  if(g('TaVillas_Link_Registrodepolicia')&&code){
-    var pn=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Name')||'';
-    var pa=g('TaBookings2021_Fiscal_guest_surename')||g('TaBookings2021_Guest_Surename')||'';
-    var pp=(g('TaBookings2021_Guest_phonenumber')||'').replace(/\D/g,'');
-    var tot=(parseInt(g('TaBookings2021_Adults'))||1)+(parseInt(g('TaBookings2021_Children'))||0);
-    var polUrl='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96/organization/'+
-      encodeURIComponent(g('TaVillas_Link_Registrodepolicia'))+'/reservation/'+encodeURIComponent(code)+
-      '?checkInDate='+fmtPol(g('TaBookings2021_Checkin'))+'&checkOutDate='+fmtPol(g('TaBookings2021_Checkout'))+
-      '&contractDate='+todayPol()+'&number='+tot+
-      '&firstName='+encodeURIComponent(pn)+'&lastName1='+encodeURIComponent(pa)+'&phone='+encodeURIComponent(pp);
-    $('d_police_link').textContent=polUrl;
-    $('d_police_link').style.display='block';
-  }
-
-  // ── Upselling y waver en Taxes ──
-  function upRow(n){
-    var txt=g('TaBookings2021_Upselling'+n+'_text');
-    var eur=parseFloat(g('TaBookings2021_Upselling'+n+'_EUR'))||0;
-    var cob=g('TaBookings2021_Upselling'+n+'_cobrado');
-    if(!txt&&!eur) return '— No configurado';
-    return (txt||'Extra '+n)+' · '+eur.toFixed(2)+' € · '+(isTruthy(cob)?'✓ Cobrado':'⏳ Pendiente');
-  }
-  setDisplay('d_up1', upRow(1));
-  setDisplay('d_up2', upRow(2));
-  setDisplay('d_up3', upRow(3));
-  var waverEUR=parseFloat(g('TaBookings2021_Deposit_waver_EUR'))||0;
-  var waverCob=g('TaBookings2021_Deposit_waver_cobrado');
-  setDisplay('d_waver_taxes', 'Importe: '+waverEUR.toFixed(2)+' € · '+(isTruthy(waverCob)?'✓ Cobrado':'⏳ Pendiente cobro (si cliente elige opción 1)'));
-
+    updateVillaSelect();
   $('stLoad').style.display='none';
   $('main').style.display='block';
   $('btnSave').disabled=false;
@@ -1123,7 +1205,13 @@ async function saveAll(){
     Segundo_Telefono: $('f_Segundo_Telefono').value.trim()||null,
     Guest_info: $('f_Guest_info').value.trim()||null,
     // POLICE
-    Guest_phonenumber: $('f_Guest_phonenumber').value.trim()||null,
+    Guest_Name: $('f_Guest_Name').value.trim()||null,
+    Guest_Surename: $('f_Guest_Surename').value.trim()||null,
+    Guest_email: $('f_Guest_email').value.trim()||null,
+    Guest_phonenumber: $('f_Guest_phonenumber_ha').value.trim()||null,
+    // FECHAS — guardadas como ISO string
+    Checkin: $('f_Checkin').value ? $('f_Checkin').value+'T00:00:00' : null,
+    Checkout: $('f_Checkout').value ? $('f_Checkout').value+'T00:00:00' : null,
     // DEPOSIT
     Portal_Name: $('f_Portal_Name').value.trim()||null,
     Se_permite_waver: $('f_Se_permite_waver').checked ? 1 : 0,
@@ -1160,10 +1248,11 @@ async function saveAll(){
 
 // Fix syntax error in link panel — usar strings en lugar de template literals con variables CSS
 window.addEventListener('DOMContentLoaded', function(){
+  loadVillaList();
   loadBooking();
 });
 </script>
 
-<!-- HISTORIAL: v2 - Portal→select con preview; badges origen villa/reserva; campos Hostaway naranja; PIN arriba del todo; diagnóstico link policial campo a campo; upselling 1-3 y waver en ecotasa | v1 - Página inicial --> Página inicial: test completo de reserva para checkin online; todos los campos de arrival/police/deposit/taxes; guardar vía Auth; acceso admin+manager -->
+<!-- HISTORIAL: v4 - Checkin/Checkout editables (input date); header de fechas se recalcula; diagnóstico policial se actualiza al cambiar fechas | v3 - Hostaway editable; PIN→sección blanca colapsable; Portal con valor actual; selector villa en header con listado; todos los campos muestran valor actual | v2 - Portal→select con preview; badges origen villa/reserva; campos Hostaway naranja; PIN arriba del todo; diagnóstico link policial campo a campo; upselling 1-3 y waver en ecotasa | v1 - Página inicial --> Página inicial: test completo de reserva para checkin online; todos los campos de arrival/police/deposit/taxes; guardar vía Auth; acceso admin+manager -->
 </body>
 </html>
