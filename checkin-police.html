@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v6 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Police Registration v5 — 3Villas</title>
+  <title>Police Registration v6 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -638,13 +638,16 @@ async function guardar(){
     var _code=(_bookingData&&_bookingData['TaBookings2021_FS_confirmation_code'])||'';
     if(!_code) throw new Error('Booking code not found');
 
-    var _where="FS_confirmation_code='"+_code+"'";
-    var url=WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(_where)+'&method=PUT';
+    // Obtener pin de la sesión de checkin
+    var _sess=null;
+    try{ var _s=sessionStorage.getItem('3v_checkin_auth'); if(_s) _sess=JSON.parse(_s); }catch(e){}
+    var _pin=_sess&&_sess.pin?_sess.pin:'';
+    if(!_pin) throw new Error('Session expired. Please go back and verify your code again.');
 
-    var res=await fetch(url,{
+    var res=await fetch(WORKER+'?action=checkin-save',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({Registro_policia_done:true})
+      body:JSON.stringify({bookingCode:_code, pin:_pin, fields:{Registro_policia_done:true}})
     });
 
     if(!res.ok){ var _e=await res.json(); throw new Error(_e.Message||_e.error||'Error '+res.status); }
@@ -675,6 +678,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v5 - Fix 401: guardar usa mismo patrón que arrival (sin Auth.url, fetch POST, where sin prefijo tabla) | v4 - Guardar redirige a checkin-online.html?TaBookings2021_FS_confirmation_code=... | v3 - Footer idéntico a arrival v39 (SVG teléfono blanco, email bookings@3villas.com, waFloat SVG correcto); historial limpio | v2 - Fix init: CheckinAuth.init con onVerified igual que arrival; _code usa CheckinAuth.getCode() | v1 - Página inicial -->
+<!-- HISTORIAL: v6 - Fix save: usa action=checkin-save (público, verifica pin) en lugar de action=save (requiere sesión intranet); requiere worker v9 | v5 - Fix 401: guardar usa mismo patrón que arrival (sin Auth.url, fetch POST, where sin prefijo tabla) | v4 - Guardar redirige a checkin-online.html?TaBookings2021_FS_confirmation_code=... | v3 - Footer idéntico a arrival v39 (SVG teléfono blanco, email bookings@3villas.com, waFloat SVG correcto); historial limpio | v2 - Fix init: CheckinAuth.init con onVerified igual que arrival; _code usa CheckinAuth.getCode() | v1 - Página inicial -->
 </body>
 </html>
