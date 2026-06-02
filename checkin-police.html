@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v4 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Police Registration v4 — 3Villas</title>
+  <title>Police Registration v5 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -286,6 +286,8 @@
 
 <script>
 /* ════ i18n ════ */
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
 var LANG = {
   en:{
     page_title:'Police Registration',
@@ -636,17 +638,16 @@ async function guardar(){
     var _code=(_bookingData&&_bookingData['TaBookings2021_FS_confirmation_code'])||'';
     if(!_code) throw new Error('Booking code not found');
 
-    var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
-    var _where="TaBookings2021_FS_confirmation_code='"+_code+"'";
-    var url=WORKER+'?action=save&table=TaBookings2021&method=PUT&where='+encodeURIComponent(_where);
+    var _where="FS_confirmation_code='"+_code+"'";
+    var url=WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(_where)+'&method=PUT';
 
-    var res=await fetch(typeof Auth!=='undefined'?Auth.url(url):url,{
-      method:'PUT',
+    var res=await fetch(url,{
+      method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({Registro_policia_done:true})
     });
 
-    if(!res.ok) throw new Error('Save error '+res.status);
+    if(!res.ok){ var _e=await res.json(); throw new Error(_e.Message||_e.error||'Error '+res.status); }
     // Redirigir a checkin-online con el código de reserva
     var _qs='?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code);
     window.location.href='checkin-online.html'+_qs;
@@ -674,6 +675,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v4 - Guardar redirige a checkin-online.html?TaBookings2021_FS_confirmation_code=... | v3 - Footer idéntico a arrival v39 (SVG teléfono blanco, email bookings@3villas.com, waFloat SVG correcto); historial limpio | v2 - Fix init: CheckinAuth.init con onVerified igual que arrival; _code usa CheckinAuth.getCode() | v1 - Página inicial -->
+<!-- HISTORIAL: v5 - Fix 401: guardar usa mismo patrón que arrival (sin Auth.url, fetch POST, where sin prefijo tabla) | v4 - Guardar redirige a checkin-online.html?TaBookings2021_FS_confirmation_code=... | v3 - Footer idéntico a arrival v39 (SVG teléfono blanco, email bookings@3villas.com, waFloat SVG correcto); historial limpio | v2 - Fix init: CheckinAuth.init con onVerified igual que arrival; _code usa CheckinAuth.getCode() | v1 - Página inicial -->
 </body>
 </html>
