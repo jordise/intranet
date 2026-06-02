@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Police Registration v1 — 3Villas</title>
+  <title>Police Registration v2 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -522,7 +522,7 @@ function render(r){
   var _sl=$('hdrStepsLbl'); if(_sl) _sl.style.display='block';
 
   /* pgCode */
-  var _code=r['TaBookings2021_FS_confirmation_code']||'';
+  var _code=(typeof CheckinAuth!=='undefined'&&CheckinAuth.getCode?CheckinAuth.getCode():'')||r['TaBookings2021_FS_confirmation_code']||'';
   var _pgc=$('pgCode'); if(_pgc) _pgc.textContent='Booking ID '+_code;
 
   /* Estados y links */
@@ -667,13 +667,22 @@ async function guardar(){
   }
 }
 
-/* ════ INIT — via checkin-auth.js ════ */
-window.CheckinPoliceReady=function(bookingData){
-  _bookingData=bookingData;
-  render(bookingData);
-};
+/* ════ INIT ════ */
+if(typeof CheckinAuth==='undefined'){
+  $('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px">'+
+    '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
+    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">Error: checkin-auth.js not found</p>'+
+    '<a href="mailto:bookings@3villas.com" style="font-size:12px;color:#C8102E;font-family:Montserrat,sans-serif">bookings@3villas.com</a></div>';
+}else{
+  CheckinAuth.init({
+    onVerified:function(booking){
+      _bookingData=booking;
+      render(booking);
+    }
+  });
+}
 </script>
 
-<!-- HISTORIAL: v1 - Página inicial: Police Registration con cabecera/pie de checkin-arrival v39; link de policía construido con campos de TaVillas y TaBookings2021; share por WhatsApp/Email/Copiar; checkbox confirmación; guardar Registro_policia_done=true; i18n 8 idiomas; círculo 2 activo -->
+<!-- HISTORIAL: v2 - Fix init: CheckinAuth.init con onVerified igual que arrival; _code usa CheckinAuth.getCode() | v1 - Página inicial | --> Página inicial: Police Registration con cabecera/pie de checkin-arrival v39; link de policía construido con campos de TaVillas y TaBookings2021; share por WhatsApp/Email/Copiar; checkbox confirmación; guardar Registro_policia_done=true; i18n 8 idiomas; círculo 2 activo -->
 </body>
 </html>
