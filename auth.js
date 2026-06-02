@@ -138,6 +138,9 @@ const Auth = (function () {
     'cobros-inquilinos'     : ['admin', 'manager'],
     'generar'               : ['admin', 'manager'],
 
+    // ── Test ───────────────────────────────────────────────
+    'checkin-test-reserva' : ['admin', 'manager'],
+
     // ── CONFIGURACIÓN ──────────────────────────────────────────
     // permisos.html
     'permisos'              : ['admin'],
