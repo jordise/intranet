@@ -1,436 +1,854 @@
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v2 — 3Villas</title>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#C8102E">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="3Villas">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/3villas-manuals/sw.js')
-          .catch(e => console.warn('SW error:', e));
-      });
-    }
-  </script>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --red:#C8102E; --red-dark:#9e0c24; --red-light:#fce8eb;
-      --green:#1e9e4e; --green-light:#e6f7ee;
-      --orange:#e07b00; --orange-light:#fff4e0;
-      --gray-1:#f4f5f7; --gray-2:#e8eaed; --gray-3:#c4c9d4;
-      --gray-4:#7a8194; --gray-5:#2d3142;
-      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
-      --shadow-md:0 4px 14px rgba(0,0,0,.11);
-      --r:10px;
-    }
-    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
-    body { font-family:'Open Sans',sans-serif; background:var(--gray-1); color:var(--gray-5); min-height:100vh }
+// ============================================================
+//  Cloudflare Worker — Caspio Proxy + Auth  3Villas  v12
+//  Variables de entorno necesarias:
+//    CASPIO_CLIENT_ID      — credenciales Caspio
+//    CASPIO_CLIENT_SECRET  — credenciales Caspio
+//    JWT_SECRET            — clave secreta larga (openssl rand -hex 32)
+//    R2_PUBLIC_URL         — URL pública del bucket R2 (sin barra final)
+//                            ej: https://pub-XXXXX.r2.dev
+//    HOSTAWAY_CLIENT_ID    — account ID de Hostaway (número entero)
+//    HOSTAWAY_CLIENT_SECRET— API secret de Hostaway
+//
+//  Binding R2 necesario en wrangler.toml:
+//    [[r2_buckets]]
+//    binding = "PHOTOS"
+//    bucket_name = "3villas-fotos"
+//
+//  NUEVO en v11:
+//    getHostawayToken: cachea el access_token de Hostaway 6 meses
+//    via Cache API (TTL real ~24 meses, cacheamos 180 días con margen).
+//    action=hostaway-reservations: requiere sessionToken válido,
+//    descarga todas las reservas de Hostaway con paginación cursor
+//    (afterId) y devuelve solo los campos necesarios para comparar
+//    fechas contra Caspio: id, hostawayReservationId, arrivalDate,
+//    departureDate, guestName, listingName, status.
+//  NUEVO en v10:
+//    getCaspioToken ahora cachea el access_token 23h via Cache API
+//    de Cloudflare. Elimina la generación masiva de tokens que
+//    desplazaba el refresh token de Zapier.
+//  NUEVO en v9:
+//    action=checkin-save — público, verifica pin y guarda campos en TaBookings2021
+//  NUEVO en v8:
+//    send-checkin-code: si el email pertenece a un usuario con
+//    Role='admin' o Role='manager' en TaUsers, se le envía el
+//    código a él sin necesidad de coincidir con el email de la reserva.
+// ============================================================
 
-    /* ── Nav ── */
-    .top-nav { display:flex; align-items:center; gap:10px; padding:9px 14px; background:#fff; border-bottom:1.5px solid var(--gray-2); box-shadow:0 2px 8px rgba(0,0,0,.07); position:sticky; top:0; z-index:300 }
-    .nav-logo { display:flex; align-items:center; text-decoration:none; flex-shrink:0 }
-    .nav-logo img { height:26px; object-fit:contain }
-    .nav-center { flex:1; min-width:0; padding:0 6px }
-    .h-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--gray-5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2 }
-    .h-sub { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4); margin-top:1px }
-    .nav-btns { display:flex; align-items:center; gap:6px; flex-shrink:0 }
-    .nav-menu-btn { display:flex; align-items:center; justify-content:center; background:var(--red); border:none; color:#fff; width:32px; height:32px; border-radius:8px; font-size:16px; cursor:pointer; flex-shrink:0 }
-    .nav-menu-btn:hover { background:var(--red-dark) }
-    .user-pill { display:inline-flex; align-items:center; gap:4px; background:var(--gray-1); border:1.5px solid var(--gray-2); color:var(--gray-4); padding:4px 10px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0 }
+const CASPIO = 'https://c1abn932.caspio.com';
+const VIEW_BK = 'Vi_villas_and_bookings2021';
+const HOSTAWAY_API = 'https://api.hostaway.com/v1';
 
-    /* ── Toolbar ── */
-    .toolbar { display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fff; border-bottom:1.5px solid var(--gray-2); flex-wrap:wrap }
-    .btn-sync { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 16px; background:var(--red); color:#fff; border:none; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:background .15s }
-    .btn-sync:hover:not(:disabled) { background:var(--red-dark) }
-    .btn-sync:disabled { opacity:.5; cursor:not-allowed }
-    .toolbar-info { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4); flex:1 }
-    .badge { display:inline-flex; align-items:center; justify-content:center; background:var(--red); color:#fff; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; margin-left:6px }
-    .badge.green { background:var(--green) }
+const CORS = {
+  'Access-Control-Allow-Origin' : '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-    /* ── Progress bar ── */
-    #progressWrap { display:none; padding:0 16px 8px; background:#fff }
-    #progressBar { height:4px; background:var(--gray-2); border-radius:4px; overflow:hidden }
-    #progressFill { height:100%; background:var(--red); width:0%; transition:width .3s; border-radius:4px }
-    #progressLabel { font-family:'Montserrat',sans-serif; font-size:10px; color:var(--gray-4); margin-top:4px }
-
-    /* ── Estado vacío / error ── */
-    .state-box { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:12px; text-align:center }
-    .state-box .icon { font-size:40px }
-    .state-box p { font-family:'Montserrat',sans-serif; font-size:13px; color:var(--gray-4); max-width:320px }
-    .state-box.err p { color:var(--red) }
-
-    /* ── Tabla ── */
-    .table-wrap { overflow-x:auto; padding:16px }
-    table { width:100%; border-collapse:collapse; background:#fff; border-radius:var(--r); box-shadow:var(--shadow-sm); overflow:hidden; font-size:13px }
-    thead th { background:var(--gray-5); color:#fff; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; padding:10px 12px; text-align:left; white-space:nowrap }
-    tbody tr { border-bottom:1px solid var(--gray-2) }
-    tbody tr:last-child { border-bottom:none }
-    tbody tr:hover { background:var(--gray-1) }
-    td { padding:9px 12px; vertical-align:middle }
-
-    /* Columnas de fecha */
-    .date-cell { white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:600 }
-    .date-ok  { color:var(--green) }
-    .date-bad { color:var(--red); background:var(--red-light); padding:3px 7px; border-radius:5px }
-    .date-empty { color:var(--gray-3); font-style:italic; font-weight:400 }
-
-    /* Tipo de diferencia */
-    .diff-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700 }
-    .diff-in  { background:#fce8eb; color:var(--red) }
-    .diff-out { background:var(--orange-light); color:var(--orange) }
-    .diff-both{ background:#f0e6fb; color:#7c3aed }
-
-    /* Guest / listing */
-    .guest-name { font-weight:600; color:var(--gray-5) }
-    .listing-name { font-size:11px; color:var(--gray-4) }
-
-    /* Link Hostaway */
-    .hw-link { display:inline-flex; align-items:center; gap:4px; color:var(--red); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-decoration:none; padding:3px 8px; border:1.5px solid var(--red-light); border-radius:6px; transition:all .15s }
-    .hw-link:hover { background:var(--red); color:#fff }
-
-    /* Resumen top */
-    .summary { display:flex; gap:12px; padding:12px 16px; flex-wrap:wrap }
-    .sum-card { background:#fff; border-radius:8px; padding:10px 16px; box-shadow:var(--shadow-sm); font-family:'Montserrat',sans-serif; min-width:100px }
-    .sum-card .num { font-size:22px; font-weight:800; color:var(--gray-5) }
-    .sum-card .lbl { font-size:10px; color:var(--gray-4); font-weight:600; margin-top:2px }
-    .sum-card.red .num { color:var(--red) }
-    .sum-card.green .num { color:var(--green) }
-  </style>
-</head>
-<body>
-
-<!-- NAV -->
-<nav class="top-nav">
-  <a href="index.html" class="nav-logo">
-    <img src="logo-negro.png" alt="3Villas">
-  </a>
-  <div class="nav-center">
-    <div class="h-title">Sync Fechas Hostaway</div>
-    <div class="h-sub" id="navSub">Reservas con fechas distintas</div>
-  </div>
-  <div class="nav-btns">
-    <span class="user-pill" id="userPill">…</span>
-    <button class="nav-menu-btn" onclick="Nav.open()" title="Menú">☰</button>
-  </div>
-</nav>
-
-<!-- TOOLBAR -->
-<div class="toolbar">
-  <button class="btn-sync" id="btnSync" onclick="startSync()">
-    🔄 Comparar fechas
-  </button>
-  <div class="toolbar-info" id="toolbarInfo">Pulsa para comparar Hostaway vs Caspio</div>
-</div>
-
-<!-- PROGRESS -->
-<div id="progressWrap">
-  <div id="progressBar"><div id="progressFill"></div></div>
-  <div id="progressLabel">Iniciando…</div>
-</div>
-
-<!-- RESUMEN -->
-<div class="summary" id="summaryRow" style="display:none">
-  <div class="sum-card">
-    <div class="num" id="sTotal">—</div>
-    <div class="lbl">Hostaway total</div>
-  </div>
-  <div class="sum-card">
-    <div class="num" id="sCaspio">—</div>
-    <div class="lbl">En Caspio</div>
-  </div>
-  <div class="sum-card red">
-    <div class="num" id="sDiff">—</div>
-    <div class="lbl">Diferencias</div>
-  </div>
-  <div class="sum-card green">
-    <div class="num" id="sOk">—</div>
-    <div class="lbl">OK</div>
-  </div>
-</div>
-
-<!-- CONTENIDO -->
-<div id="content">
-  <div class="state-box">
-    <div class="icon">🔍</div>
-    <p>Pulsa "Comparar fechas" para consultar Hostaway y Caspio y detectar discrepancias.</p>
-  </div>
-</div>
-
-<script src="auth.js"></script>
-<script src="nav.js"></script>
-<script src="nav-component.js"></script>
-
-<script>
-(function () {
-
-  const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-
-  // ── Auth ──────────────────────────────────────────────────
-  const session = Auth.require('hostaway-comprobar-fechas-reservas');
-  document.getElementById('userPill').textContent = session.name || session.role || '…';
-  if (typeof Nav !== 'undefined') Nav.init(session.role);
-
-  function authHeaders() {
-    return { 'Content-Type': 'application/json', ...Auth.headers() };
+// ── Caspio OAuth — caché 23h via Cache API ───────────────────
+async function getCaspioToken(env) {
+  const cache    = caches.default;
+  const cacheKey = new Request('https://caspio-token-cache.internal/token');
+  const cached   = await cache.match(cacheKey);
+  if (cached) {
+    const { access_token } = await cached.json();
+    return access_token;
   }
 
-  // ── UI helpers ────────────────────────────────────────────
-  function setProgress(pct, label) {
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressLabel').textContent = label;
+  const r = await fetch(`${CASPIO}/oauth/token`, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body   : `grant_type=client_credentials&client_id=${encodeURIComponent(env.CASPIO_CLIENT_ID)}&client_secret=${encodeURIComponent(env.CASPIO_CLIENT_SECRET)}`,
+  });
+  if (!r.ok) throw new Error(`Caspio auth error ${r.status}`);
+  const { access_token } = await r.json();
+
+  const toCache = new Response(JSON.stringify({ access_token }), {
+    headers: {
+      'Cache-Control': 'max-age=82800', // 23h
+      'Content-Type' : 'application/json',
+    },
+  });
+  await cache.put(cacheKey, toCache);
+  return access_token;
+}
+
+// ── Hostaway OAuth — caché 180 días via Cache API ────────────
+// El token de Hostaway dura ~24 meses. Cacheamos 180 días (margen amplio).
+// Así nunca generamos tokens innecesariamente.
+async function getHostawayToken(env) {
+  const cache    = caches.default;
+  const cacheKey = new Request('https://hostaway-token-cache.internal/token');
+  const cached   = await cache.match(cacheKey);
+  if (cached) {
+    const { access_token } = await cached.json();
+    return access_token;
   }
 
-  function showProgress(visible) {
-    document.getElementById('progressWrap').style.display = visible ? 'block' : 'none';
+  const r = await fetch(`${HOSTAWAY_API}/accessTokens`, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body   : `grant_type=client_credentials&client_id=${encodeURIComponent(env.HOSTAWAY_CLIENT_ID)}&client_secret=${encodeURIComponent(env.HOSTAWAY_CLIENT_SECRET)}&scope=general`,
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`Hostaway auth error ${r.status}: ${txt}`);
   }
+  const data = await r.json();
+  const access_token = data.access_token;
+  if (!access_token) throw new Error('Hostaway: no access_token en respuesta');
 
-  // Normaliza una fecha a "YYYY-MM-DD" sea cual sea el formato
-  function toYMD(val) {
-    if (!val) return '';
-    // Si ya es YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
-    // Si es Date-like con hora
-    try {
-      const d = new Date(val);
-      if (isNaN(d)) return '';
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    } catch { return ''; }
-  }
+  // Cachear 180 días = 15552000 segundos
+  const toCache = new Response(JSON.stringify({ access_token }), {
+    headers: {
+      'Cache-Control': 'max-age=15552000',
+      'Content-Type' : 'application/json',
+    },
+  });
+  await cache.put(cacheKey, toCache);
+  return access_token;
+}
 
-  // ── Carga Hostaway (todas las páginas vía Worker) ─────────
-  async function loadHostaway() {
-    setProgress(10, 'Descargando reservas de Hostaway…');
-    const r = await fetch(WORKER + '?action=hostaway-reservations', {
-      headers: authHeaders()
-    });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      throw new Error(d.error || `Hostaway error ${r.status}`);
-    }
-    const d = await r.json();
-    return d.reservations || [];
-  }
+// ── JWT ──────────────────────────────────────────────────────
+function b64u(str)    { return btoa(str).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
+function b64uDec(str) { return atob(str.replace(/-/g,'+').replace(/_/g,'/')); }
 
-  // ── Carga Caspio por lotes de 200 ─────────────────────────
-  async function loadCaspio(hwReservations) {
-    setProgress(40, 'Consultando Caspio…');
+async function signJWT(payload, secret) {
+  const h   = b64u(JSON.stringify({ alg:'HS256', typ:'JWT' }));
+  const p   = b64u(JSON.stringify(payload));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret),
+    { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${h}.${p}`));
+  const s   = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  return `${h}.${p}.${s}`;
+}
 
-    // Construimos un Map con los IDs de Hostaway que tenemos
-    // Caspio: FS_confirmation_code = hostawayReservationId (como string)
-    const hwIds = hwReservations.map(r => String(r.hostawayReservationId || r.id));
+async function verifyJWT(token, secret) {
+  const [h,p,s] = token.split('.');
+  if (!h||!p||!s) throw new Error('Token malformado');
+  const key  = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret),
+    { name:'HMAC', hash:'SHA-256' }, false, ['verify']);
+  const sig  = Uint8Array.from(b64uDec(s), c => c.charCodeAt(0));
+  const ok   = await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(`${h}.${p}`));
+  if (!ok) throw new Error('Firma inválida');
+  const data = JSON.parse(b64uDec(p));
+  if (data.exp && data.exp < Math.floor(Date.now()/1000)) throw new Error('Sesión expirada');
+  return data;
+}
 
-    // Caspio tiene paginación de 1000 como máximo — pedimos todo
-    const map = {}; // hostawayId → {Checkin, Checkout}
-    let page = 0;
-    const pageSize = 200;
+// ── Helpers ──────────────────────────────────────────────────
+function otp6() { return String(Math.floor(100000 + Math.random() * 900000)); }
 
-    while (true) {
-      const url = WORKER + '?action=data&table=TaBookings2021&limit=' + pageSize
-                + (page > 0 ? '&where=' + encodeURIComponent(`BookingID>${page * pageSize}`) : '');
+function jsonR(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status, headers: { ...CORS, 'Content-Type': 'application/json' }
+  });
+}
 
-      // Pedimos sin filtro where para traer todo, con paginación offset simulada
-      // Usamos un trick: offset via limit+where no está disponible en el worker action=data,
-      // así que hacemos múltiples llamadas con q.where en FS_confirmation_code in (...)
-      // Pero Caspio no soporta IN — hacemos batches de 50 IDs con OR
-      break; // Salimos del while, usamos estrategia de batches abajo
-    }
+async function proxyR(r) {
+  const body = await r.text();
+  return new Response(body, {
+    status : r.ok ? 200 : r.status,
+    headers: { ...CORS, 'Content-Type': 'application/json' }
+  });
+}
 
-    // Estrategia: batches de 50 IDs con OR en el WHERE
-    const batchSize = 50;
-    let fetched = 0;
-    for (let i = 0; i < hwIds.length; i += batchSize) {
-      const batch = hwIds.slice(i, i + batchSize);
-      const whereClause = batch.map(id => `FS_confirmation_code='${id}'`).join(' OR ');
-      const pct = 40 + Math.round((i / hwIds.length) * 40);
-      setProgress(pct, `Consultando Caspio… (${Math.min(i + batchSize, hwIds.length)} / ${hwIds.length})`);
+async function checkSession(request, url, env) {
+  const authH  = request.headers.get('Authorization') || '';
+  const sToken = authH.replace('Bearer ', '').trim() || url.searchParams.get('sessionToken') || '';
+  if (!sToken) throw new Error('No autenticado');
+  return verifyJWT(sToken, env.JWT_SECRET);
+}
+
+async function caspioGet(path, token) {
+  const r = await fetch(`${CASPIO}/rest/v2/${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  });
+  return r.json();
+}
+
+async function caspioPost(path, body, token) {
+  return fetch(`${CASPIO}/rest/v2/${path}`, {
+    method : 'POST',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body   : JSON.stringify(body),
+  });
+}
+
+async function caspioDelete(path, token) {
+  return fetch(`${CASPIO}/rest/v2/${path}`, {
+    method : 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+}
+
+function lastDigits(phone, n = 5) {
+  return (phone || '').replace(/\D/g, '').slice(-n);
+}
+
+function normalizeEmail(e) { return (e || '').toLowerCase().trim(); }
+
+// ════════════════════════════════════════════════════════════
+export default {
+  async fetch(request, env) {
+
+    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+
+    const url    = new URL(request.url);
+    const action = url.searchParams.get('action');
+
+    // ─────────────────────────────────────────────────────
+    //  LOGIN
+    // ─────────────────────────────────────────────────────
+    if (action === 'login') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+      let email, password, remember;
+      try { ({ email, password, remember } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+      if (!email || !password) return jsonR({ error: 'Email y password requeridos' }, 400);
 
       try {
-        const r = await fetch(WORKER + '?action=data&table=TaBookings2021&limit=' + batchSize
-                  + '&where=' + encodeURIComponent(whereClause), {
-          headers: authHeaders()
-        });
-        if (!r.ok) continue;
-        const d = await r.json();
-        const rows = d.Result || [];
-        rows.forEach(row => {
-          const code = String(row.FS_confirmation_code || '').trim();
-          if (code) {
-            map[code] = {
-              Checkin : toYMD(row.Checkin  || row.checkin  || ''),
-              Checkout: toYMD(row.Checkout || row.checkout || ''),
-            };
-          }
-        });
-      } catch (e) {
-        console.warn('Caspio batch error', e);
+        const ct   = await getCaspioToken(env);
+        const where = `Email='${email.replace(/'/g, "''")}'`;
+        const data  = await caspioGet(`tables/TaUsers/records?q.where=${encodeURIComponent(where)}&q.limit=1`, ct);
+        const users = data.Result || [];
+        if (!users.length) return jsonR({ error: 'Usuario no encontrado' }, 401);
+
+        const user       = users[0];
+        const userStatus = String(user['User_Status'] || '').trim().toLowerCase();
+        const isActive   = ['active','activo','1','yes','sí','si','true','enabled'].includes(userStatus);
+        if (!isActive) return jsonR({ error: 'Usuario inactivo. Contacta con el administrador.' }, 401);
+
+        const storedPass = String(user['Password_apicloudfare'] || '').trim();
+        if (!storedPass) return jsonR({ error: 'Usuario sin Password_apicloudfare configurado.' }, 401);
+        if (storedPass !== String(password).trim()) return jsonR({ error: 'Contraseña incorrecta' }, 401);
+
+        const role = user.Role || 'guest';
+        const name = user.Name || email;
+        const code = otp6();
+
+        const oldWhere = `Email='${email.replace(/'/g, "''")}'`;
+        await caspioDelete(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(oldWhere)}`, ct);
+        await caspioPost('tables/TaAuth_OTP/records', { Email: email, Code: code }, ct);
+
+        const pendingToken = await signJWT({
+          type: 'pending', email, role, name,
+          exp : Math.floor(Date.now() / 1000) + 300,
+        }, env.JWT_SECRET);
+
+        return jsonR({ step: 'otp', email, pendingToken });
+
+      } catch (err) {
+        return jsonR({ error: err.message }, 500);
       }
-      fetched += batch.length;
     }
 
-    return map;
-  }
+    // ─────────────────────────────────────────────────────
+    //  VERIFY OTP
+    // ─────────────────────────────────────────────────────
+    if (action === 'verify') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+      let pendingToken, otp, remember;
+      try { ({ pendingToken, otp, remember } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
 
-  // ── Comparar y renderizar ─────────────────────────────────
-  function compare(hwReservations, caspioMap) {
-    const diffs = [];
-    let okCount = 0;
-    let inCaspioCount = 0;
+      try {
+        const pending = await verifyJWT(pendingToken, env.JWT_SECRET);
+        if (pending.type !== 'pending') return jsonR({ error: 'Token inválido' }, 401);
 
-    hwReservations.forEach(hw => {
-      const hwId    = String(hw.hostawayReservationId || hw.id);
-      const caspio  = caspioMap[hwId];
-      const hwIn    = toYMD(hw.arrivalDate);
-      const hwOut   = toYMD(hw.departureDate);
+        const ct    = await getCaspioToken(env);
+        const where = `Email='${pending.email.replace(/'/g, "''")}' AND Code='${String(otp).trim()}'`;
+        const data  = await caspioGet(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(where)}&q.limit=1`, ct);
+        const rows  = data.Result || [];
+        if (!rows.length) return jsonR({ error: 'Código incorrecto o expirado' }, 401);
 
-      if (!caspio) return; // No está en Caspio, omitir
-      inCaspioCount++;
+        const created = new Date(rows[0].CreatedAt).getTime();
+        if ((Date.now() - created) / 60000 > 5) {
+          await caspioDelete(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(`Email='${pending.email.replace(/'/g,"''")}' `)}`, ct);
+          return jsonR({ error: 'Código expirado, solicita uno nuevo' }, 401);
+        }
 
-      const ciOk  = caspio.Checkin  === hwIn;
-      const coOk  = caspio.Checkout === hwOut;
+        await caspioDelete(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(`Email='${pending.email.replace(/'/g,"''")}' `)}`, ct);
 
-      if (ciOk && coOk) { okCount++; return; }
+        const ttl          = (remember ?? false) ? 30 * 24 * 60 * 60 : 43200;
+        const sessionToken = await signJWT({
+          type : 'session', email: pending.email, role: pending.role, name: pending.name,
+          exp  : Math.floor(Date.now() / 1000) + ttl,
+        }, env.JWT_SECRET);
 
-      let diffType = 'both';
-      if (ciOk && !coOk) diffType = 'out';
-      if (!ciOk && coOk) diffType = 'in';
+        return jsonR({ step: 'done', sessionToken, name: pending.name, role: pending.role });
 
-      diffs.push({
-        hwId,
-        hwInternalId : hw.id,
-        guestName    : hw.guestName,
-        listingName  : hw.listingName,
-        status       : hw.status,
-        hwIn, hwOut,
-        caspioIn : caspio.Checkin,
-        caspioOut: caspio.Checkout,
-        diffType,
-      });
-    });
-
-    return { diffs, okCount, inCaspioCount };
-  }
-
-  function renderTable(diffs) {
-    if (!diffs.length) {
-      return `<div class="state-box">
-        <div class="icon">✅</div>
-        <p>¡Sin diferencias! Todas las fechas coinciden entre Hostaway y Caspio.</p>
-      </div>`;
+      } catch (err) {
+        return jsonR({ error: err.message }, 401);
+      }
     }
 
-    const diffTypeLabel = { in: '📅 Entrada', out: '🏁 Salida', both: '⚠️ Ambas' };
-    const diffTypeClass = { in: 'diff-in', out: 'diff-out', both: 'diff-both' };
-
-    const rows = diffs.map(d => {
-      const hwLink = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
-      const ciOk   = d.caspioIn  === d.hwIn;
-      const coOk   = d.caspioOut === d.hwOut;
-
-      return `<tr>
-        <td>
-          <div class="guest-name">${esc(d.guestName || '—')}</div>
-          <div class="listing-name">${esc(d.listingName || '—')}</div>
-        </td>
-        <td><span class="date-cell ${ciOk ? 'date-ok' : 'date-bad'}">${d.hwIn || '<span class="date-empty">—</span>'}</span></td>
-        <td><span class="date-cell ${ciOk ? 'date-ok' : 'date-bad'}">${d.caspioIn || '<span class="date-empty">vacío</span>'}</span></td>
-        <td><span class="date-cell ${coOk ? 'date-ok' : 'date-bad'}">${d.hwOut || '<span class="date-empty">—</span>'}</span></td>
-        <td><span class="date-cell ${coOk ? 'date-ok' : 'date-bad'}">${d.caspioOut || '<span class="date-empty">vacío</span>'}</span></td>
-        <td><span class="diff-tag ${diffTypeClass[d.diffType]}">${diffTypeLabel[d.diffType]}</span></td>
-        <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
-      </tr>`;
-    }).join('');
-
-    return `<div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Huésped / Villa</th>
-            <th>Entrada Hostaway</th>
-            <th>Entrada Caspio</th>
-            <th>Salida Hostaway</th>
-            <th>Salida Caspio</th>
-            <th>Diferencia</th>
-            <th>Hostaway</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  }
-
-  function esc(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Main ──────────────────────────────────────────────────
-  window.startSync = async function () {
-    const btn = document.getElementById('btnSync');
-    btn.disabled = true;
-    document.getElementById('content').innerHTML = '';
-    document.getElementById('summaryRow').style.display = 'none';
-    showProgress(true);
-    setProgress(0, 'Iniciando…');
-    document.getElementById('toolbarInfo').textContent = 'Comparando…';
-
-    try {
-      // 1. Hostaway
-      const hwReservations = await loadHostaway();
-      setProgress(35, `${hwReservations.length} reservas descargadas de Hostaway`);
-
-      // 2. Caspio
-      const caspioMap = await loadCaspio(hwReservations);
-      setProgress(85, 'Comparando fechas…');
-
-      // 3. Comparar
-      const { diffs, okCount, inCaspioCount } = compare(hwReservations, caspioMap);
-      setProgress(100, 'Completado');
-
-      // Resumen
-      document.getElementById('sTotal').textContent  = hwReservations.length;
-      document.getElementById('sCaspio').textContent = inCaspioCount;
-      document.getElementById('sDiff').textContent   = diffs.length;
-      document.getElementById('sOk').textContent     = okCount;
-      document.getElementById('summaryRow').style.display = 'flex';
-
-      // Tabla
-      document.getElementById('content').innerHTML = renderTable(diffs);
-
-      // Toolbar info
-      const infoTxt = diffs.length
-        ? `${diffs.length} reserva(s) con fechas distintas`
-        : 'Sin diferencias — todo OK';
-      document.getElementById('toolbarInfo').textContent = infoTxt;
-      document.getElementById('navSub').textContent = infoTxt;
-
-    } catch (err) {
-      console.error(err);
-      document.getElementById('content').innerHTML = `<div class="state-box err">
-        <div class="icon">❌</div>
-        <p>${esc(err.message || 'Error desconocido')}</p>
-      </div>`;
-      document.getElementById('toolbarInfo').textContent = 'Error al comparar';
-    } finally {
-      showProgress(false);
-      btn.disabled = false;
+    // ─────────────────────────────────────────────────────
+    //  CHECK TOKEN
+    // ─────────────────────────────────────────────────────
+    if (action === 'check') {
+      const token = url.searchParams.get('token') || '';
+      try {
+        const p = await verifyJWT(token, env.JWT_SECRET);
+        return jsonR({ valid: true, email: p.email, role: p.role, name: p.name });
+      } catch (err) {
+        return jsonR({ valid: false, error: err.message }, 401);
+      }
     }
-  };
 
-})();
-</script>
+    // ─────────────────────────────────────────────────────
+    //  FORGOT PASSWORD
+    // ─────────────────────────────────────────────────────
+    if (action === 'forgot') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+      let email;
+      try { ({ email } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+      if (!email) return jsonR({ error: 'Email requerido' }, 400);
 
-</body>
-</html>
-<!-- HISTORIAL: v2 - Auth.require('hostaway-comprobar-fechas-reservas') en lugar de checkAuth manual | v1 - Página inicial: comparación de fechas Hostaway vs Caspio; tabla con diferencias resaltadas; link a reserva en Hostaway dashboard -->
+      try {
+        const ct    = await getCaspioToken(env);
+        const where = `Email='${email.replace(/'/g, "''")}'`;
+        const data  = await caspioGet(`tables/TaUsers/records?q.where=${encodeURIComponent(where)}&q.limit=1`, ct);
+        const users = data.Result || [];
+        if (!users.length) return jsonR({ success: true });
+
+        const fStatus = String((users[0])['User_Status'] || '').trim().toLowerCase();
+        if (!['active','activo','1','yes','sí','si','true','enabled'].includes(fStatus)) return jsonR({ success: true });
+
+        const arr   = new Uint8Array(32);
+        crypto.getRandomValues(arr);
+        const token = Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+
+        const delWhere = `Email='${email.replace(/'/g, "''")}'`;
+        await caspioDelete(`tables/TaAuth_Reset/records?q.where=${encodeURIComponent(delWhere)}`, ct);
+        await caspioPost('tables/TaAuth_Reset/records', { Email: email, Token: token }, ct);
+
+        return jsonR({ success: true });
+
+      } catch (err) {
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  RESET PASSWORD
+    // ─────────────────────────────────────────────────────
+    if (action === 'reset') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+      let email, token, newPassword;
+      try { ({ email, token, newPassword } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+      if (!email || !token || !newPassword) return jsonR({ error: 'Faltan datos' }, 400);
+      if (newPassword.length < 6) return jsonR({ error: 'Mínimo 6 caracteres' }, 400);
+
+      try {
+        const ct    = await getCaspioToken(env);
+        const where = `Email='${email.replace(/'/g, "''")}' AND Token='${token.replace(/'/g, "''")}'`;
+        const data  = await caspioGet(`tables/TaAuth_Reset/records?q.where=${encodeURIComponent(where)}&q.limit=1`, ct);
+        const rows  = data.Result || [];
+        if (!rows.length) return jsonR({ error: 'Enlace inválido o ya utilizado' }, 401);
+
+        if ((Date.now() - new Date(rows[0].CreatedAt).getTime()) > 30 * 60 * 1000) {
+          await caspioDelete(`tables/TaAuth_Reset/records?q.where=${encodeURIComponent(`Email='${email.replace(/'/g,"''")}'`)}`, ct);
+          return jsonR({ error: 'Enlace expirado. Solicita uno nuevo.' }, 401);
+        }
+
+        const updateRes = await fetch(
+          `${CASPIO}/rest/v2/tables/TaUsers/records?q.where=${encodeURIComponent(`Email='${email.replace(/'/g,"''")}' `)}`,
+          {
+            method : 'PUT',
+            headers: { Authorization: `Bearer ${ct}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body   : JSON.stringify({ Password_apicloudfare: newPassword }),
+          }
+        );
+        if (!updateRes.ok) return jsonR({ error: 'Error actualizando contraseña' }, 500);
+
+        await caspioDelete(`tables/TaAuth_Reset/records?q.where=${encodeURIComponent(`Email='${email.replace(/'/g,"''")}'`)}`, ct);
+        return jsonR({ success: true });
+
+      } catch (err) {
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  CHECKIN HINT — PÚBLICO
+    // ─────────────────────────────────────────────────────
+    if (action === 'checkin-hint') {
+      const code = url.searchParams.get('code') || '';
+      if (!code) return jsonR({ error: 'code required' }, 400);
+      try {
+        const ct    = await getCaspioToken(env);
+        const where = `TaBookings2021_FS_confirmation_code='${code.replace(/'/g,"''")}'`;
+        const res   = await caspioGet(
+          `views/${VIEW_BK}/records?q.where=${encodeURIComponent(where)}&q.limit=1`, ct);
+        const rows  = res.Result || [];
+        if (!rows.length) return jsonR({ hint: null });
+        const email = rows[0]['TaBookings2021_Guest_email'] || '';
+        if (!email) return jsonR({ hint: null });
+        return jsonR({ hint: email });
+      } catch (err) {
+        return jsonR({ hint: null });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  SEND CHECKIN CODE — PÚBLICO
+    // ─────────────────────────────────────────────────────
+    if (action === 'send-checkin-code') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+
+      let bookingCode, guestEmail;
+      try { ({ bookingCode, email: guestEmail } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+      if (!bookingCode || !guestEmail) {
+        return jsonR({ error: 'bookingCode y email son requeridos' }, 400);
+      }
+
+      try {
+        const ct         = await getCaspioToken(env);
+        const emailClean = normalizeEmail(guestEmail).replace(/'/g, "''");
+        const codeClean  = String(bookingCode).replace(/'/g, "''");
+
+        const bkWhere = `TaBookings2021_FS_confirmation_code='${codeClean}'`;
+        const bkRes   = await caspioGet(
+          `views/${VIEW_BK}/records?q.where=${encodeURIComponent(bkWhere)}&q.limit=1`, ct
+        );
+        const booking = (bkRes.Result || [])[0];
+        if (!booking) return jsonR({ error: 'Booking not found.' }, 404);
+
+        const phone1 = booking['TaBookings2021_Guest_phonenumber'] || '';
+        const phone2 = booking['TaBookings2021_Segundo_Telefono']  || '';
+        const digits = lastDigits(phone1, 5) || lastDigits(phone2, 5);
+        const pin    = digits.length >= 4 ? digits : '35111';
+
+        const guestName = booking['TaBookings2021_Guest_Full_Name'] || 'Guest';
+        const villa     = booking['TaVillas_Name_villa_para_inquilinos'] || '';
+
+        let sendToEmail = normalizeEmail(guestEmail);
+
+        const staffRes  = await caspioGet(
+          `tables/TaUsers/records?q.where=${encodeURIComponent("Email='"+emailClean+"'")}&q.limit=1`, ct
+        );
+        const staffUser = (staffRes.Result || [])[0];
+        const staffRole = String(staffUser?.Role || '').toLowerCase().trim();
+        const isStaff   = staffRole === 'admin' || staffRole === 'manager';
+
+        if (!isStaff) {
+          const gEmail  = normalizeEmail(booking['TaBookings2021_Guest_email']   || '');
+          const g2Email = normalizeEmail(booking['TaBookings2021_Segundo_email'] || '');
+          if (sendToEmail !== gEmail && sendToEmail !== g2Email) {
+            return jsonR({ error: 'Email not found for this booking. Please use the email you booked with.' }, 404);
+          }
+        }
+
+        const delWhere = `Email='${emailClean}' AND BookingCode='${codeClean}'`;
+        await caspioDelete(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(delWhere)}`, ct);
+        await caspioPost('tables/TaAuth_OTP/records', {
+          Email      : sendToEmail,
+          Code       : pin,
+          GuestName  : guestName,
+          BookingCode: String(bookingCode),
+          VillaName  : villa,
+        }, ct);
+
+        return jsonR({ sent: true });
+
+      } catch (err) {
+        console.error('send-checkin-code error:', err);
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  VERIFY CHECKIN CODE — PÚBLICO
+    // ─────────────────────────────────────────────────────
+    if (action === 'verify-checkin-code') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+
+      let bookingCode, pin;
+      try { ({ bookingCode, pin } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+      if (!bookingCode || !pin) {
+        return jsonR({ error: 'bookingCode y pin son requeridos' }, 400);
+      }
+
+      try {
+        const ct        = await getCaspioToken(env);
+        const codeClean = String(bookingCode).replace(/'/g, "''");
+        const w         = `TaBookings2021_FS_confirmation_code='${codeClean}'`;
+        const res       = await caspioGet(`views/${VIEW_BK}/records?q.where=${encodeURIComponent(w)}&q.limit=1`, ct);
+        const rows      = res.Result || [];
+
+        if (!rows.length) return jsonR({ valid: false, error: 'Booking not found' }, 404);
+
+        const booking = rows[0];
+
+        const phone1   = booking['TaBookings2021_Guest_phonenumber'] || '';
+        const phone2   = booking['TaBookings2021_Segundo_Telefono']  || '';
+        const guestPin = lastDigits(phone1, 5) || lastDigits(phone2, 5) || '35111';
+
+        const otpWhere = `BookingCode='${codeClean}' AND Code='${String(pin).replace(/'/g,"''")}' `;
+        const otpRes   = await caspioGet(
+          `tables/TaAuth_OTP/records?q.where=${encodeURIComponent(otpWhere)}&q.limit=1`, ct
+        );
+        const otpRows  = otpRes.Result || [];
+
+        const pinOk = otpRows.length > 0 || String(pin).trim() === guestPin;
+
+        if (!pinOk) return jsonR({ valid: false, error: 'Incorrect code' }, 401);
+
+        if (otpRows.length > 0) {
+          const delW = `BookingCode='${codeClean}' AND Code='${String(pin).replace(/'/g,"''")}' `;
+          await caspioDelete(`tables/TaAuth_OTP/records?q.where=${encodeURIComponent(delW)}`, ct);
+        }
+
+        const safe = { ...booking };
+        delete safe['TaBookings2021_Guest_phonenumber'];
+        delete safe['TaBookings2021_Segundo_Telefono'];
+        delete safe['TaBookings2021_Guest_email'];
+        delete safe['TaBookings2021_Segundo_email'];
+
+        const allDone = ['TaBookings2021_Arrivalform_done','TaBookings2021_Registro_policia_done',
+                         'TaBookings2021_Security_deposit_terminado','TaBookings2021_Ecotasa_cobrada']
+                        .every(f => ['1','-1','true','yes'].includes(String(booking[f]||'').toLowerCase().trim()));
+
+        if (allDone) {
+          const muId = String(booking['TaBookings2021_PMSmultiunitID'] || '').trim();
+          if (muId) {
+            try {
+              const muRes = await caspioGet(
+                `tables/TaMultiunits/records?q.where=${encodeURIComponent("multiunitID='"+muId+"'")}&q.limit=1`, ct);
+              const mu = (muRes.Result || [])[0];
+              if (mu) {
+                safe['_mu_keybox'] = mu.Keybox || mu.keybox || '';
+                safe['_mu_name']   = mu.descripcion || mu.Descripcion || mu.name || '';
+              }
+            } catch(e) { /* no bloquear */ }
+          }
+
+          const vmId = String(booking['TaVillas_KeyHolder_person'] || '').trim();
+          if (vmId) {
+            try {
+              const vmRes = await caspioGet(
+                `tables/TaUsers/records?q.where=${encodeURIComponent("UserID='"+vmId+"'")}&q.limit=1`, ct);
+              const vm = (vmRes.Result || [])[0];
+              if (vm) {
+                safe['_vm_name']  = vm.Name || vm.name || '';
+                safe['_vm_phone'] = vm.phone || vm.Phone || vm.Telefono || vm.telefono || '';
+              }
+            } catch(e) { /* no bloquear */ }
+          }
+        }
+
+        return jsonR({ valid: true, booking: safe, allDone });
+
+      } catch (err) {
+        console.error('verify-checkin-code error:', err);
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  CHECKIN SAVE — PÚBLICO
+    // ─────────────────────────────────────────────────────
+    if (action === 'checkin-save') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+
+      let bookingCode, pin, fields;
+      try { ({ bookingCode, pin, fields } = await request.json()); }
+      catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+      if (!bookingCode || !pin || !fields || typeof fields !== 'object') {
+        return jsonR({ error: 'bookingCode, pin y fields son requeridos' }, 400);
+      }
+
+      try {
+        const ct        = await getCaspioToken(env);
+        const codeClean = String(bookingCode).replace(/'/g, "''");
+        const w         = `TaBookings2021_FS_confirmation_code='${codeClean}'`;
+        const res       = await caspioGet(`views/${VIEW_BK}/records?q.where=${encodeURIComponent(w)}&q.limit=1`, ct);
+        const rows      = res.Result || [];
+
+        if (!rows.length) return jsonR({ error: 'Booking not found' }, 404);
+
+        const booking = rows[0];
+        const phone1  = booking['TaBookings2021_Guest_phonenumber'] || '';
+        const phone2  = booking['TaBookings2021_Segundo_Telefono']  || '';
+        const pinOk   = lastDigits(phone1, 5) || lastDigits(phone2, 5) || '35111';
+
+        if (String(pin).trim() !== pinOk) return jsonR({ error: 'Incorrect code' }, 401);
+
+        const updateWhere = `FS_confirmation_code='${codeClean}'`;
+        const updateRes = await fetch(
+          `${CASPIO}/rest/v2/tables/TaBookings2021/records?q.where=${encodeURIComponent(updateWhere)}`,
+          {
+            method : 'PUT',
+            headers: { Authorization: `Bearer ${ct}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body   : JSON.stringify(fields),
+          }
+        );
+
+        if (!updateRes.ok) {
+          const errText = await updateRes.text();
+          return jsonR({ error: 'Update error: ' + errText }, 500);
+        }
+
+        return jsonR({ saved: true });
+
+      } catch (err) {
+        console.error('checkin-save error:', err);
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  HOSTAWAY RESERVATIONS — requiere sessionToken válido
+    //  Descarga todas las reservas de Hostaway con paginación
+    //  cursor (afterId) y devuelve los campos de fechas.
+    // ─────────────────────────────────────────────────────
+    if (action === 'hostaway-reservations') {
+      try { await checkSession(request, url, env); }
+      catch (err) { return jsonR({ error: 'Sesión inválida: ' + err.message }, 401); }
+
+      // Parámetros de filtro de fecha (arrivalDate de Hostaway)
+      const arrivalStart = url.searchParams.get('arrivalStartDate') || '';
+      const arrivalEnd   = url.searchParams.get('arrivalEndDate')   || '';
+
+      try {
+        const hwToken = await getHostawayToken(env);
+        const limit   = 100;
+        let   allReservations = [];
+        let   afterId = null;
+        let   page    = 0;
+        const MAX_PAGES = 50; // Seguridad: máximo 5000 reservas
+
+        while (page < MAX_PAGES) {
+          let endpoint = `${HOSTAWAY_API}/reservations?limit=${limit}&sortOrder=id`;
+          if (afterId)      endpoint += `&afterId=${afterId}`;
+          if (arrivalStart) endpoint += `&arrivalStartDate=${encodeURIComponent(arrivalStart)}`;
+          if (arrivalEnd)   endpoint += `&arrivalEndDate=${encodeURIComponent(arrivalEnd)}`;
+
+          const r = await fetch(endpoint, {
+            headers: {
+              Authorization: `Bearer ${hwToken}`,
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (!r.ok) {
+            const txt = await r.text();
+            // Si el token expiró (403), invalidar caché y devolver error claro
+            if (r.status === 403) {
+              const cache    = caches.default;
+              const cacheKey = new Request('https://hostaway-token-cache.internal/token');
+              await cache.delete(cacheKey);
+              return jsonR({ error: 'Token Hostaway expirado. Reintenta para obtener uno nuevo.' }, 401);
+            }
+            return jsonR({ error: `Hostaway API error ${r.status}: ${txt}` }, r.status);
+          }
+
+          const data   = await r.json();
+          const result = data.result || [];
+
+          // Filtrar solo campos necesarios para la comparación
+          const mapped = result.map(res => ({
+            id                   : res.id,
+            hostawayReservationId: res.hostawayReservationId || res.id,
+            arrivalDate          : res.arrivalDate,
+            departureDate        : res.departureDate,
+            guestName            : res.guestName || '',
+            listingName          : res.listingName || res.internalListingName || '',
+            status               : res.status || '',
+          }));
+
+          allReservations = allReservations.concat(mapped);
+
+          // Si devuelve menos de `limit`, hemos llegado al final
+          if (result.length < limit) break;
+
+          // Cursor para la siguiente página
+          afterId = result[result.length - 1].id;
+          page++;
+        }
+
+        return jsonR({ reservations: allReservations, total: allReservations.length });
+
+      } catch (err) {
+        console.error('hostaway-reservations error:', err);
+        return jsonR({ error: err.message }, 500);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  RUTAS DE DATOS — requieren sessionToken válido
+    // ─────────────────────────────────────────────────────
+    if (['data','view','schema','token','save','create','update'].includes(action)) {
+
+      if (action !== 'token') {
+        try { await checkSession(request, url, env); }
+        catch (err) { return jsonR({ error: 'Sesión inválida: ' + err.message }, 401); }
+      }
+
+      const ct   = await getCaspioToken(env);
+      const auth = { Authorization: `Bearer ${ct}`, Accept: 'application/json' };
+
+      if (action === 'token') {
+        const b = `grant_type=client_credentials&client_id=${encodeURIComponent(env.CASPIO_CLIENT_ID)}&client_secret=${encodeURIComponent(env.CASPIO_CLIENT_SECRET)}`;
+        const r = await fetch(`${CASPIO}/oauth/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: b });
+        return new Response(await r.text(), { status: r.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      }
+
+      if (action === 'data') {
+        const table = url.searchParams.get('table') || 'TaVillas';
+        const id    = url.searchParams.get('id')    || '';
+        const where = url.searchParams.get('where') || '';
+        const limit = url.searchParams.get('limit') || '200';
+        const apiUrl = id
+          ? `${CASPIO}/rest/v2/tables/${table}/records?q.where=Hostawayid=${id}&q.limit=1`
+          : `${CASPIO}/rest/v2/tables/${table}/records?q.limit=${limit}${where ? '&q.where=' + encodeURIComponent(where) : ''}`;
+        return proxyR(await fetch(apiUrl, { headers: auth }));
+      }
+
+      if (action === 'view') {
+        const view    = url.searchParams.get('view')    || 'Vi_villas_and_bookings2021';
+        const where   = url.searchParams.get('where')   || '';
+        const orderBy = url.searchParams.get('orderBy') || '';
+        const limit   = url.searchParams.get('limit')   || '200';
+        let apiUrl    = `${CASPIO}/rest/v2/views/${view}/records?q.limit=${limit}`;
+        if (where)   apiUrl += `&q.where=${encodeURIComponent(where)}`;
+        if (orderBy) apiUrl += `&q.orderBy=${encodeURIComponent(orderBy)}`;
+        return proxyR(await fetch(apiUrl, { headers: auth }));
+      }
+
+      if (action === 'schema') {
+        const view = url.searchParams.get('view') || 'Vi_villas_and_bookings2021';
+        let r = await fetch(`${CASPIO}/rest/v2/views/${view}/records?q.limit=1`, { headers: auth });
+        if (!r.ok) r = await fetch(`${CASPIO}/rest/v2/tables/${view}/records?q.limit=1`, { headers: auth });
+        const d   = await r.json();
+        const rec = (d.Result || [])[0] || {};
+        return jsonR({ view, fields: Object.keys(rec), sampleRecord: rec });
+      }
+
+      if (action === 'save') {
+        const table  = url.searchParams.get('table');
+        const where  = url.searchParams.get('where') || '';
+        const method = (url.searchParams.get('method') || request.method || 'POST').toUpperCase();
+        if (!table) return jsonR({ error: 'table param required' }, 400);
+
+        let body;
+        try { body = await request.json(); } catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+        const apiUrl = (method === 'PUT' && where)
+          ? `${CASPIO}/rest/v2/tables/${table}/records?q.where=${encodeURIComponent(where)}`
+          : `${CASPIO}/rest/v2/tables/${table}/records`;
+
+        const saveRes  = await fetch(apiUrl, {
+          method : method === 'PUT' ? 'PUT' : 'POST',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body   : JSON.stringify(body),
+        });
+        const saveText = await saveRes.text();
+        let saveJson;
+        try { saveJson = JSON.parse(saveText); } catch { saveJson = { raw: saveText }; }
+        return new Response(JSON.stringify(saveJson), { status: saveRes.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      }
+
+      if (action === 'create') {
+        const table = url.searchParams.get('table');
+        if (!table) return jsonR({ error: 'table param required' }, 400);
+
+        let body;
+        try { body = await request.json(); } catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+        const res  = await fetch(`${CASPIO}/rest/v2/tables/${table}/records`, {
+          method : 'POST',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body   : JSON.stringify(body),
+        });
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch { json = { raw: text }; }
+        return new Response(JSON.stringify(json), { status: res.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      }
+
+      if (action === 'update') {
+        const table = url.searchParams.get('table');
+        const id    = url.searchParams.get('id');
+        if (!table || !id) return jsonR({ error: 'table e id requeridos' }, 400);
+
+        let body;
+        try { body = await request.json(); } catch { return jsonR({ error: 'JSON inválido' }, 400); }
+
+        const where  = `taskid=${parseInt(id)}`;
+        const apiUrl = `${CASPIO}/rest/v2/tables/${table}/records?q.where=${encodeURIComponent(where)}`;
+        const res    = await fetch(apiUrl, {
+          method : 'PUT',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body   : JSON.stringify(body),
+        });
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch { json = { raw: text }; }
+        return new Response(JSON.stringify(json), { status: res.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  UPLOAD PHOTO → Cloudflare R2
+    // ─────────────────────────────────────────────────────
+    if (action === 'upload') {
+      if (request.method !== 'POST') return jsonR({ error: 'POST required' }, 405);
+
+      try { await checkSession(request, url, env); }
+      catch (err) { return jsonR({ error: 'Sesión inválida: ' + err.message }, 401); }
+
+      if (!env.PHOTOS) return jsonR({ error: 'R2 binding PHOTOS no configurado' }, 500);
+
+      try {
+        const formData = await request.formData();
+        const file     = formData.get('file');
+
+        if (!file || typeof file === 'string') return jsonR({ error: 'No se recibió ningún archivo' }, 400);
+
+        const ext = ((file.name || 'foto.jpg').split('.').pop() || 'jpg').toLowerCase();
+
+        const customFilename = formData.get('filename');
+        if (customFilename) {
+          const key = customFilename;
+          await env.PHOTOS.put(key, file.stream(), {
+            httpMetadata   : { contentType: file.type || 'image/jpeg' },
+            customMetadata : { source: 'nueva-tarea' },
+          });
+          const publicUrl = env.R2_PUBLIC_URL ? `${env.R2_PUBLIC_URL}/${key}` : `r2://${key}`;
+          return jsonR({ success: true, url: publicUrl, filename: key, key });
+        }
+
+        const idreserva = formData.get('idreserva') || 'unknown';
+        const tasktype  = formData.get('tasktype')  || '20';
+        const year      = formData.get('year')      || new Date().getFullYear();
+        const taskName  = tasktype === '20' ? 'welcomepack' : tasktype === '10' ? 'limpieza' : tasktype === '30' ? 'cierre' : 'tarea';
+        const folder    = tasktype === '20' ? 'wellcomepack' : tasktype === '10' ? 'limpieza' : tasktype === '30' ? 'cierre' : 'tareas';
+        const filename  = `${year}_${taskName}_${idreserva}.${ext}`;
+        const key       = `${folder}/${filename}`;
+
+        await env.PHOTOS.put(key, file.stream(), {
+          httpMetadata   : { contentType: file.type || 'image/jpeg' },
+          customMetadata : { idreserva, tasktype, year: String(year) },
+        });
+
+        const publicUrl = env.R2_PUBLIC_URL ? `${env.R2_PUBLIC_URL}/${key}` : `r2://${key}`;
+        return jsonR({ success: true, url: publicUrl, filename, key });
+
+      } catch (err) {
+        return jsonR({ error: 'Upload error: ' + err.message }, 500);
+      }
+    }
+
+    return jsonR({ error: 'Acción no reconocida' }, 400);
+  }
+};
+
+// HISTORIAL: v12 - hostaway-reservations acepta arrivalStartDate y arrivalEndDate para filtrar por fecha de entrada y limitar la descarga | v11 - getHostawayToken con caché 180 días via Cache API; action=hostaway-reservations con paginación cursor (afterId); invalidación automática de caché si Hostaway devuelve 403 | v10 - getCaspioToken con caché 23h via Cache API — elimina generación masiva de tokens que desplazaba el refresh token de Zapier | v9 - action=checkin-save público, verifica pin y guarda campos en TaBookings2021 | v8 - send-checkin-code: admin/manager reciben código en su propio email sin verificar contra la reserva
