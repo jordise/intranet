@@ -1,5 +1,5 @@
 // ================================================================
-//  nav.js — MENÚS POR ROL  3Villas  v5
+//  nav.js — MENÚS POR ROL  3Villas  v6
 // ================================================================
 
 var _NAV_WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
@@ -39,13 +39,12 @@ var _menuAdmin = [
   {
     label: 'Configuración', icon: '⚙️',
     children: [
-      { label: 'Test checkin-onlin', url: 'checkin-test-reserva', icon: '' }
-      { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
-      { label: 'Revisar fechas reservas', url: 'hostaway-comprobar-fechas-reservas', icon: '' }
-      { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
-      { label: 'Test1', url: 'XXtest1XX.html', icon: '1' }
-      { label: 'Test2', url: 'XXtest2XX', icon: '2' }
-      { label: 'Test3', url: 'XXtest3XX', icon: '3' }
+      { label: 'Test checkin-online',        url: 'checkin-test-reserva.html',              icon: '🧪' },
+      { label: 'Revisar fechas reservas',    url: 'hostaway-comprobar-fechas-reservas.html', icon: '🔄' },
+      { label: 'Roles y permisos',           url: 'permisos.html',                          icon: '🔐' },
+      { label: 'Test1',                      url: 'XXtest1XX.html',                         icon: '1'  },
+      { label: 'Test2',                      url: 'XXtest2XX.html',                         icon: '2'  },
+      { label: 'Test3',                      url: 'XXtest3XX.html',                         icon: '3'  }
     ]
   },
   { label: 'Login', url: 'login.html', icon: '🔑' }
@@ -90,7 +89,7 @@ var NAV_MENUS = {
   'comercial':    _menuSales,
   'cleaner':      _menuCleaner,
   'limpieza':     _menuCleaner,
-  'default':      _menuAdmin   /* fallback → admin completo para no perder Equipo */
+  'default':      _menuAdmin
 };
 
 // ── Asignación síncrona ──────────────────────────────────────────
@@ -99,7 +98,6 @@ var NAV_MENU = (function () {
     var rawRole = (typeof Auth !== 'undefined' && Auth.role) ? Auth.role() : '';
     var role    = String(rawRole || '').trim().toLowerCase();
     window.__navRole = role;
-    // Debug: ver en consola qué rol se detecta
     console.log('[nav.js] Auth.role() =', JSON.stringify(rawRole), '→ key =', JSON.stringify(role));
     var menu = NAV_MENUS[role];
     if (!menu) {
@@ -122,3 +120,5 @@ var NAV_MENU = (function () {
     }
   } catch (e) {}
 })();
+
+// HISTORIAL: v6 - Fix error de sintaxis en children de Configuración (comas faltantes); eliminado duplicado "Roles y permisos"; URL hostaway-comprobar-fechas-reservas.html añadida con .html | v5 - versión anterior
