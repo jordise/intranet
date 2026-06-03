@@ -1,89 +1,451 @@
-name: Importar Hostaway → Caspio
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostaway Sync v1 — 3Villas</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red:#C8102E; --red-dark:#9e0c24; --red-light:#fce8eb;
+      --green:#1e9e4e; --green-light:#e6f7ee;
+      --orange:#e07b00; --orange-light:#fff4e0;
+      --gray-1:#f4f5f7; --gray-2:#e8eaed; --gray-3:#c4c9d4;
+      --gray-4:#7a8194; --gray-5:#2d3142;
+      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+      --shadow-md:0 4px 14px rgba(0,0,0,.11);
+      --r:10px;
+    }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+    body { font-family:'Open Sans',sans-serif; background:var(--gray-1); color:var(--gray-5); min-height:100vh }
 
-on:
-  workflow_dispatch:
-    inputs:
-      hours:
-        description: 'Horas hacia atrás (72 = 3 días, 168 = 1 semana)'
-        required: true
-        default: '72'
-      batch:
-        description: 'Registros por llamada (máx 15)'
-        required: true
-        default: '15'
+    /* ── Nav ── */
+    .top-nav { display:flex; align-items:center; gap:10px; padding:9px 14px; background:#fff; border-bottom:1.5px solid var(--gray-2); box-shadow:0 2px 8px rgba(0,0,0,.07); position:sticky; top:0; z-index:300 }
+    .nav-logo { display:flex; align-items:center; text-decoration:none; flex-shrink:0 }
+    .nav-logo img { height:26px; object-fit:contain }
+    .nav-center { flex:1; min-width:0; padding:0 6px }
+    .h-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--gray-5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2 }
+    .h-sub { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4); margin-top:1px }
+    .nav-btns { display:flex; align-items:center; gap:6px; flex-shrink:0 }
+    .nav-menu-btn { display:flex; align-items:center; justify-content:center; background:var(--red); border:none; color:#fff; width:32px; height:32px; border-radius:8px; font-size:16px; cursor:pointer; flex-shrink:0 }
+    .nav-menu-btn:hover { background:var(--red-dark) }
+    .user-pill { display:inline-flex; align-items:center; gap:4px; background:var(--gray-1); border:1.5px solid var(--gray-2); color:var(--gray-4); padding:4px 10px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0 }
 
-jobs:
-  import:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    /* ── Toolbar ── */
+    .toolbar { display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fff; border-bottom:1.5px solid var(--gray-2); flex-wrap:wrap }
+    .btn-sync { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 16px; background:var(--red); color:#fff; border:none; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:background .15s }
+    .btn-sync:hover:not(:disabled) { background:var(--red-dark) }
+    .btn-sync:disabled { opacity:.5; cursor:not-allowed }
+    .toolbar-info { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4); flex:1 }
+    .badge { display:inline-flex; align-items:center; justify-content:center; background:var(--red); color:#fff; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; margin-left:6px }
+    .badge.green { background:var(--green) }
 
-    steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+    /* ── Progress bar ── */
+    #progressWrap { display:none; padding:0 16px 8px; background:#fff }
+    #progressBar { height:4px; background:var(--gray-2); border-radius:4px; overflow:hidden }
+    #progressFill { height:100%; background:var(--red); width:0%; transition:width .3s; border-radius:4px }
+    #progressLabel { font-family:'Montserrat',sans-serif; font-size:10px; color:var(--gray-4); margin-top:4px }
 
-      - name: Ejecutar importación
-        run: |
-          cat << 'SCRIPT' > runner.mjs
-          const WORKER = 'https://importar-host-a-caspio-ultimas-3horas.jordi-89b.workers.dev/import';
-          const HOURS  = process.env.HOURS;
-          const BATCH  = process.env.BATCH;
+    /* ── Estado vacío / error ── */
+    .state-box { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:12px; text-align:center }
+    .state-box .icon { font-size:40px }
+    .state-box p { font-family:'Montserrat',sans-serif; font-size:13px; color:var(--gray-4); max-width:320px }
+    .state-box.err p { color:var(--red) }
 
-          let url = `${WORKER}?hours=${HOURS}&batch=${BATCH}&offset=0`;
-          let call = 0, inserted = 0, updated = 0, skipped = 0, errors = 0;
+    /* ── Tabla ── */
+    .table-wrap { overflow-x:auto; padding:16px }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:var(--r); box-shadow:var(--shadow-sm); overflow:hidden; font-size:13px }
+    thead th { background:var(--gray-5); color:#fff; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; padding:10px 12px; text-align:left; white-space:nowrap }
+    tbody tr { border-bottom:1px solid var(--gray-2) }
+    tbody tr:last-child { border-bottom:none }
+    tbody tr:hover { background:var(--gray-1) }
+    td { padding:9px 12px; vertical-align:middle }
 
-          console.log(`\n🚀 Importación — últimas ${HOURS}h (batch ${BATCH})`);
-          console.log('═'.repeat(55));
+    /* Columnas de fecha */
+    .date-cell { white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:600 }
+    .date-ok  { color:var(--green) }
+    .date-bad { color:var(--red); background:var(--red-light); padding:3px 7px; border-radius:5px }
+    .date-empty { color:var(--gray-3); font-style:italic; font-weight:400 }
 
-          while (url) {
-            call++;
-            console.log(`\n📦 Llamada #${call}  offset=${new URL(url).searchParams.get('offset')}`);
+    /* Tipo de diferencia */
+    .diff-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700 }
+    .diff-in  { background:#fce8eb; color:var(--red) }
+    .diff-out { background:var(--orange-light); color:var(--orange) }
+    .diff-both{ background:#f0e6fb; color:#7c3aed }
 
-            let data;
-            try {
-              const res = await fetch(url);
-              data = await res.json();
-            } catch (e) {
-              console.error(`❌ Error red: ${e.message}`);
-              process.exit(1);
-            }
+    /* Guest / listing */
+    .guest-name { font-weight:600; color:var(--gray-5) }
+    .listing-name { font-size:11px; color:var(--gray-4) }
 
-            console.log(`   status   : ${data.status}`);
-            console.log(`   total    : ${data.total ?? '—'}`);
-            console.log(`   inserted : ${data.inserted ?? 0}`);
-            console.log(`   updated  : ${data.updated  ?? 0}`);
-            console.log(`   skipped  : ${data.skipped  ?? 0}`);
-            console.log(`   errors   : ${data.errors   ?? 0}`);
-            if (data.errDetails) console.log(`   ⚠️  ${data.errDetails}`);
+    /* Link Hostaway */
+    .hw-link { display:inline-flex; align-items:center; gap:4px; color:var(--red); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-decoration:none; padding:3px 8px; border:1.5px solid var(--red-light); border-radius:6px; transition:all .15s }
+    .hw-link:hover { background:var(--red); color:#fff }
 
-            if (data.status !== 'ok') {
-              console.error(`\n❌ Worker error — abortando`);
-              process.exit(1);
-            }
+    /* Resumen top */
+    .summary { display:flex; gap:12px; padding:12px 16px; flex-wrap:wrap }
+    .sum-card { background:#fff; border-radius:8px; padding:10px 16px; box-shadow:var(--shadow-sm); font-family:'Montserrat',sans-serif; min-width:100px }
+    .sum-card .num { font-size:22px; font-weight:800; color:var(--gray-5) }
+    .sum-card .lbl { font-size:10px; color:var(--gray-4); font-weight:600; margin-top:2px }
+    .sum-card.red .num { color:var(--red) }
+    .sum-card.green .num { color:var(--green) }
+  </style>
+</head>
+<body>
 
-            inserted += data.inserted ?? 0;
-            updated  += data.updated  ?? 0;
-            skipped  += data.skipped  ?? 0;
-            errors   += data.errors   ?? 0;
+<!-- NAV -->
+<nav class="top-nav">
+  <a href="index.html" class="nav-logo">
+    <img src="logo-negro.png" alt="3Villas">
+  </a>
+  <div class="nav-center">
+    <div class="h-title">Sync Fechas Hostaway</div>
+    <div class="h-sub" id="navSub">Reservas con fechas distintas</div>
+  </div>
+  <div class="nav-btns">
+    <span class="user-pill" id="userPill">…</span>
+    <button class="nav-menu-btn" onclick="Nav.open()" title="Menú">☰</button>
+  </div>
+</nav>
 
-            if (!data.hasMore) {
-              console.log('\n✅ Sin más registros — completado');
-              break;
-            }
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <button class="btn-sync" id="btnSync" onclick="startSync()">
+    🔄 Comparar fechas
+  </button>
+  <div class="toolbar-info" id="toolbarInfo">Pulsa para comparar Hostaway vs Caspio</div>
+</div>
 
-            url = data.nextCall;
+<!-- PROGRESS -->
+<div id="progressWrap">
+  <div id="progressBar"><div id="progressFill"></div></div>
+  <div id="progressLabel">Iniciando…</div>
+</div>
 
-            // Pausa 2s — respetar rate limit Hostaway (15 req/10s)
-            await new Promise(r => setTimeout(r, 2000));
+<!-- RESUMEN -->
+<div class="summary" id="summaryRow" style="display:none">
+  <div class="sum-card">
+    <div class="num" id="sTotal">—</div>
+    <div class="lbl">Hostaway total</div>
+  </div>
+  <div class="sum-card">
+    <div class="num" id="sCaspio">—</div>
+    <div class="lbl">En Caspio</div>
+  </div>
+  <div class="sum-card red">
+    <div class="num" id="sDiff">—</div>
+    <div class="lbl">Diferencias</div>
+  </div>
+  <div class="sum-card green">
+    <div class="num" id="sOk">—</div>
+    <div class="lbl">OK</div>
+  </div>
+</div>
+
+<!-- CONTENIDO -->
+<div id="content">
+  <div class="state-box">
+    <div class="icon">🔍</div>
+    <p>Pulsa "Comparar fechas" para consultar Hostaway y Caspio y detectar discrepancias.</p>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+
+<script>
+(function () {
+
+  const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+  // ── Auth ──────────────────────────────────────────────────
+  function sessionToken() {
+    return localStorage.getItem('sessionToken') || sessionStorage.getItem('sessionToken') || '';
+  }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sessionToken() };
+  }
+
+  // Verificar sesión al cargar
+  (async function checkAuth() {
+    const token = sessionToken();
+    if (!token) { location.href = 'login.html'; return; }
+    try {
+      const r = await fetch(WORKER + '?action=check&token=' + encodeURIComponent(token));
+      const d = await r.json();
+      if (!d.valid) { location.href = 'login.html'; return; }
+      document.getElementById('userPill').textContent = d.name || d.email || '…';
+      if (typeof Nav !== 'undefined') Nav.init(d.role);
+    } catch (e) {
+      console.warn('Auth check error', e);
+    }
+  })();
+
+  // ── UI helpers ────────────────────────────────────────────
+  function setProgress(pct, label) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+
+  function showProgress(visible) {
+    document.getElementById('progressWrap').style.display = visible ? 'block' : 'none';
+  }
+
+  // Normaliza una fecha a "YYYY-MM-DD" sea cual sea el formato
+  function toYMD(val) {
+    if (!val) return '';
+    // Si ya es YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
+    // Si es Date-like con hora
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    } catch { return ''; }
+  }
+
+  // ── Carga Hostaway (todas las páginas vía Worker) ─────────
+  async function loadHostaway() {
+    setProgress(10, 'Descargando reservas de Hostaway…');
+    const r = await fetch(WORKER + '?action=hostaway-reservations', {
+      headers: authHeaders()
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || `Hostaway error ${r.status}`);
+    }
+    const d = await r.json();
+    return d.reservations || [];
+  }
+
+  // ── Carga Caspio por lotes de 200 ─────────────────────────
+  async function loadCaspio(hwReservations) {
+    setProgress(40, 'Consultando Caspio…');
+
+    // Construimos un Map con los IDs de Hostaway que tenemos
+    // Caspio: FS_confirmation_code = hostawayReservationId (como string)
+    const hwIds = hwReservations.map(r => String(r.hostawayReservationId || r.id));
+
+    // Caspio tiene paginación de 1000 como máximo — pedimos todo
+    const map = {}; // hostawayId → {Checkin, Checkout}
+    let page = 0;
+    const pageSize = 200;
+
+    while (true) {
+      const url = WORKER + '?action=data&table=TaBookings2021&limit=' + pageSize
+                + (page > 0 ? '&where=' + encodeURIComponent(`BookingID>${page * pageSize}`) : '');
+
+      // Pedimos sin filtro where para traer todo, con paginación offset simulada
+      // Usamos un trick: offset via limit+where no está disponible en el worker action=data,
+      // así que hacemos múltiples llamadas con q.where en FS_confirmation_code in (...)
+      // Pero Caspio no soporta IN — hacemos batches de 50 IDs con OR
+      break; // Salimos del while, usamos estrategia de batches abajo
+    }
+
+    // Estrategia: batches de 50 IDs con OR en el WHERE
+    const batchSize = 50;
+    let fetched = 0;
+    for (let i = 0; i < hwIds.length; i += batchSize) {
+      const batch = hwIds.slice(i, i + batchSize);
+      const whereClause = batch.map(id => `FS_confirmation_code='${id}'`).join(' OR ');
+      const pct = 40 + Math.round((i / hwIds.length) * 40);
+      setProgress(pct, `Consultando Caspio… (${Math.min(i + batchSize, hwIds.length)} / ${hwIds.length})`);
+
+      try {
+        const r = await fetch(WORKER + '?action=data&table=TaBookings2021&limit=' + batchSize
+                  + '&where=' + encodeURIComponent(whereClause), {
+          headers: authHeaders()
+        });
+        if (!r.ok) continue;
+        const d = await r.json();
+        const rows = d.Result || [];
+        rows.forEach(row => {
+          const code = String(row.FS_confirmation_code || '').trim();
+          if (code) {
+            map[code] = {
+              Checkin : toYMD(row.Checkin  || row.checkin  || ''),
+              Checkout: toYMD(row.Checkout || row.checkout || ''),
+            };
           }
+        });
+      } catch (e) {
+        console.warn('Caspio batch error', e);
+      }
+      fetched += batch.length;
+    }
 
-          console.log('\n' + '═'.repeat(55));
-          console.log(`📊 RESUMEN FINAL — ${call} llamadas`);
-          console.log(`   ✅ Insertados  : ${inserted}`);
-          console.log(`   🔄 Actualizados: ${updated}`);
-          console.log(`   ⏭️  Saltados    : ${skipped}`);
-          console.log(`   ❌ Errores     : ${errors}`);
-          SCRIPT
+    return map;
+  }
 
-          HOURS=${{ github.event.inputs.hours }} BATCH=${{ github.event.inputs.batch }} node runner.mjs
+  // ── Comparar y renderizar ─────────────────────────────────
+  function compare(hwReservations, caspioMap) {
+    const diffs = [];
+    let okCount = 0;
+    let inCaspioCount = 0;
+
+    hwReservations.forEach(hw => {
+      const hwId    = String(hw.hostawayReservationId || hw.id);
+      const caspio  = caspioMap[hwId];
+      const hwIn    = toYMD(hw.arrivalDate);
+      const hwOut   = toYMD(hw.departureDate);
+
+      if (!caspio) return; // No está en Caspio, omitir
+      inCaspioCount++;
+
+      const ciOk  = caspio.Checkin  === hwIn;
+      const coOk  = caspio.Checkout === hwOut;
+
+      if (ciOk && coOk) { okCount++; return; }
+
+      let diffType = 'both';
+      if (ciOk && !coOk) diffType = 'out';
+      if (!ciOk && coOk) diffType = 'in';
+
+      diffs.push({
+        hwId,
+        hwInternalId : hw.id,
+        guestName    : hw.guestName,
+        listingName  : hw.listingName,
+        status       : hw.status,
+        hwIn, hwOut,
+        caspioIn : caspio.Checkin,
+        caspioOut: caspio.Checkout,
+        diffType,
+      });
+    });
+
+    return { diffs, okCount, inCaspioCount };
+  }
+
+  function renderTable(diffs) {
+    if (!diffs.length) {
+      return `<div class="state-box">
+        <div class="icon">✅</div>
+        <p>¡Sin diferencias! Todas las fechas coinciden entre Hostaway y Caspio.</p>
+      </div>`;
+    }
+
+    const diffTypeLabel = { in: '📅 Entrada', out: '🏁 Salida', both: '⚠️ Ambas' };
+    const diffTypeClass = { in: 'diff-in', out: 'diff-out', both: 'diff-both' };
+
+    const rows = diffs.map(d => {
+      const hwLink = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
+      const ciOk   = d.caspioIn  === d.hwIn;
+      const coOk   = d.caspioOut === d.hwOut;
+
+      return `<tr>
+        <td>
+          <div class="guest-name">${esc(d.guestName || '—')}</div>
+          <div class="listing-name">${esc(d.listingName || '—')}</div>
+        </td>
+        <td><span class="date-cell ${ciOk ? 'date-ok' : 'date-bad'}">${d.hwIn || '<span class="date-empty">—</span>'}</span></td>
+        <td><span class="date-cell ${ciOk ? 'date-ok' : 'date-bad'}">${d.caspioIn || '<span class="date-empty">vacío</span>'}</span></td>
+        <td><span class="date-cell ${coOk ? 'date-ok' : 'date-bad'}">${d.hwOut || '<span class="date-empty">—</span>'}</span></td>
+        <td><span class="date-cell ${coOk ? 'date-ok' : 'date-bad'}">${d.caspioOut || '<span class="date-empty">vacío</span>'}</span></td>
+        <td><span class="diff-tag ${diffTypeClass[d.diffType]}">${diffTypeLabel[d.diffType]}</span></td>
+        <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Huésped / Villa</th>
+            <th>Entrada Hostaway</th>
+            <th>Entrada Caspio</th>
+            <th>Salida Hostaway</th>
+            <th>Salida Caspio</th>
+            <th>Diferencia</th>
+            <th>Hostaway</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Main ──────────────────────────────────────────────────
+  window.startSync = async function () {
+    const btn = document.getElementById('btnSync');
+    btn.disabled = true;
+    document.getElementById('content').innerHTML = '';
+    document.getElementById('summaryRow').style.display = 'none';
+    showProgress(true);
+    setProgress(0, 'Iniciando…');
+    document.getElementById('toolbarInfo').textContent = 'Comparando…';
+
+    try {
+      // 1. Hostaway
+      const hwReservations = await loadHostaway();
+      setProgress(35, `${hwReservations.length} reservas descargadas de Hostaway`);
+
+      // 2. Caspio
+      const caspioMap = await loadCaspio(hwReservations);
+      setProgress(85, 'Comparando fechas…');
+
+      // 3. Comparar
+      const { diffs, okCount, inCaspioCount } = compare(hwReservations, caspioMap);
+      setProgress(100, 'Completado');
+
+      // Resumen
+      document.getElementById('sTotal').textContent  = hwReservations.length;
+      document.getElementById('sCaspio').textContent = inCaspioCount;
+      document.getElementById('sDiff').textContent   = diffs.length;
+      document.getElementById('sOk').textContent     = okCount;
+      document.getElementById('summaryRow').style.display = 'flex';
+
+      // Tabla
+      document.getElementById('content').innerHTML = renderTable(diffs);
+
+      // Toolbar info
+      const infoTxt = diffs.length
+        ? `${diffs.length} reserva(s) con fechas distintas`
+        : 'Sin diferencias — todo OK';
+      document.getElementById('toolbarInfo').textContent = infoTxt;
+      document.getElementById('navSub').textContent = infoTxt;
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById('content').innerHTML = `<div class="state-box err">
+        <div class="icon">❌</div>
+        <p>${esc(err.message || 'Error desconocido')}</p>
+      </div>`;
+      document.getElementById('toolbarInfo').textContent = 'Error al comparar';
+    } finally {
+      showProgress(false);
+      btn.disabled = false;
+    }
+  };
+
+})();
+</script>
+
+</body>
+</html>
+<!-- HISTORIAL: v1 - Página inicial: comparación de fechas Hostaway vs Caspio; tabla con diferencias resaltadas; link a reserva en Hostaway dashboard -->
