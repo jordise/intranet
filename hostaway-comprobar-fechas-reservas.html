@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v8 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v9 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v8 — 3Villas</title>
+  <title>Hostaway Sync v9 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -152,6 +152,7 @@
   </div>
   <div class="filter-row">
     <button class="btn-sync" id="btnSync" onclick="startSync()">🔄 Comparar fechas</button>
+    <button class="btn-sync" id="btnClear" onclick="clearCache()" style="background:var(--gray-4);font-size:11px">🗑️ Limpiar caché Hostaway</button>
     <span class="toolbar-info" id="toolbarInfo">Selecciona el período y pulsa Comparar</span>
   </div>
 </div>
@@ -457,6 +458,27 @@
     </div>`;
   }
 
+  // ── Limpiar caché token Hostaway ─────────────────────────
+  window.clearCache = async function () {
+    const btn = document.getElementById('btnClear');
+    btn.disabled = true;
+    btn.textContent = '⏳ Limpiando…';
+    try {
+      const r = await fetch(WORKER + '?action=clear-hostaway-cache', { headers: authHeaders() });
+      const d = await r.json();
+      if (d.cleared) {
+        btn.textContent = '✅ Caché borrada';
+        document.getElementById('toolbarInfo').textContent = 'Caché de Hostaway borrada — pulsa Comparar para obtener token nuevo';
+      } else {
+        btn.textContent = '⚠️ Error';
+      }
+    } catch(e) {
+      btn.textContent = '⚠️ Error';
+    } finally {
+      setTimeout(() => { btn.disabled = false; btn.textContent = '🗑️ Limpiar caché Hostaway'; }, 3000);
+    }
+  };
+
   // ── Main ──────────────────────────────────────────────────
   window.startSync = async function () {
     let from, to;
@@ -513,4 +535,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v8 - Reescritura limpia: loadHostaway usa action=hostaway-page (paginación frontend, sin timeout); buildRows devuelve solo diff-* directamente sin filter posterior; renderTable simplificado solo para errores | v7 - Fix filtro diff-* y mensaje sin diferencias | v6 - loadHostaway paginada con action=hostaway-page | v5 - Solo muestra reservas con fechas distintas | v4 - Tabla completa con todas las reservas | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
+<!-- HISTORIAL: v9 - Botón "Limpiar caché Hostaway" llama a action=clear-hostaway-cache del Worker v16 para invalidar token sin redeploy | v8 - Reescritura limpia: loadHostaway usa action=hostaway-page (paginación frontend, sin timeout); buildRows devuelve solo diff-* directamente sin filter posterior; renderTable simplificado solo para errores | v7 - Fix filtro diff-* y mensaje sin diferencias | v6 - loadHostaway paginada con action=hostaway-page | v5 - Solo muestra reservas con fechas distintas | v4 - Tabla completa con todas las reservas | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
