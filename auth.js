@@ -140,6 +140,7 @@ const Auth = (function () {
 
     // ── Test ───────────────────────────────────────────────
     'checkin-test-reserva' : ['admin', 'manager'],
+    'hostaway-comprobar-fechas-reservas' : ['admin', 'manager'],
 
     // ── CONFIGURACIÓN ──────────────────────────────────────────
     // permisos.html
