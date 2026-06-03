@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v6 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v5 — 3Villas</title>
+  <title>Hostaway Sync v6 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -494,8 +494,11 @@
     document.getElementById('toolbarInfo').textContent = `Comparando ${from} → ${to}…`;
 
     try {
-      const hwReservations = await loadHostaway(from, to);
-      setProgress(38, `${hwReservations.length} reservas en Hostaway`);
+      const hwReservations = await loadHostaway(from, to, (count, done) => {
+        const pct = done ? 35 : Math.min(10 + count / 5, 34);
+        setProgress(pct, `Descargando Hostaway… ${count} reservas${done ? ' ✓' : ''}`);
+      });
+      setProgress(38, `${hwReservations.length} reservas válidas en Hostaway`);
 
       const caspioMap = await loadCaspio(hwReservations);
       setProgress(90, 'Comparando fechas…');
@@ -535,4 +538,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
+<!-- HISTORIAL: v6 - loadHostaway paginada con action=hostaway-page; frontend llama página a página evitando timeout del Worker; sin cambios en lógica de comparación ni filtros | v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
