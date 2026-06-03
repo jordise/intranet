@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v8 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v7 — 3Villas</title>
+  <title>Hostaway Sync v8 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -97,33 +97,19 @@
     tbody tr:last-child { border-bottom:none }
     tbody tr:hover { background:var(--gray-1) }
     tbody tr.row-error { background:#fff8f8 }
-    tbody tr.row-nocaspio { background:#fffbf0 }
     td { padding:9px 12px; vertical-align:middle }
-
-    /* Nº reserva */
     .res-id { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--gray-5) }
     .guest-name { font-weight:600; color:var(--gray-5); font-size:12px }
     .listing-name { font-size:11px; color:var(--gray-4) }
-
-    /* Fechas */
     .date-cell { white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:600 }
-    .date-ok    { color:var(--green) }
-    .date-bad   { color:var(--red); background:var(--red-light); padding:2px 6px; border-radius:5px }
+    .date-ok  { color:var(--green) }
+    .date-bad { color:var(--red); background:var(--red-light); padding:2px 6px; border-radius:5px }
     .date-empty { color:var(--gray-3); font-style:italic; font-weight:400; font-size:11px }
-
-    /* Estado columna */
-    .st-ok     { color:var(--green); font-size:16px }
-    .st-err    { color:var(--red);   font-size:16px }
-    .st-warn   { color:var(--orange);font-size:16px }
-
-    /* Etiqueta diferencia */
+    .st-err { color:var(--red); font-size:16px }
     .diff-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700 }
     .diff-in   { background:#fce8eb; color:var(--red) }
     .diff-out  { background:var(--orange-light); color:var(--orange) }
     .diff-both { background:#f0e6fb; color:#7c3aed }
-    .diff-nc   { background:#fffbf0; color:var(--orange) }
-
-    /* Link Hostaway */
     .hw-link { display:inline-flex; align-items:center; gap:4px; color:var(--red); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-decoration:none; padding:3px 8px; border:1.5px solid var(--red-light); border-radius:6px; transition:all .15s }
     .hw-link:hover { background:var(--red); color:#fff }
   </style>
@@ -318,17 +304,42 @@
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Carga Hostaway ────────────────────────────────────────
+  // ── Carga Hostaway paginada página a página ───────────────
+  // Usa action=hostaway-page: cada llamada al Worker devuelve
+  // max 100 reservas (~1-2s), nunca alcanza el timeout de 30s.
+  // Los tokens de Caspio y Hostaway siempre se leen de caché.
   async function loadHostaway(from, to) {
-    setProgress(10, `Descargando Hostaway ${from} → ${to}…`);
-    const params = new URLSearchParams({ action:'hostaway-reservations', arrivalStartDate:from, arrivalEndDate:to });
-    const r = await fetch(WORKER + '?' + params.toString(), { headers: authHeaders() });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      throw new Error(d.error || `Hostaway error ${r.status}`);
+    const all   = [];
+    let afterId = null;
+    let page    = 0;
+
+    while (true) {
+      const params = new URLSearchParams({
+        action          : 'hostaway-page',
+        arrivalStartDate: from,
+        arrivalEndDate  : to,
+      });
+      if (afterId) params.set('afterId', afterId);
+
+      const pct = Math.min(10 + page * 8, 34);
+      setProgress(pct, `Descargando Hostaway… ${all.length} reservas`);
+
+      const r = await fetch(WORKER + '?' + params.toString(), { headers: authHeaders() });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `Hostaway error ${r.status}`);
+      }
+      const d = await r.json();
+      all.push(...(d.reservations || []));
+      page++;
+
+      if (d.done) break;
+      afterId = d.nextAfterId;
+      if (page >= 50) break; // seguridad máx 5000
     }
-    const d = await r.json();
-    return d.reservations || [];
+
+    setProgress(35, `${all.length} reservas descargadas de Hostaway ✓`);
+    return all;
   }
 
   // ── Carga Caspio por batches de 50 ────────────────────────
@@ -360,51 +371,39 @@
     return map;
   }
 
-  // ── Construir listado completo ────────────────────────────
-  // Cada fila tiene: hwId, hwInternalId, guestName, listingName,
-  // hwIn, hwOut, caspioIn, caspioOut,
-  // status: 'ok' | 'diff-in' | 'diff-out' | 'diff-both' | 'no-caspio'
+  // ── Construir listado — solo diff-* ──────────────────────
   function buildRows(hwReservations, caspioMap) {
     let okCount = 0, diffCount = 0, noCaspioCount = 0, inCaspioCount = 0;
-    const rows = hwReservations.map(hw => {
+    const diffs = [];
+
+    hwReservations.forEach(hw => {
       const hwId   = String(hw.hostawayReservationId || hw.id);
       const hwIn   = toYMD(hw.arrivalDate);
       const hwOut  = toYMD(hw.departureDate);
       const caspio = caspioMap[hwId];
 
-      if (!caspio) {
-        noCaspioCount++;
-        return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
-                 listingName: hw.listingName, hwIn, hwOut,
-                 caspioIn: '', caspioOut: '', status: 'no-caspio' };
-      }
+      if (!caspio) { noCaspioCount++; return; }
 
       inCaspioCount++;
       const ciOk = caspio.Checkin  === hwIn;
       const coOk = caspio.Checkout === hwOut;
 
-      if (ciOk && coOk) {
-        okCount++;
-        return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
-                 listingName: hw.listingName, hwIn, hwOut,
-                 caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status: 'ok' };
-      }
+      if (ciOk && coOk) { okCount++; return; }
 
       diffCount++;
       let status = 'diff-both';
       if (ciOk && !coOk) status = 'diff-out';
       if (!ciOk && coOk) status = 'diff-in';
-      return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
-               listingName: hw.listingName, hwIn, hwOut,
-               caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status };
+      diffs.push({ hwId, hwInternalId: hw.id, guestName: hw.guestName,
+                   listingName: hw.listingName, hwIn, hwOut,
+                   caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status });
     });
 
-    // Solo mostrar las que tienen fechas distintas, ordenadas por tipo
+    // Ordenar: ambas fechas mal primero, luego entrada, luego salida
     const order = { 'diff-both':0, 'diff-in':1, 'diff-out':2 };
-    const filtered = rows.filter(r => r.status.startsWith('diff-'));
-    filtered.sort((a, b) => order[a.status] - order[b.status]);
+    diffs.sort((a, b) => order[a.status] - order[b.status]);
 
-    return { rows: filtered, okCount, diffCount, noCaspioCount, inCaspioCount };
+    return { rows: diffs, okCount, diffCount, noCaspioCount, inCaspioCount };
   }
 
   // ── Renderizar ────────────────────────────────────────────
@@ -414,49 +413,27 @@
         <p>¡Sin diferencias! Todas las fechas coinciden entre Hostaway y Caspio.</p></div>`;
     }
 
-    const statusIcon = {
-      'ok'       : '<span class="st-ok">✅</span>',
-      'diff-in'  : '<span class="st-err">❌</span>',
-      'diff-out' : '<span class="st-err">❌</span>',
-      'diff-both': '<span class="st-err">❌</span>',
-      'no-caspio': '<span class="st-warn">⚠️</span>',
-    };
     const diffLabel = {
-      'ok'       : '',
       'diff-in'  : '<span class="diff-tag diff-in">📅 Entrada</span>',
       'diff-out' : '<span class="diff-tag diff-out">🏁 Salida</span>',
       'diff-both': '<span class="diff-tag diff-both">⚠️ Ambas</span>',
-      'no-caspio': '<span class="diff-tag diff-nc">No en Caspio</span>',
     };
 
     const tableRows = rows.map(d => {
-      const hwLink  = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
-      const isNoCaspio = d.status === 'no-caspio';
-      const isOk       = d.status === 'ok';
-      const ciOk = isOk || isNoCaspio || d.caspioIn  === d.hwIn;
-      const coOk = isOk || isNoCaspio || d.caspioOut === d.hwOut;
-
-      const rowClass = (!isOk && !isNoCaspio) ? 'row-error' : isNoCaspio ? 'row-nocaspio' : '';
-
-      const caspioInCell  = isNoCaspio
-        ? '<span class="date-empty">—</span>'
-        : `<span class="date-cell ${ciOk?'date-ok':'date-bad'}">${d.caspioIn || '<span class="date-empty">vacío</span>'}</span>`;
-
-      const caspioOutCell = isNoCaspio
-        ? '<span class="date-empty">—</span>'
-        : `<span class="date-cell ${coOk?'date-ok':'date-bad'}">${d.caspioOut || '<span class="date-empty">vacío</span>'}</span>`;
-
-      return `<tr class="${rowClass}">
-        <td style="text-align:center">${statusIcon[d.status]}</td>
+      const hwLink = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
+      const ciOk   = d.caspioIn  === d.hwIn;
+      const coOk   = d.caspioOut === d.hwOut;
+      return `<tr class="row-error">
+        <td style="text-align:center"><span class="st-err">❌</span></td>
         <td><span class="res-id">${esc(d.hwId)}</span></td>
         <td>
           <div class="guest-name">${esc(d.guestName || '—')}</div>
           <div class="listing-name">${esc(d.listingName || '—')}</div>
         </td>
         <td><span class="date-cell date-ok">${d.hwIn || '<span class="date-empty">—</span>'}</span></td>
-        <td>${caspioInCell}</td>
+        <td><span class="date-cell ${ciOk?'date-ok':'date-bad'}">${d.caspioIn || '<span class="date-empty">vacío</span>'}</span></td>
         <td><span class="date-cell date-ok">${d.hwOut || '<span class="date-empty">—</span>'}</span></td>
-        <td>${caspioOutCell}</td>
+        <td><span class="date-cell ${coOk?'date-ok':'date-bad'}">${d.caspioOut || '<span class="date-empty">vacío</span>'}</span></td>
         <td>${diffLabel[d.status]}</td>
         <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
       </tr>`;
@@ -472,7 +449,7 @@
           <th>Entrada Caspio</th>
           <th>Salida HW</th>
           <th>Salida Caspio</th>
-          <th>Estado</th>
+          <th>Diferencia</th>
           <th>Link</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
@@ -495,11 +472,8 @@
     document.getElementById('toolbarInfo').textContent = `Comparando ${from} → ${to}…`;
 
     try {
-      const hwReservations = await loadHostaway(from, to, (count, done) => {
-        const pct = done ? 35 : Math.min(10 + count / 5, 34);
-        setProgress(pct, `Descargando Hostaway… ${count} reservas${done ? ' ✓' : ''}`);
-      });
-      setProgress(38, `${hwReservations.length} reservas válidas en Hostaway`);
+      const hwReservations = await loadHostaway(from, to);
+      setProgress(38, `${hwReservations.length} reservas en Hostaway`);
 
       const caspioMap = await loadCaspio(hwReservations);
       setProgress(90, 'Comparando fechas…');
@@ -517,8 +491,8 @@
       document.getElementById('content').innerHTML = renderTable(rows);
 
       const parts = [];
-      if (diffCount)    parts.push(`${diffCount} con fechas distintas`);
-      if (noCaspioCount) parts.push(`${noCaspioCount} no están en Caspio`);
+      if (diffCount)     parts.push(`${diffCount} con fechas distintas`);
+      if (noCaspioCount) parts.push(`${noCaspioCount} no en Caspio`);
       const infoTxt = parts.length ? parts.join(', ') + ` (${from} → ${to})` : `Todo OK (${from} → ${to})`;
       document.getElementById('toolbarInfo').textContent = infoTxt;
       document.getElementById('navSub').textContent      = infoTxt;
@@ -539,4 +513,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v7 - Fix: filtro solo diff-* no llegó a v6; corregido buildRows para devolver solo errores; mensaje "Sin diferencias" correcto cuando 0 errores | v6 - loadHostaway paginada con action=hostaway-page; frontend llama página a página evitando timeout del Worker; sin cambios en lógica de comparación ni filtros | v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
+<!-- HISTORIAL: v8 - Reescritura limpia: loadHostaway usa action=hostaway-page (paginación frontend, sin timeout); buildRows devuelve solo diff-* directamente sin filter posterior; renderTable simplificado solo para errores | v7 - Fix filtro diff-* y mensaje sin diferencias | v6 - loadHostaway paginada con action=hostaway-page | v5 - Solo muestra reservas con fechas distintas | v4 - Tabla completa con todas las reservas | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
