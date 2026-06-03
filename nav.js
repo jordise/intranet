@@ -39,6 +39,9 @@ var _menuAdmin = [
   {
     label: 'Configuración', icon: '⚙️',
     children: [
+      { label: 'Test checkin-onlin', url: 'checkin-test-reserva', icon: '' }
+      { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
+      { label: 'Revisar fechas reservas', url: 'hostaway-comprobar-fechas-reservas', icon: '' }
       { label: 'Roles y permisos', url: 'permisos.html', icon: '🔐' }
       { label: 'Test1', url: 'XXtest1XX.html', icon: '1' }
       { label: 'Test2', url: 'XXtest2XX', icon: '2' }
