@@ -1,1 +1,542 @@
+<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostaway Sync v7 — 3Villas</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C8102E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3Villas">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/3villas-manuals/sw.js')
+          .catch(e => console.warn('SW error:', e));
+      });
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red:#C8102E; --red-dark:#9e0c24; --red-light:#fce8eb;
+      --green:#1e9e4e; --green-light:#e6f7ee;
+      --orange:#e07b00; --orange-light:#fff4e0;
+      --gray-1:#f4f5f7; --gray-2:#e8eaed; --gray-3:#c4c9d4;
+      --gray-4:#7a8194; --gray-5:#2d3142;
+      --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+      --r:10px;
+    }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+    body { font-family:'Open Sans',sans-serif; background:var(--gray-1); color:var(--gray-5); min-height:100vh }
 
+    /* ── Nav ── */
+    .top-nav { display:flex; align-items:center; gap:10px; padding:9px 14px; background:#fff; border-bottom:1.5px solid var(--gray-2); box-shadow:0 2px 8px rgba(0,0,0,.07); position:sticky; top:0; z-index:300 }
+    .nav-logo { display:flex; align-items:center; text-decoration:none; flex-shrink:0 }
+    .nav-logo img { height:26px; object-fit:contain }
+    .nav-center { flex:1; min-width:0; padding:0 6px }
+    .h-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--gray-5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2 }
+    .h-sub { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4); margin-top:1px }
+    .nav-btns { display:flex; align-items:center; gap:6px; flex-shrink:0 }
+    .nav-menu-btn { display:flex; align-items:center; justify-content:center; background:var(--red); border:none; color:#fff; width:32px; height:32px; border-radius:8px; font-size:16px; cursor:pointer; flex-shrink:0 }
+    .nav-menu-btn:hover { background:var(--red-dark) }
+    .user-pill { display:inline-flex; align-items:center; gap:4px; background:var(--gray-1); border:1.5px solid var(--gray-2); color:var(--gray-4); padding:4px 10px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0 }
+
+    /* ── Filtros ── */
+    .filters-wrap { background:#fff; border-bottom:1.5px solid var(--gray-2); padding:12px 16px; display:flex; flex-direction:column; gap:10px }
+    .filter-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+    .filter-label { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--gray-4); white-space:nowrap; min-width:40px }
+    .mode-btns { display:flex; gap:4px }
+    .mode-btn { height:30px; padding:0 12px; border:1.5px solid var(--gray-2); border-radius:20px; background:#fff; color:var(--gray-4); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; white-space:nowrap }
+    .mode-btn.active { border-color:var(--red); background:var(--red-light); color:var(--red) }
+    .month-chips { display:flex; gap:4px; flex-wrap:wrap }
+    .month-chip { height:28px; padding:0 10px; border:1.5px solid var(--gray-2); border-radius:20px; background:#fff; color:var(--gray-4); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; cursor:pointer; transition:all .15s }
+    .month-chip.active { border-color:var(--red); background:var(--red-light); color:var(--red) }
+    .year-select { height:30px; padding:0 8px; border:1.5px solid var(--gray-2); border-radius:8px; background:#fff; color:var(--gray-5); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; cursor:pointer }
+    .year-select:focus { outline:none; border-color:var(--red) }
+    .date-input { height:30px; padding:0 8px; border:1.5px solid var(--gray-2); border-radius:8px; background:#fff; color:var(--gray-5); font-family:'Montserrat',sans-serif; font-size:11px; cursor:pointer }
+    .date-input:focus { outline:none; border-color:var(--red) }
+    .panel { display:none }
+    .panel.visible { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+    .btn-sync { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 16px; background:var(--red); color:#fff; border:none; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:background .15s; white-space:nowrap }
+    .btn-sync:hover:not(:disabled) { background:var(--red-dark) }
+    .btn-sync:disabled { opacity:.5; cursor:not-allowed }
+    .toolbar-info { font-family:'Montserrat',sans-serif; font-size:11px; color:var(--gray-4) }
+
+    /* ── Progress ── */
+    #progressWrap { display:none; padding:6px 16px 8px; background:#fff; border-bottom:1px solid var(--gray-2) }
+    #progressBar { height:4px; background:var(--gray-2); border-radius:4px; overflow:hidden }
+    #progressFill { height:100%; background:var(--red); width:0%; transition:width .3s; border-radius:4px }
+    #progressLabel { font-family:'Montserrat',sans-serif; font-size:10px; color:var(--gray-4); margin-top:4px }
+
+    /* ── Estado ── */
+    .state-box { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:12px; text-align:center }
+    .state-box .icon { font-size:40px }
+    .state-box p { font-family:'Montserrat',sans-serif; font-size:13px; color:var(--gray-4); max-width:320px }
+    .state-box.err p { color:var(--red) }
+
+    /* ── Resumen ── */
+    .summary { display:flex; gap:12px; padding:12px 16px; flex-wrap:wrap }
+    .sum-card { background:#fff; border-radius:8px; padding:10px 16px; box-shadow:var(--shadow-sm); font-family:'Montserrat',sans-serif; min-width:100px }
+    .sum-card .num { font-size:22px; font-weight:800; color:var(--gray-5) }
+    .sum-card .lbl { font-size:10px; color:var(--gray-4); font-weight:600; margin-top:2px }
+    .sum-card.red .num { color:var(--red) }
+    .sum-card.green .num { color:var(--green) }
+    .sum-card.orange .num { color:var(--orange) }
+
+    /* ── Tabla ── */
+    .table-wrap { overflow-x:auto; padding:16px }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:var(--r); box-shadow:var(--shadow-sm); overflow:hidden; font-size:13px }
+    thead th { background:var(--gray-5); color:#fff; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; padding:10px 12px; text-align:left; white-space:nowrap }
+    tbody tr { border-bottom:1px solid var(--gray-2) }
+    tbody tr:last-child { border-bottom:none }
+    tbody tr:hover { background:var(--gray-1) }
+    tbody tr.row-error { background:#fff8f8 }
+    tbody tr.row-nocaspio { background:#fffbf0 }
+    td { padding:9px 12px; vertical-align:middle }
+
+    /* Nº reserva */
+    .res-id { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--gray-5) }
+    .guest-name { font-weight:600; color:var(--gray-5); font-size:12px }
+    .listing-name { font-size:11px; color:var(--gray-4) }
+
+    /* Fechas */
+    .date-cell { white-space:nowrap; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:600 }
+    .date-ok    { color:var(--green) }
+    .date-bad   { color:var(--red); background:var(--red-light); padding:2px 6px; border-radius:5px }
+    .date-empty { color:var(--gray-3); font-style:italic; font-weight:400; font-size:11px }
+
+    /* Estado columna */
+    .st-ok     { color:var(--green); font-size:16px }
+    .st-err    { color:var(--red);   font-size:16px }
+    .st-warn   { color:var(--orange);font-size:16px }
+
+    /* Etiqueta diferencia */
+    .diff-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700 }
+    .diff-in   { background:#fce8eb; color:var(--red) }
+    .diff-out  { background:var(--orange-light); color:var(--orange) }
+    .diff-both { background:#f0e6fb; color:#7c3aed }
+    .diff-nc   { background:#fffbf0; color:var(--orange) }
+
+    /* Link Hostaway */
+    .hw-link { display:inline-flex; align-items:center; gap:4px; color:var(--red); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-decoration:none; padding:3px 8px; border:1.5px solid var(--red-light); border-radius:6px; transition:all .15s }
+    .hw-link:hover { background:var(--red); color:#fff }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="top-nav">
+  <a href="index.html" class="nav-logo"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="h-title">Sync Fechas Hostaway</div>
+    <div class="h-sub" id="navSub">Reservas con fechas distintas</div>
+  </div>
+  <div class="nav-btns">
+    <span class="user-pill" id="userPill">…</span>
+    <button class="nav-menu-btn" onclick="Nav.open()" title="Menú">☰</button>
+  </div>
+</nav>
+
+<!-- FILTROS -->
+<div class="filters-wrap">
+  <div class="filter-row">
+    <span class="filter-label">Modo</span>
+    <div class="mode-btns">
+      <button class="mode-btn active" id="modeMonth" onclick="setMode('month')">Por mes</button>
+      <button class="mode-btn" id="modeRange" onclick="setMode('range')">Rango manual</button>
+    </div>
+  </div>
+  <div class="panel visible" id="panelMonth">
+    <span class="filter-label">Año</span>
+    <select class="year-select" id="selYear"></select>
+    <span class="filter-label" style="margin-left:4px">Mes</span>
+    <div class="month-chips" id="monthChips"></div>
+  </div>
+  <div class="panel" id="panelRange">
+    <span class="filter-label">Desde</span>
+    <input type="date" class="date-input" id="dateFrom">
+    <span class="filter-label">Hasta</span>
+    <input type="date" class="date-input" id="dateTo">
+  </div>
+  <div class="filter-row">
+    <button class="btn-sync" id="btnSync" onclick="startSync()">🔄 Comparar fechas</button>
+    <span class="toolbar-info" id="toolbarInfo">Selecciona el período y pulsa Comparar</span>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="progressWrap">
+  <div id="progressBar"><div id="progressFill"></div></div>
+  <div id="progressLabel">Iniciando…</div>
+</div>
+
+<!-- RESUMEN -->
+<div class="summary" id="summaryRow" style="display:none">
+  <div class="sum-card">
+    <div class="num" id="sTotal">—</div>
+    <div class="lbl">Hostaway período</div>
+  </div>
+  <div class="sum-card">
+    <div class="num" id="sCaspio">—</div>
+    <div class="lbl">En Caspio</div>
+  </div>
+  <div class="sum-card red">
+    <div class="num" id="sDiff">—</div>
+    <div class="lbl">Fechas distintas</div>
+  </div>
+  <div class="sum-card orange">
+    <div class="num" id="sNoCaspio">—</div>
+    <div class="lbl">No en Caspio</div>
+  </div>
+  <div class="sum-card green">
+    <div class="num" id="sOk">—</div>
+    <div class="lbl">OK</div>
+  </div>
+</div>
+
+<!-- CONTENIDO -->
+<div id="content">
+  <div class="state-box">
+    <div class="icon">🔍</div>
+    <p>Selecciona el período y pulsa "Comparar fechas".</p>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+
+<script>
+(function () {
+
+  const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  const MESES  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  // ── Auth ──────────────────────────────────────────────────
+  const session = Auth.require('hostaway-comprobar-fechas-reservas');
+  document.getElementById('userPill').textContent = session.name || session.role || '…';
+  if (typeof Nav !== 'undefined') Nav.init(session.role);
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', ...Auth.headers() };
+  }
+
+  // ── Init filtros ──────────────────────────────────────────
+  let currentMode   = 'month';
+  let selectedMonth = null;
+  let selectedYear  = new Date().getFullYear();
+
+  (function initYear() {
+    const sel = document.getElementById('selYear');
+    const now = new Date().getFullYear();
+    for (let y = now + 1; y >= now - 3; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === now) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => { selectedYear = parseInt(sel.value); });
+  })();
+
+  (function initMonths() {
+    const wrap = document.getElementById('monthChips');
+    const all  = document.createElement('button');
+    all.className = 'month-chip active';
+    all.textContent = 'Todo'; all.dataset.m = '';
+    wrap.appendChild(all);
+    MESES.forEach((label, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'month-chip';
+      btn.textContent = label; btn.dataset.m = idx + 1;
+      wrap.appendChild(btn);
+    });
+    wrap.addEventListener('click', e => {
+      const btn = e.target.closest('.month-chip');
+      if (!btn) return;
+      wrap.querySelectorAll('.month-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedMonth = btn.dataset.m === '' ? null : parseInt(btn.dataset.m);
+    });
+  })();
+
+  (function initDates() {
+    const now = new Date();
+    const y   = now.getFullYear();
+    const m   = String(now.getMonth() + 1).padStart(2, '0');
+    const last = new Date(y, now.getMonth() + 1, 0).getDate();
+    document.getElementById('dateFrom').value = `${y}-${m}-01`;
+    document.getElementById('dateTo').value   = `${y}-${m}-${String(last).padStart(2,'0')}`;
+  })();
+
+  window.setMode = function(mode) {
+    currentMode = mode;
+    document.getElementById('modeMonth').classList.toggle('active', mode === 'month');
+    document.getElementById('modeRange').classList.toggle('active', mode === 'range');
+    document.getElementById('panelMonth').classList.toggle('visible', mode === 'month');
+    document.getElementById('panelRange').classList.toggle('visible', mode === 'range');
+  };
+
+  function getDateRange() {
+    if (currentMode === 'range') {
+      const from = document.getElementById('dateFrom').value;
+      const to   = document.getElementById('dateTo').value;
+      if (!from || !to) throw new Error('Debes introducir fecha Desde y Hasta');
+      if (from > to)    throw new Error('La fecha Desde debe ser anterior a Hasta');
+      return { from, to };
+    }
+    const y = selectedYear;
+    if (selectedMonth === null) return { from: `${y}-01-01`, to: `${y}-12-31` };
+    const m    = String(selectedMonth).padStart(2, '0');
+    const last = new Date(y, selectedMonth, 0).getDate();
+    return { from: `${y}-${m}-01`, to: `${y}-${m}-${String(last).padStart(2,'0')}` };
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setProgress(pct, label) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+  function showProgress(visible) {
+    document.getElementById('progressWrap').style.display = visible ? 'block' : 'none';
+  }
+  function toYMD(val) {
+    if (!val) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return '';
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    } catch { return ''; }
+  }
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Carga Hostaway ────────────────────────────────────────
+  async function loadHostaway(from, to) {
+    setProgress(10, `Descargando Hostaway ${from} → ${to}…`);
+    const params = new URLSearchParams({ action:'hostaway-reservations', arrivalStartDate:from, arrivalEndDate:to });
+    const r = await fetch(WORKER + '?' + params.toString(), { headers: authHeaders() });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || `Hostaway error ${r.status}`);
+    }
+    const d = await r.json();
+    return d.reservations || [];
+  }
+
+  // ── Carga Caspio por batches de 50 ────────────────────────
+  async function loadCaspio(hwReservations) {
+    const hwIds = hwReservations.map(r => String(r.hostawayReservationId || r.id));
+    const map   = {};
+    const batchSize = 50;
+    for (let i = 0; i < hwIds.length; i += batchSize) {
+      const batch       = hwIds.slice(i, i + batchSize);
+      const whereClause = batch.map(id => `FS_confirmation_code='${id}'`).join(' OR ');
+      const pct         = 40 + Math.round((i / hwIds.length) * 45);
+      setProgress(pct, `Consultando Caspio… (${Math.min(i+batchSize, hwIds.length)} / ${hwIds.length})`);
+      try {
+        const r = await fetch(
+          WORKER + '?action=data&table=TaBookings2021&limit=' + batchSize + '&where=' + encodeURIComponent(whereClause),
+          { headers: authHeaders() }
+        );
+        if (!r.ok) continue;
+        const d = await r.json();
+        (d.Result || []).forEach(row => {
+          const code = String(row.FS_confirmation_code || '').trim();
+          if (code) map[code] = {
+            Checkin : toYMD(row.Checkin  || row.checkin  || ''),
+            Checkout: toYMD(row.Checkout || row.checkout || ''),
+          };
+        });
+      } catch(e) { console.warn('Caspio batch error', e); }
+    }
+    return map;
+  }
+
+  // ── Construir listado completo ────────────────────────────
+  // Cada fila tiene: hwId, hwInternalId, guestName, listingName,
+  // hwIn, hwOut, caspioIn, caspioOut,
+  // status: 'ok' | 'diff-in' | 'diff-out' | 'diff-both' | 'no-caspio'
+  function buildRows(hwReservations, caspioMap) {
+    let okCount = 0, diffCount = 0, noCaspioCount = 0, inCaspioCount = 0;
+    const rows = hwReservations.map(hw => {
+      const hwId   = String(hw.hostawayReservationId || hw.id);
+      const hwIn   = toYMD(hw.arrivalDate);
+      const hwOut  = toYMD(hw.departureDate);
+      const caspio = caspioMap[hwId];
+
+      if (!caspio) {
+        noCaspioCount++;
+        return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
+                 listingName: hw.listingName, hwIn, hwOut,
+                 caspioIn: '', caspioOut: '', status: 'no-caspio' };
+      }
+
+      inCaspioCount++;
+      const ciOk = caspio.Checkin  === hwIn;
+      const coOk = caspio.Checkout === hwOut;
+
+      if (ciOk && coOk) {
+        okCount++;
+        return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
+                 listingName: hw.listingName, hwIn, hwOut,
+                 caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status: 'ok' };
+      }
+
+      diffCount++;
+      let status = 'diff-both';
+      if (ciOk && !coOk) status = 'diff-out';
+      if (!ciOk && coOk) status = 'diff-in';
+      return { hwId, hwInternalId: hw.id, guestName: hw.guestName,
+               listingName: hw.listingName, hwIn, hwOut,
+               caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status };
+    });
+
+    // Solo mostrar las que tienen fechas distintas, ordenadas por tipo
+    const order = { 'diff-both':0, 'diff-in':1, 'diff-out':2 };
+    const filtered = rows.filter(r => r.status.startsWith('diff-'));
+    filtered.sort((a, b) => order[a.status] - order[b.status]);
+
+    return { rows: filtered, okCount, diffCount, noCaspioCount, inCaspioCount };
+  }
+
+  // ── Renderizar ────────────────────────────────────────────
+  function renderTable(rows) {
+    if (!rows.length) {
+      return `<div class="state-box"><div class="icon">✅</div>
+        <p>¡Sin diferencias! Todas las fechas coinciden entre Hostaway y Caspio.</p></div>`;
+    }
+
+    const statusIcon = {
+      'ok'       : '<span class="st-ok">✅</span>',
+      'diff-in'  : '<span class="st-err">❌</span>',
+      'diff-out' : '<span class="st-err">❌</span>',
+      'diff-both': '<span class="st-err">❌</span>',
+      'no-caspio': '<span class="st-warn">⚠️</span>',
+    };
+    const diffLabel = {
+      'ok'       : '',
+      'diff-in'  : '<span class="diff-tag diff-in">📅 Entrada</span>',
+      'diff-out' : '<span class="diff-tag diff-out">🏁 Salida</span>',
+      'diff-both': '<span class="diff-tag diff-both">⚠️ Ambas</span>',
+      'no-caspio': '<span class="diff-tag diff-nc">No en Caspio</span>',
+    };
+
+    const tableRows = rows.map(d => {
+      const hwLink  = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
+      const isNoCaspio = d.status === 'no-caspio';
+      const isOk       = d.status === 'ok';
+      const ciOk = isOk || isNoCaspio || d.caspioIn  === d.hwIn;
+      const coOk = isOk || isNoCaspio || d.caspioOut === d.hwOut;
+
+      const rowClass = (!isOk && !isNoCaspio) ? 'row-error' : isNoCaspio ? 'row-nocaspio' : '';
+
+      const caspioInCell  = isNoCaspio
+        ? '<span class="date-empty">—</span>'
+        : `<span class="date-cell ${ciOk?'date-ok':'date-bad'}">${d.caspioIn || '<span class="date-empty">vacío</span>'}</span>`;
+
+      const caspioOutCell = isNoCaspio
+        ? '<span class="date-empty">—</span>'
+        : `<span class="date-cell ${coOk?'date-ok':'date-bad'}">${d.caspioOut || '<span class="date-empty">vacío</span>'}</span>`;
+
+      return `<tr class="${rowClass}">
+        <td style="text-align:center">${statusIcon[d.status]}</td>
+        <td><span class="res-id">${esc(d.hwId)}</span></td>
+        <td>
+          <div class="guest-name">${esc(d.guestName || '—')}</div>
+          <div class="listing-name">${esc(d.listingName || '—')}</div>
+        </td>
+        <td><span class="date-cell date-ok">${d.hwIn || '<span class="date-empty">—</span>'}</span></td>
+        <td>${caspioInCell}</td>
+        <td><span class="date-cell date-ok">${d.hwOut || '<span class="date-empty">—</span>'}</span></td>
+        <td>${caspioOutCell}</td>
+        <td>${diffLabel[d.status]}</td>
+        <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th></th>
+          <th>Nº Reserva</th>
+          <th>Huésped / Villa</th>
+          <th>Entrada HW</th>
+          <th>Entrada Caspio</th>
+          <th>Salida HW</th>
+          <th>Salida Caspio</th>
+          <th>Estado</th>
+          <th>Link</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Main ──────────────────────────────────────────────────
+  window.startSync = async function () {
+    let from, to;
+    try { ({ from, to } = getDateRange()); }
+    catch (err) { alert(err.message); return; }
+
+    const btn = document.getElementById('btnSync');
+    btn.disabled = true;
+    document.getElementById('content').innerHTML = '';
+    document.getElementById('summaryRow').style.display = 'none';
+    showProgress(true);
+    setProgress(0, 'Iniciando…');
+    document.getElementById('toolbarInfo').textContent = `Comparando ${from} → ${to}…`;
+
+    try {
+      const hwReservations = await loadHostaway(from, to, (count, done) => {
+        const pct = done ? 35 : Math.min(10 + count / 5, 34);
+        setProgress(pct, `Descargando Hostaway… ${count} reservas${done ? ' ✓' : ''}`);
+      });
+      setProgress(38, `${hwReservations.length} reservas válidas en Hostaway`);
+
+      const caspioMap = await loadCaspio(hwReservations);
+      setProgress(90, 'Comparando fechas…');
+
+      const { rows, okCount, diffCount, noCaspioCount, inCaspioCount } = buildRows(hwReservations, caspioMap);
+      setProgress(100, 'Completado');
+
+      document.getElementById('sTotal').textContent    = hwReservations.length;
+      document.getElementById('sCaspio').textContent   = inCaspioCount;
+      document.getElementById('sDiff').textContent     = diffCount;
+      document.getElementById('sNoCaspio').textContent = noCaspioCount;
+      document.getElementById('sOk').textContent       = okCount;
+      document.getElementById('summaryRow').style.display = 'flex';
+
+      document.getElementById('content').innerHTML = renderTable(rows);
+
+      const parts = [];
+      if (diffCount)    parts.push(`${diffCount} con fechas distintas`);
+      if (noCaspioCount) parts.push(`${noCaspioCount} no están en Caspio`);
+      const infoTxt = parts.length ? parts.join(', ') + ` (${from} → ${to})` : `Todo OK (${from} → ${to})`;
+      document.getElementById('toolbarInfo').textContent = infoTxt;
+      document.getElementById('navSub').textContent      = infoTxt;
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById('content').innerHTML = `<div class="state-box err">
+        <div class="icon">❌</div><p>${esc(err.message || 'Error desconocido')}</p></div>`;
+      document.getElementById('toolbarInfo').textContent = 'Error al comparar';
+    } finally {
+      showProgress(false);
+      btn.disabled = false;
+    }
+  };
+
+})();
+</script>
+
+</body>
+</html>
+<!-- HISTORIAL: v7 - Fix: filtro solo diff-* no llegó a v6; corregido buildRows para devolver solo errores; mensaje "Sin diferencias" correcto cuando 0 errores | v6 - loadHostaway paginada con action=hostaway-page; frontend llama página a página evitando timeout del Worker; sin cambios en lógica de comparación ni filtros | v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
