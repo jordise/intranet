@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v6 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v6 — 3Villas</title>
+  <title>Hostaway Sync v7 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -399,18 +399,19 @@
                caspioIn: caspio.Checkin, caspioOut: caspio.Checkout, status };
     });
 
-    // Ordenar: primero diff-*, luego no-caspio, luego ok
-    const order = { 'diff-both':0, 'diff-in':1, 'diff-out':2, 'no-caspio':3, 'ok':4 };
-    rows.sort((a, b) => order[a.status] - order[b.status]);
+    // Solo mostrar las que tienen fechas distintas, ordenadas por tipo
+    const order = { 'diff-both':0, 'diff-in':1, 'diff-out':2 };
+    const filtered = rows.filter(r => r.status.startsWith('diff-'));
+    filtered.sort((a, b) => order[a.status] - order[b.status]);
 
-    return { rows, okCount, diffCount, noCaspioCount, inCaspioCount };
+    return { rows: filtered, okCount, diffCount, noCaspioCount, inCaspioCount };
   }
 
   // ── Renderizar ────────────────────────────────────────────
   function renderTable(rows) {
     if (!rows.length) {
       return `<div class="state-box"><div class="icon">✅</div>
-        <p>No hay reservas en el período seleccionado.</p></div>`;
+        <p>¡Sin diferencias! Todas las fechas coinciden entre Hostaway y Caspio.</p></div>`;
     }
 
     const statusIcon = {
@@ -538,4 +539,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v6 - loadHostaway paginada con action=hostaway-page; frontend llama página a página evitando timeout del Worker; sin cambios en lógica de comparación ni filtros | v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
+<!-- HISTORIAL: v7 - Fix: filtro solo diff-* no llegó a v6; corregido buildRows para devolver solo errores; mensaje "Sin diferencias" correcto cuando 0 errores | v6 - loadHostaway paginada con action=hostaway-page; frontend llama página a página evitando timeout del Worker; sin cambios en lógica de comparación ni filtros | v5 - Solo muestra reservas con fechas distintas (diff-*), elimina OK y No en Caspio del listado | v4 - Tabla completa con todas las reservas del período; ❌ arriba (fechas distintas), ⚠️ (no en Caspio), ✅ abajo (OK); columnas Nº reserva, entrada/salida HW, entrada/salida Caspio; contador "No en Caspio" en resumen | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
