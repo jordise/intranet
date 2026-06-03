@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v1 — 3Villas</title>
+  <title>Hostaway Sync v2 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -176,28 +176,13 @@
   const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 
   // ── Auth ──────────────────────────────────────────────────
-  function sessionToken() {
-    return localStorage.getItem('sessionToken') || sessionStorage.getItem('sessionToken') || '';
-  }
+  const session = Auth.require('hostaway-comprobar-fechas-reservas');
+  document.getElementById('userPill').textContent = session.name || session.role || '…';
+  if (typeof Nav !== 'undefined') Nav.init(session.role);
 
   function authHeaders() {
-    return { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sessionToken() };
+    return { 'Content-Type': 'application/json', ...Auth.headers() };
   }
-
-  // Verificar sesión al cargar
-  (async function checkAuth() {
-    const token = sessionToken();
-    if (!token) { location.href = 'login.html'; return; }
-    try {
-      const r = await fetch(WORKER + '?action=check&token=' + encodeURIComponent(token));
-      const d = await r.json();
-      if (!d.valid) { location.href = 'login.html'; return; }
-      document.getElementById('userPill').textContent = d.name || d.email || '…';
-      if (typeof Nav !== 'undefined') Nav.init(d.role);
-    } catch (e) {
-      console.warn('Auth check error', e);
-    }
-  })();
 
   // ── UI helpers ────────────────────────────────────────────
   function setProgress(pct, label) {
@@ -448,4 +433,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v1 - Página inicial: comparación de fechas Hostaway vs Caspio; tabla con diferencias resaltadas; link a reserva en Hostaway dashboard -->
+<!-- HISTORIAL: v2 - Auth.require('hostaway-comprobar-fechas-reservas') en lugar de checkAuth manual | v1 - Página inicial: comparación de fechas Hostaway vs Caspio; tabla con diferencias resaltadas; link a reserva en Hostaway dashboard -->
