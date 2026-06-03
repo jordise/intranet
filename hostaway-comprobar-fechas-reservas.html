@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v10 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Sync v10 — 3Villas</title>
+  <title>Hostaway Sync v11 — 3Villas</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
@@ -308,11 +308,14 @@
   // ── Carga Hostaway paginada página a página ───────────────
   // Usa action=hostaway-page: cada llamada al Worker devuelve
   // max 100 reservas (~1-2s), nunca alcanza el timeout de 30s.
-  // Los tokens de Caspio y Hostaway siempre se leen de caché.
+  // El Worker devuelve hwToken y el frontend lo reenvía en cada
+  // página siguiente — garantiza mismo token aunque distintas
+  // instancias del Worker sirvan las peticiones.
   async function loadHostaway(from, to) {
-    const all   = [];
-    let afterId = null;
-    let page    = 0;
+    const all    = [];
+    let afterId  = null;
+    let hwToken  = null; // token recibido del Worker, se reenvía en cada página
+    let page     = 0;
 
     while (true) {
       const params = new URLSearchParams({
@@ -321,6 +324,7 @@
         arrivalEndDate  : to,
       });
       if (afterId) params.set('afterId', afterId);
+      if (hwToken) params.set('hwToken', hwToken); // reenviar token de sesión
 
       const pct = Math.min(10 + page * 8, 34);
       setProgress(pct, `Descargando Hostaway… ${all.length} reservas`);
@@ -332,14 +336,14 @@
       }
       const d = await r.json();
       all.push(...(d.reservations || []));
-      page++;
 
+      // Guardar el token que devuelve el Worker para la siguiente página
+      if (d.hwToken) hwToken = d.hwToken;
+
+      page++;
       if (d.done) break;
       afterId = d.nextAfterId;
       if (page >= 50) break; // seguridad máx 5000
-
-      // Pausa 600ms entre páginas para respetar rate limit Hostaway (20 req/10s)
-      await new Promise(res => setTimeout(res, 600));
     }
 
     setProgress(35, `${all.length} reservas descargadas de Hostaway ✓`);
@@ -538,4 +542,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v10 - Delay 600ms entre páginas Hostaway para respetar rate limit (20 req/10s) | v9 - Botón "Limpiar caché Hostaway" llama a action=clear-hostaway-cache del Worker v16 para invalidar token sin redeploy | v8 - Reescritura limpia: loadHostaway usa action=hostaway-page (paginación frontend, sin timeout); buildRows devuelve solo diff-* directamente sin filter posterior; renderTable simplificado solo para errores | v7 - Fix filtro diff-* y mensaje sin diferencias | v6 - loadHostaway paginada con action=hostaway-page | v5 - Solo muestra reservas con fechas distintas | v4 - Tabla completa con todas las reservas | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
+<!-- HISTORIAL: v11 - loadHostaway reenvía hwToken entre páginas para garantizar mismo token en toda la sesión | v10 - Delay 600ms entre páginas Hostaway para respetar rate limit (20 req/10s) | v9 - Botón "Limpiar caché Hostaway" llama a action=clear-hostaway-cache del Worker v16 para invalidar token sin redeploy | v8 - Reescritura limpia: loadHostaway usa action=hostaway-page (paginación frontend, sin timeout); buildRows devuelve solo diff-* directamente sin filter posterior; renderTable simplificado solo para errores | v7 - Fix filtro diff-* y mensaje sin diferencias | v6 - loadHostaway paginada con action=hostaway-page | v5 - Solo muestra reservas con fechas distintas | v4 - Tabla completa con todas las reservas | v3 - Filtro fecha por mes y rango manual | v2 - Auth.require | v1 - Versión inicial -->
