@@ -1,94 +1,89 @@
-# .github/workflows/import-hostaway.yml
-# Ejecutar manualmente desde GitHub Actions → Run workflow
-# No necesita Node.js local ni permisos especiales
-
 name: Importar Hostaway → Caspio
 
 on:
   workflow_dispatch:
     inputs:
       hours:
-        description: 'Horas hacia atrás a importar (ej: 72 = 3 días)'
+        description: 'Horas hacia atrás (72 = 3 días, 168 = 1 semana)'
         required: true
         default: '72'
       batch:
-        description: 'Registros por llamada (max 15 para Cloudflare)'
+        description: 'Registros por llamada (máx 15)'
         required: true
         default: '15'
 
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
-      - name: Importar reservas Hostaway → Caspio
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ejecutar importación
         run: |
-          HOURS="${{ github.event.inputs.hours }}"
-          BATCH="${{ github.event.inputs.batch }}"
-          WORKER_URL="https://importar-host-a-caspio-ultimas-3horas.jordi-89b.workers.dev/import"
+          cat << 'SCRIPT' > runner.mjs
+          const WORKER = 'https://importar-host-a-caspio-ultimas-3horas.jordi-89b.workers.dev/import';
+          const HOURS  = process.env.HOURS;
+          const BATCH  = process.env.BATCH;
 
-          CALL=0
-          TOTAL_INSERTED=0
-          TOTAL_UPDATED=0
-          TOTAL_SKIPPED=0
-          TOTAL_ERRORS=0
+          let url = `${WORKER}?hours=${HOURS}&batch=${BATCH}&offset=0`;
+          let call = 0, inserted = 0, updated = 0, skipped = 0, errors = 0;
 
-          URL="${WORKER_URL}?hours=${HOURS}&batch=${BATCH}&offset=0"
+          console.log(`\n🚀 Importación — últimas ${HOURS}h (batch ${BATCH})`);
+          console.log('═'.repeat(55));
 
-          echo "🚀 Iniciando importación — últimas ${HOURS}h"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          while (url) {
+            call++;
+            console.log(`\n📦 Llamada #${call}  offset=${new URL(url).searchParams.get('offset')}`);
 
-          while [ -n "$URL" ]; do
-            CALL=$((CALL + 1))
-            echo ""
-            echo "📦 Llamada #${CALL} → ${URL}"
+            let data;
+            try {
+              const res = await fetch(url);
+              data = await res.json();
+            } catch (e) {
+              console.error(`❌ Error red: ${e.message}`);
+              process.exit(1);
+            }
 
-            RESPONSE=$(curl -s --max-time 30 "$URL")
+            console.log(`   status   : ${data.status}`);
+            console.log(`   total    : ${data.total ?? '—'}`);
+            console.log(`   inserted : ${data.inserted ?? 0}`);
+            console.log(`   updated  : ${data.updated  ?? 0}`);
+            console.log(`   skipped  : ${data.skipped  ?? 0}`);
+            console.log(`   errors   : ${data.errors   ?? 0}`);
+            if (data.errDetails) console.log(`   ⚠️  ${data.errDetails}`);
 
-            if [ $? -ne 0 ]; then
-              echo "❌ Error de red en llamada #${CALL}"
-              exit 1
-            fi
+            if (data.status !== 'ok') {
+              console.error(`\n❌ Worker error — abortando`);
+              process.exit(1);
+            }
 
-            echo "   Respuesta: $RESPONSE"
+            inserted += data.inserted ?? 0;
+            updated  += data.updated  ?? 0;
+            skipped  += data.skipped  ?? 0;
+            errors   += data.errors   ?? 0;
 
-            STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))")
-            INSERTED=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('inserted',0))")
-            UPDATED=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('updated',0))")
-            SKIPPED=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skipped',0))")
-            ERRORS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('errors',0))")
-            HAS_MORE=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('hasMore',False))")
-            NEXT_CALL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('nextCall',''))")
+            if (!data.hasMore) {
+              console.log('\n✅ Sin más registros — completado');
+              break;
+            }
 
-            if [ "$STATUS" != "ok" ]; then
-              echo "❌ Worker devolvió error: $RESPONSE"
-              exit 1
-            fi
+            url = data.nextCall;
 
-            TOTAL_INSERTED=$((TOTAL_INSERTED + INSERTED))
-            TOTAL_UPDATED=$((TOTAL_UPDATED + UPDATED))
-            TOTAL_SKIPPED=$((TOTAL_SKIPPED + SKIPPED))
-            TOTAL_ERRORS=$((TOTAL_ERRORS + ERRORS))
+            // Pausa 2s — respetar rate limit Hostaway (15 req/10s)
+            await new Promise(r => setTimeout(r, 2000));
+          }
 
-            echo "   ✅ inserted:${INSERTED} updated:${UPDATED} skipped:${SKIPPED} errors:${ERRORS}"
+          console.log('\n' + '═'.repeat(55));
+          console.log(`📊 RESUMEN FINAL — ${call} llamadas`);
+          console.log(`   ✅ Insertados  : ${inserted}`);
+          console.log(`   🔄 Actualizados: ${updated}`);
+          console.log(`   ⏭️  Saltados    : ${skipped}`);
+          console.log(`   ❌ Errores     : ${errors}`);
+          SCRIPT
 
-            if [ "$HAS_MORE" != "True" ]; then
-              echo ""
-              echo "✅ No hay más registros — importación completada"
-              break
-            fi
-
-            URL="$NEXT_CALL"
-
-            # Pausa 2s para respetar rate limit Hostaway
-            sleep 2
-          done
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📊 RESUMEN FINAL (${CALL} llamadas):"
-          echo "   ✅ Insertados  : ${TOTAL_INSERTED}"
-          echo "   🔄 Actualizados: ${TOTAL_UPDATED}"
-          echo "   ⏭️  Saltados    : ${TOTAL_SKIPPED}"
-          echo "   ❌ Errores     : ${TOTAL_ERRORS}"
+          HOURS=${{ github.event.inputs.hours }} BATCH=${{ github.event.inputs.batch }} node runner.mjs
