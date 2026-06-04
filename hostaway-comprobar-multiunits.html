@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v6 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Multiunits v5 — 3Villas</title>
+  <title>Hostaway Multiunits v6 — 3Villas</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -93,6 +93,10 @@
     .st-err { color:var(--red); font-size:16px }
     .hw-link { display:inline-flex; align-items:center; gap:4px; color:var(--red); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-decoration:none; padding:3px 8px; border:1.5px solid var(--red-light); border-radius:6px; transition:all .15s }
     .hw-link:hover { background:var(--red); color:#fff }
+    .btn-fix { display:inline-flex; align-items:center; gap:4px; color:#fff; background:var(--green); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; transition:background .15s }
+    .btn-fix:hover:not(:disabled) { background:#167a3c }
+    .btn-fix:disabled { opacity:.5; cursor:not-allowed }
+    .btn-fix.done { background:var(--gray-3); cursor:default }
   </style>
 </head>
 <body>
@@ -401,6 +405,7 @@
           </table>
         </td>
         <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
+        <td><button class="btn-fix" id="fix-${esc(d.hwId)}" onclick="fixMultiunits('${esc(d.hwId)}', ${JSON.stringify(d.hwIds)}, this)">✏️ Corregir</button></td>
       </tr>`;
     }).join('');
 
@@ -416,6 +421,7 @@
           <th>Caspio</th>
           <th></th>
           <th>Link</th>
+          <th>Corregir</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
@@ -433,6 +439,48 @@
       document.getElementById('toolbarInfo').textContent = 'Caché borrada — pulsa Comparar para obtener token nuevo';
     } catch(e) { btn.textContent = '⚠️ Error'; }
     finally { setTimeout(() => { btn.disabled = false; btn.textContent = '🗑️ Limpiar caché Hostaway'; }, 3000); }
+  };
+
+  // ── Corregir multiunits en Caspio ────────────────────────
+  window.fixMultiunits = async function(hwId, hwIds, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳…';
+
+    // Construir campos a actualizar: PMSmultiunitID...5
+    // Los que Hostaway tiene → valor de Hostaway
+    // Los que Hostaway no tiene → string vacío (limpiar Caspio)
+    const fields = {
+      PMSmultiunitID : hwIds[0] || '',
+      PMSmultiunitID2: hwIds[1] || '',
+      PMSmultiunitID3: hwIds[2] || '',
+      PMSmultiunitID4: hwIds[3] || '',
+      PMSmultiunitID5: hwIds[4] || '',
+    };
+
+    try {
+      const where = `FS_confirmation_code='${hwId}'`;
+      const r = await fetch(WORKER + '?action=save&table=TaBookings2021&method=PUT&where=' + encodeURIComponent(where), {
+        method : 'POST',
+        headers: authHeaders(),
+        body   : JSON.stringify(fields),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Error al guardar');
+
+      btn.textContent = '✅ Corregido';
+      btn.classList.add('done');
+      btn.disabled = true;
+
+      // Marcar la fila visualmente como corregida
+      const row = btn.closest('tr');
+      if (row) row.style.opacity = '0.5';
+
+    } catch(err) {
+      console.error('fixMultiunits error:', err);
+      btn.textContent = '❌ Error';
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = '✏️ Corregir'; }, 2000);
+    }
   };
 
   // ── Main ──────────────────────────────────────────────────
@@ -487,4 +535,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v5 - Layout fila por ID (ID1, ID2…) con columnas Hostaway/Caspio/estado; solo filas con algún valor | v4 - Columnas individuales por posición HW ID1/Caspio ID1...ID5; columnas vacías ocultas | v3 - Comparación completa de todos los multiunits (hasta 5 en Caspio, N en Hostaway); comparación por set de IDs (orden no importa); muestra todos los IDs de cada lado | v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
+<!-- HISTORIAL: v6 - Botón "Corregir" por reserva: actualiza PMSmultiunitID...5 en Caspio con valores de Hostaway; filas corregidas se marcan y atenúan | v5 - Layout fila por ID (ID1, ID2…) con columnas Hostaway/Caspio/estado; solo filas con algún valor | v4 - Columnas individuales por posición HW ID1/Caspio ID1...ID5; columnas vacías ocultas | v3 - Comparación completa de todos los multiunits (hasta 5 en Caspio, N en Hostaway); comparación por set de IDs (orden no importa); muestra todos los IDs de cada lado | v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
