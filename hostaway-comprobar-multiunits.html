@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v3 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Multiunits v2 — 3Villas</title>
+  <title>Hostaway Multiunits v3 — 3Villas</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -306,7 +306,16 @@
         const d = await r.json();
         (d.Result || []).forEach(row => {
           const code = String(row.FS_confirmation_code || '').trim();
-          if (code) map[code] = String(row.PMSmultiunitID || '').trim();
+          if (code) {
+            // Recoger los 5 campos PMSmultiunitID y filtrar vacíos
+            map[code] = [
+              row.PMSmultiunitID,
+              row.PMSmultiunitID2,
+              row.PMSmultiunitID3,
+              row.PMSmultiunitID4,
+              row.PMSmultiunitID5,
+            ].map(v => String(v || '').trim()).filter(Boolean);
+          }
         });
       } catch(e) { console.warn('Caspio batch error', e); }
     }
@@ -314,28 +323,37 @@
   }
 
   // ── Comparar — solo diff ──────────────────────────────────
+  // Compara sets de IDs: orden no importa, solo que coincidan los mismos IDs
+  function setsEqual(a, b) {
+    if (a.length !== b.length) return false;
+    const sa = new Set(a), sb = new Set(b);
+    for (const v of sa) if (!sb.has(v)) return false;
+    return true;
+  }
+
   function buildRows(hwReservations, caspioMap) {
     let okCount = 0, diffCount = 0, noCaspioCount = 0, inCaspioCount = 0;
     const diffs = [];
 
     hwReservations.forEach(hw => {
-      const hwId     = String(hw.hostawayReservationId || hw.id);
-      const hwMu     = hw.listingUnitId ? String(hw.listingUnitId) : null;
-      const caspioMu = caspioMap[hwId];
+      const hwId      = String(hw.hostawayReservationId || hw.id);
+      const hwIds     = hw.listingUnitIds || []; // array de IDs de Hostaway
+      const caspioIds = caspioMap[hwId];
 
-      if (caspioMu === undefined) { noCaspioCount++; return; }
+      if (caspioIds === undefined) { noCaspioCount++; return; }
       inCaspioCount++;
 
-      // Si Hostaway no tiene multiunit y Caspio tampoco → OK
-      const hwMuStr     = hwMu     || '';
-      const caspioMuStr = caspioMu || '';
+      // Si ambos vacíos → OK (reserva sin multiunit)
+      if (hwIds.length === 0 && caspioIds.length === 0) { okCount++; return; }
 
-      if (hwMuStr === caspioMuStr) { okCount++; return; }
+      if (setsEqual(hwIds, caspioIds)) { okCount++; return; }
 
       diffCount++;
-      diffs.push({ hwId, hwInternalId: hw.id, guestName: hw.guestName,
-                   listingName: hw.listingName, arrivalDate: hw.arrivalDate,
-                   hwMu: hwMuStr, caspioMu: caspioMuStr });
+      diffs.push({
+        hwId, hwInternalId: hw.id, guestName: hw.guestName,
+        listingName: hw.listingName, arrivalDate: hw.arrivalDate,
+        hwIds, caspioIds,
+      });
     });
 
     // Ordenar por fecha de entrada ascendente (antes primero)
@@ -361,8 +379,8 @@
           <div class="listing-name">${esc(d.listingName || '—')}</div>
         </td>
         <td><span class="mu-cell mu-ok">${esc(d.arrivalDate || '—')}</span></td>
-        <td><span class="mu-cell mu-ok">${d.hwMu || '<span class="mu-empty">vacío</span>'}</span></td>
-        <td><span class="mu-cell mu-bad">${d.caspioMu || '<span class="mu-empty">vacío</span>'}</span></td>
+        <td><span class="mu-cell mu-ok">${d.hwIds.length ? d.hwIds.join(', ') : '<span class="mu-empty">vacío</span>'}</span></td>
+        <td><span class="mu-cell mu-bad">${d.caspioIds.length ? d.caspioIds.join(', ') : '<span class="mu-empty">vacío</span>'}</span></td>
         <td><a class="hw-link" href="${hwLink}" target="_blank" rel="noopener">🔗 Ver</a></td>
       </tr>`;
     }).join('');
@@ -448,4 +466,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
+<!-- HISTORIAL: v3 - Comparación completa de todos los multiunits (hasta 5 en Caspio, N en Hostaway); comparación por set de IDs (orden no importa); muestra todos los IDs de cada lado | v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
