@@ -1,10 +1,10 @@
-<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v10 | Historial completo al final de este archivo -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hostaway Multiunits v7 — 3Villas</title>
+  <title>Hostaway Multiunits v10 — 3Villas</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -174,15 +174,19 @@
   </div>
   <div class="sum-card">
     <div class="num" id="sCaspio">—</div>
-    <div class="lbl">En Caspio</div>
+    <div class="lbl">Intranet período</div>
   </div>
   <div class="sum-card red">
     <div class="num" id="sDiff">—</div>
     <div class="lbl">Multiunits distintos</div>
   </div>
   <div class="sum-card orange">
-    <div class="num" id="sNoCaspio">—</div>
-    <div class="lbl">No en Caspio</div>
+    <div class="num" id="sNoMu">—</div>
+    <div class="lbl">Sin multiunit en Intranet</div>
+  </div>
+  <div class="sum-card orange">
+    <div class="num" id="sNoIntranet">—</div>
+    <div class="lbl">Reservas inexistentes en Intranet</div>
   </div>
   <div class="sum-card green">
     <div class="num" id="sOk">—</div>
@@ -358,34 +362,67 @@
   }
 
   function buildRows(hwReservations, caspioMap) {
-    let okCount = 0, diffCount = 0, noCaspioCount = 0, inCaspioCount = 0;
+    let okCount = 0, diffCount = 0, noMuCount = 0, noIntranetCount = 0, inCaspioCount = 0;
     const diffs = [];
 
     hwReservations.forEach(hw => {
       const hwId      = String(hw.hostawayReservationId || hw.id);
-      const hwIds     = hw.listingUnitIds || []; // array de IDs de Hostaway
+      const hwIds     = hw.listingUnitIds || [];
       const caspioIds = caspioMap[hwId];
 
-      if (caspioIds === undefined) { noCaspioCount++; return; }
+      // Reserva no encontrada en Caspio (no en Intranet)
+      if (caspioIds === undefined) {
+        noIntranetCount++;
+        diffs.push({
+          hwId, hwInternalId: hw.id, guestName: hw.guestName,
+          listingName: hw.listingName, arrivalDate: hw.arrivalDate,
+          hwIds, caspioIds: [],
+          type: 'no-intranet', // no se corrige
+        });
+        return;
+      }
+
       inCaspioCount++;
 
-      // Si ambos vacíos → OK (reserva sin multiunit)
+      // Caspio no tiene multiunit pero Hostaway sí
+      if (caspioIds.length === 0 && hwIds.length > 0) {
+        noMuCount++;
+        diffs.push({
+          hwId, hwInternalId: hw.id, guestName: hw.guestName,
+          listingName: hw.listingName, arrivalDate: hw.arrivalDate,
+          hwIds, caspioIds,
+          type: 'no-mu', // se corrige
+        });
+        return;
+      }
+
+      // Ambos vacíos → OK
       if (hwIds.length === 0 && caspioIds.length === 0) { okCount++; return; }
 
-      if (setsEqual(hwIds, caspioIds)) { okCount++; return; }
+      // IDs distintos
+      if (!setsEqual(hwIds, caspioIds)) {
+        diffCount++;
+        diffs.push({
+          hwId, hwInternalId: hw.id, guestName: hw.guestName,
+          listingName: hw.listingName, arrivalDate: hw.arrivalDate,
+          hwIds, caspioIds,
+          type: 'diff', // se corrige
+        });
+        return;
+      }
 
-      diffCount++;
-      diffs.push({
-        hwId, hwInternalId: hw.id, guestName: hw.guestName,
-        listingName: hw.listingName, arrivalDate: hw.arrivalDate,
-        hwIds, caspioIds,
-      });
+      okCount++;
     });
 
-    // Ordenar por fecha de entrada ascendente (antes primero)
-    diffs.sort((a, b) => (a.arrivalDate || '').localeCompare(b.arrivalDate || ''));
+    // Ordenar: distintos primero, luego sin multiunit, luego no en intranet; dentro de cada grupo por fecha
+    const order = { 'diff': 0, 'no-mu': 1, 'no-intranet': 2 };
+    diffs.sort((a, b) => {
+      const o = order[a.type] - order[b.type];
+      if (o !== 0) return o;
+      return (a.arrivalDate || '').localeCompare(b.arrivalDate || '');
+    });
 
-    return { rows: diffs, okCount, diffCount, noCaspioCount, inCaspioCount };
+    return { rows: diffs, okCount, diffCount, noMuCount, noIntranetCount, inCaspioCount };
   }
 
   // ── Renderizar ────────────────────────────────────────────
@@ -397,12 +434,14 @@
 
     const tableRows = rows.map(d => {
       const hwLink = `https://dashboard.hostaway.com/reservations/${d.hwInternalId}`;
-      return `<tr class="row-error">
-        <td style="text-align:center"><span class="st-err">❌</span></td>
+      const rowBg = d.type === 'no-intranet' ? 'background:#fffbf0' : 'background:#fff8f8';
+      const rowIcon = d.type === 'no-intranet' ? '⚠️' : '❌';
+      return `<tr style="${rowBg}">
+        <td style="text-align:center"><span class="st-err">${rowIcon}</span></td>
         <td><span class="res-id">${esc(d.hwId)}</span></td>
         <td>
           <div class="guest-name">${esc(d.guestName || '—')}</div>
-          <div class="listing-name">${esc(d.listingName || '—')}</div>
+          <div class="listing-name">${esc(d.listingName || '—')}${d.type==='no-intranet'?' <span style="font-size:10px;color:var(--orange);font-weight:700;font-family:'Montserrat',sans-serif">· Esta reserva no está en Intranet</span>':d.type==='no-mu'?' <span style="font-size:10px;color:var(--red);font-weight:700;font-family:'Montserrat',sans-serif">· Sin multiunit en Caspio</span>':''}</div>
         </td>
         <td><span class="mu-cell mu-ok">${esc(d.arrivalDate || '—')}</span></td>
         <td colspan="4" style="padding:0">
@@ -543,7 +582,9 @@
       setProgress(100, 'Completado');
 
       // Guardar filas para el botón Corregir todos
-      _pendingRows = rows.map(r => ({ hwId: r.hwId, hwIds: r.hwIds }));
+      _pendingRows = rows
+        .filter(r => r.type === 'diff' || r.type === 'no-mu')
+        .map(r => ({ hwId: r.hwId, hwIds: r.hwIds }));
       const btnFixAll = document.getElementById('btnFixAll');
       if (_pendingRows.length > 0) {
         btnFixAll.style.display = 'inline-flex';
@@ -554,17 +595,19 @@
       document.getElementById('progressFixWrap').style.display = 'none';
       document.getElementById('confirmBar').classList.remove('visible');
 
-      document.getElementById('sTotal').textContent    = hwReservations.length;
-      document.getElementById('sCaspio').textContent   = inCaspioCount;
-      document.getElementById('sDiff').textContent     = diffCount;
-      document.getElementById('sNoCaspio').textContent = noCaspioCount;
-      document.getElementById('sOk').textContent       = okCount;
+      document.getElementById('sTotal').textContent      = hwReservations.length;
+      document.getElementById('sCaspio').textContent     = inCaspioCount;
+      document.getElementById('sDiff').textContent       = diffCount;
+      document.getElementById('sNoMu').textContent       = noMuCount;
+      document.getElementById('sNoIntranet').textContent = noIntranetCount;
+      document.getElementById('sOk').textContent         = okCount;
       document.getElementById('summaryRow').style.display = 'flex';
       document.getElementById('content').innerHTML = renderTable(rows);
 
       const parts = [];
-      if (diffCount)     parts.push(`${diffCount} con multiunit distinto`);
-      if (noCaspioCount) parts.push(`${noCaspioCount} no en Caspio`);
+      if (diffCount)       parts.push(`${diffCount} con multiunit distinto`);
+      if (noMuCount)       parts.push(`${noMuCount} sin multiunit en Caspio`);
+      if (noIntranetCount) parts.push(`${noIntranetCount} no en Intranet`);
       const infoTxt = parts.length ? parts.join(', ') + ` (${from} → ${to})` : `Todo OK (${from} → ${to})`;
       document.getElementById('toolbarInfo').textContent = infoTxt;
       document.getElementById('navSub').textContent      = infoTxt;
@@ -584,4 +627,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v7 - Botón "Corregir todos" arriba con confirmación previa (nº de reservas a actualizar); barra de progreso durante corrección; recarga automática al terminar; eliminado botón individual | v6 - Botón "Corregir" por reserva: actualiza PMSmultiunitID...5 en Caspio con valores de Hostaway; filas corregidas se marcan y atenúan | v5 - Layout fila por ID (ID1, ID2…) con columnas Hostaway/Caspio/estado; solo filas con algún valor | v4 - Columnas individuales por posición HW ID1/Caspio ID1...ID5; columnas vacías ocultas | v3 - Comparación completa de todos los multiunits (hasta 5 en Caspio, N en Hostaway); comparación por set de IDs (orden no importa); muestra todos los IDs de cada lado | v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
+<!-- HISTORIAL: v10 - Títulos de contadores actualizados: En Caspio→Intranet período, Sin multiunit en Caspio→Sin multiunit en Intranet, No en Intranet→Reservas inexistentes en Intranet | v9 - Tres categorías: diff (IDs distintos), no-mu (sin multiunit en Caspio), no-intranet (no en Caspio); solo diff y no-mu se corrigen; totales separados; etiquetas en tabla | v8 - "No en Caspio" con hwIds también entran en diffs y _pendingRows para corrección; diffCount incluye ambos tipos | v7 - Botón "Corregir todos" arriba con confirmación previa (nº de reservas a actualizar); barra de progreso durante corrección; recarga automática al terminar; eliminado botón individual | v6 - Botón "Corregir" por reserva: actualiza PMSmultiunitID...5 en Caspio con valores de Hostaway; filas corregidas se marcan y atenúan | v5 - Layout fila por ID (ID1, ID2…) con columnas Hostaway/Caspio/estado; solo filas con algún valor | v4 - Columnas individuales por posición HW ID1/Caspio ID1...ID5; columnas vacías ocultas | v3 - Comparación completa de todos los multiunits (hasta 5 en Caspio, N en Hostaway); comparación por set de IDs (orden no importa); muestra todos los IDs de cada lado | v2 - Fix: NavComponent.open() en botón menú; ordenar diferencias por arrivalDate ascendente | v1 - Página inicial: comparación PMSmultiunitID (Caspio) vs reservationUnit[0].listingUnitId (Hostaway); paginación frontend con hostaway-multiunit-page; solo muestra diferencias -->
