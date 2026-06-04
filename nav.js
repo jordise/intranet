@@ -41,6 +41,7 @@ var _menuAdmin = [
     children: [
       { label: 'Test checkin-online',        url: 'checkin-test-reserva.html',              icon: '🧪' },
       { label: 'Revisar fechas reservas',    url: 'hostaway-comprobar-fechas-reservas.html', icon: '🔄' },
+      { label: 'Revisar multiunits',    url: 'hostaway-comprobar-multiunits.html', icon: '🔄' },
       { label: 'Roles y permisos',           url: 'permisos.html',                          icon: '🔐' },
       { label: 'Test1',                      url: 'XXtest1XX.html',                         icon: '1'  },
       { label: 'Test2',                      url: 'XXtest2XX.html',                         icon: '2'  },
