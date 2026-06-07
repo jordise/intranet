@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v97 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v98 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v97 — 3Villas</title>
+  <title>Entradas Equipo v98 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -100,8 +100,9 @@
     .card{background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .2s;border-top:3px solid var(--gray-2)}
     .card:hover{box-shadow:0 8px 28px rgba(0,0,0,.13);transform:translateY(-2px)}
     .c-head{background:#1565c0;color:#fff;padding:11px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-    .card:has(.c-head:not(.salida)){border-top-color:#1565c0}
+    .card:has(.c-head:not(.salida):not(.intermedia)){border-top-color:#1565c0}
     .card:has(.c-head.salida){border-top-color:var(--red)}
+    .card:has(.c-head.intermedia){border-top-color:#eab308}
     .villa-name{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
     .villa-sub{font-size:11px;opacity:.8;margin-top:3px}
     .res-id{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0}
@@ -334,7 +335,7 @@
     /* 3. Estructuras: fondo base oscuro */
     body.dark body,body.dark main{background:#111118!important}
     body.dark .top-nav,body.dark #filterPanel,body.dark #statsBar,
-    body.dark .card,body.dark .c-head,body.dark .c-head.salida,
+    body.dark .card,body.dark .c-head,body.dark .c-head.salida,body.dark .c-head.intermedia,
     body.dark .c-body,body.dark .c-body-wrap,body.dark .c-toggle,
     body.dark .c-foot,body.dark .c-actions,body.dark .c-links,
     body.dark .c-staff,body.dark .c-notes-outer,
@@ -1098,7 +1099,7 @@ function renderCards(records,_extVillaIds,_muVillaMap){
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
   if(_calMode){grid.style.display='none';renderWeekly();}
   else if(_listMode){grid.style.display='none';const _lv2=$('listView');if(_lv2)_lv2.style.display='block';doRenderList(rows);}
-  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
+  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type,row.intDate||'')));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
     loadVillaPendingTasks(villaIds,_muVillaMap||{})
@@ -1363,7 +1364,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeGuestMo
 
 function mkBadge(label,raw,url,extra,newTab){const ok=isOk(raw);const cls=ok===null?'b-na':ok?'b-ok':'b-no';const ico=ok===null?'·':ok?'✓':'✗';const inner=`${ico} ${label}${extra||''}`;if(url&&newTab)return`<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;if(url)return`<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;return`<span class="bdg ${cls}">${inner}</span>`;}
 
-function buildCard(r,type){
+function buildCard(r,type,intDate){
   const isSalida=type==='salida';
   const el=document.createElement('div');el.className='card';
   const ci=g(r,'checkIn'),co=g(r,'checkOut');
@@ -1426,7 +1427,8 @@ function buildCard(r,type){
   let html='';const cardId='cb_'+(code||Math.random().toString(36).slice(2,8));
   const isIntermedia=type==='intermedia';
   const headClass=isIntermedia?'c-head intermedia':isSalida?'c-head salida':'c-head';
-  const tipoBadge=isIntermedia?'<span class="tipo-badge tipo-int">🧹 INT</span><br>':isSalida?'<span class="tipo-badge tipo-salida">↑ SALIDA</span><br>':'<span class="tipo-badge tipo-entrada">↓ ENTRADA</span><br>';
+  const _intFmt=intDate?(function(d){var p=d.split('-');var dt=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));return dt.toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'2-digit'});})(intDate):'';
+  const tipoBadge=isIntermedia?'<span class="tipo-badge tipo-int">🧹 INT '+_intFmt+'</span><br>':isSalida?'<span class="tipo-badge tipo-salida">↑ SALIDA</span><br>':'<span class="tipo-badge tipo-entrada">↓ ENTRADA</span><br>';
   const _villaHref=villaId?`villa.html?villa_id=${encodeURIComponent(villaId)}`:'';
   html+=`<div class="${headClass}"><div>${_villaHref?`<a class="villa-name" href="${_villaHref}">${tipoBadge}${vl}</a>`:`<div class="villa-name">${tipoBadge}${vl}</div>`}`;
   if(paxTxt||n||portal)html+=`<div class="villa-sub">${[paxTxt&&paxTxt+' pax',n&&n+'n',portal].filter(Boolean).join(' · ')}</div>`;
@@ -1649,7 +1651,8 @@ function doRenderList(rows){
     var nl=g(r,'cleaningNotes'),ni=g(r,'notasIrene');
     html+='<div class="lv-row"><div class="lv-top">';
     var isInt=row.type==='intermedia';
-    html+='<span class="lv-tipo '+(isInt?'lv-int':isSal?'lv-sal':'lv-ent')+'">'+(isInt?'🧹 INT':isSal?'↑ Sal':'↓ Ent')+'</span>';
+    var _intLbl='';if(isInt&&row.intDate){var _ip=row.intDate.split('-');var _id=new Date(parseInt(_ip[0]),parseInt(_ip[1])-1,parseInt(_ip[2]));_intLbl=' '+_id.toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'2-digit'});}
+    html+='<span class="lv-tipo '+(isInt?'lv-int':isSal?'lv-sal':'lv-ent')+'">'+(isInt?'🧹 Intermedia'+_intLbl:isSal?'↑ Sal':'↓ Ent')+'</span>';
     if(code)html+='<span class="lv-code">#'+code+'</span>';
     html+=(urlVilla?'<a class="lv-villa" href="'+urlVilla+'">'+vl+'</a>':'<span class="lv-villa">'+vl+'</span>');
     if(gn)html+='<span class="lv-guest">'+gn+'</span>';
@@ -1677,7 +1680,7 @@ function _openModal(id){
   mi.innerHTML='';
   var closeBtn=document.createElement('button');
   closeBtn.className='wk-modal-close';closeBtn.textContent='\u2715';closeBtn.onclick=_closeModal;
-  mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type));
+  mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type,rec.intDate||''));
   $('wkModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function _closeModal(){$('wkModal').classList.remove('open');document.body.style.overflow='';}
@@ -1757,7 +1760,8 @@ function renderWeekly(){
         card.className='wk-card '+(isInt2?'int':isSal?'sal':'ent');
         card.onclick=function(e){if(!e.target.classList.contains('wk-status'))_openModal(id);};
 
-        var pills='<span class="wk-pill '+(isInt2?'int':isSal?'sal':'ent')+'">'+(isInt2?'🧹 INT':isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
+        var _intWkLbl='';if(isInt2&&rec.intDate){var _wp=rec.intDate.split('-');var _wd=new Date(parseInt(_wp[0]),parseInt(_wp[1])-1,parseInt(_wp[2]));_intWkLbl=' '+String(_wd.getDate()).padStart(2,'0')+'/'+String(_wd.getMonth()+1).padStart(2,'0');}
+        var pills='<span class="wk-pill '+(isInt2?'int':isSal?'sal':'ent')+'">'+(isInt2?'🧹 INT'+_intWkLbl:isSal?'\u2191 SAL':'\u2193 ENT')+'</span>';
         var btns=isInt2?statusBtn(limpOk,uLimp):isSal?statusBtn(cierOk,uCier):statusBtn(limpOk,uLimp)+statusBtn(wpOk,uWP);
 
         /* v32: villa clicable + keybox en weekly card */
@@ -1790,4 +1794,4 @@ function renderWeekly(){
 
 </body>
 </html>
-<!-- HISTORIAL: v97 - Limpiezas intermedias: campos Intermedia1/2/3; tipo "intermedia" amarillo en fichas/listado/semanal; filtro tipo "Intermedias"; tratamiento igual que salidas para WelcomePack | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
+<!-- HISTORIAL: v98 - Fix color intermedia (card:has excluye .intermedia del azul); buildCard recibe intDate y muestra "🧹 INT lun 09/06"; listado muestra "🧹 Intermedia lun 09/06"; semanal muestra "🧹 INT dd/mm"; dark mode incluye c-head.intermedia | v97 - Limpiezas intermedias: campos Intermedia1/2/3; tipo "intermedia" amarillo en fichas/listado/semanal; filtro tipo "Intermedias"; tratamiento igual que salidas para WelcomePack | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
