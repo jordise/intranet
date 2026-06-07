@@ -1810,6 +1810,49 @@ function renderWeekly(){
     col.appendChild(wrap);wg.appendChild(col);
   });
 }
+
+// ════════════════ POPUP INTERMEDIAS ════════════════
+var _intCode='';
+function openIntModal(code,i1,i2,i3){
+  _intCode=code;
+  function toInputVal(v){if(!v)return'';return String(v).split('T')[0]||'';}
+  var f1=$('intF1'),f2=$('intF2'),f3=$('intF3');
+  if(f1)f1.value=toInputVal(i1);
+  if(f2)f2.value=toInputVal(i2);
+  if(f3)f3.value=toInputVal(i3);
+  var msg=$('intMsg');if(msg)msg.textContent='';
+  var btn=$('intSaveBtn');if(btn)btn.disabled=false;
+  $('intModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeIntModal(){
+  $('intModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+async function saveIntermedias(){
+  var btn=$('intSaveBtn'),msg=$('intMsg');
+  if(!_intCode){if(msg)msg.textContent='Error: sin código de reserva';return;}
+  if(btn)btn.disabled=true;
+  if(msg){msg.textContent='Guardando...';msg.style.color='var(--gray-4)';}
+  function toISOOrNull(v){if(!v)return null;return v+'T00:00:00';}
+  var body={
+    Intermedia1:toISOOrNull(($('intF1')||{}).value||''),
+    Intermedia2:toISOOrNull(($('intF2')||{}).value||''),
+    Intermedia3:toISOOrNull(($('intF3')||{}).value||''),
+  };
+  try{
+    var url=Auth.url(WORKER+'?action=update&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+_intCode+"'"));
+    var res=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!res.ok)throw new Error('Error '+res.status);
+    if(msg){msg.textContent='✓ Guardado correctamente';msg.style.color='var(--green)';}
+    setTimeout(function(){closeIntModal();doSearch();},1200);
+  }catch(e){
+    if(msg){msg.textContent='Error al guardar: '+e.message;msg.style.color='var(--red)';}
+    if(btn)btn.disabled=false;
+  }
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('intModal').classList.contains('open'))closeIntModal();});
+
 </script>
 
 <!-- Popup intermedias -->
