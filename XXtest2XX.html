@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v107 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v108 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v107 — 3Villas</title>
+  <title>Entradas Equipo v108 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -525,7 +525,6 @@
         <button class="pill-opt on" id="tTipo_both"   onclick="setTipoFilter('both')">Todo</button>
         <button class="pill-opt"    id="tTipo_entrada" onclick="setTipoFilter('entrada')">Entradas</button>
         <button class="pill-opt"    id="tTipo_salida"  onclick="setTipoFilter('salida')">Salidas</button>
-        <button class="pill-opt"    id="tTipo_intermedia" onclick="setTipoFilter('intermedia')">Intermedias</button>
       </div>
     </div>
     <div class="pill-group">
@@ -1030,7 +1029,14 @@ function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=conta
 function toggleMas(){$('btnMas').classList.toggle('on');$('masFiltros').classList.toggle('open');const nowOpen=$('masFiltros').classList.contains('open');if(!nowOpen)scheduleSearch(300);}
 function onDesdeChange(){const desde=($('fDesde')||{}).value||'';const hastaEl=$('fHasta');if(hastaEl){hastaEl.min=desde;if(hastaEl.value&&hastaEl.value<desde)hastaEl.value=desde;}updateSub();scheduleSearch();}
 function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');});scheduleSearch();}
-function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida','intermedia'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
+function setIntFilter(mode){
+  intFilter=mode;
+  ['todas','pend_avisar','pend_terminar','none'].forEach(function(m){
+    var el=$('iInt_'+m);if(el)el.classList.toggle('on',m===mode);
+  });
+  scheduleSearch();
+}
+function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
 function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
 function setCierreFilter(mode){fCierre=mode;['tCierreAll','tCierrePend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tCierreAll'?mode==='all':mode==='pending');});scheduleSearch();}
 function clearAll(){
@@ -1066,7 +1072,8 @@ function buildWhere(){const parts=[`${F.status}<>'cancelled'`];const _hayTexto=(
 
 // ════════════════ CHIPS ════════════════
 function renderChips(){const chipsData=[];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inq=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');const lbl=selectedManagers.size===1?`Manager: ${names}`:`Managers: ${names}`;chipsData.push({label:lbl,clear:()=>{clearManagers();}});}if(desde)chipsData.push({label:`Desde: ${fmtDate(desde)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});if(hasta)chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});if(codigo)chipsData.push({label:`Reserva: ${codigo}`,clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});if(villa)chipsData.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});if(inq)chipsData.push({label:`Inquilino: ${inq}`,clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});if(fCierre==='pending')chipsData.push({label:'Cierre pendiente',clear:()=>setCierreFilter('all')});
-if(toggleMode==='pend')chipsData.push({label:'Pendiente CI',clear:()=>setToggle('all')});if(tipoFilter!=='both')chipsData.push({label:tipoFilter==='entrada'?'Solo entradas':tipoFilter==='salida'?'Solo salidas':'Solo intermedias',clear:()=>setTipoFilter('both')});window.__ch=chipsData;const wrap=$('chips');if(wrap)wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');}
+if(toggleMode==='pend')chipsData.push({label:'Pendiente CI',clear:()=>setToggle('all')});if(tipoFilter!=='both')chipsData.push({label:tipoFilter==='entrada'?'Solo entradas':'Solo salidas',clear:()=>setTipoFilter('both')});
+  if(intFilter!=='todas')chipsData.push({label:intFilter==='none'?'Sin intermedias':intFilter==='pend_avisar'?'Int. pend. avisar':'Int. pend. terminar',clear:()=>setIntFilter('todas')});window.__ch=chipsData;const wrap=$('chips');if(wrap)wrap.innerHTML=chipsData.map((c,i)=>`<span class="chip-filter">${c.label} <button onclick="window.__ch[${i}].clear();renderChips();doSearch()">✕</button></span>`).join('');}
 
 // ════════════════ SEARCH ════════════════
 let _searchTimer=null;
@@ -1924,14 +1931,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=docum
 
 // ════════ INTERMEDIAS: fetch desde Vi_intermedias_bookings_villas ════════
 async function fetchIntermediasParaRango(){
+  if(intFilter==='none')return; /* filtro "Ninguna" */
   var desde=($('fDesde')||{}).value||'';
   var hasta=($('fHasta')||{}).value||'';
-  if(!desde||!hasta)return;
+  /* En fichas/listado sin fecha usar rango amplio basado en query principal */
+  if(!desde&&!hasta&&!_calMode){desde=todayStr();hasta='';} /* sin rango: buscar desde hoy */
   var _myId=_searchId;
-  var showInt=tipoFilter==='both'||tipoFilter==='intermedia';
-  if(!showInt)return;
-  var w=FI.fecha+'>='+'\'' +desde+ 'T00:00:00\''+' AND '+FI.fecha+'<='+'\'' +hasta+ 'T23:59:59\'';
-  var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&where='+encodeURIComponent(w)+'&limit=500';
+  var wParts=[FI.fecha+'>='+"'"+desde+"T00:00:00'"]; 
+  if(hasta)wParts.push(FI.fecha+'<='+"'"+hasta+"T23:59:59'");
+  /* Filtro cliente_avisado / terminada */
+  if(intFilter==='pend_avisar')wParts.push(FI.avisado+"=false");
+  if(intFilter==='pend_terminar')wParts.push(FI.term+"=false");
+  var w=wParts.join(' AND ');
+  var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&where='+encodeURIComponent(w)+'&orderby='+encodeURIComponent(FI.fecha+' ASC')+'&limit=500';
   try{
     var res=await fetch(Auth.url(u));
     if(_myId!==_searchId)return;
@@ -1958,4 +1970,14 @@ async function fetchIntermediasParaRango(){
     }
   }catch(e){console.warn('[Intermedias]',e.message);}
 }
->
+    <!-- Intermedias -->
+    <div class="filter-group">
+      <div class="filter-lbl">INTERMEDIAS</div>
+      <div class="pill-row">
+        <button class="pill-opt on" id="iInt_todas"        onclick="setIntFilter('todas')">Todas</button>
+        <button class="pill-opt"    id="iInt_pend_avisar"  onclick="setIntFilter('pend_avisar')">Pend. Avisar</button>
+        <button class="pill-opt"    id="iInt_pend_terminar" onclick="setIntFilter('pend_terminar')">Pend. Terminar</button>
+        <button class="pill-opt"    id="iInt_none"         onclick="setIntFilter('none')">Ninguna</button>
+      </div>
+    </div>
+    >
