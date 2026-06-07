@@ -528,6 +528,15 @@
       </div>
     </div>
     <div class="pill-group">
+      <span class="pill-label">Intermedias</span>
+      <div class="pill-opts">
+        <button class="pill-opt on" id="iInt_todas"         onclick="setIntFilter('todas')">Todas</button>
+        <button class="pill-opt"    id="iInt_pend_avisar"   onclick="setIntFilter('pend_avisar')">Pend. Avisar</button>
+        <button class="pill-opt"    id="iInt_pend_terminar" onclick="setIntFilter('pend_terminar')">Pend. Terminar</button>
+        <button class="pill-opt"    id="iInt_none"          onclick="setIntFilter('none')">Ninguna</button>
+      </div>
+    </div>
+    <div class="pill-group">
       <span class="pill-label">WelcomePack <span style="font-weight:400;opacity:.6">(entradas)</span></span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
@@ -771,7 +780,7 @@ function setDarkMode(on){
 function toggleDark(){setDarkMode(!document.body.classList.contains('dark'));}
 
 // ════════════════ ESTADO GLOBAL ════════════════
-let toggleMode='all',_searchId=0,fWelcomePack='all',fCierre='all',tipoFilter='both';let intFilter='todas';
+let toggleMode='all',_searchId=0,fWelcomePack='all',fCierre='all',tipoFilter='both',intFilter='todas';
 let managersMap=new Map(),allUsersMap=new Map(),currentUserId='';
 let selectedManagers=new Set(),allManagersList=[];
 let contactsMap=new Map(),multiunitsMap=new Map();
@@ -1023,7 +1032,9 @@ function onDesdeChange(){const desde=($('fDesde')||{}).value||'';const hastaEl=$
 function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');});scheduleSearch();}
 function setIntFilter(mode){
   intFilter=mode;
-  ['todas','pend_avisar','pend_terminar','none'].forEach(function(m){var el=$('iInt_'+m);if(el)el.classList.toggle('on',m===mode);});
+  ['todas','pend_avisar','pend_terminar','none'].forEach(function(m){
+    var el=$('iInt_'+m);if(el)el.classList.toggle('on',m===mode);
+  });
   scheduleSearch();
 }
 function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
@@ -1925,8 +1936,8 @@ async function fetchIntermediasParaRango(){
   var hasta=($('fHasta')||{}).value||'';
   if(!desde)desde=todayStr();
   var _myId=_searchId;
-  var wParts=[FI.fecha+">='"+desde+"T00:00:00'"];
-  if(hasta)wParts.push(FI.fecha+"<='"+hasta+"T23:59:59'");
+  var wParts=[FI.fecha+">='"+ desde +"T00:00:00'"];
+  if(hasta)wParts.push(FI.fecha+"<='"+ hasta +"T23:59:59'");
   if(intFilter==='pend_avisar')wParts.push(FI.avisado+'=false');
   if(intFilter==='pend_terminar')wParts.push(FI.term+'=false');
   var w=wParts.join(' AND ');
@@ -1956,7 +1967,10 @@ async function fetchIntermediasParaRango(){
     }
   }catch(e){console.warn('[Intermedias]',e.message);}
 }
+
 </script>
+
+<!-- Popup intermedias --></script>
 
 <!-- Popup intermedias -->
 <div id="intModal" onclick="if(event.target===this)closeIntModal()">
@@ -2036,13 +2050,4 @@ async function fetchIntermediasParaRango(){
 
 </body>
 </html>
-<!-- HISTORIAL: v108 - Migración a Ta_limpiezas_intermedias; selector INTERMEDIAS 4 opciones (Todas/Pend.Avisar/Pend.Terminar/Ninguna); fetchIntermediasParaRango paralelo; quitado pill Intermedias del tipo | v106 - Intermedias: modal WA con mensaje mid-stay ES/EN, toggles terminada/avisado en fichas y semanal, campos IntermediaN_terminada/cliente_avisado | v105 - Fix fetchIntermediasForWeek: captura _searchId para evitar race condition; siempre llama renderWeekly() cuando hay nuevas intermedias | v104 - Performance: intermedias eliminadas del WHERE principal (evita 8 OR lentos); nueva función fetchIntermediasForWeek() hace llamada paralela solo en modo semanal con WHERE propio | v103 - Intermedias 4-8: añadidos campos F, forEach, buildWhere OR, popup 8 campos, openIntModal y saveIntermedias actualizados, botones fichas y listado pasan i4-i8 | v102 - Popup "Intermedias": botón en fichas y listado abre modal para modificar Intermedia1/2/3 en TaBookings2021; guarda via Worker PUT; refresca búsqueda al cerrar | v101 - Fix intermedias vista semanal: añadidas Intermedia1/2/3 al OR del WHERE cuando hay rango desde/hasta (misma llamada Caspio, sin llamadas extra) | v100 - Color intermedia: #fbbf24 amarillo brillante con texto oscuro #78350f | v99 - Fix color intermedia: amber más brillante #d97706 para distinguir de rojo; Fix timezone: _ds() y todayStr() usan fecha local en lugar de UTC (evita desfase de ±1 día en vista semanal) | v98 - Fix color intermedia (card:has excluye .intermedia del azul); buildCard recibe intDate y muestra "🧹 INT lun 09/06"; listado muestra "🧹 Intermedia lun 09/06"; semanal muestra "🧹 INT dd/mm"; dark mode incluye c-head.intermedia | v97 - Limpiezas intermedias: campos Intermedia1/2/3; tipo "intermedia" amarillo en fichas/listado/semanal; filtro tipo "Intermedias"; tratamiento igual que salidas para WelcomePack | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior --<div class="filter-group">
-      <div class="filter-lbl">INTERMEDIAS</div>
-      <div class="pill-row">
-        <button class="pill-opt on" id="iInt_todas"         onclick="setIntFilter('todas')">Todas</button>
-        <button class="pill-opt"    id="iInt_pend_avisar"   onclick="setIntFilter('pend_avisar')">Pend. Avisar</button>
-        <button class="pill-opt"    id="iInt_pend_terminar" onclick="setIntFilter('pend_terminar')">Pend. Terminar</button>
-        <button class="pill-opt"    id="iInt_none"          onclick="setIntFilter('none')">Ninguna</button>
-      </div>
-    </div>
-    >
+<!-- HISTORIAL: v108 - Migración a Ta_limpiezas_intermedias+Vi_intermedias; selector INTERMEDIAS 4 opciones; fetchIntermediasParaRango paralelo; quitado pill Intermedias del tipo | v106 - Intermedias: modal WA con mensaje mid-stay ES/EN, toggles terminada/avisado en fichas y semanal, campos IntermediaN_terminada/cliente_avisado | v105 - Fix fetchIntermediasForWeek: captura _searchId para evitar race condition; siempre llama renderWeekly() cuando hay nuevas intermedias | v104 - Performance: intermedias eliminadas del WHERE principal (evita 8 OR lentos); nueva función fetchIntermediasForWeek() hace llamada paralela solo en modo semanal con WHERE propio | v103 - Intermedias 4-8: añadidos campos F, forEach, buildWhere OR, popup 8 campos, openIntModal y saveIntermedias actualizados, botones fichas y listado pasan i4-i8 | v102 - Popup "Intermedias": botón en fichas y listado abre modal para modificar Intermedia1/2/3 en TaBookings2021; guarda via Worker PUT; refresca búsqueda al cerrar | v101 - Fix intermedias vista semanal: añadidas Intermedia1/2/3 al OR del WHERE cuando hay rango desde/hasta (misma llamada Caspio, sin llamadas extra) | v100 - Color intermedia: #fbbf24 amarillo brillante con texto oscuro #78350f | v99 - Fix color intermedia: amber más brillante #d97706 para distinguir de rojo; Fix timezone: _ds() y todayStr() usan fecha local en lugar de UTC (evita desfase de ±1 día en vista semanal) | v98 - Fix color intermedia (card:has excluye .intermedia del azul); buildCard recibe intDate y muestra "🧹 INT lun 09/06"; listado muestra "🧹 Intermedia lun 09/06"; semanal muestra "🧹 INT dd/mm"; dark mode incluye c-head.intermedia | v97 - Limpiezas intermedias: campos Intermedia1/2/3; tipo "intermedia" amarillo en fichas/listado/semanal; filtro tipo "Intermedias"; tratamiento igual que salidas para WelcomePack | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
