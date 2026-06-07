@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v95 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v96 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v95 — 3Villas</title>
+  <title>Entradas Equipo v96 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -997,7 +997,7 @@ function clearAll(){
 }
 
 // ════════════════ WHERE ════════════════
-function buildWhere(){const parts=[`${F.status}<>'cancelled'`];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inquilino=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');parts.push(selectedManagers.size===1?`${F.villaManager}='${[...selectedManagers][0]}'`:`${F.villaManager} IN (${ids})`);}if(desde&&hasta){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59'))`);}else if(desde){parts.push(`((${F.checkIn}>='${desde}T00:00:00') OR (${F.checkOut}>='${desde}T00:00:00'))`);}if(codigo)parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);if(villa)parts.push(`${F.villaName} LIKE '%${villa}%'`);if(inquilino)parts.push(`${F.guestName} LIKE '%${inquilino}%'`);return parts.join(' AND ');}
+function buildWhere(){const parts=[`${F.status}<>'cancelled'`];const _hayTexto=(($('fCodigo')||{}).value||'').trim()||(($('fVilla')||{}).value||'').trim()||(($('fInquilino')||{}).value||'').trim();const desde=(_calMode&&_hayTexto)?'':(($('fDesde')||{}).value||'');const hasta=(_calMode&&_hayTexto)?'':(($('fHasta')||{}).value||'');const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inquilino=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const ids=[...selectedManagers].map(id=>`'${id}'`).join(',');parts.push(selectedManagers.size===1?`${F.villaManager}='${[...selectedManagers][0]}'`:`${F.villaManager} IN (${ids})`);}if(desde&&hasta){parts.push(`((${F.checkIn}>='${desde}T00:00:00' AND ${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}>='${desde}T00:00:00' AND ${F.checkOut}<='${hasta}T23:59:59'))`);}else if(desde){parts.push(`((${F.checkIn}>='${desde}T00:00:00') OR (${F.checkOut}>='${desde}T00:00:00'))`);}else if(hasta){parts.push(`((${F.checkIn}<='${hasta}T23:59:59') OR (${F.checkOut}<='${hasta}T23:59:59'))`);}if(codigo)parts.push(`${F.confirmCode} LIKE '%${codigo}%'`);if(villa)parts.push(`${F.villaName} LIKE '%${villa}%'`);if(inquilino)parts.push(`${F.guestName} LIKE '%${inquilino}%'`);return parts.join(' AND ');}
 
 // ════════════════ CHIPS ════════════════
 function renderChips(){const chipsData=[];const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';const codigo=(($('fCodigo')||{}).value||'').trim();const villa=(($('fVilla')||{}).value||'').trim();const inq=(($('fInquilino')||{}).value||'').trim();if(selectedManagers.size>0){const names=[...selectedManagers].map(id=>allUsersMap.get(id)||id).join(', ');const lbl=selectedManagers.size===1?`Manager: ${names}`:`Managers: ${names}`;chipsData.push({label:lbl,clear:()=>{clearManagers();}});}if(desde)chipsData.push({label:`Desde: ${fmtDate(desde)}`,clear:()=>{if($('fDesde'))$('fDesde').value=''}});if(hasta)chipsData.push({label:`Hasta: ${fmtDate(hasta)}`,clear:()=>{if($('fHasta'))$('fHasta').value=''}});if(codigo)chipsData.push({label:`Reserva: ${codigo}`,clear:()=>{if($('fCodigo'))$('fCodigo').value=''}});if(villa)chipsData.push({label:`Villa: ${villa}`,clear:()=>{if($('fVilla'))$('fVilla').value=''}});if(inq)chipsData.push({label:`Inquilino: ${inq}`,clear:()=>{if($('fInquilino'))$('fInquilino').value=''}});if(fCierre==='pending')chipsData.push({label:'Cierre pendiente',clear:()=>setCierreFilter('all')});
@@ -1047,7 +1047,8 @@ function renderCards(records,_extVillaIds,_muVillaMap){
   if($('stErr'))$('stErr').style.display='none';
   const grid=$('grid');if(!grid)return;grid.style.display='grid';
   if(!records.length){grid.style.display='grid';grid.innerHTML='<div class="empty"><div class="big">🏖️</div><h3>Sin resultados</h3><p>No hay entradas ni salidas para los filtros seleccionados.</p></div>';const _lv=$('listView');if(_lv){_lv.style.display='none';_lv.innerHTML='';}return;}
-  const desde=($('fDesde')||{}).value||'';const hasta=($('fHasta')||{}).value||'';
+  const _rcHayTexto=(($('fCodigo')||{}).value||'').trim()||(($('fVilla')||{}).value||'').trim()||(($('fInquilino')||{}).value||'').trim();
+  const desde=(_calMode&&_rcHayTexto)?'':(($('fDesde')||{}).value||'');const hasta=(_calMode&&_rcHayTexto)?'':(($('fHasta')||{}).value||'');
   const desdeTs=desde?new Date(desde+'T00:00:00').getTime():0;
   const hastaTs=hasta?new Date(hasta+'T23:59:59').getTime():Infinity;
   const rows=[];
@@ -1076,7 +1077,7 @@ function renderCards(records,_extVillaIds,_muVillaMap){
   if($('hCount'))$('hCount').textContent=rows.length;if($('hCountLabel'))$('hCountLabel').textContent=' reservas';
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
   if(_calMode){grid.style.display='none';renderWeekly();}
-  else if(_listMode){grid.style.display='none';doRenderList(rows);}
+  else if(_listMode){grid.style.display='none';const _lv2=$('listView');if(_lv2)_lv2.style.display='block';doRenderList(rows);}
   else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type)));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
@@ -1764,4 +1765,4 @@ function renderWeekly(){
 
 </body>
 </html>
-<!-- HISTORIAL: v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
+<!-- HISTORIAL: v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
