@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v113 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v114 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v113 — 3Villas</title>
+  <title>Entradas Equipo v114 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1048,9 +1048,7 @@ function onDesdeChange(){const desde=($('fDesde')||{}).value||'';const hastaEl=$
 function setToggle(mode){toggleMode=mode;['tAll','tPend'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('on',id==='tAll'?mode==='all':mode==='pend');});scheduleSearch();}
 function setIntFilter(mode){
   intFilter=mode;
-  ['todas','pend_avisar','pend_terminar','none'].forEach(function(m){
-    var el=$('iInt_'+m);if(el)el.classList.toggle('on',m===mode);
-  });
+  ['todas','pend_avisar','pend_terminar','none'].forEach(function(m){var el=$('iInt_'+m);if(el)el.classList.toggle('on',m===mode);});
   scheduleSearch();
 }
 function setTipoFilter(mode){tipoFilter=mode;['both','entrada','salida'].forEach(m=>{const el=$('tTipo_'+m);if(el)el.classList.toggle('on',m===mode);});scheduleSearch();}
@@ -1120,7 +1118,7 @@ async function doSearch(){
     });
     renderCards(records,_allVillaIds,_muVillaMap);
     loadPendingTasksPanel().catch(e=>console.warn('[Tasks]',e.message));
-    /* Intermedias: fetch paralelo para cualquier vista */
+    /* Intermedias: fetch paralelo */
     fetchIntermediasParaRango();
   }catch(err){if(mySearchId!==_searchId)return;if($('stLoad'))$('stLoad').style.display='none';if($('stInit'))$('stInit').style.display='none';if($('stErr'))$('stErr').style.display='block';if($('errMsg'))$('errMsg').textContent=err.message;$('dbBox').textContent='Error doSearch:\n'+err.message;}
 }
@@ -1182,7 +1180,7 @@ function renderCards(records,_extVillaIds,_muVillaMap){
   _allRecs=rows.map(function(row,i){return Object.assign({},row,{_wid:'r'+i});});
   if(_calMode){grid.style.display='none';renderWeekly();}
   else if(_listMode){grid.style.display='none';const _lv2=$('listView');if(_lv2)_lv2.style.display='block';doRenderList(rows);}
-  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type,row.intDate||'')));}
+  else{grid.style.display='grid';rows.forEach(row=>grid.appendChild(buildCard(row.r,row.type,row.intDate||'',row.intId||'')));}
   /* v35: cargar tareas DESPUÉS de que las cards estén en el DOM */
   if(villaIds.length){
     loadVillaPendingTasks(villaIds,_muVillaMap||{})
@@ -1447,7 +1445,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeGuestMo
 
 function mkBadge(label,raw,url,extra,newTab){const ok=isOk(raw);const cls=ok===null?'b-na':ok?'b-ok':'b-no';const ico=ok===null?'·':ok?'✓':'✗';const inner=`${ico} ${label}${extra||''}`;if(url&&newTab)return`<a class="bdg ${cls}" href="${url}" onclick="openTaskPopup('${url}');return false;" style="text-decoration:none;cursor:pointer">${inner}</a>`;if(url)return`<a class="bdg ${cls}" href="${url}" onclick="return popup('${url}')" style="text-decoration:none;cursor:pointer">${inner}</a>`;return`<span class="bdg ${cls}">${inner}</span>`;}
 
-function buildCard(r,type,intDate){
+function buildCard(r,type,intDate,intId){
   const isSalida=type==='salida';
   const el=document.createElement('div');el.className='card';
   const ci=g(r,'checkIn'),co=g(r,'checkOut');
@@ -1517,23 +1515,25 @@ function buildCard(r,type,intDate){
   if(paxTxt||n||portal)html+=`<div class="villa-sub">${[paxTxt&&paxTxt+' pax',n&&n+'n',portal].filter(Boolean).join(' · ')}</div>`;
   html+='</div>';if(code)html+=`<div class="res-id">#${code}</div>`;html+='</div>';
   html+='<div class="c-status">';
-  if(isIntermedia){html+=mkBadge('Limpieza Int.',g(r,'limpieza'),urlLimpieza,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
-  const _intDates=[g(r,'intermedia1'),g(r,'intermedia2'),g(r,'intermedia3'),g(r,'intermedia4'),g(r,'intermedia5'),g(r,'intermedia6'),g(r,'intermedia7'),g(r,'intermedia8')];
-  const _intN=intDate?Math.max(1,_intDates.findIndex(function(d){return d&&d.split('T')[0]===intDate;})+1):1;
-  const _avVal=isOk(g(r,'int'+_intN+'avisado'));const _tmVal=isOk(g(r,'int'+_intN+'terminada'));
+  if(isIntermedia){
+  const _avVal=isOk(r[FI.avisado]);const _tmVal=isOk(r[FI.term]);
+  const _iid=intId||String(r[FI.id]||'');
+  const _coment=String(r[FI.coment]||'').trim();
   const _phH=g(r,'guestPhone'),_phA=g(r,'phoneArrival'),_cu=g(r,'phoneCual'),_gn2=g(r,'fiscalName')||g(r,'guestName');
+  html+=mkBadge('Limpieza Int.',g(r,'limpieza'),urlLimpieza,'',true);
+  if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
   html+='<div class="c-status" style="border-top:1px solid var(--gray-2)">'
     +'<button style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 11px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
-    +' onclick="openIntWAModal(\''+code+'\','+_intN+',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
+    +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
     +'</div>'
     +'<div class="int-toggle-row">'
-    +'<label class="int-tgl"><input type="checkbox" '+(_avVal===true?'checked':'')+' onchange="markIntAvisado(\''+code+'\','+_intN+',this.checked)"><span class="int-tgl-slider"></span></label>'
+    +'<label class="int-tgl"><input type="checkbox" '+(_avVal===true?'checked':'')+' onchange="markIntAvisado(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
     +'<span class="int-tgl-lbl '+(_avVal===true?'on':'')+'">Cliente avisado</span>'
     +'<span style="flex:1"></span>'
-    +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+' onchange="markIntTerminada(\''+code+'\','+_intN+',this.checked)"><span class="int-tgl-slider"></span></label>'
+    +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
     +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'">Terminada</span>'
     +'</div>'
-    +(String(r[FI.coment]||'').trim()?'<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+String(r[FI.coment]).trim()+'</div>':'');
+    +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+_coment+'</div>':'');
   }
   else if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
   else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
@@ -1760,7 +1760,7 @@ function doRenderList(rows){
     if(aph)html+='<a class="lv-phone" href="tel:'+aph+'">📞 '+aph+'</a>';
     html+='</div>';
     if(code){html+='<div class="lv-btns">';html+=_lvBdg('Arrival',g(r,'arrivalFormDone'),urlAF);html+=_lvBdg('Ecotasa',g(r,'ecotasaCobrada'),urlEc);html+=_lvBdg('Policía',g(r,'policeDone'),urlPol);html+=_lvBdg('Depósito',g(r,'depositDone'),urlDep);html+='<a class="lv-b lv-rd" href="'+urlEq+'">✏️ Equipo</a>';
-    html+='<button class="lv-b lv-na" onclick="openIntModal(\''+code+'\')">🧹 Int</button>';html+='<a class="lv-b lv-na" href="'+urlTask+'">＋ Tarea</a>';html+='<a class="lv-b lv-na" href="'+urlHA+'" onclick="return popup(\''+urlHA+'\')">🏠 Hostaway</a>';html+='<a class="lv-b lv-bl" href="'+urlCI+'" target="_blank">🔗 Checkin</a>';if(urlVilla)html+='<a class="lv-b lv-gr" href="'+urlVilla+'">🏡 Villa</a>';html+='</div>';}
+    html+='<button class="lv-b ac-na" onclick="openIntModal(\''+code+'\')">🧹 Int</button>';html+='<a class="lv-b lv-na" href="'+urlTask+'">＋ Tarea</a>';html+='<a class="lv-b lv-na" href="'+urlHA+'" onclick="return popup(\''+urlHA+'\')">🏠 Hostaway</a>';html+='<a class="lv-b lv-bl" href="'+urlCI+'" target="_blank">🔗 Checkin</a>';if(urlVilla)html+='<a class="lv-b lv-gr" href="'+urlVilla+'">🏡 Villa</a>';html+='</div>';}
     if(nl||ni){html+='<div class="lv-notes">';if(nl)html+='<div class="lv-note"><span class="lv-nlbl">📝 Limpieza</span>'+nl+'</div>';if(ni)html+='<div class="lv-note"><span class="lv-nlbl">📌 VM</span>'+ni+'</div>';html+='</div>';}
     html+='</div>';
   });
@@ -1782,7 +1782,7 @@ function _openModal(id){
   mi.innerHTML='';
   var closeBtn=document.createElement('button');
   closeBtn.className='wk-modal-close';closeBtn.textContent='\u2715';closeBtn.onclick=_closeModal;
-  mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type,rec.intDate||''));
+  mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type,rec.intDate||'',rec.intId||''));
   $('wkModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function _closeModal(){$('wkModal').classList.remove('open');document.body.style.overflow='';}
@@ -1876,16 +1876,16 @@ function renderWeekly(){
         var _wkKbHtml=_wkKb?'<div style="margin-top:4px;font-size:9px;font-weight:800;font-family:Montserrat,sans-serif;color:var(--gray-4);letter-spacing:.3px">🔑 '+_wkKb+'</div>':'';
         var _wkIntX='';
         if(isInt2&&rec.intDate){
-          var _wkIntDates=[g(r,'intermedia1'),g(r,'intermedia2'),g(r,'intermedia3'),g(r,'intermedia4'),g(r,'intermedia5'),g(r,'intermedia6'),g(r,'intermedia7'),g(r,'intermedia8')];
-          var _wkN=Math.max(1,_wkIntDates.findIndex(function(d){return d&&d.split('T')[0]===rec.intDate;})+1);
-          var _wkAv=isOk(g(r,'int'+_wkN+'avisado'));var _wkTm=isOk(g(r,'int'+_wkN+'terminada'));
-          var _wkC=code||'',_wkPhH=g(r,'guestPhone'),_wkPhA=g(r,'phoneArrival'),_wkCu=g(r,'phoneCual'),_wkGn=g(r,'fiscalName')||g(r,'guestName');
+          var _wkIid=rec.intId||String(r[FI.id]||'');
+          var _wkAv=isOk(r[FI.avisado]);var _wkTm=isOk(r[FI.term]);
+          var _wkComent=String(r[FI.coment]||'').trim();
+          var _wkPhH=g(r,'guestPhone'),_wkPhA=g(r,'phoneArrival'),_wkCu=g(r,'phoneCual'),_wkGn=g(r,'fiscalName')||g(r,'guestName');
           _wkIntX='<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">'
             +'<button style="background:#25D366;color:#fff;border:none;border-radius:5px;padding:3px 7px;font-size:9px;font-family:Montserrat,sans-serif;font-weight:800;cursor:pointer;width:100%"'
-            +' onclick="event.stopPropagation();openIntWAModal(\''+_wkC+'\','+_wkN+',\''+rec.intDate+'\',\''+_wkGn+'\',\''+_wkPhH+'\',\''+_wkPhA+'\',\''+_wkCu+'\')">WA aviso</button>'
-            +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkAv===true?'checked':'')+' onchange="markIntAvisado(\''+_wkC+'\','+_wkN+',this.checked)" style="accent-color:var(--green)"> Avisado</label>'
-            +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkTm===true?'checked':'')+' onchange="markIntTerminada(\''+_wkC+'\','+_wkN+',this.checked)" style="accent-color:var(--green)"> Terminada</label>'
-            +(String(r[FI.coment]||'').trim()?'<div style="font-size:8px;color:var(--gray-4);margin-top:3px;font-style:italic">'+String(r[FI.coment]).trim()+'</div>':'')
+            +' onclick="event.stopPropagation();openIntWAModal(\''+_wkIid+'\',\''+rec.intDate+'\',\''+_wkGn+'\',\''+_wkPhH+'\',\''+_wkPhA+'\',\''+_wkCu+'\')">WA aviso</button>'
+            +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkAv===true?'checked':'')+' onchange="markIntAvisado(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Avisado</label>'
+            +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkTm===true?'checked':'')+' onchange="markIntTerminada(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Terminada</label>'
+            +(_wkComent?'<div style="font-size:8px;color:var(--gray-4);margin-top:3px;font-style:italic">'+_wkComent+'</div>':'')
             +'</div>';
         }
         card.innerHTML='<div class="wk-card-inner">'
@@ -1925,12 +1925,12 @@ function buildIntMsg(nm,ph,intDate){
     +'I am at your disposal if you need anything.'+N+N
     +'Have a fantastic day';
 }
-function openIntWAModal(code,intNum,intDate,guestName,phHost,phArr,cual){
-  _iwaData={code:code,intNum:intNum,intDate:intDate,guestName:guestName,phHost:phHost,phArr:phArr,cual:cual};
+function openIntWAModal(intId,intDate,guestName,phHost,phArr,cual){
+  _iwaData={intId:intId,intDate:intDate,guestName:guestName,phHost:phHost,phArr:phArr,cual:cual};
   _iwaUseArr=_useArrI(cual);
   document.getElementById('iwaGuestName').textContent=guestName||'-';
   var ds=intDate?intDate.split('-').reverse().join('/'):'';
-  document.getElementById('iwaVilla').textContent='Intermedia '+intNum+(ds?' - '+ds:'');
+  document.getElementById('iwaVilla').textContent='Intermedia'+(ds?' - '+ds:'');
   document.getElementById('iwaPhHost').textContent=phHost||'Sin numero';
   document.getElementById('iwaPhArr').textContent=phArr||'Sin numero';
   document.getElementById('iwaCualHost').classList.toggle('on',!_iwaUseArr);
@@ -1948,16 +1948,16 @@ function _refreshIwaPrev(){
   var btn=document.getElementById('iwaBtnWA');
   if(btn&&ph){btn.href='https://wa.me/'+_cleanPhI(ph)+'?text='+encodeURIComponent(msg);}
 }
-function onIntWASend(){if(!_iwaData)return;var code=_iwaData.code,n=_iwaData.intNum;setTimeout(function(){markIntAvisado(code,n,true);},500);}
-var _intFieldMapAv={1:'Intermedia1_cliente_avisado',2:'Intermedia2_cliente_avisado',3:'Intermedia3_cliente_avisado',4:'Intermedia4_cliente_avisado',5:'Intermedia5_cliente_avisado',6:'Intermedia6_cliente_avisado',7:'Intermedia7_cliente_avisado',8:'Intermedia8_cliente_avisado'};
-var _intFieldMapTm={1:'Intermedia1_terminada',2:'Intermedia2_terminada',3:'Intermedia3_terminada',4:'Intermedia4_terminada',5:'Intermedia5_terminada',6:'Intermedia6_terminada',7:'Intermedia7_terminada',8:'Intermedia8_terminada'};
-async function markIntAvisado(code,n,val){
-  var f=_intFieldMapAv[n];if(!f)return;var b={};b[f]=val;
-  try{await fetch(Auth.url(WORKER+'?action=update&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});}catch(e){console.warn('[IntAv]',e.message);}
+function onIntWASend(){if(!_iwaData)return;setTimeout(function(){markIntAvisado(_iwaData.intId,true);},500);}
+async function markIntAvisado(intId,val){
+  if(!intId)return;
+  try{await fetch(Auth.url(WORKER+'?action=update&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'")),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Cliente_avisado:val})});}
+  catch(e){console.warn('[IntAv]',e.message);}
 }
-async function markIntTerminada(code,n,val){
-  var f=_intFieldMapTm[n];if(!f)return;var b={};b[f]=val;
-  try{await fetch(Auth.url(WORKER+'?action=update&table=TaBookings2021&where='+encodeURIComponent("FS_confirmation_code='"+code+"'")),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});}catch(e){console.warn('[IntTm]',e.message);}
+async function markIntTerminada(intId,val){
+  if(!intId)return;
+  try{await fetch(Auth.url(WORKER+'?action=update&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'")),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Teminada:val})});}
+  catch(e){console.warn('[IntTm]',e.message);}
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=document.getElementById('intWAModal');if(m&&m.classList.contains('open'))closeIntWAModal();}});
 
@@ -2007,93 +2007,118 @@ function openIntModal(code){
   _intModalCode=code;
   var msg=$('intMsg');if(msg)msg.textContent='';
   var nd=$('intNewDate');if(nd)nd.value='';
+  var nc=$('intNewComent');if(nc)nc.value='';
   loadIntExisting(code);
-  $('intModal').classList.add('open');
-  document.body.style.overflow='hidden';
+  $('intModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closeIntModal(){
-  $('intModal').classList.remove('open');
-  document.body.style.overflow='';
-}
+function closeIntModal(){$('intModal').classList.remove('open');document.body.style.overflow='';}
+
 async function loadIntExisting(code){
   var cont=$('intExistingList');if(!cont)return;
-  cont.innerHTML='<div style="color:var(--gray-4);font-size:12px">Cargando...</div>';
+  cont.innerHTML='<div style="color:var(--gray-4);font-size:12px;padding:6px 0">Cargando...</div>';
   try{
     var w=FI.code+"='"+code+"'";
     var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&where='+encodeURIComponent(w)+'&orderby='+encodeURIComponent(FI.fecha+' ASC')+'&limit=50';
     var res=await fetch(Auth.url(u));
     var json=await res.json();
     var recs=json.Result||json.result||[];
-    if(!recs.length){cont.innerHTML='<div style="color:var(--gray-4);font-size:12px;padding:8px 0">No hay limpiezas intermedias.</div>';return;}
     cont.innerHTML='';
+    if(!recs.length){cont.innerHTML='<div style="color:var(--gray-4);font-size:12px;padding:6px 0">No hay limpiezas intermedias.</div>';return;}
     recs.forEach(function(r){
       var iid=String(r[FI.id]||'');
       var fecha=(r[FI.fecha]||'').split('T')[0];
       var term=r[FI.term]===true||r[FI.term]===1||String(r[FI.term]).toLowerCase()==='true';
       var avis=r[FI.avisado]===true||r[FI.avisado]===1||String(r[FI.avisado]).toLowerCase()==='true';
-      var row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-2);font-size:12px';
       var coment=String(r[FI.coment]||'').trim();
-      row.style.cssText='padding:8px 0;border-bottom:1px solid var(--gray-2);display:flex;flex-direction:column;gap:5px';
-      row.setAttribute('data-iid',iid);
+      var block=document.createElement('div');
+      block.style.cssText='border:1.5px solid var(--gray-2);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fff;display:flex;flex-direction:column;gap:8px';
+      /* Row 1: fecha + toggles + edit/save btn */
+      var row1=document.createElement('div');
+      row1.style.cssText='display:flex;align-items:center;gap:8px';
+      /* Fecha */
       var dtIn=document.createElement('input');
-      dtIn.type='date';dtIn.value=fecha;
-      dtIn.style.cssText='flex:1;height:30px;border:1.5px solid var(--gray-2);border-radius:6px;padding:0 6px;font-size:12px';
+      dtIn.type='date';dtIn.value=fecha;dtIn.disabled=true;
+      dtIn.style.cssText='width:130px;height:30px;border:1.5px solid var(--gray-2);border-radius:6px;padding:0 6px;font-size:12px;background:#f8f8f8;color:var(--gray-5)';
+      /* Toggle avisado */
+      var tAv=document.createElement('label');
+      tAv.style.cssText='display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700';
+      var cbAv=document.createElement('input');cbAv.type='checkbox';cbAv.checked=avis;cbAv.disabled=true;cbAv.style.cssText='accent-color:var(--green);width:14px;height:14px';
+      var spAv=document.createElement('span');spAv.textContent='Avisado';spAv.style.color=avis?'var(--green)':'var(--gray-4)';
+      tAv.appendChild(cbAv);tAv.appendChild(spAv);
+      /* Toggle terminada */
+      var tTm=document.createElement('label');
+      tTm.style.cssText='display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700';
+      var cbTm=document.createElement('input');cbTm.type='checkbox';cbTm.checked=term;cbTm.disabled=true;cbTm.style.cssText='accent-color:var(--green);width:14px;height:14px';
+      var spTm=document.createElement('span');spTm.textContent='Terminada';spTm.style.color=term?'var(--green)':'var(--gray-4)';
+      tTm.appendChild(cbTm);tTm.appendChild(spTm);
+      /* Spacer */
+      var sp=document.createElement('span');sp.style.flex='1';
+      /* Edit/Save btn */
+      var editBtn=document.createElement('button');
+      editBtn.textContent='✏️ Editar';
+      editBtn.style.cssText='background:var(--gray-2);color:var(--gray-5);border:none;border-radius:6px;padding:4px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer';
+      /* Delete btn */
+      var delBtn=document.createElement('button');
+      delBtn.textContent='✕';
+      delBtn.style.cssText='background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer';
+      (function(id2){delBtn.onclick=function(){deleteIntermedia(id2);};})(iid);
+      /* Observaciones */
       var taRow=document.createElement('textarea');
-      taRow.placeholder='Observaciones...';
-      taRow.value=coment;
-      taRow.style.cssText='width:100%;height:48px;border:1.5px solid var(--gray-2);border-radius:6px;padding:4px 8px;font-size:11px;resize:none';
-      (function(id2,dt2,ta2){
-        dt2.onchange=function(){updateIntermedia(id2,dt2.value,ta2.value);};
-        ta2.onblur=function(){updateIntermedia(id2,dt2.value,ta2.value);};
-      })(iid,dtIn,taRow);
-      var rowTop=document.createElement('div');
-      rowTop.style.cssText='display:flex;align-items:center;gap:6px';
-      rowTop.appendChild(dtIn);
-      var spAv=document.createElement('span');
-      spAv.style.cssText='font-size:10px;color:'+(avis?'var(--green)':'var(--gray-3)');
-      spAv.textContent=avis?'✓ Av':'Av';
-      var spTm=document.createElement('span');
-      spTm.style.cssText='font-size:10px;color:'+(term?'var(--green)':'var(--gray-3)');
-      spTm.textContent=term?'✓ Tm':'Tm';
-      var btnDel=document.createElement('button');
-      btnDel.textContent='✕';
-      btnDel.style.cssText='background:var(--red-light);color:var(--red);border:none;border-radius:5px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer';
-      (function(id3){btnDel.onclick=function(){deleteIntermedia(id3);};})(iid);
-      rowTop.appendChild(spAv);rowTop.appendChild(spTm);rowTop.appendChild(btnDel);
-      row.appendChild(rowTop);
-      row.appendChild(taRow)
-      cont.appendChild(row);
+      taRow.placeholder='Observaciones...';taRow.value=coment;taRow.disabled=true;
+      taRow.style.cssText='width:100%;height:50px;border:1.5px solid var(--gray-2);border-radius:6px;padding:5px 8px;font-size:11px;resize:none;background:#f8f8f8;color:var(--gray-5)';
+      /* Edit/Save logic */
+      var editing=false;
+      (function(id2,dt2,ta2,cb2av,cb2tm,sp2av,sp2tm,btn2){
+        btn2.onclick=function(){
+          if(!editing){
+            editing=true;btn2.textContent='💾 Guardar';btn2.style.background='var(--green)';btn2.style.color='#fff';
+            dt2.disabled=false;dt2.style.background='#fff';
+            ta2.disabled=false;ta2.style.background='#fff';
+            cb2av.disabled=false;cb2tm.disabled=false;
+          } else {
+            updateIntermedia(id2,dt2.value,ta2.value,cb2av.checked,cb2tm.checked);
+            editing=false;btn2.textContent='✏️ Editar';btn2.style.background='var(--gray-2)';btn2.style.color='var(--gray-5)';
+            dt2.disabled=true;dt2.style.background='#f8f8f8';
+            ta2.disabled=true;ta2.style.background='#f8f8f8';
+            cb2av.disabled=true;cb2tm.disabled=true;
+            sp2av.style.color=cb2av.checked?'var(--green)':'var(--gray-4)';
+            sp2tm.style.color=cb2tm.checked?'var(--green)':'var(--gray-4)';
+          }
+        };
+      })(iid,dtIn,taRow,cbAv,cbTm,spAv,spTm,editBtn);
+      row1.appendChild(dtIn);row1.appendChild(tAv);row1.appendChild(tTm);row1.appendChild(sp);row1.appendChild(editBtn);row1.appendChild(delBtn);
+      block.appendChild(row1);block.appendChild(taRow);
+      cont.appendChild(block);
     });
-  }catch(e){cont.innerHTML='<div style="color:var(--red);font-size:12px">Error</div>';}
+  }catch(e){cont.innerHTML='<div style="color:var(--red);font-size:12px">Error cargando</div>';}
 }
+
+async function updateIntermedia(intId,fecha,coment,avis,term){
+  if(!intId||!fecha)return;
+  try{
+    var url=Auth.url(WORKER+'?action=update&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'"));
+    await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Fecha_intermedia:fecha+'T00:00:00',Comentarios:coment||'',Cliente_avisado:!!avis,Teminada:!!term})});
+  }catch(e){console.warn('[IntUpdate]',e.message);}
+}
+
 async function addIntermedia(){
-  var nd=$('intNewDate');var msg=$('intMsg');
+  var nd=$('intNewDate');var msg=$('intMsg');var nc=$('intNewComent');
   if(!nd||!nd.value){if(msg){msg.textContent='Selecciona una fecha';msg.style.color='var(--red)';}return;}
   if(msg){msg.textContent='Guardando...';msg.style.color='var(--gray-4)';}
   try{
-    var nc=$('intNewComent');var body={FS_confirmation_code:_intModalCode,Fecha_intermedia:nd.value+'T00:00:00',Teminada:false,Cliente_avisado:false,Comentarios:(nc?nc.value.trim():'') };
-    var url=Auth.url(CFG.workerUrl+'?action=save&table=Ta_limpiezas_intermedias');
-    var res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var body={FS_confirmation_code:_intModalCode,Fecha_intermedia:nd.value+'T00:00:00',Teminada:false,Cliente_avisado:false,Comentarios:(nc?nc.value.trim():'')};
+    var res=await fetch(Auth.url(CFG.workerUrl+'?action=save&table=Ta_limpiezas_intermedias'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!res.ok)throw new Error('HTTP '+res.status);
-    if(msg){msg.textContent='Añadida correctamente';msg.style.color='var(--green)';}
+    if(msg){msg.textContent='Añadida';msg.style.color='var(--green)';}
     nd.value='';if(nc)nc.value='';loadIntExisting(_intModalCode);
     setTimeout(function(){if(msg)msg.textContent='';doSearch();},1500);
   }catch(e){if(msg){msg.textContent='Error: '+e.message;msg.style.color='var(--red)';}}
 }
 
-async function updateIntermedia(intId,fecha,coment){
-  if(!intId||!fecha)return;
-  try{
-    var url=Auth.url(CFG.workerUrl+'?action=update&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'"));
-    await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({Fecha_intermedia:fecha+'T00:00:00',Comentarios:coment||''})});
-  }catch(e){console.warn('[IntUpdate]',e.message);}
-}
 async function deleteIntermedia(intId){
   if(!intId||!confirm('Eliminar esta limpieza intermedia?'))return;
   try{
-    var url=Auth.url(CFG.workerUrl+'?action=delete&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'"));
-    await fetch(url,{method:'DELETE'});
+    await fetch(Auth.url(WORKER+'?action=delete&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'")),{method:'DELETE'});
     loadIntExisting(_intModalCode);setTimeout(function(){doSearch();},800);
   }catch(e){console.warn('[IntDelete]',e.message);}
 }
@@ -2103,15 +2128,14 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('intModal
 
 <!-- Popup intermedias -->
 <div id="intModal" onclick="if(event.target===this)closeIntModal()">
-  <div class="int-box" style="max-width:500px">
+  <div class="int-box" style="max-width:520px">
     <div class="int-head">
       <span class="int-title">🧹 Limpiezas Intermedias</span>
       <button class="int-close" onclick="closeIntModal()">✕</button>
     </div>
     <div class="int-body">
-      <div class="int-desc">Intermedias vinculadas a esta reserva. Añade una fecha para crear una nueva.</div>
-      <div id="intExistingList" style="margin-bottom:12px"></div>
-      <div style="border-top:1px solid var(--gray-2);padding-top:10px">
+      <div id="intExistingList"></div>
+      <div style="border-top:1.5px solid var(--gray-2);padding-top:12px;margin-top:4px">
         <div class="int-flabel" style="margin-bottom:6px">➕ Añadir nueva fecha</div>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="date" id="intNewDate" class="int-finput" style="flex:1">
