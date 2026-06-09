@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v123 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v124 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v123 — 3Villas</title>
+  <title>Entradas Equipo v124 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1566,8 +1566,10 @@ function buildCard(r,type,intDate,intId){
       +'<div class="int-box-title">👤 Inquilino — Estado cliente</div>'
       +'<div class="int-pills-row" id="ecli-'+_iid+'">'
       +(_estCliDesc?'<span class="int-ep on-cli">'+_estCliDesc+'</span>':'<span class="int-ep" style="color:var(--gray-3)">Sin estado</span>')
-      +'<button style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:3px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;cursor:pointer"'
-      +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
+      +'</div>'
+      +'<div style="padding:4px 10px 8px">'
+      +'<button style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 12px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
+      +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">📱 WA aviso</button>'
       +'</div>'
       +'</div>';
 
@@ -1973,18 +1975,14 @@ var _intProvOpts=[];  // {id, desc}
 var _intOptsLoaded=false;
 
 async function ensureIntOpts(){
-  if(_intOptsLoaded||(_intCliOpts.length&&_intProvOpts.length))return;
+  if(_intOptsLoaded)return;
   try{
-    var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&limit=200';
-    var res=await fetch(Auth.url(u));
-    var recs=(await res.json()).Result||[];
-    var sc=new Set(),sp=new Set();
-    recs.forEach(function(r){
-      var ci=String(r[FI.estCli]||'').trim(),cd=String(r[FI.estCliDesc]||'').trim();
-      var pi=String(r[FI.estProv]||'').trim(),pd=String(r[FI.estProvDesc]||'').trim();
-      if(ci&&cd&&!sc.has(ci)){sc.add(ci);_intCliOpts.push({id:ci,desc:cd});}
-      if(pi&&pd&&!sp.has(pi)){sp.add(pi);_intProvOpts.push({id:pi,desc:pd});}
-    });
+    var uCli=CFG.workerUrl+'?action=view&view=Ta_intermedias_estado_clientes&limit=50';
+    var uProv=CFG.workerUrl+'?action=view&view=Ta_intermedias_estado_proveedore&limit=50';
+    var [rCli,rProv]=await Promise.all([fetch(Auth.url(uCli)),fetch(Auth.url(uProv))]);
+    var dCli=await rCli.json();var dProv=await rProv.json();
+    _intCliOpts=(dCli.Result||[]).map(function(r){return{id:String(r['Estado_cliente_id']||'').trim(),desc:String(r['Estado_cliente_desc']||'').trim()};}).filter(function(o){return o.id;});
+    _intProvOpts=(dProv.Result||[]).map(function(r){return{id:String(r['Estado_proveedor_id']||'').trim(),desc:String(r['Estado_proveedor_desc']||'').trim()};}).filter(function(o){return o.id;});
     _intOptsLoaded=true;
   }catch(e){console.warn('[IntOpts]',e);}
 }
@@ -2085,12 +2083,10 @@ async function fetchIntermediasParaRango(){
   if(!desde)desde=todayStr();
   var _myId=_searchId;
   var wParts=[];
-  if(intFilter==='pend_avisar')wParts.push(FI.avisado+'=false');
-  if(intFilter==='pend_terminar')wParts.push(FI.term+'=false');
-  /* Filtrar por rango de fechas de la vista principal */
   if(desde)wParts.push(FI.fecha+">='"+ desde +"T00:00:00'");
   if(hasta)wParts.push(FI.fecha+"<='"+ hasta +"T23:59:59'");
-  /* Sin filtro de fecha: mostrar todas las intermedias del periodo */
+  if(intFilter==='pend_avisar')wParts.push(FI.avisado+'=false');
+  if(intFilter==='pend_terminar')wParts.push(FI.term+'=false');
   var w=wParts.length?wParts.join(' AND '):FI.id+"<>''";
 
   var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&where='+encodeURIComponent(w)+'&limit=500';
