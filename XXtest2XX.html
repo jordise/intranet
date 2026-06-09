@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v127 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v128 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v127 — 3Villas</title>
+  <title>Entradas Equipo v128 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -837,7 +837,7 @@ function toggleDark(){setDarkMode(!document.body.classList.contains('dark'));}
 let toggleMode='all',_searchId=0,fWelcomePack='all',fCierre='all',tipoFilter='both',intFilter='todas';
 let managersMap=new Map(),allUsersMap=new Map(),currentUserId='';
 let selectedManagers=new Set(),allManagersList=[];
-let contactsMap=new Map(),multiunitsMap=new Map();
+let contactsMap=new Map(),contactsPhoneMap=new Map(),multiunitsMap=new Map();
 const $=id=>document.getElementById(id);
 function todayStr(){var _t=new Date();return _t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');}
 function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T00:00:00');return isNaN(d)?s:d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});}
@@ -1076,7 +1076,7 @@ function closeManagerPanel(){const panel=$('managerPanel');if(panel)panel.style.
 document.addEventListener('click',e=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target))panel.style.display='none';});
 window.addEventListener('scroll',e=>{const panel=$('managerPanel');if(!panel||panel.style.display==='none')return;if(panel.contains(e.target))return;closeManagerPanel();},true);
 window.addEventListener('resize',()=>{const panel=$('managerPanel');const btn=$('fManagerBtn');if(panel&&panel.style.display!=='none'&&btn){const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';panel.style.width=rect.width+'px';}});
-async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null)contactsMap.set(String(r.ContactID),r.Name||'');if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
+async function loadContacts(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.contactsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{if(r.ContactID!=null){contactsMap.set(String(r.ContactID),r.Name||'');contactsPhoneMap.set(String(r.ContactID),r.Phone||'');}if(r.Name)contactsMap.set((r.Name+'').toLowerCase(),r.Name);});}catch(e){}}
 async function loadMultiunits(){try{const res=await fetch(Auth.url(`${CFG.workerUrl}?action=data&table=${CFG.multiunitsTable}&limit=500`));const json=await res.json();const rows=json.Result||json.result||[];rows.forEach(r=>{const id=String(r['multiunitID']||r['MultiunitID']||r['MultiUnitID']||'').trim();const key=String(r['Keybox']||r['keybox']||'').trim();const muName=String(r['descripcion']||r['Descripcion']||r['name']||r['Name']||id).trim();const muShort=String(r['descripcion_corta']||r['Descripcion_corta']||'').trim();if(id){multiunitsMap.set(id,key);multiunitsMap.set('name_'+id,muName);multiunitsMap.set('short_'+id,muShort);} /* v44 */});}catch(e){}}
 function getCleanerName(rawVal){if(!rawVal&&rawVal!==0)return'';const byId=contactsMap.get(String(rawVal));return byId||String(rawVal);}
 
@@ -1549,46 +1549,66 @@ function buildCard(r,type,intDate,intId){
   const _estProv=String(r[FI.estProv]||'').trim();
   const _estCliDesc=String(r[FI.estCliDesc]||'').trim()||_estCli;
   const _estProvDesc=String(r[FI.estProvDesc]||'').trim()||_estProv;
+  const _isCancelled=(_estCli==='No la quiere'&&_estProv==='Cancelado');
+  const _cleanerId=String(r[F.cleaner]||'').trim();
+  const _cleanerName=getCleanerName(_cleanerId);
+  const _cleanerPhone=_cleanerId?contactsPhoneMap.get(_cleanerId)||'':'';
+  const _villa=g(r,'villaName')||'';
+  const _intDateFmt=intDate?(function(d){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];})():'';
   if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
 
-  /* ── BOX 1: Equipo limpieza ── */
-  html+='<div class="int-box">'
-    +'<div class="int-box-title">🧹 Equipo limpieza</div>'
-    +'<div class="int-pills-row">'
-    +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+(_iid?'':' disabled')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
-    +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'" style="font-size:11px">Terminada</span>'
-    +'</div>'
-    +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:4px 12px 8px;border-top:1px solid var(--gray-2)">💬 '+_coment+'</div>':'')
-    +'</div>';
-
-  if(_iid){
-    /* ── BOX 2: Inquilino ── */
+  if(_isCancelled){
+    /* ── CANCELADA: mostrar todo en rojo ── */
+    html+='<div style="margin:8px 14px;padding:8px 12px;background:#fff0f0;border:1.5px solid var(--red);border-radius:10px;text-align:center">'
+      +'<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--red)">🚫 Intermedia cancelada</span>'
+      +'<div style="font-size:10px;color:var(--red);opacity:.7;margin-top:2px">Cliente: No la quiere · Proveedor: Cancelado</div>'
+      +'</div>';
+  } else {
+    /* ── BOX 1: Equipo limpieza ── */
     html+='<div class="int-box">'
-      +'<div class="int-box-title">👤 Inquilino — Estado cliente</div>'
-      +'<div class="int-pills-row" id="ecli-'+_iid+'">'
-      +(_estCliDesc?'<span class="int-ep on-cli">'+_estCliDesc+'</span>':'<span class="int-ep" style="color:var(--gray-3)">Sin estado</span>')
+      +'<div class="int-box-title">🧹 Equipo limpieza</div>'
+      +'<div class="int-pills-row">'
+      +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+(_iid?'':' disabled')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
+      +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'" style="font-size:11px">Terminada</span>'
       +'</div>'
-      +'<div style="padding:4px 10px 8px">'
-      +'<button style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 12px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
-      +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">📱 WA aviso</button>'
-      +'</div>'
+      +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:4px 12px 8px;border-top:1px solid var(--gray-2)">💬 '+_coment+'</div>':'')
       +'</div>';
 
-    /* ── BOX 3: Proveedor ── */
-    html+='<div class="int-box">'
-      +'<div class="int-box-title">🏠 Proveedor — Estado servicio</div>'
-      +'<div class="int-pills-row" id="eprov-'+_iid+'">'
-      +(_estProvDesc?'<span class="int-ep on-prov">'+_estProvDesc+'</span>':'<span class="int-ep" style="color:var(--gray-3)">Sin estado</span>')
-      +'</div>'
-      +'</div>';
+    if(_iid){
+      /* ── BOX 2: Inquilino ── */
+      html+='<div class="int-box">'
+        +'<div class="int-box-title">👤 Inquilino — Estado cliente</div>'
+        +'<div class="int-pills-row" id="ecli-'+_iid+'">'
+        +(_estCliDesc?'<span class="int-ep on-cli">'+_estCliDesc+'</span>':'<span class="int-ep" style="color:var(--gray-3)">Sin estado</span>')
+        +'</div>'
+        +'<div style="padding:4px 10px 8px">'
+        +'<button style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 12px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
+        +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">📱 WA aviso</button>'
+        +'</div>'
+        +'</div>';
 
-    /* Render interactive pills async */
-    requestAnimationFrame(function(){
-      ensureIntOpts().then(function(){
-        renderEstadoPills('ecli-'+_iid,_intCliOpts,_estCli,'Estado_cliente',_iid,'on-cli');
-        renderEstadoPills('eprov-'+_iid,_intProvOpts,_estProv,'Estado_proveedor',_iid,'on-prov');
+      /* ── BOX 3: Proveedor ── */
+      var _waProvMsg=encodeURIComponent('👋 ¡Hola! Muy buenas.\nLe confirmo que el próximo '+_intDateFmt+' tenemos programada la limpieza intermedia de '+_villa+'. 🧹✨\nRuego nos responda con un OK para confirmar que está todo controlado por su parte. ¡Muchas gracias! 🙏');
+      var _cleanerPhoneClean=_cleanerPhone.replace(/[^0-9+]/g,'');
+      html+='<div class="int-box">'
+        +'<div class="int-box-title">🏠 Proveedor — Estado servicio</div>'
+        +'<div class="int-pills-row" id="eprov-'+_iid+'">'
+        +(_estProvDesc?'<span class="int-ep on-prov">'+_estProvDesc+'</span>':'<span class="int-ep" style="color:var(--gray-3)">Sin estado</span>')
+        +'</div>'
+        +(_cleanerName||_cleanerPhone?'<div style="padding:4px 10px 8px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--gray-2)">'
+          +(_cleanerName?'<span style="font-size:11px;font-weight:700;color:var(--gray-5)">🧹 '+_cleanerName+'</span>':'')
+          +(_cleanerPhoneClean?'<a href="https://wa.me/'+_cleanerPhoneClean+'?text='+_waProvMsg+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer">📱 WA proveedor</a>':'')
+          +'</div>':'')
+        +'</div>';
+
+      /* Render interactive pills async */
+      requestAnimationFrame(function(){
+        ensureIntOpts().then(function(){
+          renderEstadoPills('ecli-'+_iid,_intCliOpts,_estCli,'Estado_cliente',_iid,'on-cli');
+          renderEstadoPills('eprov-'+_iid,_intProvOpts,_estProv,'Estado_proveedor',_iid,'on-prov');
+        });
       });
-    });
+    }
   }
   if(code)html+=`<button class="act-chip ac-na" style="margin:6px 14px" onclick="openIntModal('${code}')">🧹 Intermedias</button>`;
   }
@@ -1611,7 +1631,8 @@ function buildCard(r,type,intDate,intId){
     if(ecCom)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if(depNotes)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
   }
-  /* For intermedias: wrap dates in ver-más toggle */
+  /* Dates block: hidden for intermedias */
+  if(!isIntermedia){
   html+='<div class="c-body" style="padding-bottom:8px">';
   html+='<div class="dates-grid">';
   html+=`<div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>`;
@@ -1621,8 +1642,8 @@ function buildCard(r,type,intDate,intId){
   if(!isSalida){if(cht)html+=`<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${cht}</span></div></div>`;if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`;}
   if(isSalida){const cot=g(r,'checkoutTime');const dm=g(r,'departureMenorca');if(cot)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida villa</span><span class="ival">${cot}</span></div></div>`;else if(cht)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida</span><span class="ival">${cht}</span></div></div>`;if(dm)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${dm}</span></div></div>`;else if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;}
   html+='</div>';
-
   if(nl||ni){html+='<div class="c-notes-outer">';if(nl)html+=`<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;if(ni)html+=`<div class="note note-w"><div class="nl">📌 Notas Villamanager</div>${ni}</div>`;html+='</div>';}
+  }
   if(isIntermedia){
     const _intWid=intId?(_allRecs.find(function(x){return x.intId===intId;})||{})._wid||cardId:cardId;
     html+=`<div class="c-toggle" onclick="_openModal('${_intWid}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
