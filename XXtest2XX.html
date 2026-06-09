@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v116 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v117 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v116 — 3Villas</title>
+  <title>Entradas Equipo v117 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -493,6 +493,13 @@
     .iwa-footer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--gray-2)}
     .iwa-btn-wa{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#25D366;color:#fff;border:none;border-radius:10px;padding:12px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;cursor:pointer;text-decoration:none;transition:filter .15s}
     .iwa-btn-wa:hover{filter:brightness(.9)}
+
+    /* ── Estado pills en card intermedia ── */
+    .int-estado-row{display:flex;flex-wrap:wrap;gap:4px;padding:6px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1);align-items:center}
+    .int-ep{padding:3px 8px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;cursor:pointer;border:1.5px solid var(--gray-2);background:#fff;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .int-ep.on-cli{border-color:#1565c0;background:#e8f0fe;color:#1565c0}
+    .int-ep.on-prov{border-color:var(--green);background:#d4edda;color:var(--green)}
+    .int-ep-label{font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;text-transform:uppercase;color:var(--gray-4);letter-spacing:.4px;padding:0 2px}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -782,7 +789,7 @@ const F = {
   int7avisado:'TaBookings2021_Intermedia7_cliente_avisado',int8avisado:'TaBookings2021_Intermedia8_cliente_avisado',
 };
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-const FI={id:'Ta_limpiezas_intermedias_intermediaid',code:'Ta_limpiezas_intermedias_FS_confirmation_code',fecha:'Ta_limpiezas_intermedias_Fecha_intermedia',term:'Ta_limpiezas_intermedias_Teminada',avisado:'Ta_limpiezas_intermedias_Cliente_avisado',coment:'Ta_limpiezas_intermedias_Comentarios'};
+const FI={id:'Ta_limpiezas_intermedias_intermediaid',code:'Ta_limpiezas_intermedias_FS_confirmation_code',fecha:'Ta_limpiezas_intermedias_Fecha_intermedia',term:'Ta_limpiezas_intermedias_Teminada',avisado:'Ta_limpiezas_intermedias_Cliente_avisado',coment:'Ta_limpiezas_intermedias_Comentarios',estCli:'Ta_limpiezas_intermedias_Estado_cliente',estProv:'Ta_limpiezas_intermedias_Estado_proveedor',estCliDesc:'Ta_intermedias_estado_clientes_Estado_cliente_desc',estProvDesc:'Ta_intermedias_estado_proveedore_Estado_proveedor_desc'};
 
 // ════════════════ MODO NOCHE v70 ════════════════
 (function(){if(localStorage.getItem('3v_dark')==='1')document.body.classList.add('dark');})();
@@ -1522,18 +1529,34 @@ function buildCard(r,type,intDate,intId){
   const _phH=g(r,'guestPhone'),_phA=g(r,'phoneArrival'),_cu=g(r,'phoneCual'),_gn2=g(r,'fiscalName')||g(r,'guestName');
   html+=mkBadge('Limpieza Int.',g(r,'limpieza'),urlLimpieza,'',true);
   if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
+  const _estCli=String(r[FI.estCli]||'').trim();
+  const _estProv=String(r[FI.estProv]||'').trim();
+  const _estCliDesc=String(r[FI.estCliDesc]||'').trim()||_estCli;
+  const _estProvDesc=String(r[FI.estProvDesc]||'').trim()||_estProv;
   html+='<div class="c-status" style="border-top:1px solid var(--gray-2)">'
     +'<button style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 11px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
     +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
     +'</div>'
     +'<div class="int-toggle-row">'
-    +'<label class="int-tgl"><input type="checkbox" '+(_avVal===true?'checked':'')+' onchange="markIntAvisado(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
-    +'<span class="int-tgl-lbl '+(_avVal===true?'on':'')+'">Cliente avisado</span>'
-    +'<span style="flex:1"></span>'
     +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
     +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'">Terminada</span>'
     +'</div>'
+    +'<div class="int-estado-row" id="ecli-'+_iid+'">'
+    +'<span class="int-ep-label">👤 Cliente:</span>'
+    +'<span class="int-ep on-cli" style="cursor:default">'+(_estCliDesc||'Sin estado')+'</span>'
+    +'</div>'
+    +'<div class="int-estado-row" id="eprov-'+_iid+'">'
+    +'<span class="int-ep-label">🏠 Proveedor:</span>'
+    +'<span class="int-ep on-prov" style="cursor:default">'+(_estProvDesc||'Sin estado')+'</span>'
+    +'</div>'
     +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+_coment+'</div>':'');
+  /* Render pills async after DOM update */
+  requestAnimationFrame(function(){
+    ensureIntOpts().then(function(){
+      renderEstadoPills('ecli-'+_iid,_intCliOpts,_estCli,'Estado_cliente',_iid,'on-cli');
+      renderEstadoPills('eprov-'+_iid,_intProvOpts,_estProv,'Estado_proveedor',_iid,'on-prov');
+    });
+  });
   }
   else if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
   else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
@@ -1880,12 +1903,17 @@ function renderWeekly(){
           var _wkAv=isOk(r[FI.avisado]);var _wkTm=isOk(r[FI.term]);
           var _wkComent=String(r[FI.coment]||'').trim();
           var _wkPhH=g(r,'guestPhone'),_wkPhA=g(r,'phoneArrival'),_wkCu=g(r,'phoneCual'),_wkGn=g(r,'fiscalName')||g(r,'guestName');
+          var _wkSafe=function(s){return String(s||'').replace(/'/g,"\\'");};
           _wkIntX='<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">'
             +'<button style="background:#25D366;color:#fff;border:none;border-radius:5px;padding:3px 7px;font-size:9px;font-family:Montserrat,sans-serif;font-weight:800;cursor:pointer;width:100%"'
-            +' onclick="event.stopPropagation();openIntWAModal(\''+_wkIid+'\',\''+rec.intDate+'\',\''+_wkGn+'\',\''+_wkPhH+'\',\''+_wkPhA+'\',\''+_wkCu+'\')">WA aviso</button>'
+            +' onclick="event.stopPropagation();openIntWAModal(\''+_wkSafe(_wkIid)+'\',\''+_wkSafe(rec.intDate)+'\',\''+_wkSafe(_wkGn)+'\',\''+_wkSafe(_wkPhH)+'\',\''+_wkSafe(_wkPhA)+'\',\''+_wkSafe(_wkCu)+'\')">WA aviso</button>'
             +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkAv===true?'checked':'')+' onchange="markIntAvisado(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Avisado</label>'
             +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkTm===true?'checked':'')+' onchange="markIntTerminada(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Terminada</label>'
             +(_wkComent?'<div style="font-size:8px;color:var(--gray-4);margin-top:3px;font-style:italic">'+_wkComent+'</div>':'')
+            +'<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">'
+            +(r[FI.estCliDesc]?'<span style="font-size:7px;background:#e8f0fe;color:#1565c0;border-radius:8px;padding:1px 5px;font-weight:700">'+String(r[FI.estCliDesc]).trim()+'</span>':'')
+            +(r[FI.estProvDesc]?'<span style="font-size:7px;background:#d4edda;color:var(--green);border-radius:8px;padding:1px 5px;font-weight:700">'+String(r[FI.estProvDesc]).trim()+'</span>':'')
+            +'</div>'
             +'</div>';
         }
         card.innerHTML='<div class="wk-card-inner">'
@@ -1899,6 +1927,52 @@ function renderWeekly(){
       });
     }
     col.appendChild(wrap);wg.appendChild(col);
+  });
+}
+
+
+// ════════ ESTADOS INTERMEDIAS ════════
+var _intCliOpts=[];   // {id, desc}
+var _intProvOpts=[];  // {id, desc}
+var _intOptsLoaded=false;
+
+async function ensureIntOpts(){
+  if(_intOptsLoaded||(_intCliOpts.length&&_intProvOpts.length))return;
+  try{
+    var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&limit=200';
+    var res=await fetch(Auth.url(u));
+    var recs=(await res.json()).Result||[];
+    var sc=new Set(),sp=new Set();
+    recs.forEach(function(r){
+      var ci=String(r[FI.estCli]||'').trim(),cd=String(r[FI.estCliDesc]||'').trim();
+      var pi=String(r[FI.estProv]||'').trim(),pd=String(r[FI.estProvDesc]||'').trim();
+      if(ci&&cd&&!sc.has(ci)){sc.add(ci);_intCliOpts.push({id:ci,desc:cd});}
+      if(pi&&pd&&!sp.has(pi)){sp.add(pi);_intProvOpts.push({id:pi,desc:pd});}
+    });
+    _intOptsLoaded=true;
+  }catch(e){console.warn('[IntOpts]',e);}
+}
+
+function renderEstadoPills(containerId,opts,curVal,fieldKey,intId,cssOn){
+  var cont=document.getElementById(containerId);if(!cont)return;
+  cont.innerHTML='';
+  opts.forEach(function(o){
+    var btn=document.createElement('button');
+    btn.className='int-ep'+(curVal===o.id?' '+cssOn:'');
+    btn.textContent=o.desc||o.id;
+    btn.disabled=false;
+    (function(oid,btn2){
+      btn2.onclick=function(){
+        /* Guardar */
+        var body={};body[fieldKey]=oid;
+        fetch(Auth.url(WORKER+'?action=save&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+intId+"'")+'&method=PUT'),
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        /* Actualizar UI */
+        cont.querySelectorAll('.int-ep').forEach(function(b){b.classList.remove(cssOn);});
+        btn2.classList.add(cssOn);
+      };
+    })(o.id,btn);
+    cont.appendChild(btn);
   });
 }
 
@@ -2008,6 +2082,7 @@ function openIntModal(code){
   var msg=$('intMsg');if(msg)msg.textContent='';
   var nd=$('intNewDate');if(nd)nd.value='';
   var nc=$('intNewComent');if(nc)nc.value='';
+  ensureIntOpts();
   loadIntExisting(code);
   $('intModal').classList.add('open');document.body.style.overflow='hidden';
 }
@@ -2086,8 +2161,43 @@ async function loadIntExisting(code){
           }
         };
       })(iid,dtIn,taRow,cbAv,cbTm,spAv,spTm,editBtn);
-      row1.appendChild(dtIn);row1.appendChild(tAv);row1.appendChild(tTm);row1.appendChild(sp);row1.appendChild(editBtn);row1.appendChild(delBtn);
+      row1.appendChild(dtIn);row1.appendChild(sp);row1.appendChild(editBtn);row1.appendChild(delBtn);
+      /* Estado cliente pills */
+      var rowCli=document.createElement('div');
+      rowCli.style.cssText='display:flex;flex-wrap:wrap;gap:4px;align-items:center';
+      var lblCli=document.createElement('span');
+      lblCli.className='int-ep-label';lblCli.textContent='👤 Cliente:';
+      rowCli.appendChild(lblCli);
+      var estCliVal=String(r[FI.estCli]||'').trim();
+      _intCliOpts.forEach(function(o){
+        var b=document.createElement('button');b.className='int-ep'+(estCliVal===o.id?' on-cli':'');
+        b.textContent=o.desc||o.id;
+        (function(oid,b2,rv){b2.onclick=function(){
+          fetch(Auth.url(WORKER+'?action=save&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+iid+"'"+'&method=PUT')),
+            {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Estado_cliente:oid})});
+          rv.querySelectorAll('.int-ep').forEach(function(x){x.classList.remove('on-cli');});b2.classList.add('on-cli');
+        };})(o.id,b,rowCli);
+        rowCli.appendChild(b);
+      });
+      /* Estado proveedor pills */
+      var rowProv=document.createElement('div');
+      rowProv.style.cssText='display:flex;flex-wrap:wrap;gap:4px;align-items:center';
+      var lblProv=document.createElement('span');
+      lblProv.className='int-ep-label';lblProv.textContent='🏠 Proveedor:';
+      rowProv.appendChild(lblProv);
+      var estProvVal=String(r[FI.estProv]||'').trim();
+      _intProvOpts.forEach(function(o){
+        var b=document.createElement('button');b.className='int-ep'+(estProvVal===o.id?' on-prov':'');
+        b.textContent=o.desc||o.id;
+        (function(oid,b2,rv){b2.onclick=function(){
+          fetch(Auth.url(WORKER+'?action=save&table=Ta_limpiezas_intermedias&where='+encodeURIComponent("intermediaid='"+iid+"'"+'&method=PUT')),
+            {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Estado_proveedor:oid})});
+          rv.querySelectorAll('.int-ep').forEach(function(x){x.classList.remove('on-prov');});b2.classList.add('on-prov');
+        };})(o.id,b,rowProv);
+        rowProv.appendChild(b);
+      });
       block.appendChild(row1);block.appendChild(taRow);
+      block.appendChild(rowCli);block.appendChild(rowProv);
       cont.appendChild(block);
     });
   }catch(e){cont.innerHTML='<div style="color:var(--red);font-size:12px">Error cargando</div>';}
