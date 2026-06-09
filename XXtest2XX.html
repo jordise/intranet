@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v121 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v122 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v121 — 3Villas</title>
+  <title>Entradas Equipo v122 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1182,7 +1182,7 @@ function renderCards(records,_extVillaIds,_muVillaMap){
     const showEnt=tipoFilter==='both'||tipoFilter==='entrada';const showSal=tipoFilter==='both'||tipoFilter==='salida';
     if(isEntrada&&!skipWP&&!skipCI&&showEnt)rows.push({r,type:'entrada',sortDate:ciTs});
     if(isSalida&&!skipCI&&!skipCierre&&showSal)rows.push({r,type:'salida',sortDate:coTs});
-    if(!isEntrada&&!isSalida)rows.push({r,type:'entrada',sortDate:ciTs});        if(!isEntrada&&!isSalida)rows.push({r,type:'entrada',sortDate:ciTs});
+
   });
   rows.sort((a,b)=>{if(a.sortDate!==b.sortDate)return a.sortDate-b.sortDate;const aT=a.type==='entrada'?g(a.r,'checkinTime'):(g(a.r,'checkoutTime')||g(a.r,'checkinTime'));const bT=b.type==='entrada'?g(b.r,'checkinTime'):(g(b.r,'checkoutTime')||g(b.r,'checkinTime'));const aM=parseTimeMin(aT),bM=parseTimeMin(bT);if(aM!==bM)return aM-bM;return a.type==='entrada'?-1:1;});
   let entradas=0,salidas=0,paxT=0;
@@ -2060,11 +2060,15 @@ async function fetchIntermediasParaRango(){
   var hasta=($('fHasta')||{}).value||'';
   if(!desde)desde=todayStr();
   var _myId=_searchId;
-  var wParts=[FI.fecha+">='"+ desde +"T00:00:00'"];
-  if(hasta)wParts.push(FI.fecha+"<='"+ hasta +"T23:59:59'");
+  var wParts=[];
   if(intFilter==='pend_avisar')wParts.push(FI.avisado+'=false');
   if(intFilter==='pend_terminar')wParts.push(FI.term+'=false');
-  var w=wParts.join(' AND ');
+  /* Filtrar por rango de fechas de la vista principal */
+  if(desde)wParts.push(FI.fecha+">='"+ desde +"T00:00:00'");
+  if(hasta)wParts.push(FI.fecha+"<='"+ hasta +"T23:59:59'");
+  /* Sin filtro de fecha: mostrar todas las intermedias del periodo */
+  var w=wParts.length?wParts.join(' AND '):FI.id+"<>''";
+
   var u=CFG.workerUrl+'?action=view&view='+encodeURIComponent(CFG.intViewName)+'&where='+encodeURIComponent(w)+'&limit=500';
   try{
     var res=await fetch(Auth.url(u));
