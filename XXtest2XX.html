@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v117 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v118 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v117 — 3Villas</title>
+  <title>Entradas Equipo v118 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1523,40 +1523,44 @@ function buildCard(r,type,intDate,intId){
   html+='</div>';if(code)html+=`<div class="res-id">#${code}</div>`;html+='</div>';
   html+='<div class="c-status">';
   if(isIntermedia){
-  const _avVal=isOk(r[FI.avisado]);const _tmVal=isOk(r[FI.term]);
+  const _tmVal=isOk(r[FI.term]);
   const _iid=intId||String(r[FI.id]||'');
   const _coment=String(r[FI.coment]||'').trim();
-  const _phH=g(r,'guestPhone'),_phA=g(r,'phoneArrival'),_cu=g(r,'phoneCual'),_gn2=g(r,'fiscalName')||g(r,'guestName');
-  html+=mkBadge('Limpieza Int.',g(r,'limpieza'),urlLimpieza,'',true);
-  if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
+  const _phH=g(r,'guestPhone'),_phA=g(r,'phoneArrival'),_cu=g(r,'phoneCual'),_gn2=(g(r,'fiscalName')||g(r,'guestName')||'').replace(/'/g,"\'");
   const _estCli=String(r[FI.estCli]||'').trim();
   const _estProv=String(r[FI.estProv]||'').trim();
   const _estCliDesc=String(r[FI.estCliDesc]||'').trim()||_estCli;
   const _estProvDesc=String(r[FI.estProvDesc]||'').trim()||_estProv;
-  html+='<div class="c-status" style="border-top:1px solid var(--gray-2)">'
-    +'<button style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 11px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
-    +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
-    +'</div>'
-    +'<div class="int-toggle-row">'
-    +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
+  html+=mkBadge('Limpieza Int.',g(r,'limpieza'),urlLimpieza,'',true);
+  if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
+  if(_iid){
+    html+='<div class="c-status" style="border-top:1px solid var(--gray-2)">'
+      +'<button style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:4px 11px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer"'
+      +' onclick="openIntWAModal(\''+_iid+'\',\''+intDate+'\',\''+_gn2+'\',\''+_phH+'\',\''+_phA+'\',\''+_cu+'\')">WA aviso</button>'
+      +'</div>';
+  }
+  html+='<div class="int-toggle-row">'
+    +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+(_iid?'':' disabled')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
     +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'">Terminada</span>'
-    +'</div>'
-    +'<div class="int-estado-row" id="ecli-'+_iid+'">'
-    +'<span class="int-ep-label">👤 Cliente:</span>'
-    +'<span class="int-ep on-cli" style="cursor:default">'+(_estCliDesc||'Sin estado')+'</span>'
-    +'</div>'
-    +'<div class="int-estado-row" id="eprov-'+_iid+'">'
-    +'<span class="int-ep-label">🏠 Proveedor:</span>'
-    +'<span class="int-ep on-prov" style="cursor:default">'+(_estProvDesc||'Sin estado')+'</span>'
-    +'</div>'
-    +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+_coment+'</div>':'');
-  /* Render pills async after DOM update */
-  requestAnimationFrame(function(){
-    ensureIntOpts().then(function(){
-      renderEstadoPills('ecli-'+_iid,_intCliOpts,_estCli,'Estado_cliente',_iid,'on-cli');
-      renderEstadoPills('eprov-'+_iid,_intProvOpts,_estProv,'Estado_proveedor',_iid,'on-prov');
+    +'</div>';
+  if(_iid){
+    html+='<div class="int-estado-row" id="ecli-'+_iid+'">'
+      +'<span class="int-ep-label">👤 Cliente:</span>'
+      +(_estCliDesc?'<span class="int-ep on-cli" style="cursor:default">'+_estCliDesc+'</span>':'<span class="int-ep" style="cursor:default;color:var(--gray-3)">Sin estado</span>')
+      +'</div>'
+      +'<div class="int-estado-row" id="eprov-'+_iid+'">'
+      +'<span class="int-ep-label">🏠 Proveedor:</span>'
+      +(_estProvDesc?'<span class="int-ep on-prov" style="cursor:default">'+_estProvDesc+'</span>':'<span class="int-ep" style="cursor:default;color:var(--gray-3)">Sin estado</span>')
+      +'</div>';
+    /* Render interactive pills async */
+    requestAnimationFrame(function(){
+      ensureIntOpts().then(function(){
+        renderEstadoPills('ecli-'+_iid,_intCliOpts,_estCli,'Estado_cliente',_iid,'on-cli');
+        renderEstadoPills('eprov-'+_iid,_intProvOpts,_estProv,'Estado_proveedor',_iid,'on-prov');
+      });
     });
-  });
+  }
+  if(_coment)html+='<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+_coment+'</div>';
   }
   else if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
   else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
@@ -1900,14 +1904,13 @@ function renderWeekly(){
         var _wkIntX='';
         if(isInt2&&rec.intDate){
           var _wkIid=rec.intId||String(r[FI.id]||'');
-          var _wkAv=isOk(r[FI.avisado]);var _wkTm=isOk(r[FI.term]);
+          var _wkTm=isOk(r[FI.term]);
           var _wkComent=String(r[FI.coment]||'').trim();
           var _wkPhH=g(r,'guestPhone'),_wkPhA=g(r,'phoneArrival'),_wkCu=g(r,'phoneCual'),_wkGn=g(r,'fiscalName')||g(r,'guestName');
           var _wkSafe=function(s){return String(s||'').replace(/'/g,"\\'");};
           _wkIntX='<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">'
             +'<button style="background:#25D366;color:#fff;border:none;border-radius:5px;padding:3px 7px;font-size:9px;font-family:Montserrat,sans-serif;font-weight:800;cursor:pointer;width:100%"'
             +' onclick="event.stopPropagation();openIntWAModal(\''+_wkSafe(_wkIid)+'\',\''+_wkSafe(rec.intDate)+'\',\''+_wkSafe(_wkGn)+'\',\''+_wkSafe(_wkPhH)+'\',\''+_wkSafe(_wkPhA)+'\',\''+_wkSafe(_wkCu)+'\')">WA aviso</button>'
-            +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkAv===true?'checked':'')+' onchange="markIntAvisado(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Avisado</label>'
             +'<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:8px;color:var(--gray-4)" onclick="event.stopPropagation()"><input type="checkbox" '+(_wkTm===true?'checked':'')+' onchange="markIntTerminada(\''+_wkIid+'\',this.checked)" style="accent-color:var(--green)"> Terminada</label>'
             +(_wkComent?'<div style="font-size:8px;color:var(--gray-4);margin-top:3px;font-style:italic">'+_wkComent+'</div>':'')
             +'<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">'
