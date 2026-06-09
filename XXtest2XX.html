@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v126 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v127 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v126 — 3Villas</title>
+  <title>Entradas Equipo v127 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1558,6 +1558,7 @@ function buildCard(r,type,intDate,intId){
     +'<label class="int-tgl"><input type="checkbox" '+(_tmVal===true?'checked':'')+(_iid?'':' disabled')+' onchange="markIntTerminada(\''+_iid+'\',this.checked)"><span class="int-tgl-slider"></span></label>'
     +'<span class="int-tgl-lbl '+(_tmVal===true?'on':'')+'" style="font-size:11px">Terminada</span>'
     +'</div>'
+    +(_coment?'<div style="font-size:11px;color:var(--gray-4);padding:4px 12px 8px;border-top:1px solid var(--gray-2)">💬 '+_coment+'</div>':'')
     +'</div>';
 
   if(_iid){
@@ -1589,7 +1590,7 @@ function buildCard(r,type,intDate,intId){
       });
     });
   }
-  if(_coment)html+='<div style="font-size:11px;color:var(--gray-4);padding:5px 14px;border-top:1px solid var(--gray-2);background:var(--gray-1)">💬 '+_coment+'</div>';
+  if(code)html+=`<button class="act-chip ac-na" style="margin:6px 14px" onclick="openIntModal('${code}')">🧹 Intermedias</button>`;
   }
   else if(!isSalida){html+=mkBadge('Limpieza',g(r,'limpieza'),urlLimpieza,'',true);html+=mkBadge('WelcomePack',g(r,'wellcomePack'),urlWP,'',true);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
   else{html+=mkBadge('Cierre',g(r,'cierre'),urlCierre);if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">🔑 ${kbCode}</span>`;}
@@ -1600,19 +1601,17 @@ function buildCard(r,type,intDate,intId){
     const ecCls=ecOk===null?'b-na':ecOk?'b-ok':'b-no';const ecIco=ecOk===null?'·':ecOk?'✓':'✗';
     const ecEURfmt=ecEUR?parseFloat(ecEUR).toFixed(2)+' €':'';
     const ecExtra=`${ecEURfmt?' — <strong>'+ecEURfmt+'</strong>':''}<a href="${urlEcFix}" onclick="return popup('${urlEcFix}')" style="background:#1967d2;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;text-decoration:none;margin-left:4px">✎</a>`;
-    html+='<div class="c-status" style="border-top:1px solid var(--gray-2);flex-wrap:wrap">';
-    html+=mkBadge('Arrival form',g(r,'arrivalFormDone'),`${urlNER}&ci=arrival`);
-    html+=`<a class="bdg ${ecCls}" href="${urlNER}&ci=ecotasa" onclick="return popup('${urlNER}&ci=ecotasa')" style="gap:3px;text-decoration:none;cursor:pointer">${ecIco} Ecotasa${ecExtra}</a>`;
-    html+=mkBadge('Policía',g(r,'policeDone'),`${urlNER}&ci=policia`);html+=mkBadge('Depósito',g(r,'depositDone'),`${urlNER}&ci=deposito`);
-    html+='</div>';
+    if(!isIntermedia){
+      html+='<div class="c-status" style="border-top:1px solid var(--gray-2);flex-wrap:wrap">';
+      html+=mkBadge('Arrival form',g(r,'arrivalFormDone'),`${urlNER}&ci=arrival`);
+      html+=`<a class="bdg ${ecCls}" href="${urlNER}&ci=ecotasa" onclick="return popup('${urlNER}&ci=ecotasa')" style="gap:3px;text-decoration:none;cursor:pointer">${ecIco} Ecotasa${ecExtra}</a>`;
+      html+=mkBadge('Policía',g(r,'policeDone'),`${urlNER}&ci=policia`);html+=mkBadge('Depósito',g(r,'depositDone'),`${urlNER}&ci=deposito`);
+      html+='</div>';
+    }
     if(ecCom)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Ecotasa: ${ecCom}</div>`;
     if(depNotes)html+=`<div style="font-size:11px;color:var(--gray-4);padding:3px 14px;border-top:1px solid var(--gray-2)">💬 Depósito: ${depNotes}</div>`;
   }
   /* For intermedias: wrap dates in ver-más toggle */
-  if(isIntermedia){
-    html+=`<div class="c-toggle" data-toggle="${cardId}-dates" onclick="toggleCardBody('${cardId}-dates')"><span class="c-toggle-label">Ver detalles reserva</span><span class="c-toggle-arr">▾</span></div>`;
-    html+=`<div class="c-body-wrap" id="${cardId}-dates" style="display:none">`;
-  }
   html+='<div class="c-body" style="padding-bottom:8px">';
   html+='<div class="dates-grid">';
   html+=`<div class="date-box"><span class="lbl">Entrada</span><span class="val">${fmtDate(ci)}</span></div>`;
@@ -1622,9 +1621,13 @@ function buildCard(r,type,intDate,intId){
   if(!isSalida){if(cht)html+=`<div class="irow"><span class="iico">🕐</span><div><span class="ilbl">Hora entrada</span><span class="ival">${cht}</span></div></div>`;if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Llegan a Menorca</span><span class="ival">${am}</span></div></div>`;}
   if(isSalida){const cot=g(r,'checkoutTime');const dm=g(r,'departureMenorca');if(cot)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida villa</span><span class="ival">${cot}</span></div></div>`;else if(cht)html+=`<div class="irow"><span class="iico">🕙</span><div><span class="ilbl">Hora salida</span><span class="ival">${cht}</span></div></div>`;if(dm)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${dm}</span></div></div>`;else if(am)html+=`<div class="irow"><span class="iico">✈️</span><div><span class="ilbl">Sale de Menorca</span><span class="ival">${am}</span></div></div>`;}
   html+='</div>';
-  if(isIntermedia){html+='</div>';} /* close c-body-wrap */
+
   if(nl||ni){html+='<div class="c-notes-outer">';if(nl)html+=`<div class="note"><div class="nl">📝 Notas limpieza</div>${nl}</div>`;if(ni)html+=`<div class="note note-w"><div class="nl">📌 Notas Villamanager</div>${ni}</div>`;html+='</div>';}
-  html+=`<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
+  if(isIntermedia){
+    const _intWid=intId?(_allRecs.find(function(x){return x.intId===intId;})||{})._wid||cardId:cardId;
+    html+=`<div class="c-toggle" onclick="_openModal('${_intWid}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;
+  }
+  else{html+=`<div class="c-toggle" data-toggle="${cardId}" onclick="toggleCardBody('${cardId}')"><span class="c-toggle-label">Ver detalles</span><span class="c-toggle-arr">▾</span></div>`;}
   html+=`<div class="c-body-wrap" id="${cardId}">`;
   if(cleanerName||vmName){
     html+='<div class="c-staff">';
