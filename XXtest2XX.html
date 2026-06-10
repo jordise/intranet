@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v134 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v135 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v134 — 3Villas</title>
+  <title>Entradas Equipo v135 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -185,7 +185,7 @@
     #dbBox.open{display:block}
 
     /* v31 ── guest popup ── */
-    #guestModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9100;align-items:flex-start;justify-content:center;padding:18px 12px;overflow-y:auto}
+    #guestModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9100;align-items:center;justify-content:center;padding:18px 12px;overflow-y:auto}
     #guestModal.open{display:flex}
     .gm-box{max-width:420px;width:100%;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.22);margin:auto}
     .gm-head{background:#1565c0;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
@@ -447,7 +447,7 @@
     @keyframes spin-3v { to { transform: rotate(360deg); } }
 
     /* ── Popup intermedias ── */
-    #intModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9200;align-items:flex-start;justify-content:center;padding:18px 12px;overflow-y:auto}
+    #intModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9200;align-items:center;justify-content:center;padding:18px 12px;overflow-y:auto}
     #intModal.open{display:flex}
     .int-box{max-width:440px;width:100%;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.22);margin:auto}
     .int-head{background:#fbbf24;color:#78350f;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
@@ -476,7 +476,7 @@
     .int-tgl-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s}
     .int-tgl input:checked+.int-tgl-slider:before{transform:translateX(16px)}
     .int-tgl-lbl{color:var(--gray-4)}.int-tgl-lbl.on{color:var(--green)}
-    #intWAModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9300;align-items:flex-start;justify-content:center;padding:18px 12px;overflow-y:auto}
+    #intWAModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9300;align-items:center;justify-content:center;padding:18px 12px;overflow-y:auto}
     #intWAModal.open{display:flex}
     .iwa-box{max-width:460px;width:100%;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.22);margin:auto}
     .iwa-head{background:#25D366;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
@@ -509,6 +509,12 @@
     .int-ep.on-cli{border-color:#1565c0;background:#e8f0fe;color:#1565c0}
     .int-ep.on-prov{border-color:var(--green);background:#d4edda;color:var(--green)}
     .int-ep-label{font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;text-transform:uppercase;color:var(--gray-4);letter-spacing:.4px}
+
+    /* ── Draggable modals v135 ── */
+    .modal-draggable{position:fixed!important;cursor:default}
+    .drag-handle{cursor:grab!important;user-select:none}
+    .drag-handle:active{cursor:grabbing!important}
+
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -993,6 +999,11 @@ window.addEventListener('DOMContentLoaded',async()=>{
       }
     }
     setToggle(toggleMode);setTipoFilter(tipoFilter);
+  /* v135: make all modals draggable */
+  makeDraggable('wkModal','.wk-modal-close,.c-head,.iwa-head,.gm-head,.int-head');
+  makeDraggable('intWAModal','.iwa-head');
+  makeDraggable('intModal','.int-head');
+  makeDraggable('guestModal','.gm-head');
     setWPFilter(fWelcomePack);setCierreFilter(fCierre);
     clearTimeout(_searchTimer);doSearch();
   }catch(err){$('dbBox').textContent='INIT ERROR: '+err.message;console.error(err);}
@@ -1133,6 +1144,7 @@ let _searchTimer=null;
 function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
 async function doSearch(){
   const mySearchId=++_searchId;updateSub();renderChips();
+  _closeModal();/* v135: cerrar modal antes de re-render */
   try{const state={managers:[...selectedManagers],desde:($('fDesde')||{}).value||'',hasta:($('fHasta')||{}).value||'',codigo:($('fCodigo')||{}).value||'',villa:($('fVilla')||{}).value||'',inquilino:($('fInquilino')||{}).value||'',toggle:toggleMode,wpFilter:fWelcomePack,tipoFilter};localStorage.setItem('3v_eys_filters',JSON.stringify(state));saveToURL();}catch(e){}
   if($('grid')){$('grid').style.display='none';$('grid').innerHTML='';}
   if($('listView')){$('listView').style.display='none';$('listView').innerHTML='';}
@@ -1459,7 +1471,7 @@ function openGuestModal(data){
       +cell(row.af,'Arrival','af')
       +'</div>';
   }).join('');
-  $('guestModal').classList.add('open');
+  resetModalPosition('guestModal');$('guestModal').classList.add('open');
   document.body.style.overflow='hidden';
 }
 function closeGuestModal(){
@@ -1869,7 +1881,7 @@ function _openModal(id){
   var closeBtn=document.createElement('button');
   closeBtn.className='wk-modal-close';closeBtn.textContent='\u2715';closeBtn.onclick=_closeModal;
   mi.appendChild(closeBtn);mi.appendChild(buildCard(rec.r,rec.type,rec.intDate||'',rec.intId||''));
-  $('wkModal').classList.add('open');document.body.style.overflow='hidden';
+  resetModalPosition('wkModal');$('wkModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function _closeModal(){$('wkModal').classList.remove('open');document.body.style.overflow='';}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')_closeModal();});
@@ -2064,7 +2076,7 @@ function openIntWAModal(intId,intDate,guestName,phHost,phArr,cual){
   document.getElementById('iwaCualHost').classList.toggle('on',!_iwaUseArr);
   document.getElementById('iwaCualArr').classList.toggle('on',_iwaUseArr);
   _refreshIwaPrev();
-  document.getElementById('intWAModal').classList.add('open');document.body.style.overflow='hidden';
+  resetModalPosition('intWAModal');document.getElementById('intWAModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closeIntWAModal(){document.getElementById('intWAModal').classList.remove('open');document.body.style.overflow='';}
 function setIwaCual(v){_iwaUseArr=(v==='arr');document.getElementById('iwaCualHost').classList.toggle('on',!_iwaUseArr);document.getElementById('iwaCualArr').classList.toggle('on',_iwaUseArr);_refreshIwaPrev();}
@@ -2138,6 +2150,78 @@ async function fetchIntermediasParaRango(){
 }
 
 
+
+// ════════════════ DRAGGABLE MODALS v135 ════════════════
+function makeDraggable(modalId, handleSelector){
+  var modal=document.getElementById(modalId);
+  if(!modal)return;
+  var handle=modal.querySelector(handleSelector);
+  if(!handle)return;
+  handle.classList.add('drag-handle');
+  var isDragging=false,startX=0,startY=0,origLeft=0,origTop=0;
+  /* For wkModal, the draggable box is wkModalInner which contains the card */
+  var inner=modalId==='wkModal'?(modal.querySelector('#wkModalInner')||modal.firstElementChild):modal.firstElementChild;
+
+  function onStart(cx,cy){
+    isDragging=true;
+    startX=cx;startY=cy;
+    var r=inner.getBoundingClientRect();
+    origLeft=r.left;origTop=r.top;
+    inner.style.position='fixed';
+    inner.style.margin='0';
+    inner.style.left=origLeft+'px';
+    inner.style.top=origTop+'px';
+    /* disable overlay centering while dragging */
+    modal.style.alignItems='flex-start';
+    modal.style.justifyContent='flex-start';
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onEnd);
+    document.addEventListener('touchmove',onTouchMove,{passive:false});
+    document.addEventListener('touchend',onEnd);
+  }
+  function onMove(e){
+    if(!isDragging)return;
+    var dx=e.clientX-startX,dy=e.clientY-startY;
+    var newL=Math.max(0,Math.min(origLeft+dx,window.innerWidth-inner.offsetWidth));
+    var newT=Math.max(0,Math.min(origTop+dy,window.innerHeight-inner.offsetHeight));
+    inner.style.left=newL+'px';
+    inner.style.top=newT+'px';
+  }
+  function onTouchMove(e){
+    if(!isDragging)return;
+    e.preventDefault();
+    var t=e.touches[0];
+    onMove({clientX:t.clientX,clientY:t.clientY});
+  }
+  function onEnd(){
+    isDragging=false;
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+    document.removeEventListener('touchmove',onTouchMove);
+    document.removeEventListener('touchend',onEnd);
+  }
+  handle.addEventListener('mousedown',function(e){
+    e.preventDefault();onStart(e.clientX,e.clientY);
+  });
+  handle.addEventListener('touchstart',function(e){
+    var t=e.touches[0];onStart(t.clientX,t.clientY);
+  },{passive:true});
+}
+
+function resetModalPosition(modalId){
+  /* Reset position when modal opens so it re-centers */
+  var modal=document.getElementById(modalId);
+  if(!modal)return;
+  var inner=modal.firstElementChild;
+  if(!inner)return;
+  inner.style.position='';
+  inner.style.left='';
+  inner.style.top='';
+  inner.style.margin='';
+  modal.style.alignItems='';
+  modal.style.justifyContent='';
+}
+
 // ════════════════ POPUP INTERMEDIAS ════════════════
 var _intModalCode='';
 function openIntModal(code){
@@ -2147,7 +2231,7 @@ function openIntModal(code){
   var nc=$('intNewComent');if(nc)nc.value='';
   ensureIntOpts();
   loadIntExisting(code);
-  $('intModal').classList.add('open');document.body.style.overflow='hidden';
+  resetModalPosition('intModal');$('intModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closeIntModal(){$('intModal').classList.remove('open');document.body.style.overflow='';}
 
@@ -2329,4 +2413,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('intModal
 
 </body>
 </html>
-<!-- HISTORIAL: v134 - Modal centrado (align-items:center); weekly int card simplificada (solo badges, click abre _openModal); Ver detalles int fichas solo muestra si _intWid encontrado | v133 - Fix: restaurado div#wkModal+wkModalInner+cierre HTML | v132 - Fix: IIFE _intDateFmt sin argumento; eliminados logs debug | v131 - Debug buildCard try-catch | v130 - Guard FI.fecha undefined | v129 - Debug logs fetch | v128 - Int card: box rojo cancelada; WA proveedor; fechas ocultas en int | v127 - 3 boxes int card; Ver detalles abre _openModal; coment en limpieza | v106 - versión base -->
+<!-- HISTORIAL: v135 - Fix popup sin click (doSearch cierra modal); todos los modals centrados y arrastrables por cabecera; Ver detalles int fichas fix | v134 - Modal centrado (align-items:center); weekly int card simplificada (solo badges, click abre _openModal); Ver detalles int fichas solo muestra si _intWid encontrado | v133 - Fix: restaurado div#wkModal+wkModalInner+cierre HTML | v132 - Fix: IIFE _intDateFmt sin argumento; eliminados logs debug | v131 - Debug buildCard try-catch | v130 - Guard FI.fecha undefined | v129 - Debug logs fetch | v128 - Int card: box rojo cancelada; WA proveedor; fechas ocultas en int | v127 - 3 boxes int card; Ver detalles abre _openModal; coment en limpieza | v106 - versión base -->
