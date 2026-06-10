@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v143 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v144 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v143 — 3Villas</title>
+  <title>Entradas Equipo v144 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1286,70 +1286,55 @@ function sortByPriority(arr){
 /* v29: limpiar mapa completo antes de cada búsqueda nueva */
 function resetVillaPendingMap(){Object.keys(villaPendingMap).forEach(k=>delete villaPendingMap[k]);}
 async function loadVillaPendingTasks(villaIds,muVillaMap){
-  /* v143: UNA SOLA llamada a Vi_TaTasks_villas_user_mu en lugar de N llamadas paralelas */
   if(!villaIds||!villaIds.length)return;
   const unique=[...new Set(villaIds.map(id=>parseInt(id)||0).filter(id=>id>0))];
   if(!unique.length)return;
   const toLoad=unique.length>200?unique.slice(0,200):unique;
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
-
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
 
-  /* Construir WHERE: TaTasks_villaid IN (...) + muIds si los hay */
-  const villaWhere='TaTasks_villaid IN ('+toLoad.join(',')+')';
-  const muIds=Object.keys(muVillaMap||{});
-  const muWhere=muIds.length?` OR TaTasks_PMSmultiunitID IN ('${muIds.join("','")}')`:''
-  const where=villaWhere+muWhere;
-
-  try{
-    const url=Auth.url(WORKER+'?action=view&view=Vi_TaTasks_villas_user_mu&where='+encodeURIComponent(where)+'&limit=1000');
-    const res=await fetch(url);
-    const json=await res.json();
-    const tasks=json.Result||json.result||[];
-
-    for(const t of tasks){
-      /* Saltar terminadas y tipo 20 */
-      if(isDoneCheck(t.TaTasks_Tarea_terminada)||Number(t.TaTasks_Tasktype)===20)continue;
-
-      const vid=String(parseInt(t.TaTasks_villaid)||0);
-      const muId=String(t.TaTasks_PMSmultiunitID||'').trim();
-
-      /* Determinar clave del mapa: por villaid o por muVillaMap */
-      let key=villaPendingMap[vid]!==undefined?vid:null;
-      if(!key&&muId&&muVillaMap&&muVillaMap[muId]){
-        key=String(muVillaMap[muId]);
-        if(!villaPendingMap[key])villaPendingMap[key]=[];
+  /* v36: una llamada por villa en PARALELO — Caspio no soporta IN/OR multi-villa */
+  await Promise.allSettled(toLoad.map(async function(vid){
+    try{
+      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent('villaid='+vid)+'&limit=500');
+      const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+      for(const t of tasks){
+        const key=String(parseInt(t.villaid)||0);
+        if(villaPendingMap[key]===undefined)continue;
+        if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
+          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),/* v35 FIX (restaura v31): String() → dedup === con 2ª query funciona */reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
+        }
       }
-      if(!key)continue;
-
-      /* Deduplicar por taskid */
-      const tid=String(t.TaTasks_taskid||'');
-      if(tid&&villaPendingMap[key].some(x=>x.taskid===tid))continue;
-
-      villaPendingMap[key].push({
-        type:t.TaTasks_Tasktype_booking,
-        name:t.TaTasks_Taskname||'',
-        taskid:tid,
-        reserva:t.TaTasks_Idreserva||'',
-        assignedId:String(t.TaTasks_UserID_asigned_alfanum||''),
-        dueDate:t.TaTasks_Data_to_be_done_fixed||'',
-        muId:muId,
-        urgente:t.TaTasks_urgente||'',
-        importante:t.TaTasks_importante||''
-      });
-    }
-
-    /* debug */
-    const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
-    const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
-    const prev=$('dbBox').textContent||'';
-    $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (1 llamada)';
-
-  }catch(e){
-    console.warn('[VillaTasks]',e.message);
-    const prev=$('dbBox').textContent||'';
-    $('dbBox').textContent=prev+'\n\nTareas villa: ERROR '+e.message;
+    }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
+  }));
+  /* v42: TAMBIÉN query por PMSmultiunitID para tareas sin villaid */
+  const muIds=Object.keys(muVillaMap||{});
+  if(muIds.length){
+    await Promise.allSettled(muIds.map(async function(muId){
+      try{
+        const vid=String(muVillaMap[muId]||'0');
+        if(!villaPendingMap[vid]){villaPendingMap[vid]=[];}
+        const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent("PMSmultiunitID='"+muId+"'")+'&limit=500');
+        const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+        for(const t of tasks){
+          const isDone=isDoneCheck(t.Tarea_terminada);
+          if(isDone||Number(t.Tasktype)===20)continue;
+          /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
+          const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
+          if(!exists){
+            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')}); /* v49 */
+          }
+        }
+        console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
+      }catch(e){console.warn('[VillaTasks] muId '+muId+':',e.message);}
+    }));
   }
+
+  /* debug */
+  const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
+  const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
+  const prev=$('dbBox').textContent||'';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (parallel)';
 }
 
 function updateVillaTasksInDOM(){
@@ -1569,7 +1554,10 @@ function buildCard(r,type,intDate,intId){
   const _bookingComments=(r['TaBookings2021_BookingComments']      ||'').toString().trim();
   const st=g(r,'status');
   const code=g(r,'confirmCode'),villaId=r['TaVillas_villaid']||'';
-  const _vlBase=g(r,'villaName')||g(r,'reservationId')||'Villa sin nombre';
+  const _code=g(r,'confirmCode')||r[FI.code]||'';
+  /* Para intermedias: buscar nombre villa en el registro principal de _allRecs */
+  const _mainRec=_code?_allRecs.find(function(x){return x.type!=='intermedia'&&g(x.r,'confirmCode')===_code;}):null;
+  const _vlBase=g(r,'villaName')||(_mainRec?g(_mainRec.r,'villaName'):'')||g(r,'reservationId')||'Villa sin nombre';
   const vl=_muData.names?_vlBase+' / '+_muData.names:_vlBase;
   const portal=g(r,'portalName');
   const ph=g(r,'guestPhone'),em=g(r,'guestEmail'),ph2=g(r,'phoneArrival');
@@ -1657,7 +1645,9 @@ function buildCard(r,type,intDate,intId){
   const _cleanerId=String(r[F.cleaner]||'').trim();
   const _cleanerName=getCleanerName(_cleanerId);
   const _cleanerPhone=_cleanerId?contactsPhoneMap.get(_cleanerId)||'':'';
-  const _villa=g(r,'villaName')||'';
+  const _code2=g(r,'confirmCode')||r[FI.code]||'';
+  const _mainRec2=_code2?_allRecs.find(function(x){return x.type!=='intermedia'&&g(x.r,'confirmCode')===_code2;}):null;
+  const _villa=g(r,'villaName')||(_mainRec2?g(_mainRec2.r,'villaName'):'')||'';
   const _intDateFmt=intDate?(function(d){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];})(intDate):'';
   if(kbCode)html+=`<span class="bdg b-na" style="font-size:12px;font-weight:900;letter-spacing:.5px">\U0001f511 ${kbCode}</span>`;
 
@@ -2512,4 +2502,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('intModal
 
 </body>
 </html>
-<!-- HISTORIAL: v143 - Optimización velocidad: loadVillaPendingTasks usa Vi_TaTasks_villas_user_mu (1 llamada) en lugar de N llamadas paralelas por villa | v142 - Nuevo tipo aviso en intermedias: ficha estilo primer contacto con toggle Terminada y botón WA | v141 - Fix crítico: &method=PUT/DELETE estaba dentro de encodeURIComponent → Caspio hacía INSERT en lugar de UPDATE | v140 - Modals: align-items:flex-start + margin:auto en inner box; cabecera siempre visible aunque modal sea largo | v139 - Fix: </div> sin > antes de wkModal rompía getElementById; eliminados logs debug | v138 - Debug logs para diagnosticar popup sin click y _intWid en fichas | v137 - Fix: _closeModal con guard null; en try aislado; makeDraggable wkModal en _openModal; estáticos en DOMContentLoaded | v136 - Fix: makeDraggable estaba fuera del try de DOMContentLoaded rompiendo doSearch | v135 - Fix popup sin click (doSearch cierra modal); todos los modals centrados y arrastrables por cabecera; Ver detalles int fichas fix | v134 - Modal centrado (align-items:center); weekly int card simplificada (solo badges, click abre _openModal); Ver detalles int fichas solo muestra si _intWid encontrado | v133 - Fix: restaurado div#wkModal+wkModalInner+cierre HTML | v132 - Fix: IIFE _intDateFmt sin argumento; eliminados logs debug | v131 - Debug buildCard try-catch | v130 - Guard FI.fecha undefined | v129 - Debug logs fetch | v128 - Int card: box rojo cancelada; WA proveedor; fechas ocultas en int | v127 - 3 boxes int card; Ver detalles abre _openModal; coment en limpieza | v106 - versión base -->
+<!-- HISTORIAL: v144 - Bump de versión | v143 - Fix: nombre villa en fichas intermedias buscando en _allRecs por confirmCode | v142 - Nuevo tipo aviso en intermedias: ficha estilo primer contacto con toggle Terminada y botón WA | v141 - Fix crítico: &method=PUT/DELETE estaba dentro de encodeURIComponent → Caspio hacía INSERT en lugar de UPDATE | v140 - Modals: align-items:flex-start + margin:auto en inner box; cabecera siempre visible aunque modal sea largo | v139 - Fix: </div> sin > antes de wkModal rompía getElementById; eliminados logs debug | v138 - Debug logs para diagnosticar popup sin click y _intWid en fichas | v137 - Fix: _closeModal con guard null; en try aislado; makeDraggable wkModal en _openModal; estáticos en DOMContentLoaded | v136 - Fix: makeDraggable estaba fuera del try de DOMContentLoaded rompiendo doSearch | v135 - Fix popup sin click (doSearch cierra modal); todos los modals centrados y arrastrables por cabecera; Ver detalles int fichas fix | v134 - Modal centrado (align-items:center); weekly int card simplificada (solo badges, click abre _openModal); Ver detalles int fichas solo muestra si _intWid encontrado | v133 - Fix: restaurado div#wkModal+wkModalInner+cierre HTML | v132 - Fix: IIFE _intDateFmt sin argumento; eliminados logs debug | v131 - Debug buildCard try-catch | v130 - Guard FI.fecha undefined | v129 - Debug logs fetch | v128 - Int card: box rojo cancelada; WA proveedor; fechas ocultas en int | v127 - 3 boxes int card; Ver detalles abre _openModal; coment en limpieza | v106 - versión base -->
