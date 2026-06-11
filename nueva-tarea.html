@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+<!-- VERSIÓN ACTUAL: v39 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +21,7 @@
       });
     }
   </script>
-  <title>Nueva Tarea v37 — 3Villas</title>
+  <title>Nueva Tarea v39 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);--shadow-lg:0 8px 28px rgba(0,0,0,.18);--r:12px}
@@ -146,6 +147,12 @@
 
     
     /* ── Menú lateral — diseño oscuro nav-component ── */
+
+    /* ── Lightbox fotos ── */
+    #lbOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center}
+    #lbOverlay.open{display:flex}
+    #lbOverlay img{max-width:96vw;max-height:86vh;border-radius:10px;display:block}
+    #lbClose{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000;font-family:Montserrat,sans-serif;line-height:1}
   </style>
   <script src="auth.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
@@ -511,10 +518,54 @@
   function initMic(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;var rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=false;var activeBtn=null,activeField=null,isRec=false;function startRec(btn,field){if(isRec){rec.stop();return;}activeBtn=btn;activeField=field;isRec=true;btn.classList.add('recording');try{rec.start();}catch(e){stopRec();}}function stopRec(){isRec=false;if(activeBtn)activeBtn.classList.remove('recording');activeBtn=null;activeField=null;}rec.onresult=function(e){var t=e.results[0][0].transcript;if(activeField)activeField.value=(activeField.value?activeField.value+' ':'')+t;};rec.onend=stopRec;rec.onerror=function(){stopRec();toast('Error de micrófono','err');};['micNombre','micDesc'].forEach(function(id){var btn=g(id),field=id==='micNombre'?g('fNombre'):g('fDesc');btn.classList.remove('hidden');btn.addEventListener('click',function(){startRec(btn,field);});});}
   function buildGrid(){var grid=g('photosGrid');grid.innerHTML='';for(var i=0;i<MAX_PHOT;i++)grid.appendChild(makeSlot(i));}
   function makeSlot(idx){var slot=document.createElement('div');slot.className='photo-slot empty';slot.id='slot_'+idx;var inpCam=document.createElement('input');inpCam.type='file';inpCam.accept='image/*';inpCam.setAttribute('capture','environment');inpCam.style.display='none';var inpFile=document.createElement('input');inpFile.type='file';inpFile.accept='image/*';inpFile.style.display='none';inpCam.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});inpFile.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])setPhoto(idx,e.target.files[0]);});slot.appendChild(inpCam);slot.appendChild(inpFile);var numLbl=document.createElement('span');numLbl.className='ps-num';numLbl.textContent=''+(idx+1);var btnsDiv=document.createElement('div');btnsDiv.className='ps-btns';var btnCam=document.createElement('button');btnCam.type='button';btnCam.className='ps-btn';btnCam.textContent='📷';btnCam.title='Hacer foto';var btnFile=document.createElement('button');btnFile.type='button';btnFile.className='ps-btn';btnFile.textContent='📂';btnFile.title='Subir archivo';btnCam.addEventListener('click',function(e){e.stopPropagation();inpCam.value='';inpCam.click();});btnFile.addEventListener('click',function(e){e.stopPropagation();inpFile.value='';inpFile.click();});btnsDiv.appendChild(btnCam);btnsDiv.appendChild(btnFile);slot.appendChild(numLbl);slot.appendChild(btnsDiv);slot.insertAdjacentHTML('beforeend','<div class="up-ov"><div class="up-spin"></div></div><button class="del-btn" type="button">✕</button>');slot.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();clearPhoto(idx);});return slot;}
-  function setPhoto(idx,file){photos[idx].file=file;var slot=g('slot_'+idx),reader=new FileReader();reader.onload=function(e){var old=slot.querySelector('img');if(old)old.remove();var img=document.createElement('img');img.src=e.target.result;slot.insertBefore(img,slot.querySelector('.del-btn'));slot.classList.add('has-img');slot.classList.remove('empty');};reader.readAsDataURL(file);}
-  function clearPhoto(idx){photos[idx].file=null;var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
+  /* v39: upload state por slot */
+  var _photoUpload=photos.map(function(){return{status:'idle',url:'',promise:null};});
+  function setPhoto(idx,file){
+  compressImage(file,1200,0.80).then(function(compressed){
+    photos[idx].file=compressed;
+    _photoUpload[idx]={status:'uploading',url:'',promise:null};
+    var slot=g('slot_'+idx),reader=new FileReader();
+    reader.onload=function(e){
+      var old=slot.querySelector('img');if(old)old.remove();
+      var img=document.createElement('img');img.src=e.target.result;
+      img.style.cursor='zoom-in';img.onclick=function(){openLB(e.target.result);};
+      slot.insertBefore(img,slot.querySelector('.del-btn'));
+      slot.classList.add('has-img');slot.classList.remove('empty');
+      /* Pre-subida en background */
+      var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear());
+      var ext=(compressed.name.split('.').pop()||'jpg').toLowerCase();
+      var safe=(myUserName||'usuario').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+      var fname='fotos-tareas/'+year+'_tarea_pre_'+safe+'_'+(idx+1)+'.'+ext;
+      var fd=new FormData();fd.append('file',compressed,fname);fd.append('filename',fname);
+      _photoUpload[idx].promise=fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd})
+        .then(function(r){return r.json();})
+        .then(function(j){var url=j.url||j.publicUrl||'';_photoUpload[idx].status=url?'done':'error';_photoUpload[idx].url=url;return url;})
+        .catch(function(){_photoUpload[idx].status='error';return '';});
+    };
+    reader.readAsDataURL(compressed);
+  });
+}
+  function clearPhoto(idx){photos[idx].file=null;_photoUpload[idx]={status:'idle',url:'',promise:null};var slot=g('slot_'+idx),img=slot.querySelector('img');if(img)img.remove();slot.classList.remove('has-img');slot.classList.add('empty');slot.querySelectorAll('input').forEach(function(i){i.value='';});}
   function slotSpin(idx,show){var ov=g('slot_'+idx).querySelector('.up-ov');if(ov)ov.className='up-ov'+(show?' show':'');}
-  function uploadPhoto(idx,tempId,userName){var file=photos[idx].file;if(!file)return Promise.resolve(null);slotSpin(idx,true);var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),ext=(file.name.split('.').pop()||'jpg').toLowerCase(),safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;}).catch(function(e){slotSpin(idx,false);return null;});}
+  function uploadPhoto(idx,tempId,userName){
+    var file=photos[idx].file;if(!file)return Promise.resolve(null);
+    var up=_photoUpload[idx];
+    /* Usar URL pre-subida si ya está lista */
+    if(up.status==='done'&&up.url){return Promise.resolve(up.url);}
+    if(up.status==='uploading'&&up.promise){
+      return up.promise.then(function(url){return url||null;});
+    }
+    /* fallback: subir ahora con nombre final */
+    slotSpin(idx,true);
+    var year=(g('fFecha').value||'').slice(0,4)||String(new Date().getFullYear()),
+    ext=(file.name.split('.').pop()||'jpg').toLowerCase(),
+    safe=userName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'_').toLowerCase(),
+    fname='fotos-tareas/'+year+'_tarea_'+tempId+'_'+safe+'_'+(idx+1)+'.'+ext,
+    fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);
+    return fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd})
+      .then(function(r){return r.json();})
+      .then(function(j){slotSpin(idx,false);return j.url||j.publicUrl||null;})
+      .catch(function(e){slotSpin(idx,false);return null;});}
   function submitForm(){var nombre=g('fNombre').value.trim(),fecha=g('fFecha').value;g('fNombre').classList.remove('err');if(!nombre){g('fNombre').classList.add('err');g('fNombre').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Escribe el nombre de la tarea','err');return;}if(!fecha){toast('⚠️ Indica la fecha de la tarea','err');return;}var _vs=g('fVillaSearch'),_vi=g('fVilla');var _us=g('fAsignadoSearch'),_ui=g('fAsignado');
     if(_us&&_us.value.trim()&&_ui&&!_ui.value.trim()){_us.classList.add('err');_us.scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Selecciona un usuario de la lista','err');_us.focus();return;}if(_us)_us.classList.remove('err');
     if(_vs&&_vs.value.trim()&&_vi&&!_vi.value.trim()){_vs.classList.add('err');_vs.scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ Selecciona una villa de la lista','err');_vs.focus();return;}if(_vs)_vs.classList.remove('err');var btn=g('btnSubmit'),userName=myUserName||'usuario',tempId=Date.now();btn.disabled=true;btn.classList.add('loading');var uploadPromises=photos.map(function(p,i){return p.file?uploadPhoto(i,tempId,userName):Promise.resolve(null);});Promise.allSettled(uploadPromises).then(function(results){var urls=results.map(function(r){return r.status==='fulfilled'?r.value:null;});var record={'UserID_asigned_alfanum':g('fAsignado').value||'','UserID_responsible_alfanum':myUserId||g('fAsignado').value||'','villaid':parseInt(g('fVilla').value)||null,'Taskname':nombre,'Taskdescription':(window._qlGet?_qlGet('fDesc'):g('fDesc').value).trim(),'Data_to_be_done_fixed':fecha+' 00:00:00','UserID_created':myUserId||userName,'Tarea_terminada':false};if(paramIdReserva)record['Idreserva']=paramIdReserva;
@@ -582,7 +633,33 @@
     else q.format('list', (f.list === 'unchecked' || f.list === 'checked') ? false : 'unchecked');
   };
 })();
+
+function openLB(src){if(!src)return;var o=document.getElementById('lbOverlay'),i=document.getElementById('lbImg2');if(!o||!i)return;i.src=src;o.classList.add('open');document.body.style.overflow='hidden';}
+function closeLB(){var o=document.getElementById('lbOverlay');if(o)o.classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();});
+function compressImage(file,maxPx,quality){
+  maxPx=maxPx||1200;quality=quality||0.80;
+  return new Promise(function(resolve){
+    if(file.size<300*1024){resolve(file);return;}
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        resolve(blob?new File([blob],file.name,{type:'image/jpeg',lastModified:Date.now()}):file);
+      },'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);resolve(file);};
+    img.src=url;
+  });
+}
 </script>
 
+<div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
+
+<!-- HISTORIAL: v39 - Pre-subida fotos en background al seleccionarlas; compressImage en setPhoto; uploadPhoto usa URL cacheada | v38 - Lightbox fotos con botón ✕; compressImage 1200px/80% | v37 anterior -->
