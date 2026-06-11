@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Tarea Cierre v04 — 3Villas</title>
+  <title>Tarea Cierre v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -137,6 +137,12 @@
       vertical-align: middle !important;
     }
     @keyframes spin-3v { to { transform: rotate(360deg); } }
+
+    /* ── Lightbox fotos ── */
+    #lbOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center}
+    #lbOverlay.open{display:flex}
+    #lbOverlay img{max-width:96vw;max-height:86vh;border-radius:10px;display:block}
+    #lbClose{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000;font-family:Montserrat,sans-serif;line-height:1}
   </style>
   <script src="auth.js"></script>
 </head>
@@ -440,10 +446,13 @@ function openCamera(slot){saveState();const m=SLOT_MAP[slot];if(!m)return;const 
 function openGallery(slot){saveState();const m=SLOT_MAP[slot];if(!m)return;const el=g(m.file);if(el){el.value='';el.click();}}
 
 function handlePhoto(input,slot){
-  const file=input.files[0];if(!file)return;photos[slot]={file,base64:null};
+  const rawFile=input.files[0];if(!rawFile)return;
+  compressImage(rawFile,1200,0.80).then(function(file){
+  photos[slot]={file,base64:null};
   const reader=new FileReader();
   reader.onload=e=>{photos[slot].base64=e.target.result;showPhotoPreview(slot,e.target.result);if(slot==='main'){markDone();saveState();}};
   reader.readAsDataURL(file);
+  }); /* end compressImage */
 }
 
 function showPhotoPreview(slot,src){
@@ -550,39 +559,48 @@ async function guardar(fromOk){
 }
 
 async function uploadPhoto(file,idRes,tType,suffix){
-  const fd=new FormData();fd.append('file',file,file.name||'foto_'+suffix+'.jpg');fd.append('idreserva',idRes);fd.append('tasktype',tType);fd.append('suffix',suffix);fd.append('year',new Date().getFullYear());
-  const res=await fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd});const data=await res.json();
-  if(!res.ok||!data.success)throw new Error(data.error||'Upload failed');return data;
+  /* Usar URL pre-subida si ya está lista */
+  const slot=suffix==='1'?'main':('ai'+(parseInt(suffix)-1||1));
+  const up=_getSlotUpload(slot);
+  if(up.status==='done'&&up.url)return Promise.resolve(up.url);
+  if(up.status==='uploading'&&up.promise)return up.promise;
+  /* fallback */
+  const fd=new FormData();fd.append('file',file,file.name||'foto_'+suffix+'.jpg');
+  fd.append('idreserva',idRes);fd.append('tasktype',tType);fd.append('suffix',suffix);
+  fd.append('year',new Date().getFullYear());
+  return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
+    .then(r=>r.json()).then(j=>j.url||j.publicUrl||'').catch(()=>'');
 }
 
-async function loadBooking(){
-  const where=code?`TaBookings2021_FS_confirmation_code='${code}'`:`TaBookings2021_BookingID='${idReserva}'`;
-  const res=await fetch(Auth.url(`${WORKER}?action=view&view=Vi_villas_and_bookings2021&where=${encodeURIComponent(where)}&limit=1`));
-  const json=await res.json();const r=(json.Result||json.result||[])[0];if(!r)return;
-  g('hVilla').textContent=r['TaBookings2021_Property_Title']||`Reserva ${idReserva}`;
-  g('hRes').textContent=`Reserva: ${r['TaBookings2021_FS_confirmation_code']||idReserva}`;
-}
 
+async function loadBooking(){} /* fusionado en loadTask */
 async function loadTask(){
-  const where=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-  const res=await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=1`));
-  const json=await res.json();const task=(json.Result||json.result||[])[0];window.__taskDebug=task;if(!task)return;
-  $sw('swDone',     task['Tarea_terminada']);
-  $sw('swVentanas', task['Limpieza_filtrolavaplatos']);
-  $sw('swAires',    task['Limpieza_salyabrillan_lavaplatos']=== 'Y'||task['Limpieza_salyabrillan_lavaplatos']===true);
-  $sw('swBasura',   task['Limpieza_cajon_lavadora_limpio']=== 'Y'||task['Limpieza_cajon_lavadora_limpio']===true);
+  /* 1 llamada: Vi_Tasks_Booking_Villa = tarea + reserva + villa */
+  const where=`TaTasks_Idreserva='${idReserva}' AND TaTasks_Tasktype_booking=${parseInt(taskType)}`;
+  const res=await fetch(Auth.url(`${WORKER}?action=view&view=Vi_Tasks_Booking_Villa&where=${encodeURIComponent(where)}&limit=1`));
+  const json=await res.json();const r=(json.Result||json.result||[])[0];window.__taskDebug=r;if(!r)return;
+  /* Reserva + villa */
+  const hv=document.getElementById('hVilla'),hr=document.getElementById('hRes');
+  if(hv)hv.textContent=r['TaVillas_Name_villa_para_inquilinos']||`Reserva ${idReserva}`;
+  if(hr)hr.textContent=`Reserva: ${r['TaBookings2021_FS_confirmation_code']||idReserva}`;
+  /* Tarea — campos con prefijo TaTasks_ */
+  $sw('swDone',     r['TaTasks_Tarea_terminada']);
+  $sw('swVentanas', r['TaTasks_Limpieza_filtrolavaplatos']);
+  $sw('swAires',    r['TaTasks_Limpieza_salyabrillan_lavaplatos']==='Y'||r['TaTasks_Limpieza_salyabrillan_lavaplatos']===true);
+  $sw('swBasura',   r['TaTasks_Limpieza_cajon_lavadora_limpio']==='Y'||r['TaTasks_Limpieza_cajon_lavadora_limpio']===true);
   onSwDoneChange();
-  const ti=g('txtIncidencia');if(ti&&task['Taskdescription'])ti.value=task['Taskdescription'];
-  const tn=g('txtNotas');if(tn&&task['Solutiondescription'])tn.value=task['Solutiondescription'];
-  const incVal=task['Incidencias'];
-  if(incVal===true||incVal===1||['yes','sí','true'].includes(String(incVal).toLowerCase()))if(!incOpen)openInc();
-  const fm=task['Picture_cloudfare1']||task['Picture_in_cleaning1'];
+  const ti=g('txtIncidencia');if(ti&&r['TaTasks_Taskdescription'])ti.value=r['TaTasks_Taskdescription'];
+  const tn=g('txtNotas');if(tn&&r['TaTasks_Solutiondescription'])tn.value=r['TaTasks_Solutiondescription'];
+  const incVal=r['TaTasks_Incidencias'];
+  if(incVal===true||incVal===1||['yes','sí','true'].includes(String(incVal||'').toLowerCase()))if(!incOpen)openInc();
+  const fm=r['TaTasks_Picture_cloudfare1'];
   if(fm&&typeof fm==='string'&&fm.startsWith('http'))showPhotoPreview('main',fm);
-  [['Picture_cloudfare_after1','ai1'],['Picture_cloudfare_after2','ai2'],['Picture_cloudfare_after3','ai3'],['Picture_cloudfare_after4','ai4'],['Picture_cloudfare_after5','ai5']].forEach(([f,s])=>{
-    const u=task[f];if(u&&typeof u==='string'&&u.startsWith('http'))showPhotoPreview(s,u);
+  [['TaTasks_Picture_cloudfare_after1','ai1'],['TaTasks_Picture_cloudfare_after2','ai2'],
+   ['TaTasks_Picture_cloudfare_after3','ai3'],['TaTasks_Picture_cloudfare_after4','ai4'],
+   ['TaTasks_Picture_cloudfare_after5','ai5']].forEach(([f,s])=>{
+    const u=r[f];if(u&&typeof u==='string'&&u.startsWith('http'))showPhotoPreview(s,u);
   });
 }
-
 document.addEventListener('DOMContentLoaded',async()=>{
   g('hTaskBadge').textContent=cfg.badge;
   if(!idReserva){showError('Faltan parámetros en la URL.');return;}
@@ -610,7 +628,46 @@ function initMic(){
 }
 function showDebug(){const t=JSON.stringify(window.__taskDebug||{},null,2);const w=window.open('','_blank','width=600,height=500');w.document.write('<pre style="font-family:monospace;font-size:12px;padding:16px">'+t+'</pre>');}
 function showError(msg){hide('loadOverlay');g('mainContent').innerHTML=`<div class="error-state"><div class="emoji">⚠️</div><h3>Error</h3><p>${msg}</p></div>`;show('mainContent');}
+
+function openLB(src){if(!src)return;var o=document.getElementById('lbOverlay'),i=document.getElementById('lbImg2');if(!o||!i)return;i.src=src;o.classList.add('open');document.body.style.overflow='hidden';}
+function closeLB(){var o=document.getElementById('lbOverlay');if(o)o.classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();});
+function compressImage(file,maxPx,quality){
+  maxPx=maxPx||1200;quality=quality||0.80;
+  return new Promise(function(resolve){
+    if(file.size<300*1024){resolve(file);return;}
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        resolve(blob?new File([blob],file.name,{type:'image/jpeg',lastModified:Date.now()}):file);
+      },'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);resolve(file);};
+    img.src=url;
+  });
+}
+
+/* v_new: upload state por slot para pre-subida background */
+const _slotUpload={};
+function _getSlotUpload(slot){return _slotUpload[slot]||(_slotUpload[slot]={status:'idle',url:'',promise:null});}
+function _startBgUpload(slot,file){
+  const up=_getSlotUpload(slot);
+  up.status='uploading';up.url='';up.promise=null;
+  const year=new Date().getFullYear();
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+  const fname='fotos-tareas/'+year+'_'+slot+'_'+idReserva+'.'+ext;
+  const fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);
+  up.promise=fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
+    .then(r=>r.json()).then(j=>{const url=j.url||j.publicUrl||'';up.status=url?'done':'error';up.url=url;return url;})
+    .catch(()=>{up.status='error';return '';});
+}
 </script>
+<div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
+<!-- HISTORIAL: v06 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v05 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
