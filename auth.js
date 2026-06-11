@@ -109,6 +109,7 @@ const Auth = (function () {
     // villa.html        → Auth.require('villas')
     // sales puede ver villas pero NO entradas — clave separada para ello
     'villas'                : ['admin', 'manager', 'staff', 'sales'],
+    'editar-villas'         : ['admin', 'manager', 'staff', 'sales'],
 
     // ── CONTACTOS ──────────────────────────────────────────────
     // contactos.html
