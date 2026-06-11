@@ -1,1 +1,908 @@
-xxxx
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v01 | Historial completo al final -->
+<head>
+<meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{});</script>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Editar Villa v01 — 3Villas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+  --green:#1e9e4e;--green-light:#e6f7ee;
+  --orange:#e07b00;--orange-light:#fff4e0;
+  --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;
+  --shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:100px}
+
+/* ── NAV ── */
+.top-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+.nav-logo img{height:26px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 6px}
+.h-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-meta{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-close-btn{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:14px;font-weight:900;cursor:pointer;flex-shrink:0}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;border-bottom:1px solid var(--gray-2);position:sticky;top:53px;z-index:200}
+.filter-btn{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;padding:5px 14px;border-radius:20px;border:1.5px solid var(--gray-3);background:var(--gray-1);color:var(--gray-4);cursor:pointer;transition:all .15s}
+.filter-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+.pending-badge{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;margin-left:auto}
+.pending-badge.none{background:var(--green-light);color:var(--green)}
+
+/* ── MAIN ── */
+main{padding:10px 12px 14px;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+
+/* ── SECTION CARDS ── */
+.section-card{background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.07);overflow:hidden;border-top:3px solid var(--gray-2)}
+.section-card.has-pending{border-top-color:var(--red)}
+.section-card.all-ok{border-top-color:var(--green)}
+.section-head{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;user-select:none;background:#fff;border-bottom:1px solid transparent;transition:background .15s}
+.section-head:hover{background:var(--gray-1)}
+.section-head.open{border-bottom-color:var(--gray-2)}
+.sh-ico{font-size:18px;flex-shrink:0}
+.sh-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;flex:1}
+.sh-badge{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0}
+.sh-badge.pend{background:var(--red-light);color:var(--red)}
+.sh-badge.ok{background:var(--green-light);color:var(--green)}
+.sh-arrow{color:var(--gray-3);font-size:12px;transition:transform .2s;flex-shrink:0}
+.section-head.open .sh-arrow{transform:rotate(180deg)}
+.section-body{display:none;padding:14px 16px;flex-direction:column;gap:12px}
+.section-body.open{display:flex}
+
+/* ── FIELDS ── */
+.field{display:flex;flex-direction:column;gap:5px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lbl{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);display:flex;align-items:center;gap:5px}
+.lbl .pend-dot{width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;flex-shrink:0}
+.lbl .ok-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0}
+input[type=text],input[type=number],select,textarea{border:1.5px solid var(--gray-2);border-radius:9px;padding:9px 12px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1)}
+input.pending-field,select.pending-field,textarea.pending-field{border-color:rgba(200,16,46,.4);background:rgba(200,16,46,.02)}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+textarea{resize:vertical;min-height:70px;line-height:1.5}
+
+/* ── PHOTO PAIRS ── */
+.photo-group{display:flex;flex-direction:column;gap:8px}
+.photo-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.photo-col{display:flex;flex-direction:column;gap:6px}
+.photo-col-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.photo-col-label.old-label{color:var(--gray-3)}
+.photo-col-label.new-label{color:var(--green)}
+
+/* Old photos (Caspio) */
+.old-photo-wrap{position:relative;border-radius:10px;overflow:hidden;border:2px dashed var(--gray-2);background:var(--gray-1)}
+.old-photo-wrap img{width:100%;height:90px;object-fit:cover;display:block;opacity:.7;cursor:zoom-in}
+.old-photo-wrap .dep-badge{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.5);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px}
+.old-photo-empty{height:90px;border-radius:10px;border:2px dashed var(--gray-2);background:var(--gray-1);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-size:9px;color:var(--gray-3);font-weight:700}
+
+/* New photos (Cloudflare) */
+.photo-slot{position:relative;width:100%;height:90px;border-radius:10px;border:2px dashed var(--gray-3);background:var(--gray-1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;overflow:hidden;transition:border-color .15s}
+.photo-slot.has-img{border:none;padding:0}
+.photo-slot.pending-field{border-color:rgba(200,16,46,.5);background:rgba(200,16,46,.03)}
+.photo-slot img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.photo-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.photo-slot .slot-ico{font-size:22px;pointer-events:none}
+.photo-slot .slot-lbl{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;color:var(--gray-4);pointer-events:none}
+.photo-slot .slot-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:1}
+.photo-slot .slot-up{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;pointer-events:none}
+.slot-spin{width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.slot-up-lbl{font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;color:#fff}
+.slot-done{position:absolute;bottom:4px;right:4px;background:var(--green);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px}
+.slot-err{position:absolute;bottom:4px;right:4px;background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px}
+
+/* Single photo slot (full width) */
+.photo-single{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── DIVIDER ── */
+.sec-divider{border:none;border-top:1px solid var(--gray-2);margin:4px 0}
+
+/* ── SAVE BAR ── */
+.save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#fff;border-top:1.5px solid var(--gray-2);padding:12px 16px;display:flex;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+.btn-save{background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;box-shadow:0 4px 14px rgba(200,16,46,.3)}
+.btn-save:hover{background:var(--red-dark)}
+.btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
+.btn-back{background:var(--gray-1);color:var(--gray-5);border:1.5px solid var(--gray-2);border-radius:12px;padding:14px 16px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-back:hover{background:var(--gray-2)}
+
+/* ── TOAST / LIGHTBOX ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(200px);opacity:0;background:var(--gray-5);color:#fff;padding:12px 22px;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;box-shadow:var(--shadow-md);transition:transform .3s,opacity .3s;z-index:9998;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.ok{background:var(--green)}
+#toast.err{background:var(--red)}
+#lbOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:9999;align-items:center;justify-content:center}
+#lbOverlay.open{display:flex}
+#lbClose{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000;font-family:Montserrat,sans-serif}
+#lbImg{max-width:96vw;max-height:86vh;border-radius:10px;display:block}
+
+/* ── LOADING ── */
+#stLoad{padding:60px 20px;text-align:center;color:var(--gray-4)}
+.big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:480px){.photo-pair,.field-row{grid-template-columns:1fr}}
+</style>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('admin');</script>
+
+<div id="lbOverlay" onclick="if(event.target===this)closeLB()">
+  <button id="lbClose" onclick="closeLB()">✕</button>
+  <img id="lbImg" src="" alt="">
+</div>
+<div id="toast"></div>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="h-title" id="hTitle">Editar Villa</div>
+    <div class="h-meta" id="hMeta">Cargando…</div>
+  </div>
+  <div style="display:flex;gap:6px;flex-shrink:0">
+    <button class="nav-menu-btn" onclick="NavComponent.open()" style="display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer">☰</button>
+    <button class="nav-close-btn" onclick="history.back()">✕</button>
+  </div>
+</nav>
+
+<div class="filter-bar">
+  <button class="filter-btn active" id="btnTodo" onclick="setFilter('todo')">Todo</button>
+  <button class="filter-btn" id="btnPend" onclick="setFilter('pending')">⚠ Solo pendientes</button>
+  <span class="pending-badge" id="pendBadge">—</span>
+</div>
+
+<main id="mainWrap">
+  <div id="stLoad"><div class="big-spinner"></div><p style="font-family:Montserrat,sans-serif;font-weight:700">Cargando villa…</p></div>
+</main>
+
+<div class="save-bar" id="saveBar" style="display:none">
+  <button class="btn-back" onclick="history.back()">Volver</button>
+  <button class="btn-save" id="btnSave" onclick="saveVilla()"><span id="saveLabel">Guardar cambios</span></button>
+</div>
+
+<script>
+(function(){
+'use strict';
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+const urlP   = new URLSearchParams(window.location.search);
+const villaid = (urlP.get('villaid')||'').trim();
+
+/* ── Pending rules ── */
+const PENDING_RULES = {
+  'Zone':13,'ITV_2020':30,'Cleanning_team':101,'Garden_team':101,'Pool_team':101,
+  'Agency_gestoria':101,'Electrician':101,'Maintenance_team':101,'Plumber':101,
+  'Aircondition_ownerteam':101,'Pets_allowed':15,'Total_Pax':0,'Pax_legal':0,
+  'Aircon':5,'dehumidifier_number':50,'cots_cunas':50,'Highchair_silita':50,
+  'Dishwasher_lavaplatos':10,'Cofe_Machine':10,'Washing_machine':10,'Wifi_Comany':7,
+  'Detector_de_humos__Smoke_Detecto':10,'Beach_towels_provided':10,
+  'Pay_Cleanning':2,'Pay_Garden':2,'Pay_Pool':2,'Pay_KeHolder':2,
+  'Changeoverday':11,'Swiming_pool':4,'Parking':6,'ETV_Plate':3,'House_Name_Plate':3,
+  'ecotasa2019status':5,'Altaecotasa':5,'who_pays__ecotasa':7,
+  'KeyHolder_person':'A4NS7PJV','where_is_first_aid':'Pending to Know',
+  'where_is_mainpower':'Pending to Know','wher_is_water_stopcock':'Pending to Know',
+  'BBQ':'Pending to Know','KeyHolder_zone':0,'Activa':2,'Comercializador':101,
+  'Checkin_ecotasa':true,'Checkin_registro_policia':true,
+  'Checkin_deposito':true,'Checkin_arrivalform':true,
+  'Fincontrato':2999,'Id_Ecotasa':100,'Iniciocontrato':1111,'TipoWellcomepack':999,
+  'cloudflare_foto1_keybox1':null,'cloudflare_foto2_keybox1':null,'cloudflare_foto3_keybox1':null,
+  'cloudflare_foto1_keybox2':null,'cloudflare_foto2_keybox2':null,'cloudflare_foto3_keybox2':null,
+  'cloudflare_marketing_photos':null,'cloudflare_groundplan_file':null,
+  'cloudflare_foto_cuadro_electrico':null,'cloudflare_foto_llave_agua':null,
+  'cloudflare_foto_llave_agua_calle':null,'cloudflare_foto_jacuzzi_1':null,
+  'cloudflare_foto_jacuzzi_2':null,'cloudflare_pdf_jacuzzi':null,
+  'cloudflare_foto_caldera_1':null,'cloudflare_foto_caldera_2':null,'cloudflare_pdf_caldera':null,
+  'cloudflare_foto_placas_solares_1':null,'cloudflare_foto_placas_solares_2':null,
+  'cloudflare_pdf_placas_solares':null,
+  'cloudflare_generic_image_1':null,'cloudflare_generic_image_2':null,'cloudflare_generic_file':null,
+};
+
+/* ── State ── */
+let villaData = null;
+let isSaving  = false;
+let filterMode = 'todo';
+
+/* Upload state per cloudflare field */
+const uploadState = {};
+
+function g(id){ return document.getElementById(id); }
+let _toastT;
+function toast(msg,type){ const el=g('toast'); el.textContent=msg; el.className='show '+(type||''); clearTimeout(_toastT); _toastT=setTimeout(()=>{ el.className=''; },4000); }
+function openLB(src){ if(!src)return; g('lbImg').src=src; g('lbOverlay').classList.add('open'); }
+function closeLB(){ g('lbOverlay').classList.remove('open'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeLB(); });
+
+/* ── isPending: check if a field value is pending ── */
+function isPending(field, value) {
+  if(!(field in PENDING_RULES)) return false;
+  const rule = PENDING_RULES[field];
+  if(rule === null) return !value || String(value).trim() === '';
+  if(typeof rule === 'boolean') {
+    const v = String(value||'').toLowerCase().trim();
+    return rule === true ? ['1','-1','true','yes','sí'].includes(v) : false;
+  }
+  const v = String(value||'').trim();
+  const r = String(rule).trim();
+  return v === r || (Number(v) === Number(r) && r !== '');
+}
+
+/* ── count pending fields in a section ── */
+function countSectionPending(fields) {
+  let n = 0;
+  for(const f of fields) {
+    const el = g('f_' + f);
+    if(!el) continue;
+    const val = el.tagName === 'SELECT' ? el.value : el.value;
+    if(isPending(f, val)) n++;
+  }
+  return n;
+}
+
+/* ── compressImage ── */
+function compressImage(file, maxPx, quality) {
+  maxPx = maxPx||1200; quality = quality||0.80;
+  return new Promise(function(resolve) {
+    if(file.size < 300*1024){ resolve(file); return; }
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      let w=img.width, h=img.height;
+      if(w>maxPx||h>maxPx){ if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;} }
+      const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        resolve(blob ? new File([blob],file.name,{type:'image/jpeg',lastModified:Date.now()}) : file);
+      },'image/jpeg',quality);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+/* ── Background upload for a cloudflare photo field ── */
+function startUpload(field, file) {
+  uploadState[field] = {status:'uploading', url:'', promise:null};
+  updateSlotUI(field);
+  const fname = 'villa-info/' + villaid + '_' + field + '_' + Date.now() + '.jpg';
+  const fd = new FormData();
+  fd.append('file', file, fname);
+  fd.append('filename', fname);
+  const promise = fetch(Auth.url(WORKER+'?action=upload'), {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(j => {
+      const url = j.url||j.publicUrl||'';
+      uploadState[field].status = url ? 'done' : 'error';
+      uploadState[field].url = url;
+      updateSlotUI(field);
+      return url;
+    })
+    .catch(() => { uploadState[field].status='error'; updateSlotUI(field); return ''; });
+  uploadState[field].promise = promise;
+  return promise;
+}
+
+function getUploadUrl(field) {
+  const up = uploadState[field];
+  if(!up) return Promise.resolve('');
+  if(up.status==='done' && up.url) return Promise.resolve(up.url);
+  if(up.status==='uploading' && up.promise) return up.promise;
+  return Promise.resolve('');
+}
+
+function updateSlotUI(field) {
+  const slot = g('slot_' + field);
+  if(!slot) return;
+  const up = uploadState[field]||{status:'idle'};
+  const ovEl = slot.querySelector('.slot-up');
+  const doneEl = slot.querySelector('.slot-done');
+  const errEl = slot.querySelector('.slot-err');
+  if(ovEl) ovEl.style.display = up.status==='uploading' ? 'flex' : 'none';
+  if(doneEl) doneEl.style.display = up.status==='done' ? 'block' : 'none';
+  if(errEl) errEl.style.display = up.status==='error' ? 'block' : 'none';
+}
+
+/* ── Build a cloudflare photo slot ── */
+function buildPhotoSlot(field, currentUrl) {
+  const slot = document.createElement('div');
+  slot.id = 'slot_' + field;
+  slot.className = 'photo-slot' + (isPending(field, currentUrl) ? ' pending-field' : '');
+
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*,application/pdf';
+
+  const upOv = document.createElement('div'); upOv.className='slot-up'; upOv.style.display='none';
+  upOv.innerHTML = '<div class="slot-spin"></div><div class="slot-up-lbl">Subiendo…</div>';
+  const doneEl = document.createElement('div'); doneEl.className='slot-done'; doneEl.style.display='none'; doneEl.textContent='✓';
+  const errEl  = document.createElement('div'); errEl.className='slot-err';  errEl.style.display='none'; errEl.textContent='⚠ Error';
+
+  if(currentUrl && currentUrl.startsWith('http')) {
+    slot.classList.add('has-img');
+    if(currentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      const img = document.createElement('img'); img.src=currentUrl; img.alt='';
+      img.onclick = e => { e.stopPropagation(); openLB(currentUrl); };
+      slot.appendChild(img);
+    } else {
+      // PDF/file link
+      const lnk = document.createElement('a');
+      lnk.href = currentUrl; lnk.target='_blank';
+      lnk.style.cssText='display:flex;align-items:center;justify-content:center;height:100%;text-decoration:none;color:var(--red);font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;gap:4px';
+      lnk.innerHTML='📄 Ver PDF'; lnk.onclick=e=>e.stopPropagation();
+      slot.appendChild(lnk);
+    }
+    const del = document.createElement('button'); del.type='button'; del.className='slot-del'; del.textContent='✕';
+    del.onclick = e => {
+      e.stopPropagation();
+      uploadState[field] = {status:'idle',url:'null_cleared',promise:null};
+      slot.classList.remove('has-img');
+      slot.innerHTML=''; rebuildSlotEmpty(slot,field,inp,upOv,doneEl,errEl);
+      slot.classList.toggle('pending-field', isPending(field,''));
+      updatePendingAll();
+    };
+    slot.appendChild(del);
+  } else {
+    rebuildSlotEmpty(slot,field,inp,upOv,doneEl,errEl);
+  }
+  slot.appendChild(upOv); slot.appendChild(doneEl); slot.appendChild(errEl);
+  return slot;
+}
+
+function rebuildSlotEmpty(slot, field, inp, upOv, doneEl, errEl) {
+  const ico = document.createElement('div'); ico.className='slot-ico'; ico.textContent='📷';
+  const lbl = document.createElement('div'); lbl.className='slot-lbl'; lbl.textContent='Toca para subir';
+  slot.appendChild(ico); slot.appendChild(lbl); slot.appendChild(inp);
+
+  inp.onchange = function(e) {
+    const raw = e.target.files[0]; if(!raw) return;
+    compressImage(raw, 1200, 0.80).then(function(file) {
+      // Preview
+      slot.innerHTML = '';
+      if(file.type.startsWith('image/')) {
+        slot.classList.add('has-img');
+        const img = document.createElement('img');
+        const reader = new FileReader();
+        reader.onload = ev => {
+          img.src = ev.target.result;
+          img.onclick = ex => { ex.stopPropagation(); openLB(ev.target.result); };
+        };
+        reader.readAsDataURL(file);
+        slot.appendChild(img);
+        const del = document.createElement('button'); del.type='button'; del.className='slot-del'; del.textContent='✕';
+        del.onclick = ex => {
+          ex.stopPropagation();
+          uploadState[field]={status:'idle',url:'',promise:null};
+          slot.classList.remove('has-img'); slot.innerHTML='';
+          rebuildSlotEmpty(slot,field,inp,upOv,doneEl,errEl);
+          slot.appendChild(upOv); slot.appendChild(doneEl); slot.appendChild(errEl);
+          slot.classList.toggle('pending-field', isPending(field,''));
+          updatePendingAll();
+        };
+        slot.appendChild(del);
+      } else {
+        // PDF
+        slot.classList.add('has-img');
+        const pDiv = document.createElement('div');
+        pDiv.style.cssText='display:flex;align-items:center;justify-content:center;height:90px;color:var(--red);font-family:Montserrat,sans-serif;font-size:11px;font-weight:800';
+        pDiv.textContent='📄 '+file.name; slot.appendChild(pDiv);
+      }
+      slot.appendChild(upOv); slot.appendChild(doneEl); slot.appendChild(errEl);
+      slot.classList.toggle('pending-field', isPending(field,''));
+      updatePendingAll();
+      startUpload(field, file);
+    });
+  };
+}
+
+/* ── Build old (Caspio) photo display ── */
+function buildOldPhoto(url, label) {
+  if(url && typeof url === 'string' && url.trim()) {
+    const wrap = document.createElement('div'); wrap.className='old-photo-wrap';
+    if(url.startsWith('http')) {
+      const img = document.createElement('img'); img.src=url; img.alt='';
+      img.onclick = () => openLB(url);
+      wrap.appendChild(img);
+    } else {
+      const a = document.createElement('a'); a.href=url; a.target='_blank';
+      a.style.cssText='display:flex;align-items:center;justify-content:center;height:90px;text-decoration:none;color:var(--gray-4);font-size:11px;font-family:Montserrat,sans-serif;font-weight:700';
+      a.textContent='📎 '+label; wrap.appendChild(a);
+    }
+    const badge = document.createElement('div'); badge.className='dep-badge'; badge.textContent='Caspio · a deprecar';
+    wrap.appendChild(badge);
+    return wrap;
+  } else {
+    const empty = document.createElement('div'); empty.className='old-photo-empty';
+    empty.textContent='Sin foto';
+    return empty;
+  }
+}
+
+/* ── Build a photo pair row ── */
+function buildPhotoPair(oldField, oldLabel, newField, d) {
+  const pair = document.createElement('div'); pair.className='photo-pair';
+  // Old column
+  const oldCol = document.createElement('div'); oldCol.className='photo-col';
+  const oldLbl = document.createElement('div'); oldLbl.className='photo-col-label old-label'; oldLbl.textContent='📁 Caspio (a deprecar)';
+  oldCol.appendChild(oldLbl);
+  oldCol.appendChild(buildOldPhoto(d[oldField], oldLabel));
+  // New column
+  const newCol = document.createElement('div'); newCol.className='photo-col';
+  const newLbl = document.createElement('div'); newLbl.className='photo-col-label new-label'; newLbl.textContent='☁ Cloudflare (nueva)';
+  newCol.appendChild(newLbl);
+  newCol.appendChild(buildPhotoSlot(newField, d[newField]));
+  pair.appendChild(oldCol); pair.appendChild(newCol);
+  return pair;
+}
+
+/* ── Build single new-only photo slot ── */
+function buildSingleNew(newField, label, d) {
+  const col = document.createElement('div'); col.className='field';
+  const lbl = document.createElement('div'); lbl.className='photo-col-label new-label'; lbl.textContent='☁ '+label;
+  col.appendChild(lbl);
+  col.appendChild(buildPhotoSlot(newField, d[newField]));
+  return col;
+}
+
+/* ── Build a text input field ── */
+function buildField(field, label, d, type='text') {
+  const wrap = document.createElement('div'); wrap.className='field';
+  const lbl = document.createElement('div'); lbl.className='lbl';
+  const pend = isPending(field, d[field]);
+  const dot = document.createElement('span'); dot.className = pend ? 'pend-dot' : 'ok-dot';
+  lbl.appendChild(dot);
+  lbl.appendChild(document.createTextNode(' '+label));
+  const inp = document.createElement('input');
+  inp.type = type; inp.id='f_'+field; inp.value = d[field]||'';
+  inp.className = pend ? 'pending-field' : '';
+  inp.addEventListener('input', () => {
+    const p = isPending(field, inp.value);
+    inp.className = p ? 'pending-field' : '';
+    dot.className = p ? 'pend-dot' : 'ok-dot';
+    updatePendingAll();
+  });
+  wrap.appendChild(lbl); wrap.appendChild(inp);
+  return wrap;
+}
+
+function buildTextarea(field, label, d, rows=3) {
+  const wrap = document.createElement('div'); wrap.className='field';
+  const lbl = document.createElement('div'); lbl.className='lbl';
+  const pend = isPending(field, d[field]);
+  const dot = document.createElement('span'); dot.className = pend ? 'pend-dot' : 'ok-dot';
+  lbl.appendChild(dot); lbl.appendChild(document.createTextNode(' '+label));
+  const ta = document.createElement('textarea');
+  ta.id='f_'+field; ta.rows=rows; ta.value=d[field]||'';
+  ta.className = pend ? 'pending-field' : '';
+  ta.addEventListener('input', () => {
+    const p = isPending(field, ta.value);
+    ta.className = p ? 'pending-field' : '';
+    dot.className = p ? 'pend-dot' : 'ok-dot';
+    updatePendingAll();
+  });
+  wrap.appendChild(lbl); wrap.appendChild(ta);
+  return wrap;
+}
+
+function buildSelect(field, label, d, options) {
+  const wrap = document.createElement('div'); wrap.className='field';
+  const lbl = document.createElement('div'); lbl.className='lbl';
+  const pend = isPending(field, d[field]);
+  const dot = document.createElement('span'); dot.className = pend ? 'pend-dot' : 'ok-dot';
+  lbl.appendChild(dot); lbl.appendChild(document.createTextNode(' '+label));
+  const sel = document.createElement('select'); sel.id='f_'+field;
+  sel.className = pend ? 'pending-field' : '';
+  options.forEach(([val,txt]) => {
+    const op = document.createElement('option');
+    op.value=val; op.textContent=txt;
+    if(String(d[field])===String(val)) op.selected=true;
+    sel.appendChild(op);
+  });
+  sel.addEventListener('change', () => {
+    const p = isPending(field, sel.value);
+    sel.className = p ? 'pending-field' : '';
+    dot.className = p ? 'pend-dot' : 'ok-dot';
+    updatePendingAll();
+  });
+  wrap.appendChild(lbl); wrap.appendChild(sel);
+  return wrap;
+}
+
+/* ── Row helper ── */
+function row(...children) {
+  const d = document.createElement('div'); d.className='field-row';
+  children.forEach(c => d.appendChild(c)); return d;
+}
+
+/* ── Section builder ── */
+function buildSection(id, ico, title, fields, buildFn, openByDefault=false) {
+  const card = document.createElement('div'); card.className='section-card'; card.id='sec_'+id;
+  const head = document.createElement('div'); head.className='section-head'+(openByDefault?' open':'');
+  head.innerHTML=`<span class="sh-ico">${ico}</span><span class="sh-title">${title}</span><span class="sh-badge" id="badge_${id}"></span><span class="sh-arrow">▾</span>`;
+  const body = document.createElement('div'); body.className='section-body'+(openByDefault?' open':'');
+  body.id='body_'+id;
+  buildFn(body);
+  head.onclick = () => {
+    head.classList.toggle('open');
+    body.classList.toggle('open');
+  };
+  card.appendChild(head); card.appendChild(body);
+  return card;
+}
+
+/* ── Update pending counters everywhere ── */
+function updatePendingAll() {
+  const sections = document.querySelectorAll('.section-card');
+  let totalPend = 0;
+  sections.forEach(sec => {
+    const id = sec.id.replace('sec_','');
+    const body = g('body_'+id); if(!body) return;
+    let pend = 0;
+    // Count pending-field inputs
+    body.querySelectorAll('.pending-field, input.pending-field, select.pending-field, textarea.pending-field').forEach(() => pend++);
+    // Count pending photo slots
+    body.querySelectorAll('.photo-slot.pending-field').forEach(() => pend++);
+    totalPend += pend;
+    const badge = g('badge_'+id);
+    if(badge){ badge.textContent = pend>0 ? pend+' pendiente'+(pend>1?'s':'') : '✓ OK'; badge.className='sh-badge '+(pend>0?'pend':'ok'); }
+    sec.classList.toggle('has-pending', pend>0);
+    sec.classList.toggle('all-ok', pend===0);
+  });
+  const pb = g('pendBadge');
+  if(pb){ pb.textContent = totalPend>0 ? totalPend+' campo'+(totalPend>1?'s':'')+' pendiente'+(totalPend>1?'s':'') : '✓ Todo completo'; pb.className='pending-badge'+(totalPend===0?' none':''); }
+  applyFilter();
+}
+
+/* ── Filter ── */
+function setFilter(mode) {
+  filterMode = mode;
+  g('btnTodo').classList.toggle('active', mode==='todo');
+  g('btnPend').classList.toggle('active', mode==='pending');
+  applyFilter();
+}
+function applyFilter() {
+  document.querySelectorAll('.section-card').forEach(sec => {
+    if(filterMode==='todo') { sec.style.display=''; return; }
+    sec.style.display = sec.classList.contains('has-pending') ? '' : 'none';
+  });
+}
+
+/* ── LOAD ── */
+async function loadVilla() {
+  if(!villaid){ g('stLoad').innerHTML='<p style="color:var(--red);font-weight:700">Falta el parámetro villaid en la URL</p>'; return; }
+  const res = await fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('villaid='+parseInt(villaid))+'&limit=1'));
+  const json = await res.json();
+  const rows = json.Result||json.result||[];
+  if(!rows.length){ g('stLoad').innerHTML='<p style="color:var(--red);font-weight:700">Villa no encontrada</p>'; return; }
+  villaData = rows[0];
+  const d = villaData;
+  g('hTitle').textContent = d.Name_villa_corto_interno||d.Name||'Villa '+villaid;
+  g('hMeta').textContent = 'ID '+villaid + (d.Hostawayid?' · HW '+d.Hostawayid:'');
+  buildForm(d);
+  g('stLoad').style.display='none';
+  g('saveBar').style.display='flex';
+  updatePendingAll();
+}
+
+/* ── BUILD FORM ── */
+function buildForm(d) {
+  const main = g('mainWrap');
+  g('stLoad').remove();
+
+  // ── 1. KEYBOX 1 ──
+  main.appendChild(buildSection('kb1','🔑','Keybox 1',
+    ['Keybox_code','Key_Coments','PictureKeybox1','Picturekeybox2','Picturekeybox3',
+     'cloudflare_foto1_keybox1','cloudflare_foto2_keybox1','cloudflare_foto3_keybox1'],
+    body => {
+      body.appendChild(row(buildField('Keybox_code','Código keybox 1',d), buildField('KeyHolder_zone','Zona keyholder',d,'number')));
+      body.appendChild(buildTextarea('Key_Coments','Instrucciones / comentarios',d,2));
+      const pg = document.createElement('div'); pg.className='photo-group';
+      pg.appendChild(buildPhotoPair('PictureKeybox1','Foto 1',  'cloudflare_foto1_keybox1',d));
+      pg.appendChild(buildPhotoPair('Picturekeybox2','Foto 2', 'cloudflare_foto2_keybox1',d));
+      pg.appendChild(buildPhotoPair('Picturekeybox3','Foto 3', 'cloudflare_foto3_keybox1',d));
+      body.appendChild(pg);
+    }, true));
+
+  // ── 2. KEYBOX 2 ──
+  main.appendChild(buildSection('kb2','🔑','Keybox 2',
+    ['Keybox_code2','Key_Coments2','PictureKeybox2_1','PictureKeybox2_2','PictureKeybox2_3',
+     'cloudflare_foto1_keybox2','cloudflare_foto2_keybox2','cloudflare_foto3_keybox2'],
+    body => {
+      body.appendChild(row(buildField('Keybox_code2','Código keybox 2',d), buildField('Notas_keyholder','Notas villamanager',d)));
+      body.appendChild(buildTextarea('Key_Coments2','Instrucciones / comentarios',d,2));
+      const pg = document.createElement('div'); pg.className='photo-group';
+      pg.appendChild(buildPhotoPair('PictureKeybox2_1','Foto 1','cloudflare_foto1_keybox2',d));
+      pg.appendChild(buildPhotoPair('PictureKeybox2_2','Foto 2','cloudflare_foto2_keybox2',d));
+      pg.appendChild(buildPhotoPair('PictureKeybox2_3','Foto 3','cloudflare_foto3_keybox2',d));
+      body.appendChild(pg);
+    }));
+
+  // ── 3. VILLA ──
+  main.appendChild(buildSection('villa','🏠','Villa — Nombres y ubicación',[
+    'Name','Name_villa_corto_interno','Name_villa_para_inquilinos','Zone','Address','KeyHolder_person','Activa'
+  ], body => {
+    body.appendChild(buildField('Name','Nombre interno equipo',d));
+    body.appendChild(row(
+      buildField('Name_villa_corto_interno','Nombre corto',d),
+      buildField('Name_villa_para_inquilinos','Nombre comercial (inquilinos)',d)
+    ));
+    body.appendChild(row(
+      buildSelect('Zone','Zona',d,[['13','— Pendiente —'],['1','Ciudadela'],['2','Mahón'],['3','Es Mercadal'],['4','Alaior'],['5','Ferreries'],['6','Es Migjorn'],['7','Es Castell'],['8','Sant Lluís'],['9','Maó nord'],['10','Maó sud'],['11','Centre'],['12','Otros']]),
+      buildSelect('Activa','Activa',d,[['2','— Sin definir —'],['1','Sí activa'],['0','No activa'],['3','En pausa']])
+    ));
+    body.appendChild(buildField('Address','Dirección',d));
+    body.appendChild(row(
+      buildField('Hostawayid','Hostaway ID',d,'number'),
+      buildField('KeyHolder_zone','Zona keyholder',d,'number')
+    ));
+  }));
+
+  // ── 4. EQUIPO Y PAGOS ──
+  main.appendChild(buildSection('equipo','👥','Equipo y pagos',[
+    'KeyHolder_person','Cleanning_team','Garden_team','Pool_team','Maintenance_team',
+    'Electrician','Plumber','Aircondition_ownerteam','Agency_gestoria','Comercializador',
+    'Pay_Cleanning','Pay_Garden','Pay_Pool','Pay_KeHolder','TipoWellcomepack','Changeoverday'
+  ], body => {
+    body.appendChild(buildField('KeyHolder_person','Villa Manager (UserID)',d));
+    const PAY=[['2','— Sin definir —'],['1','Propietario'],['0','3Villas'],['3','Compartido']];
+    const TEAM101=[['101','— Sin asignar —'],['1','Equipo 1'],['2','Equipo 2'],['3','Externo']];
+    body.appendChild(row(buildSelect('Cleanning_team','Limpieza',d,TEAM101), buildSelect('Garden_team','Jardín',d,TEAM101)));
+    body.appendChild(row(buildSelect('Pool_team','Piscina',d,TEAM101), buildSelect('Maintenance_team','Mantenimiento',d,TEAM101)));
+    body.appendChild(row(buildSelect('Electrician','Electricista',d,TEAM101), buildSelect('Plumber','Fontanero',d,TEAM101)));
+    body.appendChild(row(buildSelect('Aircondition_ownerteam','Aire acondicionado',d,TEAM101), buildSelect('Agency_gestoria','Gestoría',d,TEAM101)));
+    body.appendChild(row(buildSelect('Comercializador','Comercializador',d,[['101','— Sin asignar —'],['1','3Villas'],['2','Externo']]), buildSelect('TipoWellcomepack','Tipo welcomepack',d,[['999','— Sin definir —'],['1','Básico'],['2','Premium'],['3','Sin WP']])));
+    body.appendChild(row(
+      buildSelect('Pay_Cleanning','Paga limpieza',d,PAY),
+      buildSelect('Pay_Garden','Paga jardín',d,PAY)
+    ));
+    body.appendChild(row(
+      buildSelect('Pay_Pool','Paga piscina',d,PAY),
+      buildSelect('Pay_KeHolder','Paga keyholder',d,PAY)
+    ));
+    body.appendChild(buildSelect('Changeoverday','Día de cambio',d,[['11','— Sin definir —'],['1','Lunes'],['2','Martes'],['3','Miércoles'],['4','Jueves'],['5','Viernes'],['6','Sábado'],['7','Domingo'],['8','Flexible']]));
+  }));
+
+  // ── 5. HABITACIONES Y PAX ──
+  main.appendChild(buildSection('hab','🛏','Habitaciones y capacidad',[
+    'Rooms_number','Pax_legal','Total_Pax','Aircon','dehumidifier_number','cots_cunas','Highchair_silita'
+  ], body => {
+    body.appendChild(row(
+      buildField('Rooms_number','Nº habitaciones',d,'number'),
+      buildField('Pax_legal','Plazas legales',d,'number')
+    ));
+    body.appendChild(row(
+      buildField('Total_Pax','Total plazas',d,'number'),
+      buildSelect('Aircon','Aire acondicionado',d,[['5','— Sin definir —'],['1','Sí'],['0','No'],['2','Parcial']])
+    ));
+    body.appendChild(row(
+      buildField('dehumidifier_number','Deshumidificadores',d,'number'),
+      buildSelect('cots_cunas','Cunas',d,[['50','— Sin definir —'],['0','No'],['1','Sí 1'],['2','Sí 2']])
+    ));
+    body.appendChild(row(
+      buildSelect('Highchair_silita','Trona',d,[['50','— Sin definir —'],['0','No'],['1','Sí']]),
+      buildSelect('Swiming_pool','Piscina',d,[['4','— Sin definir —'],['1','Privada'],['2','Comunitaria'],['0','No']])
+    ));
+    body.appendChild(buildTextarea('Beds_Explanation','Explicación camas y distribución',d,2));
+    body.appendChild(buildTextarea('Explain_additional_pax','Plazas adicionales',d,2));
+  }));
+
+  // ── 6. SERVICIOS ──
+  main.appendChild(buildSection('serv','⚙️','Servicios',[
+    'Dishwasher_lavaplatos','Washing_machine','Cofe_Machine','Wifi_Comany',
+    'Beach_towels_provided','Pets_allowed','Parking','Detector_de_humos__Smoke_Detecto'
+  ], body => {
+    const OPT10=[['10','— Sin definir —'],['1','Sí'],['0','No']];
+    body.appendChild(row(
+      buildSelect('Dishwasher_lavaplatos','Lavavajillas',d,OPT10),
+      buildSelect('Washing_machine','Lavadora',d,OPT10)
+    ));
+    body.appendChild(row(
+      buildSelect('Cofe_Machine','Cafetera',d,OPT10),
+      buildSelect('Beach_towels_provided','Toallas playa',d,OPT10)
+    ));
+    body.appendChild(row(
+      buildSelect('Pets_allowed','Mascotas',d,[['15','— Sin definir —'],['1','Sí'],['0','No'],['2','Consultar']]),
+      buildSelect('Parking','Parking',d,[['6','— Sin definir —'],['1','Garaje privado'],['2','Exterior privado'],['3','Calle'],['0','No']])
+    ));
+    body.appendChild(row(
+      buildSelect('Wifi_Comany','Compañía WiFi',d,[['7','— Sin definir —'],['1','Movistar'],['2','Vodafone'],['3','Orange'],['4','Jazztel'],['5','Otros']]),
+      buildSelect('Detector_de_humos__Smoke_Detecto','Detector humos',d,OPT10)
+    ));
+    body.appendChild(row(
+      buildField('Wifi_user','Usuario WiFi',d),
+      buildField('Wifi_password','Contraseña WiFi',d)
+    ));
+    body.appendChild(buildTextarea('Wifi_speed_company_type','Comentarios WiFi',d,2));
+    body.appendChild(buildTextarea('Pets_allowed_comments','Comentarios mascotas',d,2));
+    body.appendChild(buildTextarea('BBQ','Barbacoa',d,2));
+  }));
+
+  // ── 7. EMERGENCIAS ──
+  main.appendChild(buildSection('emerg','🔌','Emergencias',[
+    'where_is_mainpower','wher_is_water_stopcock','where_is_first_aid',
+    'cloudflare_foto_cuadro_electrico','cloudflare_foto_llave_agua','cloudflare_foto_llave_agua_calle'
+  ], body => {
+    body.appendChild(buildTextarea('where_is_mainpower','Cuadro eléctrico general',d,2));
+    body.appendChild(buildPhotoPair('foto_where_is_mainpower','Foto cuadro eléctrico','cloudflare_foto_cuadro_electrico',d));
+    const hr1=document.createElement('hr'); hr1.className='sec-divider'; body.appendChild(hr1);
+    body.appendChild(buildTextarea('wher_is_water_stopcock','Llave general del agua',d,2));
+    body.appendChild(buildPhotoPair('foto_wher_is_water_stopcock','Foto llave agua','cloudflare_foto_llave_agua',d));
+    body.appendChild(buildTextarea('where_is_water_stopcock_street','Llave del agua en la calle',d,2));
+    body.appendChild(buildSingleNew('cloudflare_foto_llave_agua_calle','Foto llave agua calle',d));
+    const hr2=document.createElement('hr'); hr2.className='sec-divider'; body.appendChild(hr2);
+    body.appendChild(buildTextarea('where_is_first_aid','Botiquín — dónde está',d,2));
+    body.appendChild(buildField('Alarm_code','Código alarma',d));
+    body.appendChild(buildTextarea('Alarm_descrition','Instrucciones alarma (equipo)',d,2));
+  }));
+
+  // ── 8. JACUZZI ──
+  main.appendChild(buildSection('jacuzzi','🌊','Jacuzzi',[
+    'cloudflare_foto_jacuzzi_1','cloudflare_foto_jacuzzi_2','cloudflare_pdf_jacuzzi'
+  ], body => {
+    body.appendChild(buildTextarea('Jacuzzi_info_team','Instrucciones para el equipo',d,2));
+    body.appendChild(buildTextarea('Jacuzzi_info_guest','Instrucciones para el inquilino',d,2));
+    body.appendChild(buildPhotoPair('Foto_Jacuzzi_1','Foto 1','cloudflare_foto_jacuzzi_1',d));
+    body.appendChild(buildPhotoPair('Foto_Jacuzzi_2','Foto 2','cloudflare_foto_jacuzzi_2',d));
+    body.appendChild(buildPhotoPair('Pdf_Jacuzzi','PDF instrucciones','cloudflare_pdf_jacuzzi',d));
+  }));
+
+  // ── 9. CALDERA ──
+  main.appendChild(buildSection('caldera','🔥','Caldera',[
+    'cloudflare_foto_caldera_1','cloudflare_foto_caldera_2','cloudflare_pdf_caldera'
+  ], body => {
+    body.appendChild(buildTextarea('Caldera_info_team','Instrucciones para el equipo',d,2));
+    body.appendChild(buildTextarea('Caldera_info_guest','Instrucciones para el inquilino',d,2));
+    body.appendChild(buildPhotoPair('Foto_Caldera_1','Foto 1','cloudflare_foto_caldera_1',d));
+    body.appendChild(buildPhotoPair('Foto_Caldera_2','Foto 2','cloudflare_foto_caldera_2',d));
+    body.appendChild(buildPhotoPair('Pdf_Caldera','PDF instrucciones','cloudflare_pdf_caldera',d));
+  }));
+
+  // ── 10. PLACAS SOLARES ──
+  main.appendChild(buildSection('placas','☀️','Placas solares',[
+    'cloudflare_foto_placas_solares_1','cloudflare_foto_placas_solares_2','cloudflare_pdf_placas_solares'
+  ], body => {
+    body.appendChild(buildTextarea('Placas_solares_info','Instrucciones',d,2));
+    body.appendChild(buildPhotoPair('Foto_placas_solares_1','Foto 1','cloudflare_foto_placas_solares_1',d));
+    body.appendChild(buildPhotoPair('Foto_placas_solares_2','Foto 2','cloudflare_foto_placas_solares_2',d));
+    body.appendChild(buildPhotoPair('Pdf_placas_solares','PDF instrucciones','cloudflare_pdf_placas_solares',d));
+  }));
+
+  // ── 11. MARKETING ──
+  main.appendChild(buildSection('mkt','📸','Marketing y plano',[
+    'cloudflare_marketing_photos','cloudflare_groundplan_file'
+  ], body => {
+    body.appendChild(buildSingleNew('cloudflare_marketing_photos','Fotos marketing',d));
+    body.appendChild(buildSingleNew('cloudflare_groundplan_file','Plano (groundplan)',d));
+    body.appendChild(buildTextarea('Marketing_Comments','Comentarios marketing',d,2));
+  }));
+
+  // ── 12. CONTRATO Y LEGAL ──
+  main.appendChild(buildSection('legal','📄','Contrato y legal',[
+    'Activa','Iniciocontrato','Fincontrato','ETV_Plate','House_Name_Plate',
+    'ecotasa2019status','Altaecotasa','Id_Ecotasa','who_pays__ecotasa',
+    'Checkin_ecotasa','Checkin_registro_policia','Checkin_deposito','Checkin_arrivalform','ITV_2020'
+  ], body => {
+    body.appendChild(row(
+      buildField('Iniciocontrato','Inicio contrato (año)',d,'number'),
+      buildField('Fincontrato','Fin contrato (año)',d,'number')
+    ));
+    body.appendChild(row(
+      buildSelect('ETV_Plate','Placa ETV',d,[['3','— Sin definir —'],['1','Sí'],['0','No'],['2','En trámite']]),
+      buildSelect('House_Name_Plate','Placa nombre villa',d,[['3','— Sin definir —'],['1','Sí'],['0','No']])
+    ));
+    body.appendChild(row(
+      buildField('License','Nº Licencia',d),
+      buildField('nro_rua','RUA',d)
+    ));
+    body.appendChild(row(
+      buildSelect('ecotasa2019status','Estado ecotasa',d,[['5','— Sin definir —'],['1','Al corriente'],['2','Pendiente'],['3','Exento']]),
+      buildSelect('Altaecotasa','Alta ecotasa',d,[['5','— Sin definir —'],['1','Sí'],['0','No']])
+    ));
+    body.appendChild(row(
+      buildField('Id_Ecotasa','Importe ecotasa (ID)',d,'number'),
+      buildSelect('who_pays__ecotasa','¿Quién paga ecotasa?',d,[['7','— Sin definir —'],['1','Propietario'],['2','Inquilino'],['3','3Villas']])
+    ));
+    body.appendChild(row(
+      buildField('ITV_2020','ITV 2020',d),
+      buildField('Comercial_info','Info comercial',d)
+    ));
+    const checkFields=[['Checkin_ecotasa','Checkin ecotasa activo'],['Checkin_registro_policia','Checkin registro policía'],['Checkin_deposito','Checkin depósito'],['Checkin_arrivalform','Checkin arrival form']];
+    checkFields.forEach(([f,l]) => {
+      body.appendChild(buildSelect(f,l,d,[['true','— Activo (pendiente cambiar) —'],['false','No activo'],['1','Sí'],['0','No']]));
+    });
+  }));
+
+  // ── 13. FOTOS GENÉRICAS ──
+  main.appendChild(buildSection('gen','🗃','Archivos genéricos',[
+    'cloudflare_generic_image_1','cloudflare_generic_image_2','cloudflare_generic_file'
+  ], body => {
+    body.appendChild(buildSingleNew('cloudflare_generic_image_1','Imagen genérica 1',d));
+    body.appendChild(buildSingleNew('cloudflare_generic_image_2','Imagen genérica 2',d));
+    body.appendChild(buildSingleNew('cloudflare_generic_file','Archivo genérico',d));
+  }));
+}
+
+/* ── SAVE ── */
+async function saveVilla() {
+  if(isSaving) return;
+  isSaving = true;
+  g('btnSave').disabled = true;
+  g('saveLabel').textContent = 'Guardando…';
+
+  try {
+    // Collect all text/select field values
+    const record = {};
+    const textFields = [
+      'Keybox_code','Key_Coments','Keybox_code2','Key_Coments2','Notas_keyholder','KeyHolder_zone',
+      'Name','Name_villa_corto_interno','Name_villa_para_inquilinos','Zone','Address',
+      'Hostawayid','KeyHolder_person','Activa','Cleanning_team','Garden_team','Pool_team',
+      'Maintenance_team','Electrician','Plumber','Aircondition_ownerteam','Agency_gestoria',
+      'Comercializador','TipoWellcomepack','Changeoverday','Pay_Cleanning','Pay_Garden','Pay_Pool','Pay_KeHolder',
+      'Rooms_number','Pax_legal','Total_Pax','Aircon','dehumidifier_number','cots_cunas','Highchair_silita',
+      'Swiming_pool','Beds_Explanation','Explain_additional_pax',
+      'Dishwasher_lavaplatos','Washing_machine','Cofe_Machine','Beach_towels_provided',
+      'Pets_allowed','Parking','Wifi_Comany','Detector_de_humos__Smoke_Detecto',
+      'Wifi_user','Wifi_password','Wifi_speed_company_type','Pets_allowed_comments','BBQ',
+      'where_is_mainpower','wher_is_water_stopcock','where_is_water_stopcock_street',
+      'where_is_first_aid','Alarm_code','Alarm_descrition',
+      'Jacuzzi_info_team','Jacuzzi_info_guest','Caldera_info_team','Caldera_info_guest',
+      'Placas_solares_info','Marketing_Comments',
+      'Iniciocontrato','Fincontrato','ETV_Plate','House_Name_Plate','License','nro_rua',
+      'ecotasa2019status','Altaecotasa','Id_Ecotasa','who_pays__ecotasa','ITV_2020','Comercial_info',
+      'Checkin_ecotasa','Checkin_registro_policia','Checkin_deposito','Checkin_arrivalform',
+    ];
+    textFields.forEach(f => {
+      const el = g('f_'+f);
+      if(el) record[f] = el.value;
+    });
+
+    // Wait for all pending uploads and collect URLs
+    const cfFields = Object.keys(PENDING_RULES).filter(k => k.startsWith('cloudflare_'));
+    for(const f of cfFields) {
+      const url = await getUploadUrl(f);
+      // If url is empty string and there was no upload started, keep existing value
+      if(url === '') {
+        record[f] = villaData[f]||''; // keep original
+      } else if(url === 'null_cleared') {
+        record[f] = '';
+      } else {
+        record[f] = url;
+      }
+    }
+
+    const where = 'villaid='+parseInt(villaid);
+    const res = await fetch(Auth.url(WORKER+'?action=save&table=TaVillas&where='+encodeURIComponent(where)+'&method=PUT'), {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(record)
+    });
+    if(!res.ok) { const e=await res.json(); throw new Error(e.Message||e.error||'HTTP '+res.status); }
+    const json = await res.json();
+    if(json.error||json.Message) throw new Error(json.error||json.Message);
+    toast('¡Villa guardada!','ok');
+    updatePendingAll();
+  } catch(err) {
+    toast('❌ '+err.message,'err');
+    console.error(err);
+  } finally {
+    isSaving=false; g('btnSave').disabled=false; g('saveLabel').textContent='Guardar cambios';
+  }
+}
+
+window.setFilter = setFilter;
+window.saveVilla = saveVilla;
+window.openLB    = openLB;
+window.closeLB   = closeLB;
+
+document.addEventListener('DOMContentLoaded', loadVilla);
+})();
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v01 - Primera versión: carga TaVillas, secciones colapsables, filtro pendientes, fotos antiguas+nuevas en pares, compressImage + pre-subida background + lightbox, guardado via Worker PUT -->
