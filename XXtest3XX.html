@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v52 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v56 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -21,7 +21,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v52 — 3Villas</title>
+  <title>Editar Tarea v56 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
@@ -98,8 +98,7 @@
     .photo-gallery{display:flex;flex-wrap:wrap;gap:8px}
     .photo-thumb{position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;background:var(--gray-2)}
     .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .photo-thumb .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:0;transition:opacity .15s}
-    .photo-thumb:hover .pt-del{opacity:1}
+    .photo-thumb .pt-del{position:absolute;top:4px;right:4px;background:rgba(200,16,46,.85);color:#fff;border:none;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;opacity:1}
     .photo-thumb .pt-num{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;pointer-events:none}
     .photo-thumb .pt-new{position:absolute;bottom:4px;left:4px;background:var(--orange);color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;display:none}
     .photo-thumb.is-new .pt-new{display:block}
@@ -134,7 +133,6 @@
     #successBox .big{font-size:56px;margin-bottom:12px}
     #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
     #lightbox.open{display:flex}
-    #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px}
     @media(max-width:480px){.field-row{grid-template-columns:1fr}.res-btns{grid-template-columns:1fr}.btn-cerrar{grid-column:auto}}
     @keyframes shake-v{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
     .re-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
@@ -174,7 +172,7 @@
 <body>
 <script>Auth.require('tareas');</script>
 <div class="villa-dropdown" id="multiunitDrop"></div>
-<div id="lightbox" onclick="closeLightbox()"><img id="lbImg" src="" alt=""></div>
+<div id="lightbox" onclick="if(event.target===this||event.target.id==='lbImg')closeLightbox()"><button onclick="closeLightbox()" style="position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000;font-family:Montserrat,sans-serif;line-height:1">✕</button><img id="lbImg" src="" alt="" style="max-width:96vw;max-height:86vh;border-radius:10px;display:block"></div>
 <div id="toast"></div>
 <nav class="top-nav">
   <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="<3Villas"></a>
@@ -533,7 +531,12 @@ document.addEventListener('DOMContentLoaded',function(){
   g('btnCerrar').addEventListener('click',function(){ submitForm(true); });
   g('btnSoloGuardar').addEventListener('click',function(){ submitForm(false); });
   g('btnSaveBar').addEventListener('click',function(){ submitForm(false); });
-  Promise.all([loadUsers(),loadTask(),loadVillas(),loadAllMultiunits()])
+  /* v54: carga en 2 fases
+     Fase 1 (crítica): tarea+villa+usuario de la vista + multiunits → muestra el formulario
+     Fase 2 (background): usuarios y villas para los buscadores → llegan después */
+  /* v55: UNA sola llamada (Vi_Tasks_and_Villas con multiunits) → formulario visible
+     Fase 2 background: usuarios y villas para los buscadores */
+  loadTask()
     .then(function(){
       initVillaSearch();
       initMultiunitSearch();
@@ -545,6 +548,13 @@ document.addEventListener('DOMContentLoaded',function(){
       g('formWrap').style.display='flex';
       g('saveBar').style.display='flex';
       if(window._qlInit){_qlInit('fDesc','Detalles de la tarea…');_qlInit('fSolucion','Describe brevemente la solución…');}
+      /* Fase 2: usuarios, villas y multiunits completos en background para buscadores */
+      Promise.all([loadUsers(), loadVillas(), loadAllMultiunits()]).then(function(){
+        initVillaSearch();
+        initUsuarioSearch();
+        /* Re-init multiunit con lista completa por si el usuario cambia de villa */
+        initMultiunitSearch();
+      }).catch(function(){});
     })
     .catch(function(e){ showErr(e.message||'Error cargando tarea'); });
 });
@@ -552,44 +562,88 @@ document.addEventListener('DOMContentLoaded',function(){
 function showErr(msg){ g('stLoad').style.display='none'; g('stErr').style.display='block'; if(g('errMsg'))g('errMsg').innerHTML=msg; }
 
 function loadTask(){
-  return fetch(Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(PK+'='+taskId)+'&limit=1'))
+  /* v55: Vi_Tasks_and_Villas incluye TaMultiunits — UNA sola llamada para todo */
+  var where='TaTasks_taskid='+parseInt(taskId);
+  return fetch(Auth.url(WORKER+'?action=view&view=Vi_Tasks_and_Villas&where='+encodeURIComponent(where)+'&limit=1'))
     .then(function(r){ return r.json(); })
     .then(function(json){
       var rows=json.Result||json.result||[];
       if(!rows.length) throw new Error('Tarea no encontrada (taskid='+taskId+')');
-      taskData=rows[0];
-      var vid=taskData.villaid;
-      if(vid&&parseInt(vid)>0){
-        return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where=villaid='+parseInt(vid)+'&limit=1'))
-          .then(function(r){ return r.json(); })
-          .then(function(j){ var v=(j.Result||j.result||[])[0]; if(v)taskData._villaName=v.Name_villa_para_inquilinos||v.Name||''; })
-          .catch(function(){});
+      var row=rows[0];
+      taskData={
+        taskid:         row['TaTasks_taskid'],
+        villaid:        row['TaTasks_VillaID'],
+        Taskname:       row['TaTasks_Taskname']||'',
+        Taskdescription:row['TaTasks_Taskdescription']||'',
+        Data_to_be_done_fixed: row['TaTasks_Data_to_be_done_fixed']||'',
+        Data_to_be_done:row['TaTasks_Data_to_be_done']||'',
+        UserID_asigned_alfanum: row['TaTasks_UserID_asigned_alfanum']||'',
+        Tarea_terminada:row['TaTasks_Tarea_terminada'],
+        Internal_notes: row['TaTasks_Internal_notes']||'',
+        Solutiondescription: row['TaTasks_Solutiondescription']||'',
+        PMSmultiunitID: row['TaTasks_PMSmultiunitID']||'',
+        urgente:        row['TaTasks_urgente'],
+        importante:     row['TaTasks_importante'],
+        Picture_cloudfare1: row['TaTasks_Picture_cloudfare1']||'',
+        Picture_cloudfare2: row['TaTasks_Picture_cloudfare2']||'',
+        Picture_cloudfare3: row['TaTasks_Picture_cloudfare3']||'',
+        Picture_cloudfare4: row['TaTasks_Picture_cloudfare4']||'',
+        Picture_cloudfare5: row['TaTasks_Picture_cloudfare5']||'',
+        Picture_cloudfare_after1: row['TaTasks_Picture_cloudfare_after1']||'',
+        Picture_cloudfare_after2: row['TaTasks_Picture_cloudfare_after2']||'',
+        Picture_cloudfare_after3: row['TaTasks_Picture_cloudfare_after3']||'',
+        Picture_cloudfare_after4: row['TaTasks_Picture_cloudfare_after4']||'',
+        Picture_cloudfare_after5: row['TaTasks_Picture_cloudfare_after5']||'',
+        _villaName:    row['TaVillas_Name_villa_para_inquilinos']||row['TaVillas_Name']||'',
+        _assignedName: row['TaUsers_Name']||''
+      };
+      /* v55: poblar allMultiunits desde la vista si hay multiunit en la tarea */
+      var muId=String(row['TaMultiunits_multiunitID']||'').trim();
+      var muName=String(row['TaMultiunits_descripcion']||row['TaMultiunits_nombre_listing_manual']||'').trim();
+      var muVillaId=String(row['TaMultiunits_VillaIDcaspio']||row['TaTasks_VillaID']||'').trim();
+      if(muId&&muName){
+        /* Añadir el multiunit de esta tarea — suficiente para pre-seleccionarlo */
+        allMultiunits=[{id:muId,name:muName,villaId:muVillaId}];
       }
     });
 }
 
 function loadUsers(){
+  /* v53: caché sessionStorage 5 min — usuarios no cambian en mitad de una sesión */
+  try {
+    var cached=sessionStorage.getItem('3v_users_cache');
+    if(cached){var c=JSON.parse(cached);if(Date.now()-c.ts<300000){allUsers=c.data;return Promise.resolve();}}
+  } catch(e){}
   return fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200'))
     .then(function(r){ return r.json(); })
     .then(function(json){
       var users=json.Result||json.result||[];
       var active=users.filter(function(u){ var s=u['User_Status']; return s===true||s===1||s===-1||['yes','sí','true'].indexOf(String(s||'').toLowerCase())!==-1; });
       allUsers=active.map(function(u){ return {id:String(u.UserID||''),name:u.Name||''}; }).filter(function(u){ return u.id&&u.name; });
+      try{sessionStorage.setItem('3v_users_cache',JSON.stringify({ts:Date.now(),data:allUsers}));}catch(e){}
     });
 }
 
 function loadVillas(){
+  /* v53: caché sessionStorage 5 min */
+  try {
+    var cached=sessionStorage.getItem('3v_villas_cache');
+    if(cached){var c=JSON.parse(cached);if(Date.now()-c.ts<300000){allVillas=c.data;return Promise.resolve();}}
+  } catch(e){}
   return fetch(Auth.url(WORKER+'?action=data&table=TaVillas&limit=500'))
     .then(function(r){ return r.json(); })
     .then(function(json){
       var rows=json.Result||json.result||[];
       allVillas=rows.map(function(v){ return {id:String(v.villaid||''),name:v.Name_villa_para_inquilinos||v.Name||''}; }).filter(function(v){ return v.id&&v.name; });
+      try{sessionStorage.setItem('3v_villas_cache',JSON.stringify({ts:Date.now(),data:allVillas}));}catch(e){}
     }).catch(function(){});
 }
 
 function populateForm(){
   if(!taskData)return;
-  var t=taskData,nombre=t[F.nombre]||'',villa=t._villaName||'';
+  var t=taskData,nombre=t[F.nombre]||'';
+  /* v54: nombre villa viene de la vista directamente */
+  var villa=t._villaName||'';
   g('hTitle').textContent='Editar tarea';
   var metaParts=[]; if(villa)metaParts.push('📍 '+villa); metaParts.push('Nr. '+taskId);
   var hm=g('hMeta'); if(hm)hm.textContent=metaParts.join(' · ');
@@ -602,8 +656,9 @@ function populateForm(){
   g('fFecha').value=rf?(rf.split('T')[0].split(' ')[0]):today();
   var _aid=String(t[F.asignado]||'');
   if(_aid&&window._setUsuarioConfirmed){
-    var _au=allUsers.find(function(u){return u.id===_aid;});
-    window._setUsuarioConfirmed(_aid,_au?_au.name:'');
+    /* v54: nombre asignado viene de la vista, sin buscar en allUsers */
+    var _auName=t._assignedName||(allUsers.find(function(u){return u.id===_aid;})||{}).name||'';
+    window._setUsuarioConfirmed(_aid,_auName);
   }
   setTerminada(isTruthy(t[F.terminada]));
   setFlag('urgente',isTruthy(t['urgente']||t['Urgente']));
@@ -947,4 +1002,4 @@ function onDone(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->
+<!-- HISTORIAL: v56 - Lightbox fotos: botón cerrar ✕ visible en esquina superior derecha | v55 - Vi_Tasks_and_Villas incluye TaMultiunits: 1 sola llamada al cargar (vs 4 anteriores); multiunits completos en background para cambio de villa | v54 - Carga en 2 fases: Vi_Tasks_and_Villas sustituye loadTask+loadVillas+loadUsers (1 fetch vs 3); formulario visible inmediatamente; buscadores cargan en background | v53 - Fix botón borrar foto siempre visible (móvil); carga más rápida: loadTask sin 2ª fetch villa (usa allVillas), caché sessionStorage 5min para users y villas | v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->
