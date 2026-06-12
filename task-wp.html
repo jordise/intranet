@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePack v11 — 3Villas</title>
+  <title>WelcomePack v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -268,6 +268,26 @@ function show(id){const el=document.getElementById(id);if(el)el.style.display=''
 function openCamera(){saveState();document.getElementById('cameraInput').value='';document.getElementById('cameraInput').click();}
 function openGallery(){saveState();document.getElementById('fileInput').value='';document.getElementById('fileInput').click();}
 function handlePhotoAreaClick(){if(!selectedPhoto)openGallery();}
+
+function compressImage(file,maxPx,quality){
+  maxPx=maxPx||1200;quality=quality||0.80;
+  return new Promise(function(resolve){
+    if(file.size<300*1024){resolve(file);return;}
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        resolve(blob?new File([blob],file.name,{type:'image/jpeg',lastModified:Date.now()}):file);
+      },'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);resolve(file);};
+    img.src=url;
+  });
+}
 /* v09: upload state para pre-subida */
 let _wpUpload={status:'idle',url:'',promise:null};
 function handlePhoto(input){
@@ -389,4 +409,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();})
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
+<!-- HISTORIAL: v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
