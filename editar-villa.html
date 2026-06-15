@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v05 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v06 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Editar Villa v05 — 3Villas</title>
+<title>Editar Villa v06 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -99,8 +99,8 @@ main{padding:10px 12px 14px;max-width:700px;margin:0 auto;display:flex;flex-dire
 .field.hi-match{outline:2px solid rgba(200,16,46,.4);background:rgba(200,16,46,.04)!important}
 
 /* Info button */
-.info-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--gray-2);color:var(--gray-4);font-size:9px;font-weight:900;cursor:pointer;border:none;flex-shrink:0;font-family:'Montserrat',sans-serif;transition:all .15s;line-height:1}
-.info-btn:hover{background:var(--red-light);color:var(--red)}
+.info-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#1967d2;color:#fff;font-size:9px;font-weight:900;cursor:pointer;border:none;flex-shrink:0;font-family:'Montserrat',sans-serif;transition:all .15s;line-height:1}
+.info-btn:hover{background:#0d47a1;color:#fff}
 
 input[type=text],input[type=number],select,textarea{
   border:1.5px solid var(--gray-2);border-radius:9px;padding:8px 11px;font-size:13px;
@@ -144,9 +144,9 @@ textarea{resize:vertical;min-height:66px;line-height:1.5}
 .sec-divider{border:none;border-top:1px solid var(--gray-2);margin:4px 0}
 
 /* ── MODALS ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9990;align-items:flex-end;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:9990;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
-.modal-sheet{background:#fff;border-radius:18px 18px 0 0;padding:24px 20px;max-width:520px;width:100%;max-height:75vh;overflow-y:auto}
+.modal-sheet{background:#fff;border-radius:16px;padding:20px 18px;max-width:360px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18)}
 .modal-sheet h3{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;margin-bottom:12px;color:var(--gray-5)}
 .modal-sheet p{font-size:13px;line-height:1.7;color:var(--gray-5);margin-bottom:8px}
 .modal-close{display:block;margin-top:16px;padding:12px;background:var(--gray-1);border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--gray-5);cursor:pointer;width:100%;text-align:center}
@@ -747,7 +747,7 @@ async function loadVilla(){
     if(!rows.length){g('stLoad').innerHTML='<p style="color:var(--red);font-weight:700">Villa no encontrada</p>';return;}
     villaData=rows[0];
     const cRows=cr.Result||cr.result||[];
-    contacts=cRows.map(c=>({id:String(c.ContactID||c.contactid||''),name:c.Name||c.Nombre||c.Full_Name||'Contacto '+c.ContactID})).filter(c=>c.id&&c.name&&c.id!=='101').sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    contacts=cRows.map(c=>({id:String(c.ContactID||c.contactid||c.Id||c.id||''),name:c.Name||c.Nombre||c.Full_Name||c.FullName||'Contacto '+(c.ContactID||c.Id||c.id||'')})).filter(c=>c.id&&c.name).sort((a,b)=>a.name.localeCompare(b.name,'es'));
     const uRows=ur.Result||ur.result||[];
     users=uRows.filter(u=>{const s=u['User_Status'];return s===true||s===1||s===-1||['yes','sí','true'].includes(String(s||'').toLowerCase());}).map(u=>({id:String(u.UserID||''),name:u.Name||u.UserID||''})).filter(u=>u.id&&u.name).sort((a,b)=>a.name.localeCompare(b.name,'es'));
     const d=villaData;
@@ -761,19 +761,19 @@ async function loadVilla(){
 }
 
 /* ══════════════════════════════════════════════════════════
-   BUILD FORM — estructura según documento de referencia
+   BUILD FORM — estructura según documento v2 (orden col A)
 ═════════════════════════════════════════════════════════════ */
 function buildForm(d){
   const main=g('mainWrap');
 
-  // ── VILLAMANAGER ──────────────────────────────────────────
+  // ── 1. VILLAMANAGER ────────────────────────────────────────
   main.appendChild(buildSection('vm','👤','Villamanager',body=>{
-    body.appendChild(buildUserSelect('KeyHolder_person','Villa Manager',d,2));
+    body.appendChild(buildUserSelect('KeyHolder_person','Villa Manager',d,1));
     body.appendChild(buildInput('KeyHolder_zone','Zona keyholder',d,'number',2));
     body.appendChild(buildTA('Notas_keyholder','Notas internas del villamanager',d,3,2));
   },true));
 
-  // ── KEYBOX 1 ──────────────────────────────────────────────
+  // ── 2. KEYBOX 1 ────────────────────────────────────────────
   main.appendChild(buildSection('kb1','🔑','Keybox 1',body=>{
     body.appendChild(subgroup('🔒 Información interna (equipo)','sg-internal',
       buildTA('Key_Coments','Instrucciones internas / comentarios',d,2,2)
@@ -789,7 +789,7 @@ function buildForm(d){
     body.appendChild(pg);
   }));
 
-  // ── KEYBOX 2 ──────────────────────────────────────────────
+  // ── 3. KEYBOX 2 ────────────────────────────────────────────
   main.appendChild(buildSection('kb2','🔑','Keybox 2',body=>{
     body.appendChild(subgroup('🔒 Información interna (equipo)','sg-internal',
       buildTA('Key_Coments2','Instrucciones internas / comentarios',d,2,2)
@@ -805,74 +805,75 @@ function buildForm(d){
     body.appendChild(pg);
   }));
 
-  // ── VILLA ─────────────────────────────────────────────────
+  // ── 4. VILLA — NOMBRES Y UBICACIÓN ─────────────────────────
   main.appendChild(buildSection('villa','🏠','Villa — Nombres y ubicación',body=>{
+    body.appendChild(buildTA('Important_comments','Comentarios importantes',d,2,2));
     body.appendChild(buildInput('Name','Nombre interno equipo',d,'text',2));
     body.appendChild(row(buildInput('Name_villa_corto_interno','Nombre corto',d,'text',2), buildInput('Name_villa_para_inquilinos','Nombre comercial (inquilinos)',d,'text',1)));
-    body.appendChild(row(buildSelect('Zone','Zona',d,OPTS.zone13,2), buildSelect('Activa','Estado villa',d,OPTS.activa2,2)));
-    body.appendChild(buildInput('Address','Dirección',d,'text',1));
+    body.appendChild(row(buildSelect('Zone','Zona',d,OPTS.zone13,2), buildInput('Address','Dirección',d,'text',1)));
     body.appendChild(row(buildInput('Hostawayid','Hostaway ID',d,'number',2), buildInput('nro_rua','RUA',d,'text',2)));
     body.appendChild(buildInput('License','Nº Licencia',d,'text',1));
     body.appendChild(buildTA('Comercial_info','Info comercial',d,2,2));
-    body.appendChild(buildTA('Important_comments','Comentarios importantes',d,2,2));
   }));
 
-  // ── EQUIPO Y PAGOS ────────────────────────────────────────
-  main.appendChild(buildSection('equipo','👥','Equipo y pagos',body=>{
-    body.appendChild(row(buildContactSelect('Owner','Propietario',d,2), buildSelect('TipoWellcomepack','Tipo welcomepack',d,OPTS.wp999,2)));
+  // ── 5. EQUIPO ──────────────────────────────────────────────
+  main.appendChild(buildSection('equipo','👥','Equipo',body=>{
+    body.appendChild(buildContactSelect('Owner','Propietario',d,2));
     body.appendChild(subgroup('🧹 Equipos de trabajo','sg-internal',
       row(buildContactSelect('Cleanning_team','Limpieza',d,2), buildContactSelect('Garden_team','Jardinero',d,2)),
-      row(buildContactSelect('Pool_team','Piscinero',d,2), buildInput('Pool_cleaner3villas','Piscinero 3Villas',d,'text',2,'En los casos en que 3villas limpia la piscina, quién del equipo la está limpiando.')),
+      buildContactSelect('Issues_responsible','Responsable incidencias',d,2,'En algunas casas hay una persona responsable que no es el propietario ni del equipo de 3Villas. Si no existe, dejar 3Villas si es en Garantía o Propietario si es en %.'),
+      row(buildContactSelect('Pool_team','Piscinero',d,2), buildInput('Pool_cleaner3villas','Piscinero de 3Villas',d,'text',2,'En los casos en que 3Villas limpia la piscina, quién del equipo la está limpiando.')),
       row(buildContactSelect('Maintenance_team','Mantenimiento',d,2), buildContactSelect('Electrician','Electricista',d,2)),
-      row(buildContactSelect('Plumber','Fontanero',d,2), buildContactSelect('Aircondition_ownerteam','Aircon instalador',d,2)),
-      buildContactSelect('Issues_responsible','Responsable incidencias',d,2,'En algunas casas hay una persona responsable que no es el propietario ni del equipo de 3Villas. Si no existe, dejar 3Villas si es en Garantía o Propietario si es en %.')
-    ));
-    body.appendChild(subgroup('💶 Pagos','sg-internal',
-      row(buildSelect('Pay_Cleanning','¿Quién paga la limpieza?',d,OPTS.pay,2), buildSelect('Pay_Garden','¿Quién paga el jardín?',d,OPTS.pay,2)),
-      row(buildSelect('Pay_Pool','¿Quién paga la piscina?',d,OPTS.pay,2), buildSelect('Pay_KeHolder','¿Quién paga el villamanager?',d,OPTS.pay,2))
+      row(buildContactSelect('Plumber','Fontanero',d,2), buildContactSelect('Aircondition_ownerteam','Aircon instalador',d,2))
     ));
   }));
 
-  // ── HABITACIONES ──────────────────────────────────────────
+  // ── 6. HABITACIONES ────────────────────────────────────────
   main.appendChild(buildSection('hab','🛏','Habitaciones y capacidad',body=>{
     body.appendChild(row(buildInput('Rooms_number','Nº habitaciones',d,'text',2), buildInput('Pax_legal','Plazas legales',d,'number',2)));
     body.appendChild(row(buildInput('Total_Pax','Total plazas',d,'number',2), buildSelect('Aircon','Aire acondicionado',d,OPTS.aircon5,1)));
     body.appendChild(buildTA('Explanation_aircon','Notas sobre los aires',d,2,2));
     body.appendChild(row(buildSelect('dehumidifier_number','Deshumidificadores',d,OPTS.dehum50,2), buildInput('Fans_ventiladores','Ventiladores',d,'text',2)));
     body.appendChild(buildTA('dehumidifier_explanation','Dónde se guardan los deshumidificadores',d,2,2));
+    body.appendChild(buildTA('Explain_additional_pax','Plazas adicionales — cómo se colocan',d,2,2));
     body.appendChild(row(buildInput('Ensuite_BATHROOMS','Baños ensuite',d,'text',1), buildInput('Shared_BATHROOMS','Baños compartidos',d,'text',1)));
     body.appendChild(buildTA('Beds_Explanation','Explicación camas / distribución',d,2,1));
-    body.appendChild(buildTA('Explain_additional_pax','Plazas adicionales — cómo se colocan',d,2,2));
     body.appendChild(buildTA('Reorganizar_camas','Reorganizar camas',d,2,2,'¿Se pueden reorganizar las camas? Si se puede, explicar aquí las opciones que hay para que los compañeros sepan las posibilidades.'));
-    // Rooms 1-7
     for(let r=1;r<=7;r++){
       body.appendChild(subgroup('🛏 Habitación '+r,'sg-internal',
         row(buildInput(`Room${r}Beds`,'Camas',d,'number',2), buildInput(`Room${r}Otherbeds`,'Otras camas',d,'number',2)),
-        row(buildInput(`Room${r}Bath`,'Baños',d,'number',2), buildInput(`Room${r}Aircon`,'Aircon',d,'number',2)),
+        row(buildInput(`Room${r}Aircon`,'Aircon',d,'number',2), buildInput(`Room${r}Bath`,'Baños',d,'number',2)),
         row(buildInput(`Room${r}fan`,'Ventiladores',d,'number',2), buildInput(`Room${r}foor`,'Planta',d,'number',2)),
         buildTA(`Room${r}comments`,'Comentarios',d,1,2)
       ));
     }
   }));
 
-  // ── SERVICIOS ─────────────────────────────────────────────
-  main.appendChild(buildSection('serv','⚙️','Servicios',body=>{
-    body.appendChild(subgroup('🏠 Interior','sg-internal',
+  // ── 7. EQUIPAMIENTO ────────────────────────────────────────
+  main.appendChild(buildSection('equip','📦','Equipamiento',body=>{
+    body.appendChild(subgroup('📡 WiFi','sg-internal',
       row(buildSelect('Wifi_Comany','Compañía WiFi',d,OPTS.wifi7,2), buildInput('Wifi_user','Usuario WiFi',d,'text',1)),
       row(buildInput('Wifi_password','Contraseña WiFi',d,'text',1), buildInput('Wifi_speed_company_type','Velocidad / tipo',d,'text',1)),
-      buildInput('Who_contract_internet','¿Quién contrata el WiFi?',d,'text',2),
-      row(buildSelect('cots_cunas','Cunas',d,OPTS.cots50,2), buildSelect('Highchair_silita','Trona',d,OPTS.hchair50,2)),
-      buildInput('TV','TV',d,'text',2),
-      row(buildSelect('Dishwasher_lavaplatos','Lavavajillas',d,OPTS.yesno10,1), buildSelect('Washing_machine','Lavadora',d,OPTS.yesno10,1)),
-      row(buildSelect('Cofe_Machine','Cafetera',d,OPTS.yesno10,1), buildInput('Description_cofe_machine','Descripción cafetera',d,'text',2)),
-      row(buildSelect('Beach_towels_provided','Toallas playa',d,OPTS.yesno10,2), buildSelect('Pets_allowed','Mascotas',d,OPTS.pets15,1)),
-      buildTA('Pets_allowed_comments','Comentarios mascotas',d,2,2)
+      buildInput('Who_contract_internet','¿Quién contrata el WiFi?',d,'text',2)
     ));
-    body.appendChild(subgroup('🌿 Exterior','sg-guest',
-      buildTA('BBQ','Barbacoa',d,2,1,'Explicar cómo es la barbacoa y qué épocas del año se puede usar. Si hay alguna restricción (como pasa en Son Park) indicarla aquí.'),
-      buildTA('Views','Vistas',d,2,1,'Explicar las vistas. Si no hay vistas poner "Sin vistas, panorámicas".')
-    ));
-    body.appendChild(subgroup('🚗 Accesos y servicios externos','sg-guest',
+    body.appendChild(row(buildSelect('cots_cunas','Cunas',d,OPTS.cots50,2), buildSelect('Highchair_silita','Trona',d,OPTS.hchair50,2)));
+    body.appendChild(buildInput('TV','TV',d,'text',2));
+    body.appendChild(row(buildSelect('Dishwasher_lavaplatos','Lavavajillas',d,OPTS.yesno10,1), buildSelect('Washing_machine','Lavadora',d,OPTS.yesno10,1)));
+    body.appendChild(row(buildSelect('Cofe_Machine','Cafetera',d,OPTS.yesno10,1), buildInput('Description_cofe_machine','Descripción cafetera',d,'text',2)));
+    body.appendChild(buildSelect('Beach_towels_provided','Toallas playa',d,OPTS.yesno10,2));
+    body.appendChild(buildTA('BBQ','Barbacoa',d,2,1,'Explicar cómo es la barbacoa y qué épocas del año se puede usar. Si hay alguna restricción (como pasa en Son Park) indicarla aquí.'));
+  }));
+
+  // ── 8. ANIMALES ────────────────────────────────────────────
+  main.appendChild(buildSection('animales','🐾','Animales',body=>{
+    body.appendChild(buildSelect('Pets_allowed','Mascotas',d,OPTS.pets15,1));
+    body.appendChild(buildTA('Pets_allowed_comments','Comentarios mascotas',d,2,2));
+  }));
+
+  // ── 9. SERVICIOS ───────────────────────────────────────────
+  main.appendChild(buildSection('serv','⚙️','Servicios',body=>{
+    body.appendChild(buildTA('Views','Vistas',d,2,1,'Explicar las vistas. Si no hay vistas poner "Sin vistas, panorámicas".'));
+    body.appendChild(subgroup('🚗 Accesos y transporte','sg-guest',
       row(buildSelect('Parking','Parking',d,OPTS.park6,1), buildTA('Parking_aditionalinfo','Info adicional parking',d,2,1)),
       buildTA('Public_transpost','Transporte público',d,2,1,'Información sobre transportes públicos'),
       buildTA('Taxi_and_Transfers','Taxis y transfers',d,2,1,'Información sobre taxis y transfers, cómo y dónde solicitarlos.'),
@@ -885,7 +886,7 @@ function buildForm(d){
     body.appendChild(buildTA('Sercives_comments','Comentarios servicios',d,2,2));
   }));
 
-  // ── SEGURIDAD ─────────────────────────────────────────────
+  // ── 10. SEGURIDAD ──────────────────────────────────────────
   main.appendChild(buildSection('seg','🔐','Seguridad',body=>{
     body.appendChild(subgroup('🔒 Alarma — interno (equipo)','sg-internal',
       buildTA('Alarm_descrition','Instrucciones alarma (equipo)',d,2,2),
@@ -906,7 +907,7 @@ function buildForm(d){
     ));
   }));
 
-  // ── EMERGENCIAS ───────────────────────────────────────────
+  // ── 11. EMERGENCIAS ────────────────────────────────────────
   main.appendChild(buildSection('emerg','🔌','Emergencias',body=>{
     body.appendChild(buildTA('where_is_mainpower','Cuadro eléctrico — dónde está',d,2,1,'Explicar dónde está y cualquier indicación importante'));
     body.appendChild(buildPair('foto_where_is_mainpower','cloudflare_foto_cuadro_electrico',d,1));
@@ -922,7 +923,7 @@ function buildForm(d){
     body.appendChild(buildSelect('Detector_de_humos__Smoke_Detecto','Detector de humos',d,OPTS.smoke10,1));
   }));
 
-  // ── PISCINA Y JACUZZI ─────────────────────────────────────
+  // ── 12. PISCINA Y JACUZZI ──────────────────────────────────
   main.appendChild(buildSection('piscina','🌊','Piscina y Jacuzzi',body=>{
     body.appendChild(subgroup('🏊 Piscina','sg-internal',
       row(buildSelect('Swiming_pool','Tipo de piscina',d,OPTS.pool4,1), buildInput('size_of_swimingpool','Medidas de la piscina',d,'text',1)),
@@ -931,7 +932,7 @@ function buildForm(d){
       buildTA('Swimingpool_maintenancecomments','Comentarios sobre el mantenimiento de la piscina',d,2,2,'Llaves de la caseta, algún problema o información relevante.')
     ));
     body.appendChild(hr());
-    body.appendChild(subgroup('🛁 Jacuzzi','sg-internal',
+    body.appendChild(subgroup('🛁 Jacuzzi — equipo','sg-internal',
       buildTA('Jacuzzi_info_team','Instrucciones para el equipo',d,2,2)
     ));
     body.appendChild(subgroup('👤 Jacuzzi — visible por el cliente','sg-guest',
@@ -944,7 +945,7 @@ function buildForm(d){
     body.appendChild(pg);
   }));
 
-  // ── CALDERA ───────────────────────────────────────────────
+  // ── 13. CALDERA ────────────────────────────────────────────
   main.appendChild(buildSection('caldera','🔥','Caldera',body=>{
     body.appendChild(buildTA('Caldera_info_team','Instrucciones para el equipo',d,2,2));
     body.appendChild(subgroup('👤 Visible por el cliente','sg-guest',
@@ -957,7 +958,7 @@ function buildForm(d){
     body.appendChild(pg);
   }));
 
-  // ── PLACAS SOLARES ────────────────────────────────────────
+  // ── 14. PLACAS SOLARES ─────────────────────────────────────
   main.appendChild(buildSection('placas','☀️','Placas solares',body=>{
     body.appendChild(buildTA('Placas_solares_info','Instrucciones',d,2,2));
     const pg=document.createElement('div');pg.className='photo-group';
@@ -967,36 +968,19 @@ function buildForm(d){
     body.appendChild(pg);
   }));
 
-  // ── MARKETING ─────────────────────────────────────────────
-  main.appendChild(buildSection('mkt','📸','Marketing y plano',body=>{
-    body.appendChild(buildNewOnly('cloudflare_marketing_photos','Foto principal para el manual',d,1,'Foto principal de la casa para usar automáticamente en manuales y/o presentaciones.'));
-    body.appendChild(buildNewOnly('cloudflare_groundplan_file','Plano / groundplan',d,2));
-    body.appendChild(buildTA('Marketing_Comments','Comentarios marketing',d,2,2));
+  // ── 15. OPERACIONES ────────────────────────────────────────
+  main.appendChild(buildSection('op','🏷️','Operaciones',body=>{
+    body.appendChild(row(buildSelect('ETV_Plate','Placa ETV',d,OPTS.plate,2,'¿Está la placa de ETV puesta en la propiedad?'), buildSelect('House_Name_Plate','Placa nombre villa',d,OPTS.plate,2,'¿Está la placa con el nombre de la villa puesta en la propiedad?')));
+    body.appendChild(row(buildInput('Wellcompack','Wellcomepack',d,'text',2), buildSelect('TipoWellcomepack','Tipo welcomepack',d,OPTS.wp999,2)));
+    body.appendChild(subgroup('📊 Estado homestaging y fotos','sg-internal',
+      row(buildInput('Status_Homestaging','Estado Homestaging',d,'text',2), buildTA('Homestaging_Comments','Notas Homestaging',d,1,2)),
+      row(buildInput('Status_Photos','Estado Photos',d,'text',2), buildTA('Photos_Comments','Notas Photos',d,1,2)),
+      buildInput('Deadlinedataphotos','Fecha máxima para las fotos',d,'text',2)
+    ));
   }));
 
-  // ── LEGAL ─────────────────────────────────────────────────
-  main.appendChild(buildSection('legal','📄','Contrato y legal',body=>{
-    body.appendChild(row(buildContactSelect('Agency_gestoria','Gestoría',d,2), buildContactSelect('Comercializador','Comercializador',d,2,'Quién es el comercializador delante la administración pública')));
-    body.appendChild(row(buildInput('Iniciocontrato','Inicio contrato (año)',d,'number',2), buildInput('Fincontrato','Fin contrato (año)',d,'number',2)));
-    body.appendChild(buildInput('Fist_year_we_managed','Primer año que la gestionamos',d,'number',2,'Cuál fue el primer año que la gestionamos. Solo para tener la información correcta, ya que el contrato puede ser nuevo pero llevar varios años gestionándola.'));
-    body.appendChild(row(buildSelect('ETV_Plate','Placa ETV',d,OPTS.plate,2), buildSelect('House_Name_Plate','Placa nombre villa',d,OPTS.plate,2)));
-    body.appendChild(buildTA('License_Ecotasa_Plates_comments','Comentarios licencia/ecotasa/placas',d,2,2));
-    body.appendChild(row(buildInput('License','Nº Licencia',d,'text',2), buildInput('nro_rua','RUA',d,'text',2)));
-    body.appendChild(row(buildSelect('ecotasa2019status','Estado ecotasa',d,OPTS.eco5,2), buildSelect('Altaecotasa','Alta ecotasa',d,OPTS.eco5,2)));
-    body.appendChild(row(buildInput('Id_Ecotasa','Importe ecotasa (ID)',d,'number',2), buildSelect('who_pays__ecotasa','¿Quién paga ecotasa?',d,OPTS.whopays7,2)));
-    body.appendChild(row(buildSelect('ITV_2020','ITV 2020',d,OPTS.itv30,2), buildInput('Region_tasas_turisticas','Región tasas turísticas',d,'number',2,'Importante: a partir de lo que se introduzca aquí las tasas turísticas se calculan de una manera u otra. Importante poner la región correcta para que las tasas turísticas se calculen bien para esta propiedad.')));
-    body.appendChild(buildInput('Pax_legal_checked','Plazas legales (comprobado en el Consell)',d,'number',2));
-  }));
-
-  // ── GENÉRICOS ─────────────────────────────────────────────
-  main.appendChild(buildSection('gen','🗃','Archivos genéricos',body=>{
-    body.appendChild(buildNewOnly('cloudflare_generic_image_1','Imagen genérica 1',d,2));
-    body.appendChild(buildNewOnly('cloudflare_generic_image_2','Imagen genérica 2',d,2));
-    body.appendChild(buildNewOnly('cloudflare_generic_file','Archivo genérico',d,2));
-  }));
-
-  // ── COMUNICACIÓN ──────────────────────────────────────────
-  main.appendChild(buildSection('com','📡','Comunicación y operaciones',body=>{
+  // ── 16. COMUNICACIÓN ───────────────────────────────────────
+  main.appendChild(buildSection('com','📡','Comunicación',body=>{
     body.appendChild(row(buildSelect('Changeoverday','Día de cambio',d,OPTS.change11,2), buildTA('Changeoverday_comments','Comentarios día de cambio',d,2,2)));
     body.appendChild(subgroup('🔷 Checkin online','sg-internal',
       row(buildSelect('Checkin_arrivalform','Checkin arrival form',d,OPTS.checkin,2), buildSelect('Checkin_registro_policia','Checkin reg. policía',d,OPTS.checkin,2)),
@@ -1008,9 +992,6 @@ function buildForm(d){
       buildInput('Gastos_tarjeta_pago_security_dep','Importe gastos tarjeta al pagar depósito',d,'text',2,'Si se deja en blanco se cogen los valores por defecto de la empresa.')
     ));
     body.appendChild(subgroup('📊 Estado del listado','sg-internal',
-      row(buildInput('Status_Homestaging','Estado Homestaging',d,'text',2), buildTA('Homestaging_Comments','Notas Homestaging',d,1,2)),
-      row(buildInput('Status_Photos','Estado Photos',d,'text',2), buildTA('Photos_Comments','Notas Photos',d,1,2)),
-      buildInput('Deadlinedataphotos','Fecha máxima para las fotos',d,'text',2),
       row(buildInput('Status_VreasyDescription','Estado descripción Hostaway',d,'text',2), buildTA('Status_VreasyDescription_Comment','Notas descripción Hostaway',d,1,2)),
       row(buildInput('Status_Vreasy_Automatic_messages','Estado mensajes automáticos',d,'text',2), buildTA('Status_Vreasy_messages_comments','Notas mensajes automáticos',d,1,2)),
       row(buildInput('Status_pricing','Estado Pricing',d,'text',2), buildTA('Status_Pricing_comments','Notas Pricing',d,1,2)),
@@ -1018,13 +999,31 @@ function buildForm(d){
     ));
   }));
 
-  // ── ADMIN ─────────────────────────────────────────────────
+  // ── 17. MARKETING ──────────────────────────────────────────
+  main.appendChild(buildSection('mkt','📸','Marketing y planos',body=>{
+    body.appendChild(buildNewOnly('cloudflare_marketing_photos','Foto principal para el manual',d,1,'Foto principal de la casa para usar automáticamente en manuales y/o presentaciones.'));
+    body.appendChild(buildNewOnly('cloudflare_groundplan_file','Plano / groundplan',d,2));
+    body.appendChild(buildTA('Marketing_Comments','Comentarios marketing',d,2,2));
+    body.appendChild(buildInput('Marketing_photos','Marketing photos',d,'text',2));
+  }));
+
+  // ── 18. ADMINISTRACIÓN ─────────────────────────────────────
   main.appendChild(buildSection('admin','⚙️','Administración',body=>{
+    body.appendChild(row(buildContactSelect('Agency_gestoria','Gestoría',d,2), buildContactSelect('Comercializador','Comercializador',d,2,'Quién es el comercializador delante la administración pública')));
+    body.appendChild(row(buildInput('Iniciocontrato','Inicio contrato (año)',d,'number',2), buildInput('Fincontrato','Fin contrato (año)',d,'number',2)));
+    body.appendChild(buildInput('Fist_year_we_managed','Primer año que la gestionamos',d,'number',2,'Cuál fue el primer año que la gestionamos. Solo para tener la información correcta, ya que el contrato puede ser nuevo pero llevar varios años gestionándola.'));
+    body.appendChild(buildInput('License','Nº Licencia',d,'text',2));
+    body.appendChild(buildTA('License_Ecotasa_Plates_comments','Comentarios licencia/ecotasa/placas',d,2,2));
+    body.appendChild(buildInput('nro_rua','RUA',d,'text',2));
+    body.appendChild(buildInput('Pax_legal_checked','Plazas legales (comprobado en el Consell)',d,'number',2));
+    body.appendChild(buildInput('Region_tasas_turisticas','Región tasas turísticas',d,'number',2,'Importante: a partir de lo que se introduzca aquí las tasas turísticas se calculan de una manera u otra. Importante poner la región correcta para que las tasas turísticas se calculen bien para esta propiedad.'));
+    body.appendChild(row(buildSelect('ecotasa2019status','Estado ecotasa',d,OPTS.eco5,2), buildSelect('Altaecotasa','Alta ecotasa',d,OPTS.eco5,2)));
+    body.appendChild(buildSelect('who_pays__ecotasa','¿Quién paga ecotasa?',d,OPTS.whopays7,2));
     body.appendChild(subgroup('🏛 Datos de la villa','sg-internal',
       buildInput('Referencia_Catastral','Referencia catastral',d,'text',2),
       buildInput('Googlemaps_link','Googlemaps Link',d,'text',2),
       buildInput('Unidades_multiunit','Unidades multiunit',d,'number',2,'Si no es un multiunit dejar 1. Si es un multiunit poner el número de unidades.'),
-      row(buildSelect('SIGNED','Contrato firmado',d,[['0','No'],['1','Sí']],2), buildSelect('Status','Estado',d,[['0','Inactivo'],['1','Activo'],['2','Pendiente'],['3','Baja']],2)),
+      row(buildInput('SIGNED','Contrato firmado',d,'text',2), buildInput('Status','Estado',d,'text',2)),
       row(buildSelect('Activa','Activa',d,OPTS.activa2,2), buildTA('Activa_comment','Comentarios activa',d,1,2)),
       row(buildInput('ContractRenovationType','¿Cómo se renueva el contrato?',d,'text',2), buildInput('Property_Type','Tipo de propiedad',d,'text',2)),
       row(buildInput('Owner_Type','Tipo de propietario',d,'text',2), buildInput('Deal_Type','Tipo de contrato',d,'text',2)),
@@ -1033,16 +1032,20 @@ function buildForm(d){
       buildInput('Drive','Drive',d,'text',2,'Introducir el link al drive de esta villa'),
       buildInput('Drive_Agency','Drive agencia',d,'text',2,'Introducir aquí el link del drive de la agencia si esta propiedad pertenece a una agencia.')
     ));
-    body.appendChild(subgroup('👤 Datos del propietario','sg-internal',
+    body.appendChild(subgroup('👤 Datos fiscales del propietario','sg-internal',
       row(buildInput('propietario_NIF','NIF propietario',d,'text',2), buildInput('propietario_Nombre_fiscal','Nombre fiscal',d,'text',2)),
       row(buildInput('propietario_Municipio_fiscal','Municipio fiscal',d,'text',2), buildInput('propietario_Calle_Fiscal','Calle fiscal',d,'text',2)),
-      buildInput('propietario_Numero_calle_fiscal','Nº calle fiscal',d,'text',2),
-      buildInput('Modelo_179','Modelo 179',d,'text',2,'El Modelo 179 es una declaración informativa obligatoria en España para las personas y plataformas que ceden el uso de viviendas con fines turísticos.')
+      buildInput('propietario_Numero_calle_fiscal','Nº calle fiscal',d,'text',2)
     ));
     body.appendChild(subgroup('💰 Contabilidad','sg-internal',
+      buildInput('Modelo_179','Modelo 179',d,'text',2,'El Modelo 179 es una declaración informativa obligatoria en España para las personas y plataformas que ceden el uso de viviendas con fines turísticos.'),
       buildInput('cuenta_contable_depositos','Cuenta contable depósitos',d,'text',2),
       buildInput('cuenta_contable_ecotasas','Cuenta contable ecotasas',d,'text',2),
       buildInput('Tag_contabilidad','Tag contabilidad',d,'text',2)
+    ));
+    body.appendChild(subgroup('💶 Pagos','sg-internal',
+      row(buildSelect('Pay_Cleanning','¿Quién paga la limpieza?',d,OPTS.pay,2), buildSelect('Pay_Garden','¿Quién paga el jardín?',d,OPTS.pay,2)),
+      row(buildSelect('Pay_Pool','¿Quién paga la piscina?',d,OPTS.pay,2), buildSelect('Pay_KeHolder','¿Quién paga el villamanager?',d,OPTS.pay,2))
     ));
   }));
 }
@@ -1099,7 +1102,8 @@ const TEXT_FIELDS=['KeyHolder_zone','Notas_keyholder','KeyHolder_person',
   'Checkin_arrivalform','Checkin_registro_policia','Checkin_ecotasa','Checkin_deposito','Link_Registrodepolicia','Identificador_Policheckin','Amount_secrity_Depsit','Amount_security_Deposit_waver','Gastos_tarjeta_pago_security_dep',
   'Status_Homestaging','Homestaging_Comments','Status_Photos','Photos_Comments','Deadlinedataphotos','Status_VreasyDescription','Status_VreasyDescription_Comment','Status_Vreasy_Automatic_messages','Status_Vreasy_messages_comments','Status_pricing','Status_Pricing_comments','Status_Platforms','Status_Platforms_comments',
   'Referencia_Catastral','Googlemaps_link','Unidades_multiunit','SIGNED','Status','Activa','Activa_comment','ContractRenovationType','Property_Type','Owner_Type','Deal_Type','Deal_Type_per','Warranty_payments','Drive','Drive_Agency',
-  'propietario_NIF','propietario_Nombre_fiscal','propietario_Municipio_fiscal','propietario_Calle_Fiscal','propietario_Numero_calle_fiscal','Modelo_179','cuenta_contable_depositos','cuenta_contable_ecotasas','Tag_contabilidad'];
+  'propietario_NIF','propietario_Nombre_fiscal','propietario_Municipio_fiscal','propietario_Calle_Fiscal','propietario_Numero_calle_fiscal','Modelo_179','cuenta_contable_depositos','cuenta_contable_ecotasas','Tag_contabilidad',
+  'Marketing_photos','Wellcompack','Status_Homestaging','Homestaging_Comments','Status_Photos','Photos_Comments','Deadlinedataphotos'];
 
 async function saveVilla(){
   if(isSaving)return;
@@ -1137,4 +1141,4 @@ document.addEventListener('DOMContentLoaded',loadVilla);
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
+<!-- HISTORIAL: v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
