@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v96 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v96b | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- entradas-equipo.html v35 — 17/05/2026
@@ -35,7 +35,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v96 — 3Villas</title>
+  <title>Entradas Equipo v96b — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -1120,48 +1120,46 @@ async function loadVillaPendingTasks(villaIds,muVillaMap){
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
 
-  /* v36: una llamada por villa en PARALELO — Caspio no soporta IN/OR multi-villa */
-  await Promise.allSettled(toLoad.map(async function(vid){
-    try{
-      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent('villaid='+vid)+'&limit=500');
-      const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
-      for(const t of tasks){
-        const key=String(parseInt(t.villaid)||0);
-        if(villaPendingMap[key]===undefined)continue;
-        if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),/* v35 FIX (restaura v31): String() → dedup === con 2ª query funciona */reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
-        }
+  /* v96b FIX CRÍTICO: UNA sola llamada OR en lugar de N paralelas (×50 villas = 9500 calls/día → ~180/día) */
+  try{
+    const orParts=toLoad.map(id=>'villaid='+id).join(' OR ');
+    const where=toLoad.length===1?'villaid='+toLoad[0]:'('+orParts+')';
+    const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+    const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+    for(const t of tasks){
+      const key=String(parseInt(t.villaid)||0);
+      if(villaPendingMap[key]===undefined)continue;
+      if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
+        villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''});
       }
-    }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
-  }));
-  /* v42: TAMBIÉN query por PMSmultiunitID para tareas sin villaid */
+    }
+  }catch(e){console.warn('[VillaTasks] villaid OR query:',e.message);}
+
+  /* v42: TAMBIÉN query por PMSmultiunitID — UNA sola llamada OR */
   const muIds=Object.keys(muVillaMap||{});
   if(muIds.length){
-    await Promise.allSettled(muIds.map(async function(muId){
-      try{
-        const vid=String(muVillaMap[muId]||'0');
-        if(!villaPendingMap[vid]){villaPendingMap[vid]=[];}
-        const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent("PMSmultiunitID='"+muId+"'")+'&limit=500');
-        const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
-        for(const t of tasks){
-          const isDone=isDoneCheck(t.Tarea_terminada);
-          if(isDone||Number(t.Tasktype)===20)continue;
-          /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
-          const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
-          if(!exists){
-            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')}); /* v49 */
-          }
+    try{
+      const muOr=muIds.map(id=>"PMSmultiunitID='"+id+"'").join(' OR ');
+      const muWhere=muIds.length===1?"PMSmultiunitID='"+muIds[0]+"'":'('+muOr+')';
+      const url2=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(muWhere)+'&limit=500');
+      const res2=await fetch(url2);const json2=await res2.json();const tasks2=json2.Result||json2.result||[];
+      for(const t of tasks2){
+        const vid=String(muVillaMap[String(t.PMSmultiunitID||'')]||'0');
+        if(!villaPendingMap[vid])villaPendingMap[vid]=[];
+        if(isDoneCheck(t.Tarea_terminada)||Number(t.Tasktype)===20)continue;
+        const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
+        if(!exists){
+          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')});
         }
-        console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
-      }catch(e){console.warn('[VillaTasks] muId '+muId+':',e.message);}
-    }));
+      }
+    }catch(e){console.warn('[VillaTasks] muId OR query:',e.message);}
   }
 
   /* debug */
   const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
   const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
   const prev=$('dbBox').textContent||'';
-  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (parallel)';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (single OR v96b)';
 }
 
 function updateVillaTasksInDOM(){
@@ -1765,4 +1763,4 @@ function renderWeekly(){
 
 </body>
 </html>
-<!-- HISTORIAL: v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior -->
+<!-- HISTORIAL: v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas (de ~9500 calls TaTasks/día a ~180/día, ×50 reducción) | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior | v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas por villa (de ~9500 calls TaTasks/día a ~180/día) -->
