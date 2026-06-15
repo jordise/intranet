@@ -1,23 +1,21 @@
-const CACHE = '3villas-v3';
-
+const CACHE = '3villas-v4';
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache =>
       Promise.allSettled([
-        '/3villas-manuals/entradas.html',
-        '/3villas-manuals/tareas.html',
-        '/3villas-manuals/editar-tarea.html',
-        '/3villas-manuals/login.html',
-        '/3villas-manuals/auth.js',
-        '/3villas-manuals/manifest.json',
-        '/3villas-manuals/icon-192.png',
-        '/3villas-manuals/icon-512.png',
-        '/3villas-manuals/logo-blanco.png',
+        '/intranet/entradas.html',
+        '/intranet/tareas.html',
+        '/intranet/editar-tarea.html',
+        '/intranet/login.html',
+        '/intranet/auth.js',
+        '/intranet/manifest.json',
+        '/intranet/icon-192.png',
+        '/intranet/icon-512.png',
+        '/intranet/logo-blanco.png',
       ].map(url => cache.add(url).catch(() => {})))
     ).then(() => self.skipWaiting())
   );
 });
-
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -27,7 +25,6 @@ self.addEventListener('activate', e => {
       .then(() => self.clients.claim())
   );
 });
-
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.hostname.includes('workers.dev') || url.hostname.includes('caspio.com')) {
