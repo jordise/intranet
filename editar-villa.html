@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v13 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Editar Villa v11 — 3Villas</title>
+<title>Editar Villa v13 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -578,19 +578,17 @@ function buildSelect(field,label,d,opts,vis,info){
   wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
 }
 function buildBoolField(field,label,d,vis,info){
-  const val=d[field];
-  const current=isTruthy(val);
-  const pend=isPending(field,val);
+  const current=isTruthy(d[field]);
+  const pend=isPending(field,d[field]);
   const wrap=mkField('field',pend,vis);
   const lblEl=document.createElement('div');lblEl.className='lbl';
   const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
   const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
   const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
-  [['','— Sin definir —'],['true','Sí'],['false','No']].forEach(([val,txt])=>{
+  [['true','Sí'],['false','No']].forEach(([val,txt])=>{
     const op=document.createElement('option');op.value=val;op.textContent=txt;
-    if(val===''&&!current&&(d[field]===null||d[field]===undefined||d[field]===''))op.selected=true;
-    else if(val==='true'&&current)op.selected=true;
-    else if(val==='false'&&!current&&d[field]!==null&&d[field]!==undefined&&d[field]!=='')op.selected=true;
+    if(current&&val==='true')op.selected=true;
+    if(!current&&val==='false')op.selected=true;
     sel.appendChild(op);
   });
   sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
@@ -1010,8 +1008,8 @@ function buildForm(d){
   main.appendChild(buildSection('com','📡','Comunicación',body=>{
     body.appendChild(row(buildSelect('Changeoverday','Día de cambio',d,OPTS.change11,2), buildTA('Changeoverday_comments','Comentarios día de cambio',d,2,2)));
     body.appendChild(subgroup('🔷 Checkin online','sg-internal',
-      row(buildSelect('Checkin_arrivalform','Checkin arrival form',d,OPTS.checkin,2), buildSelect('Checkin_registro_policia','Checkin reg. policía',d,OPTS.checkin,2)),
-      row(buildSelect('Checkin_ecotasa','Checkin ecotasa',d,OPTS.checkin,2), buildSelect('Checkin_deposito','Checkin depósito',d,OPTS.checkin,2)),
+      row(buildBoolField('Checkin_arrivalform','Checkin arrival form',d,2), buildBoolField('Checkin_registro_policia','Checkin reg. policía',d,2)),
+      row(buildBoolField('Checkin_ecotasa','Checkin ecotasa',d,2), buildBoolField('Checkin_deposito','Checkin depósito',d,2)),
       buildInput('Link_Registrodepolicia','Código/Link registro policía',d,'text',2),
       buildInput('Identificador_Policheckin','Identificador Policheckin',d,'text',2),
       buildInput('Amount_secrity_Depsit','Importe depósito de seguridad',d,'text',2,'Si se deja en blanco se cogen los valores por defecto de la empresa.'),
@@ -1173,4 +1171,4 @@ document.addEventListener('DOMContentLoaded',loadVilla);
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v11 - Fix Yes/No fields: isTruthy helper para leer -1/true/false de Caspio; buildBoolField muestra Sí/No/Sin definir; isPending corregido para booleanos; guardado usa isTruthy | v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
+<!-- HISTORIAL: v13 - buildBoolField solo Sí/No; vacío = No | v12 - Checkin_* cambiados a buildBoolField (Sí/No) en lugar de OPTS.checkin (3 opciones) | v11 - Fix Yes/No fields: isTruthy helper para leer -1/true/false de Caspio; buildBoolField muestra Sí/No/Sin definir; isPending corregido para booleanos; guardado usa isTruthy | v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
