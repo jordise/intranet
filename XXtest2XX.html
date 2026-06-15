@@ -1293,48 +1293,46 @@ async function loadVillaPendingTasks(villaIds,muVillaMap){
   toLoad.forEach(id=>{villaPendingMap[String(id)]=[];});
   const isDoneCheck=d=>d===true||d===1||d===-1||String(d).toLowerCase()==='yes'||String(d).toLowerCase()==='sí'||String(d).toLowerCase()==='true';
 
-  /* v36: una llamada por villa en PARALELO — Caspio no soporta IN/OR multi-villa */
-  await Promise.allSettled(toLoad.map(async function(vid){
-    try{
-      const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent('villaid='+vid)+'&limit=500');
-      const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
-      for(const t of tasks){
-        const key=String(parseInt(t.villaid)||0);
-        if(villaPendingMap[key]===undefined)continue;
-        if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
-          villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),/* v35 FIX (restaura v31): String() → dedup === con 2ª query funciona */reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''}); /* v49 */
-        }
+  /* v147 FIX: UNA sola llamada con OR de villaIds — antes era 1 llamada por villa (×50 = 9500 calls/día) */
+  try{
+    const orParts=toLoad.map(id=>'villaid='+id).join(' OR ');
+    const where=toLoad.length===1?'villaid='+toLoad[0]:'('+orParts+')';
+    const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(where)+'&limit=500');
+    const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
+    for(const t of tasks){
+      const key=String(parseInt(t.villaid)||0);
+      if(villaPendingMap[key]===undefined)continue;
+      if(!isDoneCheck(t.Tarea_terminada)&&Number(t.Tasktype)!==20){
+        villaPendingMap[key].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:t.urgente||'',importante:t.importante||''});
       }
-    }catch(e){console.warn('[VillaTasks] villa '+vid+':',e.message);}
-  }));
-  /* v42: TAMBIÉN query por PMSmultiunitID para tareas sin villaid */
+    }
+  }catch(e){console.warn('[VillaTasks] villaid OR query:',e.message);}
+
+  /* UNA sola llamada para todos los PMSmultiunitID */
   const muIds=Object.keys(muVillaMap||{});
   if(muIds.length){
-    await Promise.allSettled(muIds.map(async function(muId){
-      try{
-        const vid=String(muVillaMap[muId]||'0');
-        if(!villaPendingMap[vid]){villaPendingMap[vid]=[];}
-        const url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent("PMSmultiunitID='"+muId+"'")+'&limit=500');
-        const res=await fetch(url);const json=await res.json();const tasks=json.Result||json.result||[];
-        for(const t of tasks){
-          const isDone=isDoneCheck(t.Tarea_terminada);
-          if(isDone||Number(t.Tasktype)===20)continue;
-          /* solo añadir si no está ya (puede tener villaid Y PMSmultiunitID) */
-          const exists=villaPendingMap[vid].some(function(x){return x.taskid&&x.taskid===String(t.taskid||'');});
-          if(!exists){
-            villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')}); /* v49 */
-          }
+    try{
+      const muOr=muIds.map(id=>"PMSmultiunitID='"+id+"'").join(' OR ');
+      const muWhere=muIds.length===1?"PMSmultiunitID='"+muIds[0]+"'":'('+muOr+')';
+      const vid2url=Auth.url(WORKER+'?action=data&table=TaTasks&where='+encodeURIComponent(muWhere)+'&limit=500');
+      const res2=await fetch(vid2url);const json2=await res2.json();const tasks2=json2.Result||json2.result||[];
+      for(const t of tasks2){
+        const vid=String(muVillaMap[String(t.PMSmultiunitID||'')]||'0');
+        if(!villaPendingMap[vid])villaPendingMap[vid]=[];
+        if(isDoneCheck(t.Tarea_terminada)||Number(t.Tasktype)===20)continue;
+        const exists=villaPendingMap[vid].some(x=>x.taskid&&x.taskid===String(t.taskid||''));
+        if(!exists){
+          villaPendingMap[vid].push({type:t.Tasktype_booking,name:t.Taskname||'',taskid:String(t.taskid||''),reserva:t.Idreserva||t.idreserva||'',assignedId:String(t.UserID_asigned_alfanum||''),dueDate:t.Data_to_be_done_fixed||'',muId:String(t.PMSmultiunitID||''),urgente:String(t.urgente||''),importante:String(t.importante||'')});
         }
-        console.log('[VillaTasks] muId='+muId+' → '+tasks.length+' tareas → villa '+vid);
-      }catch(e){console.warn('[VillaTasks] muId '+muId+':',e.message);}
-    }));
+      }
+    }catch(e){console.warn('[VillaTasks] muId OR query:',e.message);}
   }
 
   /* debug */
   const totalTasks=Object.values(villaPendingMap).reduce((s,a)=>s+a.length,0);
   const villasCargadas=Object.values(villaPendingMap).filter(a=>a.length>0).length;
   const prev=$('dbBox').textContent||'';
-  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (parallel)';
+  $('dbBox').textContent=prev+'\n\nTareas villa: '+totalTasks+' en '+villasCargadas+'/'+toLoad.length+' villas (single query v147)';
 }
 
 function updateVillaTasksInDOM(){
