@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- VERSIÓN ACTUAL: v02 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- manualvilla_v01.html — Manual de Villa Online — 3Villas -->
-<title>Manual de Villa · 3Villas</title>
+<!-- manualvilla_v02.html — Manual de Villa Online — 3Villas -->
+<title>Manual de Villa v02 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -279,12 +280,13 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   .quick-item{border-right:none;border-bottom:1px solid var(--border)}
 }
 </style>
+<script src="auth.js"></script>
 </head>
 <body>
 
 <!-- LANG BAR -->
 <nav id="langBar">
-  <div class="lang-logo"><span>&lt;3</span>villas</div>
+  <div class="lang-logo"><img src="logo-blanco.png" alt="3Villas" style="height:26px;object-fit:contain;display:block" onerror="this.onerror=null;this.src='3villas_simbolo_blanco_sin_fondo.png'"></div>
   <div class="lang-btns">
     <button class="lang-btn" onclick="setLang('ca')">CA</button>
     <button class="lang-btn active" onclick="setLang('es')">ES</button>
@@ -553,16 +555,12 @@ function showSection(id){
 // ── WORKER / CASPIO ───────────────────────────────────────
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 
-function getSessionToken(){
-  return localStorage.getItem('3v_token')||sessionStorage.getItem('3v_token')||'';
-}
-
 async function fetchVilla(hostawayId){
-  var tok=getSessionToken();
-  // search by Hostawayid in TaVillas
-  var where="Hostawayid="+encodeURIComponent(hostawayId);
-  var url=WORKER+"?action=data&table=TaVillas&where="+where+"&limit=1";
-  var r=await fetch(url,{headers:{Authorization:'Bearer '+tok}});
+  var where="Hostawayid="+hostawayId;
+  var url=WORKER+"?action=data&table=TaVillas&where="+encodeURIComponent(where)+"&limit=1";
+  // Usa Auth.url() si está disponible (añade sessionToken)
+  var finalUrl=(typeof Auth!=='undefined')?Auth.url(url):url;
+  var r=await fetch(finalUrl);
   if(!r.ok) throw new Error('HTTP '+r.status);
   var d=await r.json();
   return (d.Result||[])[0]||null;
@@ -709,47 +707,38 @@ function renderVilla(v){
 
 // ── INIT ──────────────────────────────────────────────────
 (async function init(){
+  // Requiere sesión — redirige a login si no hay token (igual que el resto de páginas)
+  if(typeof Auth !== 'undefined') Auth.require('manual-villa');
+
   applyTranslations();
 
   var params=new URLSearchParams(window.location.search);
   var hwId=params.get('Hostawayid')||params.get('hostawayid')||params.get('id')||'';
 
   if(!hwId){
-    document.getElementById('loadingMsg').textContent='⚠️ Falta el parámetro Hostawayid en la URL.\nEj: manualvilla.html?Hostawayid=12345';
+    document.getElementById('loadingMsg').innerHTML='<b>⚠️ Falta el parámetro Hostawayid en la URL.</b><br><small>Ej: manualvilla.html?Hostawayid=12345</small>';
     return;
   }
 
   try{
     var villa=await fetchVilla(hwId);
-    
+
     if(!villa){
-      // Show a demo/fallback with the villa name from URL
-      document.getElementById('loadingMsg').textContent='Villa #'+hwId+' no encontrada.';
+      document.getElementById('loadingMsg').textContent='Villa #'+hwId+' no encontrada en TaVillas.';
       return;
     }
-    
+
     _villa=villa;
     document.getElementById('loading').style.display='none';
     document.getElementById('mainContent').style.display='block';
     renderVilla(villa);
 
   } catch(err){
-    // Show demo mode if not logged in or error
-    document.getElementById('loading').style.display='none';
-    document.getElementById('mainContent').style.display='block';
-    
-    // Render demo with data from URL or generic
-    _villa={
-      Name_villa_para_inquilinos: 'Villa #'+hwId,
-      Wifi_name: 'Wifi-Casa',
-      Wifi_password: '·······',
-      Beach_km: '5',
-      Restaurant_km: '4',
-      Supermarket_km: '5.5',
-    };
-    renderVilla(_villa);
+    document.getElementById('loadingMsg').textContent='Error al cargar: '+err.message;
+    console.error('manualvilla init error:', err);
   }
 })();
 </script>
 </body>
+<!-- HISTORIAL: v02 - Fix fetch: usa Auth.url() con sessionToken (igual que resto de páginas); logo imagen logo-blanco.png en langBar; redirige a login si sin sesión; elimina fallback demo con nombre falso | v01 - versión inicial: manual villa online con 5 idiomas, 6 secciones, datos de TaVillas por Hostawayid -->
 </html>
