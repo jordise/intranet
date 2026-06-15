@@ -1,4 +1,4 @@
-const CACHE = '3villas-v4';
+const CACHE = '3villas-v5';
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache =>
