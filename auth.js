@@ -28,7 +28,7 @@ const Auth = (function () {
   })();
 
   const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-  const LOGIN  = '/3villas-manuals/login.html';
+  const LOGIN  = '/intranet/login.html';
 
   // Claves de almacenamiento
   const K = {
