@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v02 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v03 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- manualvilla_v02.html — Manual de Villa Online — 3Villas -->
-<title>Manual de Villa v02 · 3Villas</title>
+<!-- manualvilla_v03.html — Manual de Villa Online — 3Villas -->
+<title>Manual de Villa v03 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -280,7 +280,6 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   .quick-item{border-right:none;border-bottom:1px solid var(--border)}
 }
 </style>
-<script src="auth.js"></script>
 </head>
 <body>
 
@@ -556,14 +555,13 @@ function showSection(id){
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 
 async function fetchVilla(hostawayId){
-  var where="Hostawayid="+hostawayId;
-  var url=WORKER+"?action=data&table=TaVillas&where="+encodeURIComponent(where)+"&limit=1";
-  // Usa Auth.url() si está disponible (añade sessionToken)
-  var finalUrl=(typeof Auth!=='undefined')?Auth.url(url):url;
-  var r=await fetch(finalUrl);
+  // Endpoint público — no requiere autenticación
+  var url=WORKER+"?action=villa-manual&Hostawayid="+encodeURIComponent(hostawayId);
+  var r=await fetch(url);
   if(!r.ok) throw new Error('HTTP '+r.status);
   var d=await r.json();
-  return (d.Result||[])[0]||null;
+  if(d.error) throw new Error(d.error);
+  return d;
 }
 
 // ── RENDER ────────────────────────────────────────────────
@@ -708,8 +706,6 @@ function renderVilla(v){
 // ── INIT ──────────────────────────────────────────────────
 (async function init(){
   // Requiere sesión — redirige a login si no hay token (igual que el resto de páginas)
-  if(typeof Auth !== 'undefined') Auth.require('manual-villa');
-
   applyTranslations();
 
   var params=new URLSearchParams(window.location.search);
@@ -740,5 +736,5 @@ function renderVilla(v){
 })();
 </script>
 </body>
-<!-- HISTORIAL: v02 - Fix fetch: usa Auth.url() con sessionToken (igual que resto de páginas); logo imagen logo-blanco.png en langBar; redirige a login si sin sesión; elimina fallback demo con nombre falso | v01 - versión inicial: manual villa online con 5 idiomas, 6 secciones, datos de TaVillas por Hostawayid -->
+<!-- HISTORIAL: v03 - Página completamente pública (sin auth): eliminado auth.js, Auth.require y Auth.url(); fetch usa nuevo endpoint público action=villa-manual del worker v30 | v02 - Fix fetch: usaba Auth.url() con sessionToken (requería login); logo imagen logo-blanco.png | v01 - versión inicial -->
 </html>
