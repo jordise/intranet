@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v13 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v14 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Editar Villa v13 — 3Villas</title>
+<title>Editar Villa v14 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -176,6 +176,24 @@ textarea{resize:vertical;min-height:66px;line-height:1.5}
 .big-spinner{display:inline-block;width:44px;height:44px;border:3px solid var(--gray-2);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .no-results{padding:30px;text-align:center;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--gray-4);font-weight:700;display:none}
+
+/* ── Searchable select ── */
+.ss-wrap{position:relative}
+.ss-inp{width:100%;border:1.5px solid var(--gray-2);border-radius:9px;padding:8px 30px 8px 11px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none;cursor:pointer;transition:border-color .15s;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.ss-inp.pending-field{border-color:rgba(200,16,46,.45)!important;background:var(--red-light)!important}
+.vis-guest .ss-inp{background:var(--yellow-bg);border-color:var(--yellow-border)}
+.vis-guest .ss-inp.pending-field{border-color:var(--yellow-pend-border)!important;background:var(--yellow-pend)!important}
+.ss-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--gray-4);font-size:11px}
+.ss-drop{display:none;position:fixed;background:#fff;border:1.5px solid var(--red);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9000;min-width:200px;max-width:360px;overflow:hidden}
+.ss-drop.open{display:flex;flex-direction:column}
+.ss-search{border:none;border-bottom:1.5px solid var(--gray-2);padding:9px 12px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;width:100%}
+.ss-list{overflow-y:auto;max-height:220px}
+.ss-opt{padding:9px 14px;font-size:13px;color:var(--gray-5);cursor:pointer;border-bottom:1px solid var(--gray-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-opt:last-child{border-bottom:none}
+.ss-opt:hover,.ss-opt.active{background:var(--red-light);color:var(--red)}
+.ss-opt mark{background:rgba(200,16,46,.15);color:var(--red);border-radius:2px;padding:0 2px;font-style:normal;font-weight:700}
+.ss-empty{padding:10px 14px;font-size:12px;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-weight:700}
 @media(max-width:480px){.photo-pair,.field-row{grid-template-columns:1fr}}
 </style>
 <script src="auth.js"></script>
@@ -368,6 +386,106 @@ let _pendFields=[]; let _pendIdx=-1;
 
 /* ── Utils ── */
 function g(id){ return document.getElementById(id); }
+
+/* ── Searchable select (shared by all build*Select / buildBoolField) ── */
+let _ssActive=null;
+function _closeAllSS(){
+  document.querySelectorAll('.ss-drop.open').forEach(d=>d.classList.remove('open'));
+  _ssActive=null;
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ss-wrap')&&!e.target.closest('.ss-drop'))_closeAllSS();
+},true);
+
+function buildSS(field,label,d,vis,pend,info,items,currentVal){
+  /* items = [{value, text}] */
+  const wrap=mkField('field',pend,vis);
+  const lblEl=document.createElement('div');lblEl.className='lbl';
+  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
+  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
+  wrap.appendChild(lblEl);
+
+  /* Hidden input to store selected value (for saving) */
+  const hidden=document.createElement('input');hidden.type='hidden';hidden.id='f_'+field;
+  const curItem=items.find(i=>String(i.value)===String(currentVal));
+  hidden.value=curItem?String(currentVal):'';
+  wrap.appendChild(hidden);
+
+  /* Visible button */
+  const ssWrap=document.createElement('div');ssWrap.className='ss-wrap';
+  const btn=document.createElement('div');btn.className='ss-inp'+(pend?' pending-field':'');
+  btn.tabIndex=0;
+  btn.textContent=curItem?curItem.text:'— Seleccionar —';
+  btn.setAttribute('role','combobox');
+  const arrow=document.createElement('span');arrow.className='ss-arrow';arrow.textContent='▾';
+  ssWrap.appendChild(btn);ssWrap.appendChild(arrow);
+
+  /* Dropdown */
+  const drop=document.createElement('div');drop.className='ss-drop';
+  const search=document.createElement('input');search.type='text';search.className='ss-search';
+  search.placeholder='Buscar…';search.autocomplete='off';
+  const list=document.createElement('div');list.className='ss-list';
+  drop.appendChild(search);drop.appendChild(list);
+  document.body.appendChild(drop);
+
+  function renderList(q){
+    q=(q||'').toLowerCase();
+    list.innerHTML='';
+    const filtered=q?items.filter(i=>i.text.toLowerCase().includes(q)):items;
+    if(!filtered.length){
+      const em=document.createElement('div');em.className='ss-empty';em.textContent='Sin resultados';list.appendChild(em);return;
+    }
+    filtered.forEach(item=>{
+      const opt=document.createElement('div');opt.className='ss-opt';
+      if(String(item.value)===String(currentVal))opt.classList.add('active');
+      if(q){
+        const idx=item.text.toLowerCase().indexOf(q);
+        if(idx>=0){
+          const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          opt.innerHTML=esc(item.text.slice(0,idx))+'<mark>'+esc(item.text.slice(idx,idx+q.length))+'</mark>'+esc(item.text.slice(idx+q.length));
+        } else opt.textContent=item.text;
+      } else opt.textContent=item.text;
+      opt.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        hidden.value=String(item.value);
+        btn.textContent=item.text;
+        currentVal=item.value;
+        _closeAllSS();
+        /* Update pending state */
+        const p=isPending(field,hidden.value);
+        btn.className='ss-inp'+(p?' pending-field':'');
+        dot.className=p?'pend-dot':'ok-dot';
+        updatePendingAll();
+      });
+      list.appendChild(opt);
+    });
+  }
+
+  function openDrop(){
+    _closeAllSS();
+    renderList('');
+    search.value='';
+    /* Position */
+    const rect=btn.getBoundingClientRect();
+    drop.style.width=Math.max(rect.width,200)+'px';
+    drop.style.left=rect.left+'px';
+    const spaceBelow=window.innerHeight-rect.bottom;
+    if(spaceBelow>180){drop.style.top=(rect.bottom+4)+'px';drop.style.bottom='auto';}
+    else{drop.style.bottom=(window.innerHeight-rect.top+4)+'px';drop.style.top='auto';}
+    drop.classList.add('open');
+    _ssActive=drop;
+    setTimeout(()=>search.focus(),50);
+  }
+
+  btn.addEventListener('click',e=>{e.stopPropagation();drop.classList.contains('open')?_closeAllSS():openDrop();});
+  btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDrop();}});
+  search.addEventListener('input',()=>renderList(search.value));
+  search.addEventListener('keydown',e=>{if(e.key==='Escape')_closeAllSS();});
+
+  ssWrap.appendChild(wrap.querySelector('label')||document.createDocumentFragment());
+  wrap.appendChild(ssWrap);
+  return wrap;
+}
 function isTruthy(v){
   if(v===null||v===undefined||v==='')return false;
   if(typeof v==='boolean')return v;
@@ -568,56 +686,25 @@ function buildTA(field,label,d,rows,vis,info){
 }
 function buildSelect(field,label,d,opts,vis,info){
   const pend=isPending(field,d[field]);
-  const wrap=mkField('field',pend,vis);
-  const lblEl=document.createElement('div');lblEl.className='lbl';
-  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
-  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
-  const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
-  opts.forEach(([val,txt])=>{const op=document.createElement('option');op.value=val;op.textContent=txt;if(String(d[field])===String(val))op.selected=true;sel.appendChild(op);});
-  sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
-  wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
+  const items=opts.map(([v,t])=>({value:v,text:t}));
+  return buildSS(field,label,d,vis,pend,info,items,d[field]);
 }
 function buildBoolField(field,label,d,vis,info){
-  const current=isTruthy(d[field]);
   const pend=isPending(field,d[field]);
-  const wrap=mkField('field',pend,vis);
-  const lblEl=document.createElement('div');lblEl.className='lbl';
-  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
-  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
-  const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
-  [['true','Sí'],['false','No']].forEach(([val,txt])=>{
-    const op=document.createElement('option');op.value=val;op.textContent=txt;
-    if(current&&val==='true')op.selected=true;
-    if(!current&&val==='false')op.selected=true;
-    sel.appendChild(op);
-  });
-  sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
-  wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
+  const items=[{value:'true',text:'Sí'},{value:'false',text:'No'}];
+  const curVal=isTruthy(d[field])?'true':'false';
+  return buildSS(field,label,d,vis,pend,info,items,curVal);
 }
 function buildContactSelect(field,label,d,vis,info){
   const pend=isPending(field,d[field]);
-  const wrap=mkField('field',pend,vis);
-  const lblEl=document.createElement('div');lblEl.className='lbl';
-  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
-  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
-  const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
-  const def=document.createElement('option');def.value='101';def.textContent='— Sin asignar —';sel.appendChild(def);
-  contacts.forEach(c=>{const op=document.createElement('option');op.value=c.id;op.textContent=c.name;if(String(d[field])===String(c.id))op.selected=true;sel.appendChild(op);});
-  if(d[field]&&!contacts.find(c=>String(c.id)===String(d[field]))){const op=document.createElement('option');op.value=d[field];op.textContent='ID: '+d[field];op.selected=true;sel.appendChild(op);}
-  sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
-  wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
+  const items=[{value:'101',text:'— Sin asignar —'},...contacts.map(c=>({value:c.id,text:c.name}))];
+  if(d[field]&&!contacts.find(c=>String(c.id)===String(d[field]))){items.push({value:String(d[field]),text:'ID: '+d[field]});}
+  return buildSS(field,label,d,vis,pend,info,items,d[field]);
 }
 function buildUserSelect(field,label,d,vis,info){
   const pend=isPending(field,d[field]);
-  const wrap=mkField('field',pend,vis);
-  const lblEl=document.createElement('div');lblEl.className='lbl';
-  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
-  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
-  const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
-  const def=document.createElement('option');def.value='A4NS7PJV';def.textContent='— Sin asignar —';sel.appendChild(def);
-  users.forEach(u=>{const op=document.createElement('option');op.value=u.id;op.textContent=u.name;if(String(d[field])===String(u.id))op.selected=true;sel.appendChild(op);});
-  sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
-  wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
+  const items=[{value:'A4NS7PJV',text:'— Sin asignar —'},...users.map(u=>({value:u.id,text:u.name}))];
+  return buildSS(field,label,d,vis,pend,info,items,d[field]);
 }
 
 function row(...children){const d=document.createElement('div');d.className='field-row';children.forEach(c=>d.appendChild(c));return d;}
@@ -1171,4 +1258,4 @@ document.addEventListener('DOMContentLoaded',loadVilla);
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v13 - buildBoolField solo Sí/No; vacío = No | v12 - Checkin_* cambiados a buildBoolField (Sí/No) en lugar de OPTS.checkin (3 opciones) | v11 - Fix Yes/No fields: isTruthy helper para leer -1/true/false de Caspio; buildBoolField muestra Sí/No/Sin definir; isPending corregido para booleanos; guardado usa isTruthy | v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
+<!-- HISTORIAL: v14 - Todos los campo-select con búsqueda: buildSS input+dropdown con highlight; afecta buildSelect/buildContactSelect/buildUserSelect/buildBoolField | v13 - buildBoolField solo Sí/No; vacío = No | v12 - Checkin_* cambiados a buildBoolField (Sí/No) en lugar de OPTS.checkin (3 opciones) | v11 - Fix Yes/No fields: isTruthy helper para leer -1/true/false de Caspio; buildBoolField muestra Sí/No/Sin definir; isPending corregido para booleanos; guardado usa isTruthy | v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
