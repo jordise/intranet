@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v10 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Editar Villa v10 — 3Villas</title>
+<title>Editar Villa v11 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -368,6 +368,12 @@ let _pendFields=[]; let _pendIdx=-1;
 
 /* ── Utils ── */
 function g(id){ return document.getElementById(id); }
+function isTruthy(v){
+  if(v===null||v===undefined||v==='')return false;
+  if(typeof v==='boolean')return v;
+  if(typeof v==='number')return v!==0;
+  return!['0','false','no','null','undefined',''].includes(String(v).trim().toLowerCase());
+}
 let _toastT;
 function toast(msg,type){ const el=g('toast'); el.textContent=msg; el.className='show '+(type||''); clearTimeout(_toastT); _toastT=setTimeout(()=>{ el.className=''; },4000); }
 function openLB(src){ if(!src)return; g('lbImg').src=src; g('lbOverlay').classList.add('open'); }
@@ -381,9 +387,11 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeLB(); closeI
 /* ── isPending ── */
 function isPending(field,value){
   if(!(field in PENDING_RULES))return false;
-  const rule=PENDING_RULES[field]; const v=String(value||'').trim();
+  const rule=PENDING_RULES[field];
+  const v=String(value===null||value===undefined?'':value).trim();
   if(rule===null) return !v||v===''||v==='null';
-  if(typeof rule==='boolean') return ['1','-1','true','yes','sí'].includes(v.toLowerCase());
+  /* For Yes/No boolean fields: pending = not yet answered (null/empty/undefined) */
+  if(typeof rule==='boolean') return v===''||v==='null'||v===undefined;
   return v===String(rule)||(Number(v)===Number(rule)&&String(rule)!=='');
 }
 
@@ -566,6 +574,25 @@ function buildSelect(field,label,d,opts,vis,info){
   const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
   const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
   opts.forEach(([val,txt])=>{const op=document.createElement('option');op.value=val;op.textContent=txt;if(String(d[field])===String(val))op.selected=true;sel.appendChild(op);});
+  sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
+  wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
+}
+function buildBoolField(field,label,d,vis,info){
+  const val=d[field];
+  const current=isTruthy(val);
+  const pend=isPending(field,val);
+  const wrap=mkField('field',pend,vis);
+  const lblEl=document.createElement('div');lblEl.className='lbl';
+  const dot=mkDot(pend);lblEl.appendChild(dot);lblEl.appendChild(document.createTextNode(' '+label));
+  const ib=mkInfoBtn(label,info);if(ib)lblEl.appendChild(ib);
+  const sel=document.createElement('select');sel.id='f_'+field;sel.className=pend?'pending-field':'';
+  [['','— Sin definir —'],['true','Sí'],['false','No']].forEach(([val,txt])=>{
+    const op=document.createElement('option');op.value=val;op.textContent=txt;
+    if(val===''&&!current&&(d[field]===null||d[field]===undefined||d[field]===''))op.selected=true;
+    else if(val==='true'&&current)op.selected=true;
+    else if(val==='false'&&!current&&d[field]!==null&&d[field]!==undefined&&d[field]!=='')op.selected=true;
+    sel.appendChild(op);
+  });
   sel.addEventListener('change',()=>{const p=isPending(field,sel.value);sel.className=p?'pending-field':'';dot.className=p?'pend-dot':'ok-dot';updatePendingAll();});
   wrap.appendChild(lblEl);wrap.appendChild(sel);return wrap;
 }
@@ -917,9 +944,9 @@ function buildForm(d){
     body.appendChild(buildTA('where_is_water_stopcock_street','Llave del agua en la calle',d,2,1,'Explicar dónde está y cualquier indicación importante'));
     body.appendChild(buildNewOnly('cloudflare_foto_llave_agua_calle','Foto llave agua calle',d,1));
     body.appendChild(hr());
-    body.appendChild(row(buildInput('first_aid_kit','¿Hay botiquín?',d,'text',1), buildTA('where_is_first_aid','¿Dónde está el botiquín?',d,2,1)));
+    body.appendChild(row(buildBoolField('first_aid_kit','¿Hay botiquín?',d,1), buildTA('where_is_first_aid','¿Dónde está el botiquín?',d,2,1)));
     body.appendChild(hr());
-    body.appendChild(row(buildInput('Extintores__extinguisher','¿Hay extintores?',d,'text',1), buildTA('Extintores__extinguisher_comment','¿Dónde están los extintores?',d,2,1,'Explicar dónde está y cualquier indicación importante')));
+    body.appendChild(row(buildBoolField('Extintores__extinguisher','¿Hay extintores?',d,1), buildTA('Extintores__extinguisher_comment','¿Dónde están los extintores?',d,2,1,'Explicar dónde está y cualquier indicación importante')));
     body.appendChild(buildSelect('Detector_de_humos__Smoke_Detecto','Detector de humos',d,OPTS.smoke10,1));
   }));
 
@@ -927,7 +954,7 @@ function buildForm(d){
   main.appendChild(buildSection('piscina','🌊','Piscina y Jacuzzi',body=>{
     body.appendChild(subgroup('🏊 Piscina','sg-internal',
       row(buildSelect('Swiming_pool','Tipo de piscina',d,OPTS.pool4,1), buildInput('size_of_swimingpool','Medidas de la piscina',d,'text',1)),
-      row(buildInput('Swimingpool_fence','¿Tiene valla para bebés?',d,'text',1), buildTA('Swimingpool_fence_description','Sobre la valla',d,2,2,'Explicar cualquier información relevante sobre la valla: si es fija, si hay que solicitarla, dónde se guarda...')),
+      row(buildBoolField('Swimingpool_fence','¿Tiene valla para bebés?',d,1), buildTA('Swimingpool_fence_description','Sobre la valla',d,2,2,'Explicar cualquier información relevante sobre la valla: si es fija, si hay que solicitarla, dónde se guarda...')),
       buildInput('Swimingpool_Cleaningdays','Qué días pasa el equipo de limpieza',d,'text',2),
       buildTA('Swimingpool_maintenancecomments','Comentarios sobre el mantenimiento de la piscina',d,2,2,'Llaves de la caseta, algún problema o información relevante.')
     ));
@@ -1038,7 +1065,7 @@ function buildForm(d){
       buildInput('propietario_Numero_calle_fiscal','Nº calle fiscal',d,'text',2)
     ));
     body.appendChild(subgroup('💰 Contabilidad','sg-internal',
-      buildInput('Modelo_179','Modelo 179',d,'text',2,'El Modelo 179 es una declaración informativa obligatoria en España para las personas y plataformas que ceden el uso de viviendas con fines turísticos.'),
+      buildBoolField('Modelo_179','Modelo 179',d,2,'El Modelo 179 es una declaración informativa obligatoria en España para las personas y plataformas que ceden el uso de viviendas con fines turísticos.'),
       buildInput('cuenta_contable_depositos','Cuenta contable depósitos',d,'text',2),
       buildInput('cuenta_contable_ecotasas','Cuenta contable ecotasas',d,'text',2),
       buildInput('Tag_contabilidad','Tag contabilidad',d,'text',2)
@@ -1098,7 +1125,7 @@ async function saveVilla(){
     const record={};
     TEXT_FIELDS.forEach(f=>{const el=g('f_'+f);if(!el)return;
       if(INT_FIELDS.has(f)){const v=parseInt(el.value);record[f]=isNaN(v)?null:v;}
-      else if(BOOL_FIELDS.has(f)){const v=el.value;record[f]=(v==='1'||v==='true'||v===true);}
+      else if(BOOL_FIELDS.has(f)){record[f]=isTruthy(el.value);}
       else if(NUM_FIELDS.has(f)){const v=parseFloat(el.value);record[f]=isNaN(v)?null:v;}
       else if(DATE_FIELDS.has(f)){record[f]=el.value||null;}
       else{record[f]=el.value;}
@@ -1146,4 +1173,4 @@ document.addEventListener('DOMContentLoaded',loadVilla);
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
+<!-- HISTORIAL: v11 - Fix Yes/No fields: isTruthy helper para leer -1/true/false de Caspio; buildBoolField muestra Sí/No/Sin definir; isPending corregido para booleanos; guardado usa isTruthy | v10 - Quitado ecotasa2019status (campo eliminado del formulario) | v09 - Fix tipos al guardar: INT_FIELDS/BOOL_FIELDS/NUM_FIELDS/DATE_FIELDS exactos del documento; Number→parseFloat, Date→string, Yes/No→boolean | v08 - Restaurado safe_box File 1+2+3; fix emoji 🏷️→📋 posible causa de blank; | v07 - Fix: quitar KeyHolder_zone/Sercives_comments/safe_box_File2+3 no están en doc; icono info cabecera = mismo azul que campos; flechas alta prioridad para pendientes amarillos | v06 - Restructura completa según doc v2: nuevo orden col A, secciones Equipamiento/Animales/Operaciones nuevas; info-btn azul redondo; popup centrado sin overlay oscuro; fix contacts ID detection; | v05 - Restructura completa: secciones Villamanager/Seguridad/Piscina+Jacuzzi/Comunicación/Admin nuevas; colores amarillo=cliente/blanco=interno; subgrupos dentro de secciones; botón Info leyenda colores; botón ℹ️ por campo con descripción; habitaciones 1-7; Key_Coments_clients nuevo campo; nav-pills para todas las secciones | v04 - búsqueda flechas ↑↓; pendientes flechas ↑↓; fix tipos datos INTEGER/BOOL al guardar; nav-pills estilo villa.html | v03 - dropdowns TaContacts/TaUsers; búsqueda; nav secciones; filtro pendientes; botón guardar | v02 - Fix Auth.require | v01 - Primera versión -->
