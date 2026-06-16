@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v17 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v18 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#C8102E">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v17 — 3Villas</title>
+<title>Editar Datos Manual v18 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -281,37 +281,18 @@ function statusClass(pct){
 }
 
 // ── LOAD DATA ──────────────────────────────────────────────────
-function getToken(){
-  return localStorage.getItem('3v_token') || sessionStorage.getItem('3v_token') || '';
-}
-function workerUrl(base){
-  var token = getToken();
-  var sep = base.indexOf('?') >= 0 ? '&' : '?';
-  return base + sep + 'sessionToken=' + encodeURIComponent(token);
-}
-
 function loadAll(){
-  console.log('[editar-manual] loadAll called');
-  var token = getToken();
-  console.log('[editar-manual] token:', token ? 'present' : 'missing');
-
-  if(!token){
-    window.location.replace('/intranet/login.html?redirect=' + encodeURIComponent(location.pathname + location.search));
-    return;
-  }
+  Auth.require('editar-villas-para-manual');
 
   busy(true, 'Cargando villas…');
-  console.log('[editar-manual] starting fetch...');
 
-  fetch(workerUrl(WORKER + '?action=view&view=Vi_villas_users_edit&limit=500'))
+  fetch(Auth.url(WORKER + '?action=view&view=Vi_villas_users_edit&limit=500'))
   .then(function(r){
-    console.log('[editar-manual] HTTP:', r.status);
     if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t.slice(0,300)); });
     return r.json();
   })
   .then(function(res){
     var rows = res.Result || res.result || [];
-    console.log('[editar-manual] rows:', rows.length);
     if(rows.length) console.log('[editar-manual] first row keys:', Object.keys(rows[0]).slice(0,5));
 
     // Dedup por TaVillas_villaid
@@ -553,7 +534,7 @@ function saveVilla(villaid){
 
   // action=update con TaVillas y villaid como PK
   var url = WORKER + '?action=update&table=TaVillas&id=' + encodeURIComponent(villaid);
-  fetch(workerUrl(url), {
+  fetch(Auth.url(url), {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(record)
@@ -584,7 +565,7 @@ function saveVilla(villaid){
     // Invalidar KV cache de villa-manual si tiene Hostawayid
     var villa = _allVillas.find(function(x){ return x.villaid===villaid; });
     if(villa && villa.Hostawayid){
-      fetch(workerUrl(WORKER+'?action=kv-delete&key=villa_manual:'+villa.Hostawayid)).catch(function(){});
+      fetch(Auth.url(WORKER+'?action=kv-delete&key=villa_manual:'+villa.Hostawayid)).catch(function(){});
     }
 
     buildStats();
@@ -600,4 +581,4 @@ window.addEventListener("load", function(){ loadAll(); });
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v17 - Sin Auth object: token directo de localStorage/sessionStorage; workerUrl() propio; auth.js relativo | v16 - auth.js estático en head; window.onload llama loadAll (elimina problema onload dinámico) | v15 - Usa Vi_villas_users_edit correctamente con action=view; alias TaVillas_xxx/TaUsers_xxx | v14 - Auth sin require/throw: check manual de sesión con getSession() + redirect manual; máximo debug | v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v18 - Vuelve a Auth.require+Auth.url() como el resto de páginas; auth.js estático en head | v17 - Sin Auth object: token directo de localStorage/sessionStorage; Auth.url() propio; auth.js relativo | v16 - auth.js estático en head; window.onload llama loadAll (elimina problema onload dinámico) | v15 - Usa Vi_villas_users_edit correctamente con action=view; alias TaVillas_xxx/TaUsers_xxx | v14 - Auth sin require/throw: check manual de sesión con getSession() + redirect manual; máximo debug | v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
