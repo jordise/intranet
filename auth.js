@@ -27,6 +27,20 @@ const Auth = (function () {
     }
   })();
 
+  // ── SW: desregistrar /3villas-manuals/ si existe ─────────────
+  // El SW antiguo interceptaba auth.js devolviéndolo desde la ruta
+  // incorrecta. Esta llamada lo elimina automáticamente en todos
+  // los navegadores sin que los usuarios tengan que hacer nada.
+  (function () {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (reg) {
+          if (reg.scope.indexOf('/3villas-manuals/') >= 0) reg.unregister();
+        });
+      });
+    }
+  })();
+
   const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
   const LOGIN  = '/intranet/login.html';
 
@@ -54,102 +68,62 @@ const Auth = (function () {
   //  ℹ️  PÁGINAS TEST (ignoradas):
   //      XXedit-taskXX.html, XXnuevatareaXX.html, XXtest1XX.html
   //
-  //  Última revisión: 24/05/2026
+  //  Última revisión: 17/06/2026
   // ─────────────────────────────────────────────────────────────
 
   const PERMISSIONS = {
 
     // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
-    //
-    //  'entradas' = clave de la PUERTA DE ENTRADA (entradas.html o index
-    //  de entradas) que detecta el rol y redirige a la sub-página correcta.
-    //  Todos los roles que puedan llegar a cualquier sub-página de entradas
-    //  deben figurar aquí.
-    //
     'entradas'              : ['admin', 'manager', 'staff', 'cleaner', 'sales'],
-
-    //  'entradas-equipo' = entradas-equipo.html
-    //  Página avanzada con vista de equipo. Solo personal interno.
-    //  ⚠️  Recuerda poner en entradas-equipo.html:
-    //        Auth.require('entradas-equipo')
-    //
     'entradas-equipo'       : ['admin', 'manager', 'staff'],
-
-    // salidas — clave de reserva (no hay salidas.html propio, se gestiona en entradas)
     'salidas'               : ['admin', 'manager', 'staff', 'cleaner'],
-
-    // ── PRIMER CONTACTO WHATSAPP ────────────────────────────────
-    //
-    //  entradas-primer-contacto-whatsapp.html → Auth.require('entradas-primer-contacto-whatsapp')
-    //  Gestión del primer mensaje WhatsApp 2 días antes del check-in.
-    //  ⚠️  Recuerda poner en entradas-primer-contacto-whatsapp.html:
-    
-    //
     'entradas-primer-contacto-whatsapp' : ['admin', 'manager', 'staff'],
 
     // ── TAREAS ─────────────────────────────────────────────────
-    // tareas.html
     'tareas'                : ['admin', 'manager', 'staff', 'cleaner'],
-    // nueva-tarea.html
     'nueva-tarea'           : ['admin', 'manager', 'staff'],
-    // editar-tarea.html
     'editar-tarea'          : ['admin', 'manager', 'staff'],
 
     // ── SUBTAREAS DE FLUJO ⚠️ CRÍTICAS ────────────────────────
-    // Se abren desde entradas.html — si el rol no tiene acceso rompe el flujo
-    // task-limpieza.html → Auth.require('task-limpieza')
     'task-limpieza'         : ['admin', 'manager', 'staff', 'cleaner'],
-    // task-wp.html → Auth.require('task-wp')
     'task-wp'               : ['admin', 'manager', 'staff', 'cleaner'],
-    // task-cierre.html → Auth.require('task-cierre')
     'task-cierre'           : ['admin', 'manager', 'staff', 'cleaner'],
 
     // ── VILLAS ─────────────────────────────────────────────────
-    // buscar-villa.html → Auth.require('villas')
-    // villa.html        → Auth.require('villas')
-    // sales puede ver villas pero NO entradas — clave separada para ello
     'villas'                     : ['admin', 'manager', 'staff', 'sales'],
     'editar-villas'              : ['admin', 'manager', 'staff', 'sales'],
     'editar-villas-para-manual'  : ['admin', 'manager', 'staff'],
 
     // ── CONTACTOS ──────────────────────────────────────────────
-    // contactos.html
     'contactos'             : ['admin', 'manager', 'staff', 'sales'],
 
     // ── OCUPACIÓN ──────────────────────────────────────────────
-    // listado-ocupacion.html
     'listado-ocupacion'     : ['admin', 'manager', 'staff', 'sales'],
 
     // ── NOTAS ──────────────────────────────────────────────────
-    // notas-equipo-reservas.html
     'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
-    // notas-villamanager.html
     'notas-villamanager'    : ['admin', 'manager', 'staff'],
 
     // ── WELCOMEPACKS ───────────────────────────────────────────
-    // pedir-wellcomepacks.html
     'pedir-wellcomepacks'   : ['admin', 'manager', 'staff'],
 
     // ── REPORTS ────────────────────────────────────────────────
-    // reports-ventas.html
     'reports-ventas'        : ['admin', 'sales'],
 
     // ── MANUALES ───────────────────────────────────────────────
-    // generar.html + manual-*.html → Auth.require('manuales')
     'manuales'              : ['admin', 'manager'],
     'cobros-inquilinos'     : ['admin', 'manager'],
     'generar'               : ['admin', 'manager'],
 
-    // ── Test ───────────────────────────────────────────────
-    'checkin-test-reserva' : ['admin', 'manager'],
-    'hostaway-comprobar-fechas-reservas' : ['admin', 'manager'],
-    'hostaway-comprobar-multiunits' : ['admin', 'manager'],
+    // ── TEST ───────────────────────────────────────────────────
+    'checkin-test-reserva'                  : ['admin', 'manager'],
+    'hostaway-comprobar-fechas-reservas'    : ['admin', 'manager'],
+    'hostaway-comprobar-multiunits'         : ['admin', 'manager'],
 
     // ── CONFIGURACIÓN ──────────────────────────────────────────
-    // permisos.html
     'permisos'              : ['admin'],
 
-    // ── PÁGINAS FUTURAS (sin .html aún — admin por defecto) ────
+    // ── PÁGINAS FUTURAS ────────────────────────────────────────
     'dashboard'             : ['admin', 'manager'],
     'contabilidad'          : ['admin'],
     'usuarios'              : ['admin'],
@@ -250,12 +224,10 @@ const Auth = (function () {
 
     /**
      * Guardar sesión tras login correcto.
-     * Llamado desde login.html con los datos del worker.
      *   Auth.saveSession(data, remember)
      */
     saveSession(data, remember) {
       const store = remember ? localStorage : sessionStorage;
-      // Limpiar ambos primero para evitar conflictos
       _clearStorage(localStorage);
       _clearStorage(sessionStorage);
 
@@ -264,14 +236,12 @@ const Auth = (function () {
       store.setItem(K.NAME,  data.name);
 
       if (remember) {
-        // Expirar en 30 días (el JWT del worker también debe durar 30d)
         store.setItem(K.EXPIRY, String(Date.now() + 30 * 24 * 60 * 60 * 1000));
       }
     },
 
     /**
      * Proteger una página.
-     * Detiene la ejecución (redirect o pantalla de error) si no hay permiso.
      *   Auth.require('entradas');
      */
     require(page) {
@@ -287,7 +257,6 @@ const Auth = (function () {
         throw new Error('Sin permiso');
       }
 
-      // Inyectar nombre de usuario si existe el elemento #hUserName
       requestAnimationFrame(() => {
         const el = document.getElementById('hUserName');
         if (el) el.textContent = session.name;
@@ -305,7 +274,7 @@ const Auth = (function () {
       return s ? { Authorization: `Bearer ${s.token}` } : {};
     },
 
-    /** Token de sesión (busca en localStorage y sessionStorage) */
+    /** Token de sesión */
     token() {
       return localStorage.getItem('3v_token') || sessionStorage.getItem('3v_token') || '';
     },
@@ -328,7 +297,6 @@ const Auth = (function () {
 
     /**
      * Añadir sessionToken como query param a una URL del worker.
-     * Alternativa a Auth.headers() para URLs directas.
      *   fetch(Auth.url(`${WORKER}?action=view&...`))
      */
     url(workerUrl) {
