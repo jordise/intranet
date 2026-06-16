@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v18 | Historial completo al final de este archivo -->
-<!-- manualvilla_v18.html — Manual de Villa Online — 3Villas -->
+<!-- VERSIÓN ACTUAL: v19 | Historial completo al final de este archivo -->
+<!-- manualvilla_v19.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manual de Villa v18 · 3Villas</title>
+<link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
+<title>Manual de Villa v19 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -81,18 +83,21 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   border-bottom:1.5px solid var(--border);
 }
 .info-item{
-  flex:1;min-width:120px;
-  display:flex;align-items:center;gap:10px;
+  flex:1;min-width:120px;max-width:220px;
+  display:flex;align-items:flex-start;gap:10px;
   padding:14px 18px;border-right:1px solid var(--border);
+  overflow:hidden;
 }
 .info-item:last-child{border-right:none}
 .info-icon{font-size:18px;flex-shrink:0}
 .info-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:2px}
-.info-val{font-size:13px;font-weight:400;color:var(--mid);}
-.info-val.expandable{
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow:hidden;cursor:pointer;
+.info-val{
+  font-size:13px;font-weight:400;color:var(--mid);
+  display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;
+  line-height:1.5;
 }
+.info-val.expandable{cursor:pointer}
 .info-val.expandable:hover{color:var(--red)}
 
 /* ── QUICK CARD ── */
@@ -310,11 +315,12 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   min-height:80vh;gap:14px;color:var(--sub);font-size:14px;text-align:center;padding:20px;
 }
 .spinner{
-  width:32px;height:32px;border:2.5px solid var(--border);
-  border-top-color:var(--red);border-radius:50%;
-  animation:spin 1s linear infinite;
+  width:56px;height:56px;
+  display:block;margin:0 auto 12px;
+  object-fit:contain;
+  animation:spin-3v .9s linear infinite;
 }
-@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spin-3v{to{transform:rotate(360deg)}}
 #mainContent{display:none}
 #legalStrip{
   background:var(--white);border-top:1.5px solid var(--border);
@@ -450,7 +456,7 @@ mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
 
 <!-- LOADING -->
 <div id="loading">
-  <div class="spinner"></div>
+  <img class="spinner" src="icon-corazon-rojo-fondo-transparente.png" alt="Cargando...">
   <div id="loadingMsg">Cargando manual...</div>
 </div>
 
@@ -1338,20 +1344,31 @@ function showWifiQR(){
   var pass  = document.getElementById('wifiPass').textContent || '';
   if(!ssid || ssid==='—') return;
 
-  // Generar QR usando QRServer API (gratuita, sin límites razonables)
   var wifiString = 'WIFI:T:WPA;S:' + ssid + ';P:' + pass + ';;';
-  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='
-    + encodeURIComponent(wifiString);
 
   document.getElementById('popupTitle').textContent = '📶 Wifi QR';
   document.getElementById('popupBody').innerHTML =
     '<div style="text-align:center;padding:10px 0">'
     + '<p style="font-size:13px;color:var(--mid);margin-bottom:12px">Escanea para conectarte automáticamente</p>'
-    + '<img src="' + qrUrl + '" alt="QR Wifi" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--border)">'
+    + '<div id="qrContainer" style="display:inline-block;padding:12px;background:#fff;border-radius:8px;border:1px solid var(--border)"></div>'
     + '<p style="margin-top:12px;font-size:12px;color:var(--sub)"><b>Red:</b> ' + ssid + '</p>'
     + '<p style="font-size:12px;color:var(--sub)"><b>Contraseña:</b> ' + pass + '</p>'
     + '</div>';
+
   openPopupCentered();
+
+  // Generar QR con qrcode.js (local, sin llamada externa)
+  setTimeout(function(){
+    var el = document.getElementById('qrContainer');
+    if(el && typeof QRCode !== 'undefined'){
+      new QRCode(el, {
+        text: wifiString,
+        width: 200, height: 200,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+  }, 100);
 }
 
 // ── BÚSQUEDA ────────────────────────────────────────────────
@@ -1777,20 +1794,31 @@ function showWifiQR(){
   var pass  = document.getElementById('wifiPass').textContent || '';
   if(!ssid || ssid==='—') return;
 
-  // Generar QR usando QRServer API (gratuita, sin límites razonables)
   var wifiString = 'WIFI:T:WPA;S:' + ssid + ';P:' + pass + ';;';
-  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='
-    + encodeURIComponent(wifiString);
 
   document.getElementById('popupTitle').textContent = '📶 Wifi QR';
   document.getElementById('popupBody').innerHTML =
     '<div style="text-align:center;padding:10px 0">'
     + '<p style="font-size:13px;color:var(--mid);margin-bottom:12px">Escanea para conectarte automáticamente</p>'
-    + '<img src="' + qrUrl + '" alt="QR Wifi" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--border)">'
+    + '<div id="qrContainer" style="display:inline-block;padding:12px;background:#fff;border-radius:8px;border:1px solid var(--border)"></div>'
     + '<p style="margin-top:12px;font-size:12px;color:var(--sub)"><b>Red:</b> ' + ssid + '</p>'
     + '<p style="font-size:12px;color:var(--sub)"><b>Contraseña:</b> ' + pass + '</p>'
     + '</div>';
+
   openPopupCentered();
+
+  // Generar QR con qrcode.js (local, sin llamada externa)
+  setTimeout(function(){
+    var el = document.getElementById('qrContainer');
+    if(el && typeof QRCode !== 'undefined'){
+      new QRCode(el, {
+        text: wifiString,
+        width: 200, height: 200,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+  }, 100);
 }
 
 // ── BÚSQUEDA ────────────────────────────────────────────────
@@ -1886,4 +1914,4 @@ function clearSearch(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
