@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v13 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v15 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#C8102E">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v13 — 3Villas</title>
+<title>Editar Datos Manual v15 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -289,58 +289,61 @@ function statusClass(pct){
 
 // ── LOAD DATA ──────────────────────────────────────────────────
 function loadAll(){
-  // Auth check — 'editar-villas-para-manual' must be in auth.js PERMISSIONS
-  // Fallback to 'villas' if not yet added
-  try { Auth.require('editar-villas-para-manual'); }
-  catch(e) {
-    // If permission not defined, try 'villas' (admin/manager/staff have access)
-    try { Auth.require('villas'); } catch(e2) { return; }
+  console.log('[editar-manual] loadAll called, Auth:', typeof Auth);
+  
+  // Check session without throwing
+  if(typeof Auth !== 'undefined'){
+    var session = Auth.getSession ? Auth.getSession() : null;
+    console.log('[editar-manual] session:', session ? session.role : 'none');
+    if(!session){ 
+      console.log('[editar-manual] no session, redirecting...');
+      window.location.replace('/intranet/login.html?redirect=' + encodeURIComponent(location.pathname + location.search));
+      return;
+    }
   }
 
   busy(true, 'Cargando villas…');
   console.log('[editar-manual] starting fetch...');
 
-  // Dos llamadas paralelas — action=data funciona con seguridad
-  Promise.all([
-    fetch(Auth.url(WORKER + '?action=data&table=TaVillas&limit=500')).then(function(r){ return r.json(); }),
-    fetch(Auth.url(WORKER + '?action=data&table=TaUsers&limit=500')).then(function(r){ return r.json(); })
-  ])
+  // Una sola llamada a Vi_villas_users_edit (Updatable=True, JOIN TaVillas+TaUsers)
+  fetch(Auth.url(WORKER + '?action=view&view=Vi_villas_users_edit&limit=500'))
+  .then(function(r){
+    console.log('[editar-manual] HTTP:', r.status);
+    if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t.slice(0,300)); });
+    return r.json();
+  })
   .then(function(res){
-    var villas = res[0].Result || res[0].result || [];
-    var users  = res[1].Result || res[1].result || [];
+    var rows = res.Result || res.result || [];
+    console.log('[editar-manual] rows:', rows.length);
+    if(rows.length) console.log('[editar-manual] first row keys:', Object.keys(rows[0]).slice(0,5));
 
-    console.log('[editar-manual] villas:', villas.length, 'users:', users.length);
-
-    // Mapa UserID → nombre
-    var usersMap = {};
-    users.forEach(function(u){
-      if(u.UserID) usersMap[String(u.UserID)] = u.Name || '';
-    });
-
+    // Dedup por TaVillas_villaid
+    var seen = {};
     _allVillas = [];
-    villas.forEach(function(v){
-      var id = String(v.villaid || '');
-      if(!id) return;
-      var mgrId   = String(v.KeyHolder_person || '');
-      var mgrName = usersMap[mgrId] || '';
+    rows.forEach(function(r){
+      var id = String(r.TaVillas_villaid || '');
+      if(!id || seen[id]) return;
+      seen[id] = true;
+      var mgrId   = String(r.TaVillas_KeyHolder_person || '');
+      var mgrName = r.TaUsers_Name || '';
       if(mgrId && mgrName) _managers[mgrId] = mgrName;
 
       _allVillas.push({
         villaid:                    id,
-        Hostawayid:                 v.Hostawayid || '',
-        Name:                       v.Name || '',
-        Name_villa_para_inquilinos: v.Name_villa_para_inquilinos || '',
-        Wifi_user:                  v.Wifi_user || '',
-        Wifi_password:              v.Wifi_password || '',
-        Beach_distance:             v.Beach_distance || '',
-        Restaurant_distance:        v.Restaurant_distance || '',
-        Supermarket_distance:       v.Supermarket_distance || '',
-        Pharmacy_distance:          v.Pharmacy_distance || '',
-        Airport_distance:           v.Airport_distance || '',
-        Description:                v.Description || '',
-        Electric_panel:             v.where_is_mainpower || '',
-        Water_valve:                v.wher_is_water_stopcock || '',
-        BBQ:                        v.BBQ || '',
+        Hostawayid:                 r.TaVillas_Hostawayid || '',
+        Name:                       r.TaVillas_Name || '',
+        Name_villa_para_inquilinos: r.TaVillas_Name_villa_para_inquilinos || '',
+        Wifi_user:                  r.TaVillas_Wifi_user || '',
+        Wifi_password:              r.TaVillas_Wifi_password || '',
+        Beach_distance:             r.TaVillas_Beach_distance || '',
+        Restaurant_distance:        r.TaVillas_Restaurant_distance || '',
+        Supermarket_distance:       r.TaVillas_Supermarket_distance || '',
+        Pharmacy_distance:          r.TaVillas_Pharmacy_distance || '',
+        Airport_distance:           r.TaVillas_Airport_distance || '',
+        Description:                r.TaVillas_Description || '',
+        Electric_panel:             r.TaVillas_where_is_mainpower || '',
+        Water_valve:                r.TaVillas_wher_is_water_stopcock || '',
+        BBQ:                        r.TaVillas_BBQ || '',
         KeyHolder_person:           mgrId,
         _managerName:               mgrName,
         _managerUserId:             mgrId,
@@ -599,4 +602,4 @@ function saveVilla(villaid){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v15 - Usa Vi_villas_users_edit correctamente con action=view; alias TaVillas_xxx/TaUsers_xxx | v14 - Auth sin require/throw: check manual de sesión con getSession() + redirect manual; máximo debug | v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
