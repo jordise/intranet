@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v01 | Historial completo al final de este archivo -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
+<link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
+<title>Editar Datos Manual v01 — 3Villas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-dark:#9e0c24;--red-lt:#fce8eb;
+  --green:#1e9e4e;--green-lt:#e6f7ee;
+  --orange:#e07b00;--orange-lt:#fff4e0;
+  --gray-1:#f8f9fa;--gray-2:#eaecef;--gray-3:#c8cdd8;
+  --gray-4:#7a8194;--gray-5:#2d3142;
+  --white:#fff;
+  --shadow-xs:0 1px 3px rgba(0,0,0,.07);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.09);
+  --r:12px;--r-sm:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:80px}
+
+/* NAV */
+nav.top-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;background:var(--white);
+  border-bottom:1px solid var(--gray-2);
+  box-shadow:var(--shadow-xs);position:sticky;top:0;z-index:100;
+}
+.nav-logo{text-decoration:none;font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;color:var(--red)}
+.nav-back{
+  display:flex;align-items:center;gap:6px;
+  background:var(--red-lt);color:var(--red);
+  border:none;border-radius:8px;padding:6px 12px;
+  font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;
+}
+.nav-back:hover{background:#f5c6cb}
+
+/* SPINNER */
+#loadOverlay{
+  display:none;position:fixed;inset:0;z-index:999;
+  background:rgba(255,255,255,.85);
+  flex-direction:column;align-items:center;justify-content:center;gap:12px;
+}
+#loadOverlay.on{display:flex}
+.spinner{
+  width:52px;height:52px;
+  animation:spin-3v .9s linear infinite;
+}
+@keyframes spin-3v{to{transform:rotate(360deg)}}
+#loadMsg{font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--gray-4)}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--gray-5);color:var(--white);
+  font-size:13px;font-weight:600;padding:10px 20px;border-radius:20px;
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:998;white-space:nowrap;
+}
+#toast.show{opacity:1}
+
+/* FILTROS */
+.filters-wrap{max-width:860px;margin:20px auto 0;padding:0 16px}
+.filters-card{
+  background:var(--white);border-radius:var(--r);
+  box-shadow:var(--shadow-sm);padding:16px 20px;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
+}
+.f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px}
+.f-label{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-5)}
+.f-input,.f-select{
+  border:1.5px solid var(--gray-2);border-radius:var(--r-sm);
+  padding:8px 12px;font-size:13px;font-family:'Open Sans',sans-serif;
+  color:var(--gray-5);background:var(--white);outline:none;transition:.15s;width:100%;
+}
+.f-input:focus,.f-select:focus{border-color:var(--red)}
+
+/* STATS */
+.stats-wrap{max-width:860px;margin:10px auto 0;padding:0 16px}
+.stats-bar{
+  display:flex;gap:10px;flex-wrap:wrap;
+}
+.stat-chip{
+  background:var(--white);border-radius:20px;padding:5px 14px;
+  font-size:12px;font-weight:600;border:1.5px solid var(--gray-2);
+  display:flex;align-items:center;gap:6px;
+}
+.stat-chip .dot{width:8px;height:8px;border-radius:50%}
+.dot-ok{background:var(--green)}
+.dot-warn{background:var(--orange)}
+.dot-err{background:var(--red)}
+
+/* LISTA VILLAS */
+.list-wrap{max-width:860px;margin:14px auto 0;padding:0 16px}
+.villa-card{
+  background:var(--white);border-radius:var(--r);
+  box-shadow:var(--shadow-xs);margin-bottom:10px;
+  border-left:4px solid var(--gray-2);
+  transition:border-color .2s;
+  overflow:hidden;
+}
+.villa-card.complete{border-left-color:var(--green)}
+.villa-card.partial{border-left-color:var(--orange)}
+.villa-card.empty{border-left-color:var(--red)}
+
+.villa-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;cursor:pointer;gap:12px;
+}
+.villa-header:hover{background:var(--gray-1)}
+.villa-name{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5)}
+.villa-manager{font-size:11px;color:var(--gray-4);margin-top:2px}
+.villa-progress{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.progress-bar{width:80px;height:6px;background:var(--gray-2);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.progress-fill.ok{background:var(--green)}
+.progress-fill.partial{background:var(--orange)}
+.progress-fill.empty{background:var(--red)}
+.progress-pct{font-size:11px;font-weight:700;color:var(--gray-4);min-width:30px;text-align:right}
+.villa-chevron{font-size:14px;color:var(--gray-3);transition:transform .2s;flex-shrink:0}
+.villa-card.open .villa-chevron{transform:rotate(180deg)}
+
+/* FORMULARIO DE CAMPOS */
+.villa-form{
+  display:none;padding:0 18px 18px;border-top:1px solid var(--gray-2);
+}
+.villa-card.open .villa-form{display:block}
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media(max-width:600px){.fields-grid{grid-template-columns:1fr}}
+
+.field-item{display:flex;flex-direction:column;gap:4px}
+.field-label{
+  font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.5px;
+  display:flex;align-items:center;gap:6px;
+}
+.field-label .tag{
+  font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;letter-spacing:.3px;
+}
+.tag-ok{background:var(--green-lt);color:var(--green)}
+.tag-warn{background:var(--orange-lt);color:var(--orange)}
+.field-input,.field-textarea{
+  border:1.5px solid var(--gray-2);border-radius:var(--r-sm);
+  padding:8px 10px;font-size:13px;font-family:'Open Sans',sans-serif;
+  color:var(--gray-5);background:var(--white);outline:none;
+  transition:.15s;width:100%;resize:vertical;
+}
+.field-input:focus,.field-textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.field-input.filled{border-color:var(--green);background:#fcfffc}
+.field-input.empty-field,.field-textarea.empty-field{border-color:var(--orange);background:#fffaf5}
+.field-textarea{min-height:80px}
+.field-hint{font-size:10px;color:var(--gray-4);margin-top:2px;font-style:italic}
+.field-item.full-width{grid-column:1/-1}
+
+.btn-save{
+  margin-top:16px;
+  background:var(--red);color:var(--white);
+  border:none;border-radius:var(--r-sm);padding:10px 24px;
+  font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;
+  cursor:pointer;transition:.15s;
+}
+.btn-save:hover{background:var(--red-dark)}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-preview{
+  margin-top:16px;margin-left:10px;
+  background:var(--gray-1);color:var(--gray-5);
+  border:1.5px solid var(--gray-2);border-radius:var(--r-sm);padding:10px 16px;
+  font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;transition:.15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-preview:hover{border-color:var(--red);color:var(--red)}
+
+/* EMPTY STATE */
+#emptyState{display:none;text-align:center;padding:40px;color:var(--gray-4);font-size:14px}
+</style>
+</head>
+<body>
+
+<div id="loadOverlay">
+  <img class="spinner" src="icon-corazon-rojo-fondo-transparente.png" alt="">
+  <div id="loadMsg">Cargando villas…</div>
+</div>
+<div id="toast"></div>
+
+<script src="auth.js"></script>
+<script>Auth.require('villas')</script>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">❤️ 3villas</a>
+  <a class="nav-back" href="index.html">← Inicio</a>
+</nav>
+
+<div class="filters-wrap">
+  <div class="filters-card">
+    <div class="f-group" style="min-width:260px">
+      <label class="f-label">🔍 Buscar villa</label>
+      <input class="f-input" id="filterName" type="text" placeholder="Nombre de villa…" oninput="applyFilters()">
+    </div>
+    <div class="f-group">
+      <label class="f-label">👤 Villa Manager</label>
+      <select class="f-select" id="filterManager" onchange="applyFilters()">
+        <option value="">Todos los managers</option>
+      </select>
+    </div>
+    <div class="f-group">
+      <label class="f-label">📊 Estado campos</label>
+      <select class="f-select" id="filterStatus" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option value="complete">✅ Completos</option>
+        <option value="partial">⚠️ Parciales</option>
+        <option value="empty">❌ Vacíos</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="stats-wrap">
+  <div class="stats-bar" id="statsBar"></div>
+</div>
+
+<div class="list-wrap">
+  <div id="villaList"></div>
+  <div id="emptyState">No hay villas que coincidan con los filtros.</div>
+</div>
+
+<script>
+var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+var _allVillas = [];
+var _managers  = {};   // userId → name
+var _dirty     = {};   // villaid → {field: value}
+
+// Campos del manual — orden y configuración
+var MANUAL_FIELDS = [
+  { key:'Name_villa_para_inquilinos', label:'Nombre para el huésped',  type:'input',    hint:'Nombre que verá el huésped en el manual', span:false },
+  { key:'Wifi_user',                  label:'Red Wifi (SSID)',          type:'input',    hint:'Nombre de la red wifi',                   span:false },
+  { key:'Wifi_password',              label:'Contraseña Wifi',          type:'input',    hint:'Contraseña de la red wifi',               span:false },
+  { key:'Beach_distance',             label:'Playa más cercana',        type:'input',    hint:'Ej: 500 mts · Cala Blanca',              span:false },
+  { key:'Restaurant_distance',        label:'Restaurante más cercano',  type:'textarea', hint:'Ej: 200 mts · Es Jardí des Temple',      span:true  },
+  { key:'Supermarket_distance',       label:'Supermercado más cercano', type:'input',    hint:'Ej: 1 km · Mercadona Alaior',            span:false },
+  { key:'Pharmacy_distance',          label:'Farmacia',                 type:'input',    hint:'Ej: 800 mts · Farmàcia Son Bou',        span:false },
+  { key:'Airport_distance',           label:'Aeropuerto',               type:'input',    hint:'Ej: 15 km',                              span:false },
+  { key:'Description',                label:'Descripción del entorno',  type:'textarea', hint:'Texto libre sobre el entorno de la villa',span:true  },
+  { key:'Electric_panel',             label:'Cuadro eléctrico',         type:'input',    hint:'Ej: En el garaje, puerta derecha',       span:false },
+  { key:'Water_valve',                label:'Llave de paso',            type:'input',    hint:'Ej: Debajo del fregadero de la cocina',  span:false },
+  { key:'BBQ',                        label:'Barbacoa',                 type:'textarea', hint:'Deja vacío si no hay barbacoa',           span:true  },
+];
+
+// ── HELPERS ────────────────────────────────────────────────────
+function busy(on, msg){
+  document.getElementById('loadOverlay').classList.toggle('on', on);
+  if(msg) document.getElementById('loadMsg').textContent = msg;
+}
+
+function toast(msg, ok){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#1e9e4e' : '#C8102E';
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+function fieldScore(villa){
+  var filled = MANUAL_FIELDS.filter(function(f){ return villa[f.key] && String(villa[f.key]).trim(); }).length;
+  return { filled: filled, total: MANUAL_FIELDS.length, pct: Math.round(filled / MANUAL_FIELDS.length * 100) };
+}
+
+function statusClass(pct){
+  if(pct === 100) return 'complete';
+  if(pct >= 50)  return 'partial';
+  return 'empty';
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────────
+function loadAll(){
+  busy(true, 'Cargando villas…');
+  // Usar Vi_villas_users para tener nombre del manager incluido
+  var url = WORKER + '?action=view&view=Vi_villas_users&limit=500';
+  fetch(Auth.url(url))
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var rows = json.Result || json.result || [];
+      // Dedup por villaid (vista puede tener duplicados)
+      var seen = {};
+      _allVillas = [];
+      rows.forEach(function(r){
+        var id = String(r.TaVillas_villaid || '');
+        if(!id || seen[id]) return;
+        seen[id] = true;
+        // Map aliases → plain names
+        _allVillas.push({
+          villaid:                    id,
+          Hostawayid:                 r.TaVillas_Hostawayid || '',
+          Name:                       r.TaVillas_Name || '',
+          Name_villa_para_inquilinos: r.TaVillas_Name_villa_para_inquilinos || '',
+          Wifi_user:                  r.TaVillas_Wifi_user || '',
+          Wifi_password:              r.TaVillas_Wifi_password || '',
+          Beach_distance:             r.TaVillas_Beach_distance || '',
+          Restaurant_distance:        r.TaVillas_Restaurant_distance || '',
+          Supermarket_distance:       r.TaVillas_Supermarket_distance || '',
+          Pharmacy_distance:          r.TaVillas_Pharmacy_distance || '',
+          Airport_distance:           r.TaVillas_Airport_distance || '',
+          Description:                r.TaVillas_Description || '',
+          Electric_panel:             r.TaVillas_where_is_mainpower || '',
+          Water_valve:                r.TaVillas_wher_is_water_stopcock || '',
+          BBQ:                        r.TaVillas_BBQ || '',
+          KeyHolder_person:           r.TaVillas_KeyHolder_person || '',
+          _managerName:               r.TaUsers_Name || '',
+          _managerUserId:             r.TaUsers_UserID || '',
+        });
+        if(r.TaUsers_UserID && r.TaUsers_Name){
+          _managers[r.TaUsers_UserID] = r.TaUsers_Name;
+        }
+      });
+
+      // Sort by name
+      _allVillas.sort(function(a,b){
+        var na = a.Name_villa_para_inquilinos || a.Name;
+        var nb = b.Name_villa_para_inquilinos || b.Name;
+        return na.localeCompare(nb, 'es');
+      });
+
+      buildManagerFilter();
+      buildStats();
+      renderList(_allVillas);
+      busy(false);
+
+      // Open villa from URL param
+      var params = new URLSearchParams(location.search);
+      var pid = params.get('villaid') || params.get('id');
+      if(pid){
+        var card = document.getElementById('card-' + pid);
+        if(card){ toggleCard(card); card.scrollIntoView({behavior:'smooth', block:'start'}); }
+      }
+    })
+    .catch(function(e){
+      busy(false);
+      toast('Error al cargar villas: ' + e.message, false);
+    });
+}
+
+// ── FILTROS ────────────────────────────────────────────────────
+function buildManagerFilter(){
+  var sel = document.getElementById('filterManager');
+  Object.keys(_managers).sort(function(a,b){ return _managers[a].localeCompare(_managers[b],'es'); })
+    .forEach(function(uid){
+      var opt = document.createElement('option');
+      opt.value = uid;
+      opt.textContent = _managers[uid];
+      sel.appendChild(opt);
+    });
+}
+
+function applyFilters(){
+  var name    = document.getElementById('filterName').value.trim().toLowerCase();
+  var manager = document.getElementById('filterManager').value;
+  var status  = document.getElementById('filterStatus').value;
+
+  var filtered = _allVillas.filter(function(v){
+    var vname = (v.Name_villa_para_inquilinos || v.Name).toLowerCase();
+    if(name && vname.indexOf(name) < 0) return false;
+    if(manager && v._managerUserId !== manager) return false;
+    if(status){
+      var sc = fieldScore(v);
+      var st = statusClass(sc.pct);
+      if(st !== status) return false;
+    }
+    return true;
+  });
+
+  renderList(filtered);
+  buildStats(filtered);
+}
+
+// ── STATS ──────────────────────────────────────────────────────
+function buildStats(villas){
+  villas = villas || _allVillas;
+  var complete = 0, partial = 0, empty = 0;
+  villas.forEach(function(v){
+    var st = statusClass(fieldScore(v).pct);
+    if(st==='complete') complete++;
+    else if(st==='partial') partial++;
+    else empty++;
+  });
+  var bar = document.getElementById('statsBar');
+  bar.innerHTML =
+    chip('dot-ok',   '✅ Completos',  complete) +
+    chip('dot-warn', '⚠️ Parciales',  partial)  +
+    chip('dot-err',  '❌ Incompletos',empty)     +
+    '<div class="stat-chip">Total: <b>' + villas.length + '</b></div>';
+}
+function chip(dot, label, n){
+  return '<div class="stat-chip"><div class="dot ' + dot + '"></div>' + label + ': <b>' + n + '</b></div>';
+}
+
+// ── RENDER LISTA ───────────────────────────────────────────────
+function renderList(villas){
+  var list  = document.getElementById('villaList');
+  var empty = document.getElementById('emptyState');
+  list.innerHTML = '';
+  if(!villas.length){ empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  villas.forEach(function(v){
+    var sc  = fieldScore(v);
+    var st  = statusClass(sc.pct);
+    var hwid= v.Hostawayid;
+
+    var card = document.createElement('div');
+    card.className = 'villa-card ' + st;
+    card.id = 'card-' + v.villaid;
+
+    var managerTxt = v._managerName ? '👤 ' + v._managerName : '👤 Sin manager asignado';
+    var pctClass   = sc.pct===100?'ok':sc.pct>=50?'partial':'empty';
+
+    card.innerHTML =
+      '<div class="villa-header" onclick="toggleCard(this.parentElement)">' +
+        '<div>' +
+          '<div class="villa-name">' + (v.Name_villa_para_inquilinos || v.Name || 'Villa ' + v.villaid) + '</div>' +
+          '<div class="villa-manager">' + managerTxt + '</div>' +
+        '</div>' +
+        '<div class="villa-progress">' +
+          '<div class="progress-bar"><div class="progress-fill ' + pctClass + '" style="width:' + sc.pct + '%"></div></div>' +
+          '<span class="progress-pct">' + sc.filled + '/' + sc.total + '</span>' +
+        '</div>' +
+        '<span class="villa-chevron">▼</span>' +
+      '</div>' +
+      '<div class="villa-form" id="form-' + v.villaid + '">' +
+        buildForm(v) +
+        '<div style="margin-top:16px;display:flex;align-items:center;flex-wrap:wrap;gap:8px">' +
+          '<button class="btn-save" onclick="saveVilla(\'' + v.villaid + '\')" id="btnSave-' + v.villaid + '">💾 Guardar cambios</button>' +
+          (hwid ? '<a class="btn-preview" href="manual-villa.html?Hostawayid=' + hwid + '" target="_blank">👁 Ver manual</a>' : '') +
+        '</div>' +
+      '</div>';
+
+    list.appendChild(card);
+  });
+}
+
+// ── FORM DE CAMPOS ─────────────────────────────────────────────
+function buildForm(v){
+  var html = '<div class="fields-grid">';
+  MANUAL_FIELDS.forEach(function(f){
+    var val   = v[f.key] || '';
+    var filled = val.trim().length > 0;
+    var cls   = filled ? 'filled' : 'empty-field';
+    var tag   = filled ? '<span class="tag tag-ok">✓ Relleno</span>' : '<span class="tag tag-warn">⚠ Vacío</span>';
+    var spanCls = f.span ? 'field-item full-width' : 'field-item';
+    var inputId = 'f-' + v.villaid + '-' + f.key;
+
+    html += '<div class="' + spanCls + '">';
+    html += '<label class="field-label" for="' + inputId + '">' + f.label + ' ' + tag + '</label>';
+    if(f.type === 'textarea'){
+      html += '<textarea class="field-textarea ' + cls + '" id="' + inputId + '"' +
+              ' data-villaid="' + v.villaid + '" data-field="' + f.key + '"' +
+              ' oninput="markDirty(this)">' + esc(val) + '</textarea>';
+    } else {
+      html += '<input class="field-input ' + cls + '" id="' + inputId + '" type="text"' +
+              ' value="' + esc(val) + '"' +
+              ' data-villaid="' + v.villaid + '" data-field="' + f.key + '"' +
+              ' oninput="markDirty(this)">';
+    }
+    if(f.hint) html += '<div class="field-hint">' + f.hint + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── DIRTY TRACKING ─────────────────────────────────────────────
+function markDirty(el){
+  var villaid = el.dataset.villaid;
+  var field   = el.dataset.field;
+  var val     = el.value;
+  if(!_dirty[villaid]) _dirty[villaid] = {};
+  _dirty[villaid][field] = val;
+
+  // Update tag and style
+  var filled = val.trim().length > 0;
+  el.className = el.className.replace(/filled|empty-field/g, '').trim();
+  el.className += ' ' + (filled ? 'filled' : 'empty-field');
+  var label = el.closest('.field-item').querySelector('.field-label');
+  var tag   = label.querySelector('.tag');
+  if(tag) tag.outerHTML = filled
+    ? '<span class="tag tag-ok">✓ Relleno</span>'
+    : '<span class="tag tag-warn">⚠ Vacío</span>';
+}
+
+// ── TOGGLE CARD ────────────────────────────────────────────────
+function toggleCard(card){
+  card.classList.toggle('open');
+}
+
+// ── SAVE ───────────────────────────────────────────────────────
+function saveVilla(villaid){
+  var changes = _dirty[villaid];
+  if(!changes || !Object.keys(changes).length){
+    toast('Sin cambios que guardar', false);
+    return;
+  }
+  var btn = document.getElementById('btnSave-' + villaid);
+  btn.disabled = true;
+
+  // Map field keys back to Caspio field names (some differ)
+  var record = {};
+  Object.keys(changes).forEach(function(k){
+    if(k === 'Electric_panel') record['where_is_mainpower']    = changes[k];
+    else if(k === 'Water_valve') record['wher_is_water_stopcock'] = changes[k];
+    else record[k] = changes[k];
+  });
+
+  var url = WORKER + '?action=update&table=TaVillas&id=' + encodeURIComponent(villaid);
+  fetch(Auth.url(url), {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(record)
+  })
+  .then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.Message||e.error||'HTTP '+r.status); });
+    return r.json();
+  })
+  .then(function(){
+    // Update local data
+    var v = _allVillas.find(function(x){ return x.villaid === villaid; });
+    if(v) Object.assign(v, changes);
+    delete _dirty[villaid];
+
+    // Update progress bar
+    var sc  = fieldScore(v || {});
+    var st  = statusClass(sc.pct);
+    var card = document.getElementById('card-' + villaid);
+    card.className = card.className.replace(/complete|partial|empty/g, '').trim() + ' ' + st + ' open';
+    var fill = card.querySelector('.progress-fill');
+    var pct  = card.querySelector('.progress-pct');
+    if(fill){ fill.className='progress-fill '+(sc.pct===100?'ok':sc.pct>=50?'partial':'empty'); fill.style.width=sc.pct+'%'; }
+    if(pct)  pct.textContent = sc.filled+'/'+sc.total;
+
+    toast('✅ Villa guardada correctamente', true);
+    btn.disabled = false;
+
+    // Invalidar KV cache de villa-manual si tiene Hostawayid
+    var villa = _allVillas.find(function(x){ return x.villaid===villaid; });
+    if(villa && villa.Hostawayid){
+      fetch(Auth.url(WORKER+'?action=kv-delete&key=villa_manual:'+villa.Hostawayid)).catch(function(){});
+    }
+
+    buildStats();
+  })
+  .catch(function(e){
+    toast('❌ Error al guardar: ' + e.message, false);
+    btn.disabled = false;
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
