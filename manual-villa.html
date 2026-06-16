@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v19 | Historial completo al final de este archivo -->
-<!-- manualvilla_v19.html — Manual de Villa Online — 3Villas -->
+<!-- VERSIÓN ACTUAL: v20 | Historial completo al final de este archivo -->
+<!-- manualvilla_v20.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Manual de Villa v19 · 3Villas</title>
+<title>Manual de Villa v20 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -376,9 +376,12 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   border-radius:2px;margin:0 auto;pointer-events:none;
 }
 .popup-close{
-  background:none;border:none;font-size:20px;
+  background:none;border:none;font-size:24px;
   color:var(--sub);cursor:pointer;line-height:1;
-  padding:0;flex-shrink:0;
+  padding:8px;margin:-8px;flex-shrink:0;
+  min-width:44px;min-height:44px;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;z-index:10;
 }
 .popup-title{
   font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;
@@ -447,6 +450,20 @@ mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
 .copy-btn:hover{border-color:var(--green);color:var(--green)}
 .qr-btn:hover{border-color:#1a73e8;color:#1a73e8}
 .copy-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-lt)}
+
+@media(max-width:640px){
+  .hero-inner{
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:16px;
+  }
+  #heroLogo{width:100px;height:100px}
+  #villaName{font-size:clamp(20px,5vw,28px)}
+  #heroWelcomeP{text-align:center}
+  #noPartiesTag{align-self:center}
+  #langBtnsRow{justify-content:center}
+}
 </style>
 </head>
 <body>
@@ -654,7 +671,7 @@ mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
   </section>
 
   <!-- INFO POPUP -->
-<div id="infoPopup" onclick="if(event.target===this)closePopup()">
+<div id="infoPopup" onclick="if(event.target===this||event.target.id==='infoPopup')closePopup()">
   <div class="popup-sheet" id="popupSheet">
     <div class="popup-drag-bar" id="popupDragBar">
       <div class="popup-handle"></div>
@@ -1508,150 +1525,6 @@ function clearSearch(){
 })();
 
 // ── RENDER ────────────────────────────────────────────────────
-function renderVilla(v){
-  if(!v) return;
-
-  var name=v.Name_villa_para_inquilinos||v.Name_villa||'Villa';
-
-  // Hero — "Bienvenidos a" (no "al")
-  document.getElementById('villaName').textContent=t('welcome_title')+' '+name;
-  document.getElementById('heroWelcomeP').textContent=t('welcome_p');
-  document.getElementById('noPartiesTxt').textContent=t('no_parties');
-
-  // Info strip
-  var beach=v.Beach_distance?v.Beach_distance+' km':'—';
-  var rest=v.Restaurant_distance?v.Restaurant_distance+' km':'—';
-  var sup=v.Supermarket_distance?v.Supermarket_distance+' km':'—';
-  var pharm=v.Pharmacy_distance||'—';
-  function setInfoVal(id, label, val){
-    var el=document.getElementById(id);
-    el.textContent='';
-    var span=document.createElement('span');
-    span.textContent=val;
-    el.appendChild(span);
-    if(val && val!=='—' && val.length>40){
-      el.classList.add('expandable');
-      var btn=document.createElement('button');
-      btn.className='leer-mas-btn';
-      btn.textContent='+ '+t('read_more');
-      btn.onclick=function(e){ e.stopPropagation(); showTextPopup(label,val); };
-      el.style.display='flex';
-      el.style.flexDirection='column';
-      el.style.alignItems='flex-start';
-      el.appendChild(btn);
-    }
-  }
-  setInfoVal('infoBeach', t('beach'), beach);
-  setInfoVal('infoRest', t('restaurant'), rest);
-  setInfoVal('infoSuper', t('supermarket'), sup);
-
-  // WiFi — Wifi_user as display name
-  var wuser=v.Wifi_user||v.Wifi_name||v.Wifi||'—';
-  var wpass=v.Wifi_password||'—';
-  document.getElementById('wifiUser').textContent=wuser;
-  document.getElementById('wifiPass').textContent=wpass;
-
-  // Electric / Water
-  document.getElementById('electricInfo').textContent=v.Electric_panel||'—';
-  document.getElementById('waterInfo').textContent=v.Water_valve||'—';
-
-  // Manager — viene del JOIN en Vi_villas_users (TaUsers_Name, TaUsers_phone)
-  var mgrName=v.Manager_Name||'—';
-  var mgrPhone=v.Manager_phone||'';
-  renderManager(mgrName, mgrPhone);
-
-  // About section
-  document.getElementById('envDesc').textContent=v.Description||v.Descripcion||(name+' · Menorca');
-  var grid=document.getElementById('aboutGrid');
-  grid.innerHTML='';
-  var items=[
-    {icon:'🏖️',label:t('beach'),val:beach},
-    {icon:'🍽️',label:t('restaurant'),val:rest},
-    {icon:'🛒',label:t('supermarket'),val:sup},
-    {icon:'💊',label:t('pharmacy'),val:pharm},
-    {icon:'✈️',label:t('airport'),val:'25 km'},
-    {icon:'🏥',label:t('hospital'),val:'Mateu Orfila'},
-  ];
-  items.forEach(function(it){
-    var div=document.createElement('div');
-    div.className='about-item';
-    var isLong=String(it.val).length>60;
-    var btnHtml=isLong?'<button class="leer-mas-btn">+ '+t('read_more')+'</button>':'';
-    div.innerHTML='<div class="about-item-icon">'+it.icon+'</div>'
-      +'<div class="about-item-label">'+it.label+'</div>'
-      +'<div class="about-item-val">'+it.val+'</div>'
-      +btnHtml;
-    if(isLong){
-      var btn=div.querySelector('.leer-mas-btn');
-      var lbl=it.label, val=it.val;
-      btn.addEventListener('click',function(){ showTextPopup(lbl,val); });
-    }
-    grid.appendChild(div);
-  });
-
-  // Services
-  document.getElementById('wifiBody').textContent=t('wifi_p');
-  document.getElementById('poolBody').textContent=t('pool_p');
-  document.getElementById('smokingBody').textContent=t('smoking_p');
-  document.getElementById('airconBody').textContent=t('aircon_p');
-  document.getElementById('cleaningBody').textContent=t('cleaning_p');
-  document.getElementById('firstaidBody').textContent=t('firstaid_p');
-  if(v.BBQ){
-    document.getElementById('bbqCard').style.display='';
-    document.getElementById('bbqBody').textContent=v.BBQ;
-  }
-
-  // Rules
-  document.getElementById('rulesIntro').textContent=t('rules_intro');
-  var ruleTexts={
-    es:['Mantener una política medioambiental responsable: no tirar basura en jardines ni espacios naturales.','Usar adecuadamente los equipos (aire acondicionado, agua caliente, electricidad).','No dejar luces ni aire acondicionado encendidos cuando la casa esté desocupada.','Está terminantemente prohibido fumar en el interior y encender velas.','Check-in 16:00h · Check-out 10:00h. Cambios solo con permiso escrito.','Mantener la casa limpia en todo momento.','No tirar nada por el inodoro excepto papel higiénico.','No causar daños por uso negligente. Avisar al equipo de inmediato.','Sin fiestas ni eventos sin permiso escrito previo.','No superar el número de personas autorizadas sin acuerdo previo.','Proteger los objetos personales. 3Villas no se hace responsable de pérdidas.','No se admiten mascotas sin autorización escrita y depósito adicional.','Permitir acceso al personal de mantenimiento. Dejar la llave en el keybox al salir.'],
-    ca:['Mantenir una política mediambiental responsable: no llençar fems al jardí ni espais naturals.','Fer un ús adequat dels equips (aire condicionat, aigua calenta, electricitat).','No deixar llums enceses ni aire condicionat en marxa quan la casa estigui desocupada.','Està terminantment prohibit fumar a l\'interior i encendre espelmes.','Check-in 16:00h · Check-out 10:00h. Canvis només amb permís escrit.','Mantenir la casa neta en tot moment.','No llençar res per l\'inodor excepte paper higiènic.','No causar danys per ús negligent. Avisar a l\'equip de seguida.','Sense festes ni esdeveniments sense permís escrit previ.','No superar el nombre de persones autoritzades sense acord previ.','Protegir els objectes personals. 3Villas no es fa responsable de pèrdues.','No s\'admeten mascotes sense autorització escrita i dipòsit addicional.','Permetre l\'accés al personal de manteniment. Deixar la clau al keybox en sortir.'],
-    en:['Maintain a responsible environmental policy: do not litter in gardens or natural areas.','Use the property\'s equipment properly (air conditioning, hot water, electricity).','Do not leave lights or air conditioning running when the house is unoccupied.','Smoking and lighting candles inside the property is strictly prohibited.','Check-in 16:00 · Check-out 10:00. Changes only with written permission.','Keep the house and facilities clean at all times.','Do not flush anything down the toilet except toilet paper.','Avoid any damage due to negligent use. Notify our team immediately.','Parties and events are not allowed without prior written permission.','The property may not be occupied by more people than authorized.','Take precautions to safeguard personal belongings. 3Villas is not responsible for losses.','Pets are not allowed without prior written authorization and additional deposit.','Allow access to maintenance personnel. Please leave the key in the key box when leaving.'],
-    fr:['Maintenir une politique environnementale responsable : ne pas jeter de déchets dans le jardin.','Utiliser les équipements de manière appropriée (climatisation, eau chaude, électricité).','Ne pas laisser les lumières ni la climatisation allumées lorsque la maison est vide.','Il est strictement interdit de fumer à l\'intérieur et d\'allumer des bougies.','Check-in 16h00 · Check-out 10h00. Modifications uniquement avec autorisation écrite.','Maintenir la maison propre à tout moment.','Ne rien jeter dans les toilettes à l\'exception du papier hygiénique.','Ne pas causer de dommages par négligence. Informer notre équipe immédiatement.','Fêtes et événements interdits sans autorisation écrite préalable.','Le nombre d\'occupants ne peut dépasser celui autorisé sans accord préalable.','Protéger vos objets de valeur. 3Villas n\'est pas responsable des pertes.','Les animaux ne sont pas autorisés sans autorisation écrite et dépôt de garantie.','Autorisez l\'accès au personnel d\'entretien. Laissez la clé dans le keybox en quittant.'],
-    de:['Verantwortungsvollen Umgang mit der Umwelt pflegen: keinen Müll in den Garten werfen.','Die Ausstattung sachgerecht verwenden (Klimaanlage, Warmwasser, Strom).','Keine Lichter oder Klimaanlage eingeschaltet lassen, wenn das Haus verlassen wird.','Es ist strengstens verboten, im Inneren zu rauchen oder Kerzen anzuzünden.','Check-in 16:00 · Check-out 10:00. Änderungen nur mit schriftlicher Genehmigung.','Das Haus jederzeit sauber halten.','Nichts außer Toilettenpapier in die Toilette werfen.','Keine Schäden durch Fahrlässigkeit. Team sofort benachrichtigen.','Partys und Veranstaltungen ohne schriftliche Genehmigung verboten.','Die Anzahl der Gäste darf ohne Zustimmung nicht überschritten werden.','Wertsachen sichern. 3Villas übernimmt keine Haftung für Verluste.','Haustiere ohne schriftliche Genehmigung und Kaution nicht erlaubt.','Wartungspersonal Zugang gewähren. Schlüssel im Schlüsselkasten lassen.']
-  };
-  var rules=ruleTexts[_lang]||ruleTexts.es;
-  var ruleList=document.getElementById('ruleList');
-  ruleList.innerHTML='';
-  rules.forEach(function(r,i){
-    var div=document.createElement('div');
-    div.className='rule-item';
-    div.innerHTML='<div class="rule-num">'+(i+1)+'</div><div>'+r+'</div>';
-    ruleList.appendChild(div);
-  });
-
-  // Checkout
-  document.getElementById('checkoutIntro').textContent=t('checkout_intro');
-  var steps=document.getElementById('checkoutSteps');
-  steps.innerHTML='';
-  for(var i=1;i<=6;i++){
-    var div=document.createElement('div');
-    div.className='checkout-step';
-    div.innerHTML='<div class="step-dot"></div><div>'+t('checkout'+i)+'</div>';
-    steps.appendChild(div);
-  }
-
-  // Practical info
-  document.getElementById('medP1').textContent=t('medical_p');
-  buildHospitalCard();
-  document.getElementById('taxiBody').innerHTML=t('taxi_p');
-  document.getElementById('appliancesBody').textContent=t('appliances_p');
-  document.getElementById('legalBody').textContent=t('legal_p');
-
-  // Emergency
-  var evacBody=document.getElementById('evacBody');
-  evacBody.innerHTML='<p style="margin-bottom:8px">'+t('evacuation_p')+'</p>';
-  for(var j=1;j<=5;j++){
-    evacBody.innerHTML+='<p style="padding:4px 0;border-bottom:1px solid #eee;font-size:13px">• '+t('evac'+j)+'</p>';
-  }
-  var fireBody=document.getElementById('fireBody');
-  fireBody.innerHTML='<p style="margin-bottom:8px">'+t('fire_p')+'</p>';
-  for(var k=1;k<=6;k++){
-    fireBody.innerHTML+='<p style="padding:4px 0;border-bottom:1px solid #eee;font-size:13px">• '+t('fire'+k)+'</p>';
-  }
-  document.getElementById('forbidden1').textContent=t('forbidden1');
-  document.getElementById('forbidden2').textContent=t('forbidden2');
-}
 
 // ── RENDER MANAGER ─────────────────────────────────────────────
 function renderManager(name, rawPhone){
@@ -1914,4 +1787,4 @@ function clearSearch(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v20 - CRÍTICO: eliminada renderVilla duplicada (causaba doble render de todos los campos); popup-close: área táctil 44px mínima + z-index:10; hero móvil: logo encima centrado | v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
