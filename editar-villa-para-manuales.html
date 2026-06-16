@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v10 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v10 — 3Villas</title>
+<title>Editar Datos Manual v11 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -381,19 +380,24 @@ function applyFilters(){
   var manager = document.getElementById('filterManager').value;
   var status  = document.getElementById('filterStatus').value;
 
-  var filtered = _allVillas.filter(function(v){
+  var filtered = [];
+  _allVillas.forEach(function(v){
     var vname = (v.Name_villa_para_inquilinos || v.Name).toLowerCase();
-    if(name && vname.indexOf(name) < 0) return false;
-    if(manager && v._managerUserId !== manager) return false;
+    var show = true;
+    if(name    && vname.indexOf(name) < 0)           show = false;
+    if(manager && v._managerUserId !== manager)       show = false;
     if(status){
-      var sc = fieldScore(v);
-      var st = statusClass(sc.pct);
-      if(st !== status) return false;
+      var st = statusClass(fieldScore(v).pct);
+      if(st !== status) show = false;
     }
-    return true;
+    // Show/hide card DOM element directly (no re-render)
+    var card = document.getElementById('card-' + v.villaid);
+    if(card) card.style.display = show ? '' : 'none';
+    if(show) filtered.push(v);
   });
 
-  renderList(filtered);
+  // Empty state
+  document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
   buildStats(filtered);
 }
 
@@ -585,4 +589,4 @@ function saveVilla(villaid){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
