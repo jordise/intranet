@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v24 | Historial completo al final de este archivo -->
-<!-- manualvilla_v24.html — Manual de Villa Online — 3Villas -->
+<!-- VERSIÓN ACTUAL: v25 | Historial completo al final de este archivo -->
+<!-- manualvilla_v25.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Manual de Villa v24 · 3Villas</title>
+<title>Manual de Villa v25 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -34,6 +34,8 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
 #langBar{ display:none }  /* eliminada la barra de nav */
 .lang-logo{display:flex;align-items:center}
 .lang-btns{display:flex;gap:5px;flex-wrap:wrap}
+/* ── LANG DROPDOWN ── */
+#langDropdown{position:relative;display:inline-block}
 .lang-btn{
   background:none;border:1.5px solid var(--border);color:var(--sub);
   font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;
@@ -41,6 +43,21 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
 }
 .lang-btn:hover{border-color:var(--red);color:var(--red)}
 .lang-btn.active{background:var(--red);border-color:var(--red);color:var(--white)}
+#langMenu{
+  display:none;position:absolute;right:0;top:calc(100% + 4px);
+  background:var(--white);border:1.5px solid var(--border);
+  border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);
+  z-index:999;overflow:hidden;min-width:52px;
+}
+#langMenu.open{display:block}
+#langMenu .lang-btn{
+  display:block;width:100%;text-align:center;
+  border:none;border-radius:0;
+  border-bottom:1px solid var(--border);
+  padding:7px 14px;
+}
+#langMenu .lang-btn:last-child{border-bottom:none}
+#langMenu .lang-btn:hover{background:var(--red-lt);color:var(--red)}
 
 /* ── HERO ── */
 #hero{
@@ -53,7 +70,7 @@ body{font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.6;color:var
   max-width:720px;margin-bottom:16px;
 }
 #heroLogo{
-  width:144px;height:144px;object-fit:contain;flex-shrink:0;
+  width:288px;height:288px;object-fit:contain;flex-shrink:0;
 }
 .hero-text{flex:1;min-width:0}
 #villaName{
@@ -461,7 +478,7 @@ mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
     text-align:center;
     gap:16px;
   }
-  #heroLogo{width:100px;height:100px}
+  #heroLogo{width:140px;height:140px}
   #villaName{font-size:clamp(20px,5vw,28px)}
   #heroWelcomeP{text-align:center}
   #noPartiesTag{align-self:center}
@@ -495,11 +512,16 @@ mark.sh{background:#fff176;border-radius:2px;padding:0 1px}
           <button class="snav-btn" onclick="clearSearch()" title="Cerrar">✕</button>
         </div>
       </div>
-      <button class="lang-btn" onclick="setLang('ca')">CA</button>
-      <button class="lang-btn active" onclick="setLang('es')">ES</button>
-      <button class="lang-btn" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" onclick="setLang('fr')">FR</button>
-      <button class="lang-btn" onclick="setLang('de')">DE</button>
+      <div id="langDropdown">
+        <button class="lang-btn active" id="langActiveBtn" onclick="toggleLangMenu()">ES</button>
+        <div id="langMenu">
+          <button class="lang-btn" onclick="selectLang('ca')">CA</button>
+          <button class="lang-btn" onclick="selectLang('es')">ES</button>
+          <button class="lang-btn" onclick="selectLang('en')">EN</button>
+          <button class="lang-btn" onclick="selectLang('fr')">FR</button>
+          <button class="lang-btn" onclick="selectLang('de')">DE</button>
+        </div>
+      </div>
     </div>
 
   <!-- HERO -->
@@ -822,6 +844,7 @@ function _detectLang(){
   return _supportedLangs.includes(nav) ? nav : 'es';
 }
 var _lang=_detectLang(), _villa=null;
+document.addEventListener('DOMContentLoaded',function(){ var b=document.getElementById('langActiveBtn'); if(b) b.textContent=_lang.toUpperCase(); });
 var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 
 function t(k){ return (T[_lang]||T.es)[k]||k; }
@@ -837,16 +860,27 @@ function intlPhone(raw){
 }
 
 // ── LANG ──────────────────────────────────────────────────────
+function toggleLangMenu(){
+  document.getElementById('langMenu').classList.toggle('open');
+}
+function selectLang(lang){
+  document.getElementById('langMenu').classList.remove('open');
+  setLang(lang);
+}
+document.addEventListener('click',function(e){
+  var dd=document.getElementById('langDropdown');
+  if(dd&&!dd.contains(e.target)) document.getElementById('langMenu').classList.remove('open');
+});
+
 function setLang(lang){
   _lang=lang;
-  document.querySelectorAll('.lang-btn').forEach(function(b){
-    b.classList.toggle('active', b.textContent.toLowerCase()===lang);
+  var activeBtn=document.getElementById('langActiveBtn');
+  if(activeBtn) activeBtn.textContent=lang.toUpperCase();
+  document.querySelectorAll('#langMenu .lang-btn').forEach(function(b){
+    b.classList.toggle('active',b.textContent.trim().toLowerCase()===lang);
   });
   applyTranslations();
-  if(_villa){
-    renderVilla(_villa);           // renderiza con valores originales
-    translateCaspioFields(lang);   // sobreescribe con traducción (async)
-  }
+  if(_villa){ renderVilla(_villa); translateCaspioFields(lang); }
 }
 
 function applyTranslations(){
@@ -1491,7 +1525,20 @@ function navSearch(dir){
 function highlightCurrent(){
   var el=_searchMatches[_searchIdx];
   el.classList.add('sh-current');
-  el.scrollIntoView({behavior:'smooth',block:'center'});
+  // Abrir sección si está oculta
+  var section=el.closest('.section');
+  if(section&&!section.classList.contains('visible')){
+    var secId=section.id.replace('sec-','');
+    var tab=document.querySelector('.nav-tab[onclick*=\''+secId+'\']');
+    showSection(secId,tab);
+  }
+  // Abrir collapsible si está cerrado
+  var collBody=el.closest('.collapsible-body');
+  if(collBody&&!collBody.classList.contains('open')){
+    var btn=document.querySelector('[onclick*=\''+collBody.id+'\']');
+    if(btn) togCollapsible(btn,collBody.id);
+  }
+  setTimeout(function(){ el.scrollIntoView({behavior:'smooth',block:'center'}); },150);
 }
 
 function clearSearch(){
@@ -1799,7 +1846,20 @@ function navSearch(dir){
 function highlightCurrent(){
   var el=_searchMatches[_searchIdx];
   el.classList.add('sh-current');
-  el.scrollIntoView({behavior:'smooth',block:'center'});
+  // Abrir sección si está oculta
+  var section=el.closest('.section');
+  if(section&&!section.classList.contains('visible')){
+    var secId=section.id.replace('sec-','');
+    var tab=document.querySelector('.nav-tab[onclick*=\''+secId+'\']');
+    showSection(secId,tab);
+  }
+  // Abrir collapsible si está cerrado
+  var collBody=el.closest('.collapsible-body');
+  if(collBody&&!collBody.classList.contains('open')){
+    var btn=document.querySelector('[onclick*=\''+collBody.id+'\']');
+    if(btn) togCollapsible(btn,collBody.id);
+  }
+  setTimeout(function(){ el.scrollIntoView({behavior:'smooth',block:'center'}); },150);
 }
 
 function clearSearch(){
@@ -1814,4 +1874,4 @@ function clearSearch(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v24 - nav-tab 15px (×1.5); popup-close Android: excluir botón ✕ del drag+touch-action:manipulation; hospital about-grid con link igual que info-strip | v23 - Hospital: nombre no clickable + link solo dirección (ambos sitios); section-title 26px (×1.5); detección automática idioma dispositivo al cargar | v22 - Revert diseño info-item (sin max-width, align-items:center); hospital info-strip con link fijo Hospital Mateu Orfila (Maó) + dirección | v21 - FIX DEFINITIVO truncado: span→div en info-strip (line-clamp solo funciona en block); setInfoVal reescrito con div interno para clamp + botón leer más correcto | v20 - CRÍTICO: eliminada renderVilla duplicada (causaba doble render de todos los campos); popup-close: área táctil 44px mínima + z-index:10; hero móvil: logo encima centrado | v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v25 - Logo 288px; lang dropdown vertical; búsqueda abre sección+collapsible | v24 - nav-tab 15px (×1.5); popup-close Android: excluir botón ✕ del drag+touch-action:manipulation; hospital about-grid con link igual que info-strip | v23 - Hospital: nombre no clickable + link solo dirección (ambos sitios); section-title 26px (×1.5); detección automática idioma dispositivo al cargar | v22 - Revert diseño info-item (sin max-width, align-items:center); hospital info-strip con link fijo Hospital Mateu Orfila (Maó) + dirección | v21 - FIX DEFINITIVO truncado: span→div en info-strip (line-clamp solo funciona en block); setInfoVal reescrito con div interno para clamp + botón leer más correcto | v20 - CRÍTICO: eliminada renderVilla duplicada (causaba doble render de todos los campos); popup-close: área táctil 44px mínima + z-index:10; hero móvil: logo encima centrado | v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
