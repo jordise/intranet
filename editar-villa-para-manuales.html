@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v12 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#C8102E">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v11 — 3Villas</title>
+<title>Editar Datos Manual v12 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -291,51 +291,54 @@ function statusClass(pct){
 function loadAll(){
   busy(true, 'Cargando villas…');
   Auth.require('editar-villas-para-manual');
-  var fetchUrl = WORKER + '?action=view&view=Vi_villas_users_edit&limit=500';
-  console.log('[editar-manual] fetch:', fetchUrl);
-  fetch(Auth.url(fetchUrl))
-    .then(function(r){
-      console.log('[editar-manual] HTTP status:', r.status);
-      if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t.slice(0,200)); });
-      return r.json();
-    })
-    .then(function(json){
-      console.log('[editar-manual] rows:', (json.Result||json.result||[]).length);
-    var rows = json.Result || json.result || [];
-    // Dedup por villaid
-    var seen = {};
+
+  // Dos llamadas paralelas — action=data funciona con seguridad
+  Promise.all([
+    fetch(Auth.url(WORKER + '?action=data&table=TaVillas&limit=500')).then(function(r){ return r.json(); }),
+    fetch(Auth.url(WORKER + '?action=data&table=TaUsers&limit=500')).then(function(r){ return r.json(); })
+  ])
+  .then(function(res){
+    var villas = res[0].Result || res[0].result || [];
+    var users  = res[1].Result || res[1].result || [];
+
+    console.log('[editar-manual] villas:', villas.length, 'users:', users.length);
+
+    // Mapa UserID → nombre
+    var usersMap = {};
+    users.forEach(function(u){
+      if(u.UserID) usersMap[String(u.UserID)] = u.Name || '';
+    });
+
     _allVillas = [];
-    rows.forEach(function(r){
-      var id = String(r.TaVillas_villaid || '');
-      if(!id || seen[id]) return;
-      seen[id] = true;
-      var mgrId   = String(r.TaVillas_KeyHolder_person || '');
-      var mgrName = r.TaUsers_Name || '';
+    villas.forEach(function(v){
+      var id = String(v.villaid || '');
+      if(!id) return;
+      var mgrId   = String(v.KeyHolder_person || '');
+      var mgrName = usersMap[mgrId] || '';
       if(mgrId && mgrName) _managers[mgrId] = mgrName;
 
       _allVillas.push({
         villaid:                    id,
-        Hostawayid:                 r.TaVillas_Hostawayid || '',
-        Name:                       r.TaVillas_Name || '',
-        Name_villa_para_inquilinos: r.TaVillas_Name_villa_para_inquilinos || '',
-        Wifi_user:                  r.TaVillas_Wifi_user || '',
-        Wifi_password:              r.TaVillas_Wifi_password || '',
-        Beach_distance:             r.TaVillas_Beach_distance || '',
-        Restaurant_distance:        r.TaVillas_Restaurant_distance || '',
-        Supermarket_distance:       r.TaVillas_Supermarket_distance || '',
-        Pharmacy_distance:          r.TaVillas_Pharmacy_distance || '',
-        Airport_distance:           r.TaVillas_Airport_distance || '',
-        Description:                '',  // No en vista — campo extra si se añade
-        Electric_panel:             r.TaVillas_where_is_mainpower || '',
-        Water_valve:                r.TaVillas_wher_is_water_stopcock || '',
-        BBQ:                        r.TaVillas_BBQ || '',
+        Hostawayid:                 v.Hostawayid || '',
+        Name:                       v.Name || '',
+        Name_villa_para_inquilinos: v.Name_villa_para_inquilinos || '',
+        Wifi_user:                  v.Wifi_user || '',
+        Wifi_password:              v.Wifi_password || '',
+        Beach_distance:             v.Beach_distance || '',
+        Restaurant_distance:        v.Restaurant_distance || '',
+        Supermarket_distance:       v.Supermarket_distance || '',
+        Pharmacy_distance:          v.Pharmacy_distance || '',
+        Airport_distance:           v.Airport_distance || '',
+        Description:                v.Description || '',
+        Electric_panel:             v.where_is_mainpower || '',
+        Water_valve:                v.wher_is_water_stopcock || '',
+        BBQ:                        v.BBQ || '',
         KeyHolder_person:           mgrId,
         _managerName:               mgrName,
         _managerUserId:             mgrId,
       });
     });
 
-    // Sort by name
     _allVillas.sort(function(a,b){
       var na = a.Name_villa_para_inquilinos || a.Name;
       var nb = b.Name_villa_para_inquilinos || b.Name;
@@ -347,9 +350,8 @@ function loadAll(){
     renderList(_allVillas);
     busy(false);
 
-    // Open villa from URL param
-    var params = new URLSearchParams(location.search);
-    var pid = params.get('villaid') || params.get('id');
+    // Abrir villa por URL param
+    var pid = new URLSearchParams(location.search).get('villaid') || new URLSearchParams(location.search).get('id');
     if(pid){
       var card = document.getElementById('card-' + pid);
       if(card){ toggleCard(card); card.scrollIntoView({behavior:'smooth', block:'start'}); }
@@ -357,11 +359,12 @@ function loadAll(){
   })
   .catch(function(e){
     busy(false);
-    console.error('[editar-manual] error:', e);
+    console.error('[editar-manual]', e);
     document.getElementById('loadMsg').textContent = e.message;
     toast('Error: ' + e.message.slice(0,80), false);
   });
 }
+
 
 // ── FILTROS ────────────────────────────────────────────────────
 function buildManagerFilter(){
@@ -540,9 +543,8 @@ function saveVilla(villaid){
     else record[k] = changes[k];
   });
 
-  // Usar view-update con Vi_villas_users_edit (Updatable=True)
-  // El campo PK en la vista tiene alias TaVillas_villaid
-  var url = WORKER + '?action=view-update&view=Vi_villas_users_edit&pk=TaVillas_villaid&id=' + encodeURIComponent(villaid);
+  // action=update con TaVillas y villaid como PK
+  var url = WORKER + '?action=update&table=TaVillas&id=' + encodeURIComponent(villaid);
   fetch(Auth.url(url), {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
@@ -589,4 +591,4 @@ function saveVilla(villaid){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
