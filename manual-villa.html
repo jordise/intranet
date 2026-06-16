@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v14 | Historial completo al final de este archivo -->
-<!-- manualvilla_v14.html — Manual de Villa Online — 3Villas -->
+<!-- VERSIÓN ACTUAL: v15 | Historial completo al final de este archivo -->
+<!-- manualvilla_v15.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manual de Villa v14 · 3Villas</title>
+<title>Manual de Villa v15 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1114,37 +1114,28 @@ async function fetchVilla(hostawayId){
 }
 
 
-// ── TRADUCCIÓN AUTOMÁTICA (MyMemory API) ─────────────────────
-// Campos de Caspio siempre en ES. Se traducen al vuelo si el idioma es distinto.
-// Caché en memoria para no repetir llamadas.
-var _transCache = {}; // { "texto|lang": "traducción" }
+// ── TRADUCCIÓN AUTOMÁTICA (Google Translate via Worker + KV cache) ────
+// Los campos de Caspio están en español. Se traducen via worker que usa
+// Google Translate API con caché KV — sin límites de IP, sin rate limits.
+// Una villa traducida queda cacheada para siempre en Cloudflare KV.
 
-// Detecta si un texto parece español (heurística simple)
-function looksSpanish(text){
-  if(!text || text.length < 4) return false;
-  // Si tiene caracteres típicos del español o palabras comunes
-  return /[áéíóúüñ¿¡]/i.test(text) ||
-    /\b(el|la|los|las|en|de|del|al|un|una|hay|está|junto|sobre|bajo|dentro|fuera|encima|detrás|puerta|cocina|salón|garaje|jardín|piscina|caja|cuadro|llave|paso|entrada|derecha|izquierda|armario|baño|terraza)\b/i.test(text);
-}
+var _transCache = {}; // caché en memoria (sesión actual)
 
 async function translateText(text, targetLang){
   if(!text || text === '—' || text.length < 3) return text;
-  if(targetLang === 'es') return text; // ya está en español
-  // CA: MyMemory no soporta bien catalán, usamos ES como fallback
-  var apiLang = (targetLang === 'ca') ? null : targetLang;
-  if(!apiLang) return text;
+  if(targetLang === 'es') return text;
 
-  var cacheKey = text + '|' + apiLang;
+  var cacheKey = targetLang + ':' + text;
   if(_transCache[cacheKey]) return _transCache[cacheKey];
 
   try {
-    var url = 'https://api.mymemory.translated.net/get?q=' +
-      encodeURIComponent(text) + '&langpair=es|' + apiLang;
+    var url = WORKER + '?action=translate'
+      + '&text=' + encodeURIComponent(text)
+      + '&target=' + encodeURIComponent(targetLang);
     var r = await fetch(url);
+    if(!r.ok) return text;
     var d = await r.json();
-    var translated = (d.responseStatus === 200 && d.responseData)
-      ? d.responseData.translatedText
-      : text;
+    var translated = d.translated || text;
     _transCache[cacheKey] = translated;
     return translated;
   } catch(e) {
@@ -1152,24 +1143,39 @@ async function translateText(text, targetLang){
   }
 }
 
-// Traduce los 4 campos de villa y actualiza el DOM
+// Traduce los campos de Caspio y actualiza el DOM
 async function translateCaspioFields(lang){
   if(!_villa) return;
+  if(lang === 'es') return; // ya en español, no hacer nada
+
   var fields = [
-    { val: _villa.Description || _villa.Descripcion || '', setter: function(t){ document.getElementById('envDesc').textContent = t; } },
-    { val: _villa.Electric_panel || '', setter: function(t){ document.getElementById('electricInfo').textContent = t || '—'; } },
-    { val: _villa.Water_valve || '', setter: function(t){ document.getElementById('waterInfo').textContent = t || '—'; } },
-    { val: _villa.BBQ || '', setter: function(t){
-        if(t){ document.getElementById('bbqBody').textContent = t; }
-      }
+    {
+      val: _villa.Description || _villa.Descripcion || '',
+      set: function(t){ var el=document.getElementById('envDesc'); if(el && t) el.textContent=t; }
+    },
+    {
+      val: _villa.Electric_panel || '',
+      set: function(t){ var el=document.getElementById('electricInfo'); if(el) el.textContent=t||'—'; }
+    },
+    {
+      val: _villa.Water_valve || '',
+      set: function(t){ var el=document.getElementById('waterInfo'); if(el) el.textContent=t||'—'; }
+    },
+    {
+      val: _villa.BBQ || '',
+      set: function(t){ var el=document.getElementById('bbqBody'); if(el && t) el.textContent=t; }
     },
   ];
-  // Traducir en paralelo
-  var promises = fields.map(function(f){
-    return translateText(f.val, lang).then(function(translated){
-      f.setter(translated);
+
+  // Traducir en paralelo — cada llamada va al worker que consulta KV primero
+  var promises = fields
+    .filter(function(f){ return f.val && f.val.length > 2; })
+    .map(function(f){
+      return translateText(f.val, lang).then(function(translated){
+        f.set(translated);
+      });
     });
-  });
+
   await Promise.all(promises);
 }
 
@@ -1681,4 +1687,4 @@ function clearSearch(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
