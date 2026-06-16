@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v04 | Historial completo al final de este archivo -->
-<!-- manualvilla_v04.html — Manual de Villa Online — 3Villas -->
+<!-- VERSIÓN ACTUAL: v05 | Historial completo al final de este archivo -->
+<!-- manualvilla_v05.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manual de Villa v04 · 3Villas</title>
+<title>Manual de Villa v05 · 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -562,9 +562,9 @@ function renderVilla(v){
   document.getElementById('noPartiesTxt').textContent=t('no_parties');
 
   // Info strip
-  var beach=v.Beach_km?v.Beach_km+' km':'—';
-  var rest=v.Restaurant_km?v.Restaurant_km+' km':'—';
-  var sup=v.Supermarket_km?v.Supermarket_km+' km':'—';
+  var beach=v.Beach_distance?v.Beach_distance+' km':'—';
+  var rest=v.Restaurant_distance?v.Restaurant_distance+' km':'—';
+  var sup=v.Supermarket_distance?v.Supermarket_distance+' km':'—';
   var pharm=v.Pharmacy_distance||'—';
   document.getElementById('infoBeach').textContent=beach;
   document.getElementById('infoRest').textContent=rest;
@@ -580,23 +580,10 @@ function renderVilla(v){
   document.getElementById('electricInfo').textContent=v.Electric_panel||'—';
   document.getElementById('waterInfo').textContent=v.Water_valve||'—';
 
-  // Manager — fetch from TaUsers by KeyHolder_person
-  var mgrId=v.KeyHolder_person||'';
-  var mgrName=v.Vila_Manager_name||'—';
-  var mgrPhone=v.Vila_Manager_phone||'';
-
-  if(mgrId){
-    // Fetch user by UserID
-    fetchUser(mgrId).then(function(user){
-      if(user){
-        mgrName=user.Name||mgrName;
-        mgrPhone=user.phone||user.Phone||mgrPhone;
-      }
-      renderManager(mgrName, mgrPhone);
-    }).catch(function(){ renderManager(mgrName, mgrPhone); });
-  } else {
-    renderManager(mgrName, mgrPhone);
-  }
+  // Manager — viene del JOIN en Vi_villas_users (TaUsers_Name, TaUsers_phone)
+  var mgrName=v.Manager_Name||'—';
+  var mgrPhone=v.Manager_phone||'';
+  renderManager(mgrName, mgrPhone);
 
   // About section
   document.getElementById('envDesc').textContent=v.Description||v.Descripcion||(name+' · Menorca');
@@ -702,16 +689,6 @@ function renderManager(name, rawPhone){
   }
 }
 
-// ── FETCH USER from TaUsers (public endpoint) ─────────────────
-async function fetchUser(userId){
-  var url=WORKER+'?action=villa-manual-user&UserID='+encodeURIComponent(userId);
-  var r=await fetch(url);
-  if(!r.ok) return null;
-  var d=await r.json();
-  if(d.error) return null;
-  return d;
-}
-
 // ── FETCH VILLA (public endpoint) ──────────────────────────────
 async function fetchVilla(hostawayId){
   var url=WORKER+'?action=villa-manual&Hostawayid='+encodeURIComponent(hostawayId);
@@ -751,4 +728,4 @@ async function fetchVilla(hostawayId){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
