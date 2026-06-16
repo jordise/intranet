@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v04 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v05 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v04 — 3Villas</title>
+<title>Editar Datos Manual v05 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -284,9 +284,16 @@ function statusClass(pct){
 // ── LOAD DATA ──────────────────────────────────────────────────
 function loadAll(){
   busy(true, 'Cargando villas…');
-  fetch(Auth.url(WORKER + '?action=view&view=Vi_villas_users_edit&limit=500'))
-    .then(function(r){ return r.json(); })
+  var fetchUrl = WORKER + '?action=view&view=Vi_villas_users_edit&limit=500';
+  console.log('[editar-manual] fetch:', fetchUrl);
+  fetch(Auth.url(fetchUrl))
+    .then(function(r){
+      console.log('[editar-manual] HTTP status:', r.status);
+      if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+': '+t.slice(0,200)); });
+      return r.json();
+    })
     .then(function(json){
+      console.log('[editar-manual] rows:', (json.Result||json.result||[]).length);
     var rows = json.Result || json.result || [];
     // Dedup por villaid
     var seen = {};
@@ -343,7 +350,9 @@ function loadAll(){
   })
   .catch(function(e){
     busy(false);
-    toast('Error al cargar: ' + e.message, false);
+    console.error('[editar-manual] error:', e);
+    document.getElementById('loadMsg').textContent = e.message;
+    toast('Error: ' + e.message.slice(0,80), false);
   });
 }
 
@@ -569,4 +578,4 @@ loadAll();
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
