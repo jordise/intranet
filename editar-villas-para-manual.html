@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v23 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v24 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#C8102E">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v23 — 3Villas</title>
+<title>Editar Datos Manual v24 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -263,17 +263,17 @@ if('serviceWorker'in navigator){
       <label class="f-label">📊 Status Caspio</label>
       <select class="f-select" id="mfStatus" onchange="applyFilters()">
         <option value="">Todos</option>
-        <option value="1|2" selected>LA GESTIONAMOS + COLABORAMOS</option>
-        <option value="3|10">ALL LEADS</option>
+        <option value="1|RANGE|2" selected>LA GESTIONAMOS + COLABORAMOS</option>
+        <option value="3|RANGE|10">ALL LEADS</option>
       </select>
     </div>
     <div class="f-group">
       <label class="f-label">✅ Activa</label>
       <select class="f-select" id="mfActiva" onchange="applyFilters()">
         <option value="" selected>Todas</option>
-        <option value="7">Se puede 2023</option>
-        <option value="5|6">Se puede 2022</option>
-        <option value="4|5">Se puede 2021</option>
+        <option value="7|RANGE|7">Se puede 2023</option>
+        <option value="5|RANGE|6">Se puede 2022</option>
+        <option value="4|RANGE|5">Se puede 2021</option>
       </select>
     </div>
     <div class="f-group">
@@ -323,14 +323,14 @@ if('serviceWorker'in navigator){
       <label class="f-label">🏠 Homestaging</label>
       <select class="f-select" id="mfHomestaging" onchange="applyFilters()">
         <option value="">Todos</option>
-        <option value="12|13">Mandatory + Good</option>
+        <option value="12|RANGE|13">Mandatory + Would be good</option>
       </select>
     </div>
     <div class="f-group">
       <label class="f-label">📷 Fotos</label>
       <select class="f-select" id="mfPhotos" onchange="applyFilters()">
         <option value="">Todos</option>
-        <option value="12|13">Mandatory + Good</option>
+        <option value="12|RANGE|13">Mandatory + Would be good</option>
       </select>
     </div>
     <div class="f-group">
@@ -742,7 +742,7 @@ function toggleMasFiltros(){
 }
 
 function resetMasFiltros(){
-  var defaults = {mfStatus:'1|2',mfActiva:'',mfZone:'',mfOwnerType:'',
+  var defaults = {mfStatus:'1|RANGE|2',mfActiva:'',mfZone:'',mfOwnerType:'',
     mfDealType:'',mfDealPer:'',mfMultiunit:'',mfSigned:'',mfRenovacion:'',
     mfHomestaging:'',mfPhotos:'',mfFirstYear:'',
     mfFinDesde:'2025',mfFinHasta:'2050',mfInicioDesde:'',mfInicioHasta:''};
@@ -793,9 +793,11 @@ function passasMasFiltros(v){
   function g(id){return (document.getElementById(id)||{}).value||'';}
   function inRange(val,rangeStr){
     if(!rangeStr) return true;
+    // Format: "MIN|RANGE|MAX" or single value
     var p=rangeStr.split('|');
     var n=parseInt(val||0);
-    return p.length===2 ? n>=parseInt(p[0])&&n<=parseInt(p[1]) : String(val)===String(p[0]);
+    if(p.length===3 && p[1]==='RANGE') return n>=parseInt(p[0])&&n<=parseInt(p[2]);
+    return String(val)===String(p[0]);
   }
   if(g('mfStatus')    && !inRange(r.TaVillas_Status,g('mfStatus')))           return false;
   if(g('mfActiva')    && !inRange(r.TaVillas_Activa,g('mfActiva')))            return false;
@@ -823,4 +825,4 @@ window.addEventListener("load", function(){ loadAll(); });
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v23 - Panel "Más filtros" con todos los filtros de datapage TaVillas Activas; defaults: Status=LA GESTIONAMOS, FinContrato 2025-2050 | v22 - Auto-desregistra SW /3villas-manuals/ y registra /intranet/sw.js | v21 - Fix CRÍTICO: quitado IIFE que impedía que onclick encontrara las funciones (applyFilters, toggleCard, etc.) | v20 - Patrón exacto de buscar-villa: auth.js relativo en head, IIFE wrapper, Auth.require al inicio | v19 - auth.js con ruta absoluta /intranet/auth.js | v18 - Vuelve a Auth.require+Auth.url() como el resto de páginas; auth.js estático en head | v17 - Sin Auth object: token directo de localStorage/sessionStorage; Auth.url() propio; auth.js relativo | v16 - auth.js estático en head; window.onload llama loadAll (elimina problema onload dinámico) | v15 - Usa Vi_villas_users_edit correctamente con action=view; alias TaVillas_xxx/TaUsers_xxx | v14 - Auth sin require/throw: check manual de sesión con getSession() + redirect manual; máximo debug | v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v24 - Fix defaults: valores exactos de datapage (1|RANGE|2, 5|RANGE|6, etc.); inRange soporta formato MIN|RANGE|MAX | v23 - Panel "Más filtros" con todos los filtros de datapage TaVillas Activas; defaults: Status=LA GESTIONAMOS, FinContrato 2025-2050 | v22 - Auto-desregistra SW /3villas-manuals/ y registra /intranet/sw.js | v21 - Fix CRÍTICO: quitado IIFE que impedía que onclick encontrara las funciones (applyFilters, toggleCard, etc.) | v20 - Patrón exacto de buscar-villa: auth.js relativo en head, IIFE wrapper, Auth.require al inicio | v19 - auth.js con ruta absoluta /intranet/auth.js | v18 - Vuelve a Auth.require+Auth.url() como el resto de páginas; auth.js estático en head | v17 - Sin Auth object: token directo de localStorage/sessionStorage; Auth.url() propio; auth.js relativo | v16 - auth.js estático en head; window.onload llama loadAll (elimina problema onload dinámico) | v15 - Usa Vi_villas_users_edit correctamente con action=view; alias TaVillas_xxx/TaUsers_xxx | v14 - Auth sin require/throw: check manual de sesión con getSession() + redirect manual; máximo debug | v13 - Auth.require con fallback a 'villas' si 'editar-villas-para-manual' no está en PERMISSIONS; evita página en blanco | v12 - Vuelve a action=data TaVillas+TaUsers en paralelo (vista no funciona); save usa action=update directo | v11 - applyFilters: show/hide cards en lugar de re-render (preserva formularios y estado abierto/cerrado); quitado meta deprecated | v10 - loadAll() llamado en onload de auth.js (fix timing); auth.js con URL absoluta GitHub | v09 - auth.js con URL absoluta GitHub Pages para evitar problema SW antiguo | v08 - Auth.require('editar-villas-para-manual'); auth.js con src simple (el SW v6 ya no sirve de /3villas-manuals/) | v07 - Fix auth.js: carga con ruta dinámica basada en window.location (evita /3villas-manuals/ hardcodeado) | v06 - Fix auth: Auth.require dentro de loadAll; quitado script inline que ejecutaba antes de cargar auth.js | v05 - Debug logs + error detail visible en pantalla | v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
