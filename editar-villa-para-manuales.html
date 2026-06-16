@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v02 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v04 | Historial completo al final de este archivo -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="icon-corazon-rojo-fondo-transparente.png">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Editar Datos Manual v02 — 3Villas</title>
+<title>Editar Datos Manual v04 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -249,7 +249,8 @@ var MANUAL_FIELDS = [
   { key:'Supermarket_distance',       label:'Supermercado más cercano', type:'input',    hint:'Ej: 1 km · Mercadona Alaior',            span:false },
   { key:'Pharmacy_distance',          label:'Farmacia',                 type:'input',    hint:'Ej: 800 mts · Farmàcia Son Bou',        span:false },
   { key:'Airport_distance',           label:'Aeropuerto',               type:'input',    hint:'Ej: 15 km',                              span:false },
-  { key:'Description',                label:'Descripción del entorno',  type:'textarea', hint:'Texto libre sobre el entorno de la villa',span:true  },
+  // Description no está en Vi_villas_users_edit — añadir en Caspio si se necesita
+  // { key:'Description', label:'Descripción del entorno', type:'textarea', hint:'...', span:true },
   { key:'Electric_panel',             label:'Cuadro eléctrico',         type:'input',    hint:'Ej: En el garaje, puerta derecha',       span:false },
   { key:'Water_valve',                label:'Llave de paso',            type:'input',    hint:'Ej: Debajo del fregadero de la cocina',  span:false },
   { key:'BBQ',                        label:'Barbacoa',                 type:'textarea', hint:'Deja vacío si no hay barbacoa',           span:true  },
@@ -283,69 +284,67 @@ function statusClass(pct){
 // ── LOAD DATA ──────────────────────────────────────────────────
 function loadAll(){
   busy(true, 'Cargando villas…');
-  // Usar Vi_villas_users para tener nombre del manager incluido
-  var url = WORKER + '?action=view&view=Vi_villas_users&limit=500';
-  fetch(Auth.url(url))
+  fetch(Auth.url(WORKER + '?action=view&view=Vi_villas_users_edit&limit=500'))
     .then(function(r){ return r.json(); })
     .then(function(json){
-      var rows = json.Result || json.result || [];
-      // Dedup por villaid (vista puede tener duplicados)
-      var seen = {};
-      _allVillas = [];
-      rows.forEach(function(r){
-        var id = String(r.TaVillas_villaid || '');
-        if(!id || seen[id]) return;
-        seen[id] = true;
-        // Map aliases → plain names
-        _allVillas.push({
-          villaid:                    id,
-          Hostawayid:                 r.TaVillas_Hostawayid || '',
-          Name:                       r.TaVillas_Name || '',
-          Name_villa_para_inquilinos: r.TaVillas_Name_villa_para_inquilinos || '',
-          Wifi_user:                  r.TaVillas_Wifi_user || '',
-          Wifi_password:              r.TaVillas_Wifi_password || '',
-          Beach_distance:             r.TaVillas_Beach_distance || '',
-          Restaurant_distance:        r.TaVillas_Restaurant_distance || '',
-          Supermarket_distance:       r.TaVillas_Supermarket_distance || '',
-          Pharmacy_distance:          r.TaVillas_Pharmacy_distance || '',
-          Airport_distance:           r.TaVillas_Airport_distance || '',
-          Description:                r.TaVillas_Description || '',
-          Electric_panel:             r.TaVillas_where_is_mainpower || '',
-          Water_valve:                r.TaVillas_wher_is_water_stopcock || '',
-          BBQ:                        r.TaVillas_BBQ || '',
-          KeyHolder_person:           r.TaVillas_KeyHolder_person || '',
-          _managerName:               r.TaUsers_Name || '',
-          _managerUserId:             r.TaUsers_UserID || '',
-        });
-        if(r.TaUsers_UserID && r.TaUsers_Name){
-          _managers[r.TaUsers_UserID] = r.TaUsers_Name;
-        }
+    var rows = json.Result || json.result || [];
+    // Dedup por villaid
+    var seen = {};
+    _allVillas = [];
+    rows.forEach(function(r){
+      var id = String(r.TaVillas_villaid || '');
+      if(!id || seen[id]) return;
+      seen[id] = true;
+      var mgrId   = String(r.TaVillas_KeyHolder_person || '');
+      var mgrName = r.TaUsers_Name || '';
+      if(mgrId && mgrName) _managers[mgrId] = mgrName;
+
+      _allVillas.push({
+        villaid:                    id,
+        Hostawayid:                 r.TaVillas_Hostawayid || '',
+        Name:                       r.TaVillas_Name || '',
+        Name_villa_para_inquilinos: r.TaVillas_Name_villa_para_inquilinos || '',
+        Wifi_user:                  r.TaVillas_Wifi_user || '',
+        Wifi_password:              r.TaVillas_Wifi_password || '',
+        Beach_distance:             r.TaVillas_Beach_distance || '',
+        Restaurant_distance:        r.TaVillas_Restaurant_distance || '',
+        Supermarket_distance:       r.TaVillas_Supermarket_distance || '',
+        Pharmacy_distance:          r.TaVillas_Pharmacy_distance || '',
+        Airport_distance:           r.TaVillas_Airport_distance || '',
+        Description:                '',  // No en vista — campo extra si se añade
+        Electric_panel:             r.TaVillas_where_is_mainpower || '',
+        Water_valve:                r.TaVillas_wher_is_water_stopcock || '',
+        BBQ:                        r.TaVillas_BBQ || '',
+        KeyHolder_person:           mgrId,
+        _managerName:               mgrName,
+        _managerUserId:             mgrId,
       });
-
-      // Sort by name
-      _allVillas.sort(function(a,b){
-        var na = a.Name_villa_para_inquilinos || a.Name;
-        var nb = b.Name_villa_para_inquilinos || b.Name;
-        return na.localeCompare(nb, 'es');
-      });
-
-      buildManagerFilter();
-      buildStats();
-      renderList(_allVillas);
-      busy(false);
-
-      // Open villa from URL param
-      var params = new URLSearchParams(location.search);
-      var pid = params.get('villaid') || params.get('id');
-      if(pid){
-        var card = document.getElementById('card-' + pid);
-        if(card){ toggleCard(card); card.scrollIntoView({behavior:'smooth', block:'start'}); }
-      }
-    })
-    .catch(function(e){
-      busy(false);
-      toast('Error al cargar villas: ' + e.message, false);
     });
+
+    // Sort by name
+    _allVillas.sort(function(a,b){
+      var na = a.Name_villa_para_inquilinos || a.Name;
+      var nb = b.Name_villa_para_inquilinos || b.Name;
+      return na.localeCompare(nb, 'es');
+    });
+
+    buildManagerFilter();
+    buildStats();
+    renderList(_allVillas);
+    busy(false);
+
+    // Open villa from URL param
+    var params = new URLSearchParams(location.search);
+    var pid = params.get('villaid') || params.get('id');
+    if(pid){
+      var card = document.getElementById('card-' + pid);
+      if(card){ toggleCard(card); card.scrollIntoView({behavior:'smooth', block:'start'}); }
+    }
+  })
+  .catch(function(e){
+    busy(false);
+    toast('Error al cargar: ' + e.message, false);
+  });
 }
 
 // ── FILTROS ────────────────────────────────────────────────────
@@ -520,7 +519,9 @@ function saveVilla(villaid){
     else record[k] = changes[k];
   });
 
-  var url = WORKER + '?action=update&table=TaVillas&id=' + encodeURIComponent(villaid);
+  // Usar view-update con Vi_villas_users_edit (Updatable=True)
+  // El campo PK en la vista tiene alias TaVillas_villaid
+  var url = WORKER + '?action=view-update&view=Vi_villas_users_edit&pk=TaVillas_villaid&id=' + encodeURIComponent(villaid);
   fetch(Auth.url(url), {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
@@ -568,4 +569,4 @@ loadAll();
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
+<!-- HISTORIAL: v04 - Usa Vi_villas_users_edit (Updatable=True) para leer y guardar; action=view-update en worker v39; campos con alias TaVillas_xxx del JOIN | v03 - Fix carga: cambiado Vi_villas_users (view que podría no estar accesible) por dos llamadas paralelas action=data a TaVillas+TaUsers que sí funcionan | v02 - Logo igual que intranet (l1+l2); fix worker: action=update usa villaid para TaVillas | v01 - Versión inicial: lista de villas con filtros por nombre/manager/estado, semáforo de campos del manual, formulario inline por villa, guardar vía action=update, invalidación KV cache, preview del manual -->
