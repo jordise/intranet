@@ -1,4 +1,4 @@
-/* checkin-auth.js v7  — Autenticación huéspedes 3Villas
+/* checkin-auth.js v8 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -9,6 +9,11 @@
       → si no hay sesión → mostrar overlay de verificación con el code de la URL
    Flujo admin/manager:
       → si Auth está disponible y autenticado → bypass total, carga directa por el code de la URL (sin sesión huésped)
+
+   CAMBIOS v8 (sobre v7):
+   - Fix: isMainPage usaba location.pathname.includes('checkin-online.html'), que falla
+     cuando el servidor sirve la página sin extensión (/checkin-online en lugar de
+     /checkin-online.html). Ahora usa regex sobre location.href para cubrir ambos casos.
 
    CAMBIOS v7 (sobre v6):
    - getCode() acepta también el parámetro ?reserva= (URL más limpia). Mantiene compatibilidad
@@ -539,8 +544,9 @@ const CheckinAuth = (function(){
 
       /* ── MODO HUÉSPED ── */
 
-      /* Página principal (checkin-online): necesita code en URL */
-      const isMainPage = location.pathname.includes(CHECKIN_MAIN);
+      /* Página principal (checkin-online): necesita code en URL.
+         Cubre tanto /checkin-online.html como /checkin-online (sin extensión). */
+      const isMainPage = /checkin-online(\.html)?(\?|#|$)/.test(location.href);
 
       if(isMainPage){
         /* Sin code → error */
