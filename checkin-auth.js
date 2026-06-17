@@ -1,12 +1,21 @@
-/* checkin-auth.js v6 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v7 — Autenticación huéspedes 3Villas
    Flujo huésped:
-   1. checkin-online: URL tiene ?TaBookings2021_FS_confirmation_code=XXXXXXXX
+   1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
-   2. Páginas hijas (checkin-arrival, police, deposit, taxes):
-      → si hay sesión válida → cargar datos del Worker directamente, SIN pedir PIN de nuevo
-      → si no hay sesión → redirigir a checkin-online con el code en la URL
+   2. Páginas hijas (checkin-arrival, police, deposit, taxes, premium):
+      → si hay sesión válida PARA EL CODE DE LA URL → cargar datos del Worker directamente, SIN pedir PIN de nuevo
+      → si hay sesión pero de OTRO code (el code de la URL cambió) → mostrar overlay de verificación
+        con el code nuevo (login de nuevo) y cargar los datos de la nueva reserva
+      → si no hay sesión → mostrar overlay de verificación con el code de la URL
    Flujo admin/manager:
-      → si Auth está disponible y autenticado → bypass total, carga directa sin sesión huésped */
+      → si Auth está disponible y autenticado → bypass total, carga directa por el code de la URL (sin sesión huésped)
+
+   CAMBIOS v7 (sobre v6):
+   - getCode() acepta también el parámetro ?reserva= (URL más limpia). Mantiene compatibilidad
+     con TaBookings2021_FS_confirmation_code, FS_confirmation_code y code para no romper enlaces antiguos.
+   - Páginas hijas: si el code de la URL no coincide con el de la sesión (o no hay sesión),
+     se muestra el overlay de verificación con el code de la URL en lugar de cargar la reserva
+     de la sesión anterior. Antes cargaba siempre sess.code e ignoraba el code de la URL. */
 
 const CheckinAuth = (function(){
 
@@ -255,10 +264,13 @@ const CheckinAuth = (function(){
     }));
   }
 
-  /* ── URL param ── */
+  /* ── URL param ──
+     v7: acepta ?reserva= (parámetro nuevo, URL más limpia) además de los antiguos
+     para no romper enlaces ya enviados a inquilinos ni las llamadas a Caspio. */
   function getCode(){
     const p = new URLSearchParams(location.search);
-    return p.get('TaBookings2021_FS_confirmation_code')
+    return p.get('reserva')
+        || p.get('TaBookings2021_FS_confirmation_code')
         || p.get('FS_confirmation_code')
         || p.get('code') || '';
   }
@@ -306,7 +318,7 @@ const CheckinAuth = (function(){
     const lang = _getLang();
     const txt  = CA_LANG[lang] || CA_LANG.en;
     const base = location.pathname.replace(/[^/]*$/, '') + CHECKIN_MAIN;
-    const url  = code ? `${base}?TaBookings2021_FS_confirmation_code=${code}` : base;
+    const url  = code ? `${base}?reserva=${code}` : base;
     document.body.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;font-family:Montserrat,sans-serif;text-align:center;">
         <div style="max-width:360px">
@@ -500,13 +512,13 @@ const CheckinAuth = (function(){
       _cb   = opts.onVerified || (() => {});
       _code = opts.code || getCode();
 
-      /* ── MODO ADMIN/MANAGER: Auth del sistema interno → carga directa ── */
+      /* ── MODO ADMIN/MANAGER: Auth del sistema interno → carga directa por code de la URL ── */
       if(isAdmin()){
         if(!_code){
           /* Admin sin code en URL: mostrar mensaje */
           document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
             '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
-            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?reserva=CODE to the URL</p></div>';
           return;
         }
         /* Admin con code: cargar datos directamente via Auth */
@@ -535,7 +547,7 @@ const CheckinAuth = (function(){
         if(!_code){
           document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:Montserrat,sans-serif">' +
             '<p style="color:#C8102E;font-weight:800">No booking code in URL</p>' +
-            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?TaBookings2021_FS_confirmation_code=CODE to the URL</p></div>';
+            '<p style="font-size:13px;color:#868e96;margin-top:8px">Add ?reserva=CODE to the URL</p></div>';
           return;
         }
         /* Con code: ver si hay sesión válida para este code */
@@ -564,28 +576,47 @@ const CheckinAuth = (function(){
         return;
       }
 
-      /* Páginas hijas (arrival, police, deposit, taxes):
-         DEBEN tener sesión activa de haber pasado por checkin-online.
-         Si no hay sesión → redirigir a checkin-online con el code. */
-      const sess = getSession(null); /* sin filtrar por code — usa el que haya */
+      /* Páginas hijas (arrival, police, deposit, taxes, premium):
+         v7: el code de la URL manda. Si hay sesión válida PARA ESE code → carga directa.
+         Si no la hay (no hay sesión, o la sesión es de OTRA reserva porque el code cambió),
+         se muestra el overlay de verificación con el code de la URL para hacer login de la
+         nueva reserva y cargar sus datos. Si la URL no trae code, se usa el de la sesión. */
+
+      /* Si la URL no trae code, intentar reutilizar el de la sesión existente */
+      if(!_code){
+        const anySess = getSession(null);
+        if(anySess) _code = anySess.code;
+      }
+
+      /* Sin code de ninguna forma → redirigir a checkin-online */
+      if(!_code){
+        const go = () => redirectToMain('');
+        document.readyState === 'loading'
+          ? document.addEventListener('DOMContentLoaded', go)
+          : go();
+        return;
+      }
+
+      /* ¿Hay sesión válida para ESTE code concreto? */
+      const sess = getSession(_code);
       if(sess){
-        /* Usar el code de la sesión (ignora el de la URL si no hay) */
-        if(!_code) _code = sess.code;
-        /* Cargar datos frescos del Worker */
+        /* Sesión válida para el code de la URL → cargar datos frescos del Worker */
         const go = () => {
-          loadBookingData(sess.code, sess.pin)
+          loadBookingData(_code, sess.pin)
             .then(booking => { if(_cb) _cb(booking); })
             .catch(() => {
+              /* Sesión caducada/ inválida → pedir verificación de nuevo */
               localStorage.removeItem(SESSION_KEY);
-              redirectToMain(sess.code);
+              inject();
             });
         };
         document.readyState === 'loading'
           ? document.addEventListener('DOMContentLoaded', go)
           : go();
       } else {
-        /* Sin sesión en página hija → redirigir */
-        const go = () => redirectToMain(_code);
+        /* No hay sesión para este code (code cambiado o sin sesión) → overlay de login
+           con el code de la URL; al verificar, onVerified carga la nueva reserva */
+        const go = () => inject();
         document.readyState === 'loading'
           ? document.addEventListener('DOMContentLoaded', go)
           : go();
