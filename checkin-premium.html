@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#C8102E">
+  <title>Checkin Premium v1 — 3Villas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ══ Variables ══ */
+    :root{
+      --red:#C8102E; --red-dk:#9e0c24; --red-lt:#fce8eb;
+      --green:#16a34a; --green-lt:#f0fdf4; --green-bd:#86efac;
+      --blue:#2563EB; --blue-lt:#EFF6FF;
+      --amber:#B45309; --amber-lt:#FFFBEB; --amber-bd:#FCD34D;
+      --gold:#B8860B; --gold-lt:#FFFBEB; --gold-bd:#F5D76E;
+      --gray-0:#ffffff; --gray-1:#f9fafb; --gray-2:#f1f3f5;
+      --gray-3:#dee2e6; --gray-4:#868e96; --gray-5:#212529;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.08);
+      --shadow-md:0 4px 16px rgba(0,0,0,.10);
+      --shadow-lg:0 12px 40px rgba(0,0,0,.14);
+      --r-sm:8px; --r-md:12px; --r-lg:16px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Montserrat,sans-serif;background:transparent;
+      color:var(--gray-5);min-height:100vh}
+
+    /* ══ Loading ══ */
+    #stLoad{position:fixed;inset:0;z-index:999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+    .spinner{width:36px;height:36px;border:3px solid var(--gray-3);
+      border-top-color:var(--red);border-radius:50%;
+      animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .load-txt{font-size:12px;font-weight:700;color:var(--gray-4);letter-spacing:.3px}
+
+    /* ══ POP-UP — sin cabecera ══ */
+    #pop{display:none;min-height:100vh;background:#fff;padding-bottom:30px}
+    .pop-bar{position:sticky;top:0;z-index:50;background:var(--gray-0);
+      border-bottom:1px solid var(--gray-2);display:flex;align-items:center;
+      justify-content:space-between;padding:0 16px;height:52px;box-shadow:var(--shadow-sm)}
+    .pop-bar-title{font-size:13px;font-weight:900;color:var(--gray-5);letter-spacing:.2px}
+    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      border:1px solid var(--gray-3);border-radius:var(--r-sm);padding:4px 8px;
+      background:var(--gray-0);color:var(--gray-5);cursor:pointer;outline:none;
+      appearance:none;-webkit-appearance:none}
+    .pop-close{background:none;border:none;font-size:22px;line-height:1;color:var(--gray-4);
+      cursor:pointer;padding:4px 8px;font-weight:700}
+
+    .page-wrap{max-width:560px;margin:0 auto;padding:0 16px}
+
+    .pop-intro{text-align:center;padding:18px 6px 10px}
+    .pop-intro-title{font-size:18px;font-weight:900;color:var(--gray-5);margin-bottom:4px}
+    .pop-intro-sub{font-size:12px;font-weight:500;color:var(--gray-4);line-height:1.5}
+
+    /* ══ Tarjetas comparativa ══ */
+    .opt-cards{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+    .opt-card{border:2px solid var(--gray-3);border-radius:var(--r-lg);
+      overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s;background:var(--gray-0)}
+    .opt-card:hover{border-color:var(--gray-4)}
+    .opt-card.std.selected{border-color:var(--gray-5);box-shadow:0 0 0 3px rgba(33,37,41,.07)}
+    .opt-card.prem{border-color:var(--gold-bd);background:linear-gradient(180deg,var(--gold-lt) 0%,#fff 60%)}
+    .opt-card.prem.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,134,11,.12)}
+
+    .opt-head{display:flex;align-items:center;gap:12px;padding:15px 16px}
+    .opt-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--gray-3);
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .opt-card.std.selected .opt-radio{border-color:var(--gray-5);background:var(--gray-5)}
+    .opt-card.prem .opt-radio{border-color:var(--gold-bd)}
+    .opt-card.prem.selected .opt-radio{border-color:var(--gold);background:var(--gold)}
+    .opt-radio::after{content:'';width:9px;height:9px;border-radius:50%;background:#fff;display:none}
+    .opt-card.selected .opt-radio::after{display:block}
+    .opt-titles{flex:1;min-width:0}
+    .opt-label{font-size:15px;font-weight:900;color:var(--gray-5);display:flex;align-items:center;gap:7px}
+    .opt-badge{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.6px;
+      background:var(--gold);color:#fff;padding:2px 8px;border-radius:20px}
+    .opt-tagline{font-size:11px;font-weight:600;color:var(--gray-4);margin-top:2px}
+
+    /* ══ Listas de features ══ */
+    .feat-list{list-style:none;padding:0 16px 16px;margin:0}
+    .feat{display:flex;align-items:flex-start;gap:9px;padding:7px 0;
+      font-size:12.5px;font-weight:600;color:var(--gray-5);line-height:1.4;
+      border-top:1px solid var(--gray-2)}
+    .feat:first-child{border-top:none}
+    .feat-ico{flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:900;border-radius:50%;margin-top:1px}
+    .feat-ico.neg{background:var(--red-lt);color:var(--red)}
+    .feat-ico.pos{background:var(--green-lt);color:var(--green)}
+    .feat strong{font-weight:900}
+
+    /* ══ Detalle de pago Premium (solo cuando seleccionado) ══ */
+    .prem-pay{display:none;border-top:1px solid var(--gold-bd);padding:14px 16px 16px;background:#fffdf6}
+    .opt-card.prem.selected .prem-pay{display:block}
+
+    .pay-line{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--gray-2)}
+    .pay-line:last-child{border-bottom:none}
+    .pl-ico{width:34px;height:34px;border-radius:var(--r-sm);display:flex;align-items:center;
+      justify-content:center;font-size:15px;flex-shrink:0;background:var(--gold-lt)}
+    .pl-ico.paid{background:var(--green-lt)}
+    .pl-body{flex:1;min-width:0}
+    .pl-name{font-size:13px;font-weight:700;color:var(--gray-5)}
+    .pl-sub{font-size:10px;color:var(--gray-4);margin-top:1px;font-weight:500}
+    .pl-right{flex-shrink:0;text-align:right}
+    .pl-amt{font-size:15px;font-weight:900;color:var(--gray-5)}
+    .pl-badge-paid{font-size:10px;font-weight:800;color:var(--green);
+      background:var(--green-lt);padding:3px 9px;border-radius:20px;border:1px solid var(--green-bd)}
+
+    .total-strip{background:linear-gradient(135deg,var(--gold) 0%,#8a6608 100%);
+      border-radius:var(--r-md);padding:13px 16px;display:flex;align-items:center;
+      justify-content:space-between;margin-top:12px;box-shadow:0 4px 16px rgba(184,134,11,.22)}
+    .ts-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8)}
+    .ts-amt{font-size:23px;font-weight:900;color:#fff;letter-spacing:-.5px}
+    .ts-amt span{font-size:14px;font-weight:600;margin-left:2px}
+
+    .all-paid-card{background:var(--green-lt);border:1.5px solid var(--green-bd);
+      border-radius:var(--r-md);padding:18px 16px;text-align:center;margin-top:12px}
+    .apc-ico{font-size:34px;margin-bottom:6px;display:block}
+    .apc-title{font-size:15px;font-weight:900;color:var(--green);margin-bottom:4px}
+    .apc-sub{font-size:11px;color:#166534;font-weight:500;line-height:1.5}
+
+    /* ══ Formulario de pago embebido (Caspio /emb) ══ */
+    .pay-form-wrap{background:var(--gray-0);border-radius:var(--r-md);
+      box-shadow:var(--shadow-sm);border:1px solid var(--gray-2);margin-top:12px;overflow:hidden}
+    .pfw-head{padding:12px 16px;border-bottom:1px solid var(--gray-2);
+      background:var(--gray-1);display:flex;align-items:center;gap:10px}
+    .pfw-head-title{font-size:12px;font-weight:900;color:var(--gray-5);flex:1}
+    .pfw-secure{font-size:10px;font-weight:700;color:var(--gray-4);display:flex;align-items:center;gap:4px}
+    .pfw-body{padding:16px}
+
+    /* ══ CSS override del formulario Caspio (idéntico a checkin-taxes) ══ */
+    .cbFormTable img[src*="caspio"],
+    .cbFormTable img[src*="logo3villas"],
+    .cbFormTable img[src*="Logo"],
+    .cbFormTable img[src*="stripe-icon"],
+    .cbFormTableCell img { display:none !important }
+    .cbFormTable tr:has(.cbFormula),
+    .cbFormTable tr:has(input[type=hidden]),
+    .cbFormTableCell:has(.cbFormula) { display:none !important }
+    .cbFormTable, .cbFormTableCell, .cbLabel,
+    .cbFormCaption, .cbFormInput, .cbFormInputHigh,
+    #Submit_0 { font-family: Montserrat, sans-serif !important; }
+    .cbLabel, .cbFormCaption {
+      font-size: 10px !important; font-weight: 800 !important;
+      text-transform: uppercase !important; letter-spacing: .5px !important;
+      color: var(--gray-4) !important; margin-bottom: 5px !important; display: block !important;
+    }
+    .cbFormInput, .cbFormInputHigh {
+      width: 100% !important; padding: 11px 14px !important;
+      border: 1.5px solid var(--gray-3) !important; border-radius: 10px !important;
+      font-size: 15px !important; font-family: Montserrat, sans-serif !important; font-weight: 600 !important;
+    }
+    .cbFormInput:focus, .cbFormInputHigh:focus { border-color: var(--red) !important; outline:none !important; }
+    #Submit_0, .cbSubmitButton {
+      width:100% !important; padding:13px !important; background:var(--gold) !important;
+      color:#fff !important; border:none !important; border-radius:10px !important;
+      font-size:14px !important; font-weight:900 !important; cursor:pointer !important; margin-top:6px !important;
+    }
+
+    /* ══ Botones de acción ══ */
+    .action-bar{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+    .btn-prem{width:100%;padding:14px;background:var(--gold);color:#fff;border:none;
+      border-radius:var(--r-md);font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;
+      cursor:pointer;transition:filter .15s;letter-spacing:.2px}
+    .btn-prem:hover:not(:disabled){filter:brightness(.93)}
+    .btn-prem:disabled{background:var(--gray-3);cursor:not-allowed}
+    .btn-std{width:100%;padding:13px;background:var(--gray-0);color:var(--gray-5);
+      border:1.5px solid var(--gray-3);border-radius:var(--r-md);
+      font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:all .15s}
+    .btn-std:hover:not(:disabled){background:var(--gray-1)}
+    .btn-std:disabled{opacity:.5;cursor:not-allowed}
+
+    .form-err{background:var(--red-lt);border:1px solid #fca5a5;border-radius:10px;
+      padding:11px 14px;font-size:12px;color:var(--red);font-weight:700;display:none;margin-top:12px}
+
+    /* ══ Pantalla de éxito ══ */
+    #stSuccess{display:none;flex-direction:column;align-items:center;justify-content:center;
+      min-height:100vh;background:#fff;text-align:center;padding:40px 24px}
+    .succ-ico{font-size:54px;margin-bottom:14px}
+    .succ-title{font-size:20px;font-weight:900;color:var(--green);margin-bottom:8px}
+    .succ-sub{font-size:13px;color:var(--gray-4);font-weight:500;line-height:1.55;max-width:340px;margin-bottom:24px}
+    .succ-btn{display:inline-block;padding:12px 28px;background:var(--red);color:#fff;
+      border-radius:10px;text-decoration:none;font-weight:900;font-size:14px;border:none;cursor:pointer}
+  </style>
+</head>
+<body>
+
+<!-- ══ Loading ══ -->
+<div id="stLoad">
+  <div class="spinner"></div>
+  <div class="load-txt" data-i18n="loading">Loading…</div>
+</div>
+
+<!-- ══ Pantalla de éxito ══ -->
+<div id="stSuccess">
+  <div class="succ-ico">🎉</div>
+  <div class="succ-title" data-i18n="ok_title">Payment received!</div>
+  <div class="succ-sub" data-i18n="ok_sub">Thank you. Your Premium check-in is confirmed.</div>
+  <button class="succ-btn" id="btnSuccBack" onclick="goBack()" data-i18n="btn_back">Back to check-in</button>
+</div>
+
+<!-- ══ POP-UP principal ══ -->
+<div id="pop">
+  <div class="pop-bar">
+    <span class="pop-bar-title" data-i18n="bar_title">Check-in Options</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <select id="langSel" onchange="applyLang(this.value)">
+        <option value="en">EN</option><option value="es">ES</option>
+        <option value="fr">FR</option><option value="de">DE</option>
+        <option value="it">IT</option><option value="nl">NL</option>
+        <option value="pt">PT</option><option value="ca">CA</option>
+      </select>
+      <button class="pop-close" onclick="goBack()" aria-label="Close">&times;</button>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+
+    <div class="pop-intro">
+      <div class="pop-intro-title" data-i18n="intro_title">Check-in Options Comparison</div>
+      <div class="pop-intro-sub" data-i18n="intro_sub">Choose the option that best fits your stay.</div>
+    </div>
+
+    <div class="opt-cards">
+
+      <!-- ── PREMIUM ── -->
+      <div class="opt-card prem" id="cardPrem" onclick="selectOpt('prem')">
+        <div class="opt-head">
+          <div class="opt-radio"></div>
+          <div class="opt-titles">
+            <div class="opt-label">
+              <span data-i18n="prem_title">Premium Check-in</span>
+              <span class="opt-badge" data-i18n="prem_badge">Recommended</span>
+            </div>
+            <div class="opt-tagline" data-i18n="prem_tagline">All the perks, none of the hassle.</div>
+          </div>
+        </div>
+        <ul class="feat-list">
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f1"><strong>NO SECURITY DEPOSIT</strong></span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f2">Stay insurance included</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f3">FREE crib &amp; high chair (if travelling with a baby)</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f4">Instant access to the 3Villas Club (exclusive promotions)</span></li>
+        </ul>
+
+        <!-- Detalle de pago (solo si Premium seleccionado) -->
+        <div class="prem-pay">
+          <div id="itemsList"></div>
+
+          <!-- Total pendiente -->
+          <div class="total-strip" id="totalRow" style="display:none">
+            <div>
+              <div class="ts-lbl" data-i18n="lbl_total">Total due</div>
+              <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;font-size:14px">💳</div>
+          </div>
+
+          <!-- Todo pagado -->
+          <div class="all-paid-card" id="allPaid" style="display:none">
+            <span class="apc-ico">✅</span>
+            <div class="apc-title" data-i18n="all_paid_title">Premium already active!</div>
+            <div class="apc-sub" data-i18n="all_paid_sub">There are no pending charges for your Premium check-in.</div>
+          </div>
+
+          <!-- Formulario de pago embebido Caspio -->
+          <div class="pay-form-wrap" id="payFormWrap" style="display:none">
+            <div class="pfw-head">
+              <div class="pfw-head-title" data-i18n="form_title">Card details</div>
+              <div class="pfw-secure">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span data-i18n="modal_secure">Secured by Stripe</span>
+              </div>
+            </div>
+            <div class="pfw-body"><div id="caspioPay"></div></div>
+          </div>
+
+          <!-- Botón: marcar Premium SIN pagar -->
+          <div class="action-bar">
+            <button class="btn-prem" id="btnPrem" onclick="savePremium()" data-i18n="btn_prem_save">Confirm Premium</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ESTÁNDAR ── -->
+      <div class="opt-card std" id="cardStd" onclick="selectOpt('std')">
+        <div class="opt-head">
+          <div class="opt-radio"></div>
+          <div class="opt-titles">
+            <div class="opt-label"><span data-i18n="std_title">Standard Check-in</span></div>
+            <div class="opt-tagline" data-i18n="std_tagline">The regular option.</div>
+          </div>
+        </div>
+        <ul class="feat-list">
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f1">Deposit hold on your card</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f2">Liability for any incident</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f3">Extra charge for crib or high chair</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f4">Regular rate in the future</span></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Botón estándar -->
+    <div class="action-bar" id="stdBar" style="display:none">
+      <button class="btn-std" id="btnStd" onclick="saveStandard()" data-i18n="btn_std_save">Continue with Standard</button>
+    </div>
+
+    <div class="form-err" id="formErr"></div>
+
+    <div style="height:20px"></div>
+  </div><!-- /.page-wrap -->
+</div><!-- /#pop -->
+
+<script src="checkin-auth.js"></script>
+<script>
+
+const WORKER        = 'https://caspio-proxy.jordi-89b.workers.dev';
+const CASPIO_APP    = '353f7000e967b11dc2a34af68b4e';
+const CASPIO_ORIGIN = 'https://c1abn932.caspio.com';
+const $ = id => document.getElementById(id);
+
+let _code='', _booking=null, _total=0, _selected=null, _isSaving=false;
+
+/* ════ I18N ════ */
+var LANG={};
+LANG.en={
+  loading:'Loading…',
+  bar_title:'Check-in Options',
+  intro_title:'Check-in Options Comparison',
+  intro_sub:'Choose the option that best fits your stay.',
+  prem_title:'Premium Check-in', prem_badge:'Recommended',
+  prem_tagline:'All the perks, none of the hassle.',
+  prem_f1:'<strong>NO SECURITY DEPOSIT</strong>',
+  prem_f2:'Stay insurance included',
+  prem_f3:'FREE crib & high chair (if travelling with a baby)',
+  prem_f4:'Instant access to the 3Villas Club (exclusive promotions)',
+  std_title:'Standard Check-in', std_tagline:'The regular option.',
+  std_f1:'Deposit hold on your card',
+  std_f2:'Liability for any incident',
+  std_f3:'Extra charge for crib or high chair',
+  std_f4:'Regular rate in the future',
+  lbl_total:'Total due',
+  all_paid_title:'Premium already active!',
+  all_paid_sub:'There are no pending charges for your Premium check-in.',
+  form_title:'Card details', modal_secure:'Secured by Stripe',
+  btn_prem_save:'Confirm Premium', btn_std_save:'Continue with Standard',
+  ok_title:'Payment received!', ok_sub:'Thank you. Your Premium check-in is confirmed.',
+  btn_back:'Back to check-in',
+  item_waiver:'Security Deposit Waiver', item_ecotasa:'Tourist Tax',
+  status_paid:'Paid',
+  cc_number:'Card number', cc_expiry:'Expiration date', cc_cvv:'Security code',
+  btn_submit:'Pay now', lbl_booking_id:'Booking ID', lbl_guest:'Guest', lbl_villa:'Property',
+  lbl_adults:'Adults', lbl_nights:'Nights', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+LANG.es={
+  loading:'Cargando…',
+  bar_title:'Opciones de Check-in',
+  intro_title:'Comparativa de Opciones de Check-in',
+  intro_sub:'Elige la opción que mejor se adapte a tu estancia.',
+  prem_title:'Check-in Premium', prem_badge:'Recomendado',
+  prem_tagline:'Todas las ventajas, sin complicaciones.',
+  prem_f1:'<strong>SIN DEPÓSITO DE SEGURIDAD</strong>',
+  prem_f2:'Seguro de estancia incluido',
+  prem_f3:'Cuna y trona GRATIS (si viajas con bebé)',
+  prem_f4:'Acceso inmediato al Club 3Villas (promociones exclusivas)',
+  std_title:'Check-in Estándar', std_tagline:'La opción habitual.',
+  std_f1:'Retención de depósito con tarjeta',
+  std_f2:'Responsabilidad ante cualquier imprevisto',
+  std_f3:'Cargo extra por cuna o trona',
+  std_f4:'Tarifa regular en el futuro',
+  lbl_total:'Total pendiente',
+  all_paid_title:'¡Premium ya activo!',
+  all_paid_sub:'No hay cargos pendientes para tu check-in Premium.',
+  form_title:'Datos de la tarjeta', modal_secure:'Protegido por Stripe',
+  btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar con Estándar',
+  ok_title:'¡Pago recibido!', ok_sub:'Gracias. Tu check-in Premium está confirmado.',
+  btn_back:'Volver al check-in',
+  item_waiver:'Waiver Depósito', item_ecotasa:'Tasa Turística',
+  status_paid:'Pagado',
+  cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
+  btn_submit:'Pagar ahora', lbl_booking_id:'ID de reserva', lbl_guest:'Huésped', lbl_villa:'Propiedad',
+  lbl_adults:'Adultos', lbl_nights:'Noches', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+LANG.fr={
+  loading:'Chargement…', bar_title:'Options de check-in',
+  intro_title:'Comparatif des options de check-in',
+  intro_sub:'Choisissez l’option qui convient le mieux à votre séjour.',
+  prem_title:'Check-in Premium', prem_badge:'Recommandé',
+  prem_tagline:'Tous les avantages, sans contraintes.',
+  prem_f1:'<strong>AUCUNE CAUTION</strong>',
+  prem_f2:'Assurance séjour incluse',
+  prem_f3:'Lit bébé et chaise haute GRATUITS (si vous voyagez avec un bébé)',
+  prem_f4:'Accès immédiat au Club 3Villas (promotions exclusives)',
+  std_title:'Check-in Standard', std_tagline:'L’option habituelle.',
+  std_f1:'Empreinte de caution sur votre carte',
+  std_f2:'Responsabilité en cas d’imprévu',
+  std_f3:'Supplément pour lit bébé ou chaise haute',
+  std_f4:'Tarif normal à l’avenir',
+  lbl_total:'Total dû', all_paid_title:'Premium déjà actif !',
+  all_paid_sub:'Aucun frais en attente pour votre check-in Premium.',
+  form_title:'Détails de la carte', modal_secure:'Sécurisé par Stripe',
+  btn_prem_save:'Confirmer Premium', btn_std_save:'Continuer en Standard',
+  ok_title:'Paiement reçu !', ok_sub:'Merci. Votre check-in Premium est confirmé.',
+  btn_back:'Retour au check-in',
+  item_waiver:'Waiver caution', item_ecotasa:'Taxe touristique', status_paid:'Payé',
+  cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
+  btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété',
+  lbl_adults:'Adultes', lbl_nights:'Nuits', lbl_checkin:'Arrivée', lbl_checkout:'Départ'
+};
+LANG.de={
+  loading:'Laden…', bar_title:'Check-in-Optionen',
+  intro_title:'Vergleich der Check-in-Optionen',
+  intro_sub:'Wählen Sie die für Ihren Aufenthalt passende Option.',
+  prem_title:'Premium-Check-in', prem_badge:'Empfohlen',
+  prem_tagline:'Alle Vorteile, kein Aufwand.',
+  prem_f1:'<strong>KEINE KAUTION</strong>',
+  prem_f2:'Aufenthaltsversicherung inklusive',
+  prem_f3:'GRATIS Babybett & Hochstuhl (bei Reise mit Baby)',
+  prem_f4:'Sofortiger Zugang zum 3Villas Club (exklusive Aktionen)',
+  std_title:'Standard-Check-in', std_tagline:'Die normale Option.',
+  std_f1:'Kautionsreservierung auf Ihrer Karte',
+  std_f2:'Haftung bei Zwischenfällen',
+  std_f3:'Aufpreis für Babybett oder Hochstuhl',
+  std_f4:'Normaltarif in Zukunft',
+  lbl_total:'Fälliger Betrag', all_paid_title:'Premium bereits aktiv!',
+  all_paid_sub:'Keine offenen Posten für Ihren Premium-Check-in.',
+  form_title:'Kartendaten', modal_secure:'Gesichert durch Stripe',
+  btn_prem_save:'Premium bestätigen', btn_std_save:'Mit Standard fortfahren',
+  ok_title:'Zahlung erhalten!', ok_sub:'Danke. Ihr Premium-Check-in ist bestätigt.',
+  btn_back:'Zurück zum Check-in',
+  item_waiver:'Kautions-Waiver', item_ecotasa:'Touristensteuer', status_paid:'Bezahlt',
+  cc_number:'Kartennummer', cc_expiry:'Ablaufdatum', cc_cvv:'Sicherheitscode',
+  btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft',
+  lbl_adults:'Erwachsene', lbl_nights:'Nächte', lbl_checkin:'Anreise', lbl_checkout:'Abreise'
+};
+LANG.it={
+  loading:'Caricamento…', bar_title:'Opzioni di check-in',
+  intro_title:'Confronto delle opzioni di check-in',
+  intro_sub:'Scegli l’opzione più adatta al tuo soggiorno.',
+  prem_title:'Check-in Premium', prem_badge:'Consigliato',
+  prem_tagline:'Tutti i vantaggi, nessun pensiero.',
+  prem_f1:'<strong>NESSUN DEPOSITO CAUZIONALE</strong>',
+  prem_f2:'Assicurazione soggiorno inclusa',
+  prem_f3:'Culla e seggiolone GRATIS (se viaggi con un bebè)',
+  prem_f4:'Accesso immediato al Club 3Villas (promozioni esclusive)',
+  std_title:'Check-in Standard', std_tagline:'L’opzione abituale.',
+  std_f1:'Blocco cauzione sulla carta',
+  std_f2:'Responsabilità per eventuali imprevisti',
+  std_f3:'Costo extra per culla o seggiolone',
+  std_f4:'Tariffa normale in futuro',
+  lbl_total:'Totale dovuto', all_paid_title:'Premium già attivo!',
+  all_paid_sub:'Nessun addebito in sospeso per il tuo check-in Premium.',
+  form_title:'Dati della carta', modal_secure:'Protetto da Stripe',
+  btn_prem_save:'Conferma Premium', btn_std_save:'Continua con Standard',
+  ok_title:'Pagamento ricevuto!', ok_sub:'Grazie. Il tuo check-in Premium è confermato.',
+  btn_back:'Torna al check-in',
+  item_waiver:'Waiver deposito', item_ecotasa:'Tassa di soggiorno', status_paid:'Pagato',
+  cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
+  btn_submit:'Paga ora', lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà',
+  lbl_adults:'Adulti', lbl_nights:'Notti', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+LANG.nl={
+  loading:'Laden…', bar_title:'Check-in-opties',
+  intro_title:'Vergelijking van check-in-opties',
+  intro_sub:'Kies de optie die het beste bij uw verblijf past.',
+  prem_title:'Premium check-in', prem_badge:'Aanbevolen',
+  prem_tagline:'Alle voordelen, zonder gedoe.',
+  prem_f1:'<strong>GEEN BORG</strong>',
+  prem_f2:'Verblijfsverzekering inbegrepen',
+  prem_f3:'GRATIS wieg & kinderstoel (bij reizen met een baby)',
+  prem_f4:'Directe toegang tot de 3Villas Club (exclusieve aanbiedingen)',
+  std_title:'Standaard check-in', std_tagline:'De gewone optie.',
+  std_f1:'Borgreservering op uw kaart',
+  std_f2:'Aansprakelijkheid bij incidenten',
+  std_f3:'Extra kosten voor wieg of kinderstoel',
+  std_f4:'Normaal tarief in de toekomst',
+  lbl_total:'Te betalen', all_paid_title:'Premium al actief!',
+  all_paid_sub:'Geen openstaande kosten voor uw Premium check-in.',
+  form_title:'Kaartgegevens', modal_secure:'Beveiligd door Stripe',
+  btn_prem_save:'Premium bevestigen', btn_std_save:'Doorgaan met Standaard',
+  ok_title:'Betaling ontvangen!', ok_sub:'Bedankt. Uw Premium check-in is bevestigd.',
+  btn_back:'Terug naar check-in',
+  item_waiver:'Borg-waiver', item_ecotasa:'Toeristenbelasting', status_paid:'Betaald',
+  cc_number:'Kaartnummer', cc_expiry:'Vervaldatum', cc_cvv:'Beveiligingscode',
+  btn_submit:'Nu betalen', lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie',
+  lbl_adults:'Volwassenen', lbl_nights:'Nachten', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+LANG.pt={
+  loading:'A carregar…', bar_title:'Opções de check-in',
+  intro_title:'Comparação de opções de check-in',
+  intro_sub:'Escolha a opção que melhor se adapta à sua estadia.',
+  prem_title:'Check-in Premium', prem_badge:'Recomendado',
+  prem_tagline:'Todas as vantagens, sem complicações.',
+  prem_f1:'<strong>SEM DEPÓSITO DE SEGURANÇA</strong>',
+  prem_f2:'Seguro de estadia incluído',
+  prem_f3:'Berço e cadeira de bebé GRÁTIS (se viajar com bebé)',
+  prem_f4:'Acesso imediato ao Club 3Villas (promoções exclusivas)',
+  std_title:'Check-in Padrão', std_tagline:'A opção habitual.',
+  std_f1:'Retenção de depósito no seu cartão',
+  std_f2:'Responsabilidade por qualquer imprevisto',
+  std_f3:'Custo extra por berço ou cadeira de bebé',
+  std_f4:'Tarifa normal no futuro',
+  lbl_total:'Total a pagar', all_paid_title:'Premium já ativo!',
+  all_paid_sub:'Não há cobranças pendentes para o seu check-in Premium.',
+  form_title:'Dados do cartão', modal_secure:'Protegido por Stripe',
+  btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar com Padrão',
+  ok_title:'Pagamento recebido!', ok_sub:'Obrigado. O seu check-in Premium está confirmado.',
+  btn_back:'Voltar ao check-in',
+  item_waiver:'Waiver depósito', item_ecotasa:'Taxa turística', status_paid:'Pago',
+  cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
+  btn_submit:'Pagar agora', lbl_booking_id:'ID reserva', lbl_guest:'Hóspede', lbl_villa:'Propriedade',
+  lbl_adults:'Adultos', lbl_nights:'Noites', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+LANG.ca={
+  loading:'Carregant…', bar_title:'Opcions de check-in',
+  intro_title:'Comparativa d’opcions de check-in',
+  intro_sub:'Tria l’opció que millor s’adapti a la teva estada.',
+  prem_title:'Check-in Premium', prem_badge:'Recomanat',
+  prem_tagline:'Tots els avantatges, sense complicacions.',
+  prem_f1:'<strong>SENSE DIPÒSIT DE SEGURETAT</strong>',
+  prem_f2:'Assegurança d’estada inclosa',
+  prem_f3:'Bressol i trona GRATIS (si viatges amb nadó)',
+  prem_f4:'Accés immediat al Club 3Villas (promocions exclusives)',
+  std_title:'Check-in Estàndard', std_tagline:'L’opció habitual.',
+  std_f1:'Retenció de dipòsit amb targeta',
+  std_f2:'Responsabilitat davant qualsevol imprevist',
+  std_f3:'Càrrec extra per bressol o trona',
+  std_f4:'Tarifa regular en el futur',
+  lbl_total:'Total pendent', all_paid_title:'Premium ja actiu!',
+  all_paid_sub:'No hi ha càrrecs pendents per al teu check-in Premium.',
+  form_title:'Dades de la targeta', modal_secure:'Protegit per Stripe',
+  btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar amb Estàndard',
+  ok_title:'Pagament rebut!', ok_sub:'Gràcies. El teu check-in Premium està confirmat.',
+  btn_back:'Tornar al check-in',
+  item_waiver:'Waiver dipòsit', item_ecotasa:'Taxa turística', status_paid:'Pagat',
+  cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
+  btn_submit:'Pagar ara', lbl_booking_id:'ID reserva', lbl_guest:'Hoste', lbl_villa:'Propietat',
+  lbl_adults:'Adults', lbl_nights:'Nits', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
+};
+
+var _currentLang='en';
+function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k;}
+
+function applyLang(lang){
+  var langChanged=(_currentLang!==lang);
+  if(!LANG[lang]) lang='en';
+  _currentLang=lang;
+  var htmlKeys=['prem_f1','std_f1'];
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var k=el.getAttribute('data-i18n');
+    if(htmlKeys.indexOf(k)>=0) el.innerHTML=t(k);
+    else el.textContent=t(k);
+  });
+  if(_booking) renderItems(_booking);
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  /* Reinyectar embed si cambió de idioma y estaba cargado */
+  if(_embedLoaded&&langChanged){
+    if(_embedObserver){_embedObserver.disconnect();_embedObserver=null;}
+    if(_pollInterval){clearInterval(_pollInterval);_pollInterval=null;}
+    var wrap=$('caspioPay'); if(wrap) wrap.innerHTML='';
+    _embedLoaded=false;
+    if(_selected==='prem'&&_total>0) injectCaspioEmbed();
+  }
+  var ls=$('langSel'); if(ls) ls.value=lang;
+}
+function initLang(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  var ls=$('langSel'); if(ls) ls.value=lang;
+  applyLang(lang);
+}
+
+/* ════ LÓGICA IMPORTES (waiver + ecotasa) ════ */
+function g(r,k){return r[k]!==undefined?r[k]:r['TaBookings2021_'+k];}
+function num(v){return parseFloat(v)||0;}
+function bool1(v){return parseInt(v)===1;}
+function isTruthy(v){return !!(v&&['1','-1','true','yes'].includes(String(v).toLowerCase().trim()));}
+
+function calcItems(r){
+  var items=[];
+
+  // Waiver (depósito de seguridad — el coste del check-in premium)
+  var waiv=num(g(r,'Deposit_waver_EUR')), waiv_c=bool1(g(r,'Deposit_waver_cobrado'));
+  items.push({key:'waiver',label:t('item_waiver'),ico:'🤝',
+    amount:waiv,paid:waiv_c,pending:!waiv_c&&waiv>0,
+    sub:waiv?waiv.toFixed(2)+' €':null});
+
+  // Ecotasa
+  var eco=num(g(r,'Ecotasa_final')), eco_c=bool1(g(r,'Ecotasa_cobrada'));
+  items.push({key:'ecotasa',label:t('item_ecotasa'),ico:'🌴',
+    amount:eco,paid:eco_c,pending:!eco_c&&eco>0,
+    sub:eco?eco.toFixed(2)+' €':null});
+
+  return items;
+}
+
+function renderItems(r){
+  var items=calcItems(r), list=$('itemsList');
+  if(!list) return;
+  list.innerHTML=''; _total=0;
+  items.forEach(function(item){
+    if(item.pending) _total+=item.amount;
+    var d=document.createElement('div'); d.className='pay-line';
+    d.innerHTML=
+      '<div class="pl-ico '+(item.paid?'paid':'')+'">'+item.ico+'</div>'+
+      '<div class="pl-body">'+
+        '<div class="pl-name">'+item.label+'</div>'+
+        (item.sub?'<div class="pl-sub">'+item.sub+'</div>':'')+
+      '</div>'+
+      '<div class="pl-right">'+
+        (item.paid
+          ?'<span class="pl-badge-paid">'+t('status_paid')+'</span>'
+          :'<span class="pl-amt">'+item.amount.toFixed(2)+' €</span>')+
+      '</div>';
+    list.appendChild(d);
+  });
+
+  if(_total>0){
+    $('totalRow').style.display='flex';
+    $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
+    $('allPaid').style.display='none';
+    if(_selected==='prem'&&!_embedLoaded) injectCaspioEmbed();
+  } else {
+    $('totalRow').style.display='none';
+    $('allPaid').style.display='block';
+    $('payFormWrap').style.display='none';
+  }
+}
+
+/* ════ SELECCIÓN DE OPCIÓN ════ */
+function selectOpt(opt){
+  _selected=opt;
+  $('cardPrem').classList.toggle('selected', opt==='prem');
+  $('cardStd').classList.toggle('selected', opt==='std');
+  $('stdBar').style.display=(opt==='std')?'block':'none';
+  if(opt==='prem'&&_booking) renderItems(_booking);
+}
+
+/* ════ EMBED CASPIO /emb (idéntico a checkin-taxes) ════ */
+var _embedLoaded=false;
+function injectCaspioEmbed(){
+  if(_embedLoaded) return;
+  _embedLoaded=true;
+  $('payFormWrap').style.display='block';
+  var target=$('caspioPay'); target.innerHTML='';
+  var formDiv=document.createElement('div');
+  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
+  target.appendChild(formDiv);
+  var s=document.createElement('script');
+  s.type='text/javascript';
+  s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
+    +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
+    +'&FS_confirmation_code='+encodeURIComponent(_code)
+    +'&cbResetParam=1';
+  s.onload=function(){ startEmbedTranslationPolling(); };
+  s.onerror=function(){
+    formDiv.innerHTML=
+      '<div style="text-align:center;padding:20px 0">'+
+      '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+
+      '?FS_confirmation_code='+encodeURIComponent(_code)+
+      '" target="_blank" style="display:inline-block;padding:12px 24px;'+
+      'background:#B8860B;color:#fff;border-radius:10px;font-weight:800;'+
+      'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
+  };
+  target.appendChild(s);
+}
+
+/* ════ DETECTAR ÉXITO DEL PAGO ════ */
+window.addEventListener('message',function(e){
+  if(!e.data) return;
+  var d=typeof e.data==='string'?e.data:JSON.stringify(e.data||'');
+  if(d.includes('cbSuccess')||d.includes('RecordInserted')||
+     d.includes('COBRADO')||d.includes('have been paid')||
+     d.includes('successfully paid')){
+    onPaymentSuccess();
+  }
+});
+
+/* ════ TRADUCCIÓN EMBED CASPIO (TreeWalker) ════ */
+var CASPIO_MAP={
+  'Credit Card':'cc_number','Expiration Date':'cc_expiry','Security Code':'cc_cvv',
+  'Total':'lbl_total','Submit':'btn_submit','Pay Now':'btn_submit','Pay now':'btn_submit',
+  'Reservation ID':'lbl_booking_id','Reservation nr.':'lbl_booking_id','Reservation Nr.':'lbl_booking_id',
+  'Reservation number':'lbl_booking_id','Reservation Number':'lbl_booking_id',
+  'Adults':'lbl_adults','Nights':'lbl_nights','Checkin':'lbl_checkin','Checkout':'lbl_checkout',
+  'Check-in':'lbl_checkin','Check-out':'lbl_checkout',
+  'Guest Name':'lbl_guest','Guest name':'lbl_guest','Villa':'lbl_villa'
+};
+function translateCaspioEmbed(){
+  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
+  var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while((node=walker.nextNode())){
+    var raw=node.nodeValue||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt) continue;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var translated=t(key);
+      if(translated&&translated!==key&&translated!==txt){
+        node.nodeValue=translated+(raw.includes('*')?' *':'');
+      }
+    }
+  }
+  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
+    var lbl=t('btn_submit');
+    if(el.tagName==='INPUT') el.value=lbl; else el.textContent=lbl;
+  });
+  wrap.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
+    var ph=el.getAttribute('placeholder')||'';
+    var key=CASPIO_MAP[ph];
+    if(key){var tr=t(key);if(tr&&tr!==key)el.placeholder=tr;}
+  });
+  wrap.querySelectorAll('td,th,span,div,p,label,legend,caption').forEach(function(el){
+    if(el.children.length>0) return;
+    var raw=el.textContent||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt||txt.length>60) return;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var tr=t(key);
+      if(tr&&tr!==key&&tr!==txt) el.textContent=tr+(raw.includes('*')?' *':'');
+    }
+  });
+  var prev=wrap.getAttribute('data-translated');
+  wrap.setAttribute('data-translated',_currentLang);
+  if(prev!==_currentLang){
+    setTimeout(function(){
+      if(wrap.getAttribute('data-translated')===_currentLang) translateCaspioEmbed();
+    },1500);
+  }
+}
+
+/* ══ OBSERVER PERMANENTE DEL EMBED ══ */
+var _embedObserver=null, _translateTimer=null;
+function installEmbedObserver(){
+  if(_embedObserver) return;
+  var wrap=$('caspioPay');
+  if(!wrap||!window.MutationObserver) return;
+  _embedObserver=new MutationObserver(function(mutations){
+    var hasChanges=false, successDetected=false;
+    mutations.forEach(function(m){
+      m.addedNodes.forEach(function(node){
+        var txt=(node.textContent||'');
+        if(txt.includes('have been paid')||txt.includes('successfully paid')||
+           txt.includes('ha sido pagado')||txt.includes('COBRADO')||
+           txt.includes('Thank you')){
+          successDetected=true;
+        }
+      });
+      if(m.addedNodes.length||m.characterData) hasChanges=true;
+    });
+    if(successDetected){ setTimeout(onPaymentSuccess,1200); return; }
+    if(hasChanges){
+      clearTimeout(_translateTimer);
+      _translateTimer=setTimeout(function(){translateCaspioEmbed();},80);
+    }
+  });
+  _embedObserver.observe(wrap,{childList:true,subtree:true,characterData:true});
+}
+
+var _pollInterval=null;
+function startEmbedTranslationPolling(){
+  if(_pollInterval) clearInterval(_pollInterval);
+  var attempts=0;
+  _pollInterval=setInterval(function(){
+    attempts++;
+    var wrap=$('caspioPay');
+    if(!wrap||!wrap.children.length){
+      if(attempts>=60) clearInterval(_pollInterval);
+      return;
+    }
+    installEmbedObserver();
+    translateCaspioEmbed();
+    clearInterval(_pollInterval);
+    _pollInterval=null;
+  },200);
+}
+
+/* ════ GUARDADO EN CASPIO (patrón dual huésped/admin igual que checkin-deposit) ════ */
+async function saveFields(fields){
+  var code=_code||'';
+  if(!code) throw new Error('Booking code not found');
+  var sess=null;
+  try{var s=localStorage.getItem('3v_checkin_auth'); if(s) sess=JSON.parse(s);}catch(e){}
+  var pin=sess&&sess.pin?sess.pin:'';
+  var res;
+  if(pin){
+    res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingCode:code, pin:pin, fields:fields})});
+  } else if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()){
+    var where="FS_confirmation_code='"+code+"'";
+    var url=Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
+    res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+  } else {
+    throw new Error('No active session. Please verify your identity first.');
+  }
+  if(!res.ok){var e=await res.json().catch(function(){return{};}); throw new Error(e.Message||e.error||'Error '+res.status);}
+  return true;
+}
+
+/* ── Premium SIN pagar: marcar igual que el security waiver en checkin-deposit ── */
+async function savePremium(){
+  if(_isSaving) return;
+  _isSaving=true;
+  var btn=$('btnPrem'); if(btn){btn.disabled=true; btn.textContent='…';}
+  hideErr();
+  try{
+    // Igual que seleccionar waiver en checkin-deposit: Security_deposit_options = 1
+    // + marcar la selección Premium en el campo Yes/No checkin_premium
+    await saveFields({ checkin_premium:'Yes', Security_deposit_options:1 });
+    goBack();
+  }catch(err){
+    showErr('Error: '+err.message);
+    _isSaving=false;
+    if(btn){btn.disabled=false; btn.textContent=t('btn_prem_save');}
+  }
+}
+
+/* ── Estándar: cerrar y volver a checkin-online (sin marcar premium) ── */
+async function saveStandard(){
+  if(_isSaving) return;
+  _isSaving=true;
+  var btn=$('btnStd'); if(btn){btn.disabled=true; btn.textContent='…';}
+  hideErr();
+  try{
+    await saveFields({ checkin_premium:'No' });
+  }catch(err){
+    // No bloquear la vuelta por un fallo de guardado del flag
+  }
+  goBack();
+}
+
+/* ── Pago Premium completado: depósito y tasa terminados ── */
+async function onPaymentSuccess(){
+  try{
+    await saveFields({
+      checkin_premium:'Yes',
+      Security_deposit_options:1,
+      Security_deposit_terminado:'Yes',
+      Deposit_waver_cobrado:1,
+      Ecotasa_cobrada:1
+    });
+  }catch(e){ /* el embed Caspio ya ha registrado el pago; el flag se reintenta visualmente */ }
+  showSuccess();
+}
+
+function showSuccess(){
+  $('stLoad').style.display='none';
+  $('pop').style.display='none';
+  $('stSuccess').style.display='flex';
+  document.querySelectorAll('#stSuccess [data-i18n]').forEach(function(el){
+    el.textContent=t(el.getAttribute('data-i18n'));
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function showErr(msg){
+  var e=$('formErr'); if(e){e.textContent=msg; e.style.display='block'; e.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+function hideErr(){ var e=$('formErr'); if(e) e.style.display='none'; }
+
+/* ── Cerrar pop-up y volver a checkin-online ── */
+function goBack(){
+  var qs='?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code||'');
+  // Si está embebido en un iframe/modal, intentar cerrar vía postMessage al padre
+  try{
+    if(window.parent&&window.parent!==window){
+      window.parent.postMessage({type:'checkin-premium-close', code:_code},'*');
+      return;
+    }
+  }catch(e){}
+  window.location.href='checkin-online.html'+qs;
+}
+
+/* ════ RENDER ════ */
+var _renderDone=false;
+function render(r){
+  if(_renderDone) return;
+  _renderDone=true;
+  _booking=r;
+  initLang();
+  $('stLoad').style.display='none';
+  $('pop').style.display='block';
+}
+
+/* ════ BOOT ════ */
+(function(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  _currentLang=lang;
+  var sel=$('langSel'); if(sel) sel.value=lang;
+  var htmlKeys=['prem_f1','std_f1'];
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var k=el.getAttribute('data-i18n');
+    if(htmlKeys.indexOf(k)>=0) el.innerHTML=t(k);
+    else el.textContent=t(k);
+  });
+})();
+
+if(typeof CheckinAuth==='undefined'){
+  $('stLoad').innerHTML='<div style="text-align:center;padding:40px">'+
+    '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
+    '<p style="font-weight:800;color:#C8102E;font-family:Montserrat,sans-serif">Error: checkin-auth.js not found</p></div>';
+}else{
+  CheckinAuth.init({
+    onVerified:function(booking){
+      _code=CheckinAuth.getCode();
+      _booking=booking;
+      render(booking);
+    }
+  });
+}
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v1 - Página pop-up comparativa Check-in Estándar vs Premium. Sin cabecera ni progress track. Premium muestra waiver (Deposit_waver_EUR) + ecotasa (Ecotasa_final) con embed Caspio /emb igual que checkin-taxes; al pagar marca Security_deposit_terminado, Deposit_waver_cobrado, Ecotasa_cobrada y checkin_premium=Yes; al confirmar Premium sin pagar guarda Security_deposit_options=1 + checkin_premium=Yes (igual que seleccionar waiver en checkin-deposit). Estándar guarda checkin_premium=No, cierra y vuelve a checkin-online. i18n 8 idiomas, guardado dual huésped(pin)/admin(Auth), cierre vía postMessage al padre si está embebido o redirección a checkin-online. -->
