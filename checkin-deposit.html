@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v6 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Security Deposit v6 — 3Villas</title>
+  <title>Security Deposit v7 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -34,6 +34,14 @@
     .hdr-tab.keys.done-tab{background:var(--green);color:#fff;border-color:var(--green)}
     .info-ico{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center}
     .hdr-steps-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--gray-4);margin:12px 0 8px;text-align:center;display:none}
+    .prem-row{display:none;justify-content:flex-end;margin:6px 0 0}
+    .prem-row.show{display:flex}
+    .prem-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:12px;background:#B8860B;color:#fff;cursor:pointer;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;letter-spacing:.3px;transition:filter .15s}
+    .prem-btn:hover{filter:brightness(.93)}
+    #premOverlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px}
+    #premOverlay.open{display:flex}
+    .prem-sheet{position:relative;width:min(96vw,600px);height:min(90vh,820px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3)}
+    .prem-iframe{width:100%;height:100%;border:none;display:block}
     .progress-track{display:flex;align-items:center;margin-bottom:20px;max-width:300px;margin-left:auto;margin-right:auto}
     .pt-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
     .pt-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;position:relative;text-decoration:none}
@@ -137,6 +145,9 @@
         <span id="hdrTabInfoLbl">Info</span>
       </a>
       <a class="hdr-tab keys" id="hdrTabKeys" href="#">🔑 <span id="hdrTabKeysLbl">Keys</span></a>
+    </div>
+    <div class="prem-row" id="premRow">
+      <button class="prem-btn" id="premBtn" onclick="openCheckinPremium()">★ Premium</button>
     </div>
     <div class="hdr-steps-lbl" id="hdrStepsLbl">4 Steps</div>
     <div class="progress-track" id="hdrSteps" style="display:none;margin-bottom:8px">
@@ -447,7 +458,14 @@ function render(r){
   var s3=isTruthy(r['TaBookings2021_Security_deposit_terminado']);
   var s4=isTruthy(r['TaBookings2021_Ecotasa_cobrada']);
   var ce=encodeURIComponent(code);
-  var qs='?TaBookings2021_FS_confirmation_code='+ce;
+  var qs='?reserva='+ce;
+
+  // ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ──
+  window._chkCode=code;
+  var _isPrem=isTruthy(r['TaBookings2021_checkin_premium']||r['checkin_premium']);
+  var _premRow=$('premRow');
+  if(_premRow){ if(_isPrem) _premRow.classList.add('show'); else _premRow.classList.remove('show'); }
+
   var pgs=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
   var st=[s1,s2,s3,s4];
   for(var i=1;i<=4;i++){
@@ -474,6 +492,25 @@ function render(r){
   $('stLoad').style.display='none';
   $('content').style.display='block';
 }
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+window.addEventListener('message', function(e){
+  if(e && e.data && e.data.type==='checkin-premium-close') closeCheckinPremium();
+});
 
 /* ════ GUARDAR ════ */
 async function guardar(){
@@ -521,7 +558,7 @@ async function guardar(){
     if(!res.ok){var e=await res.json(); throw new Error(e.Message||e.error||'Error '+res.status);}
 
     // Redirigir a checkin-online
-    var qs='?TaBookings2021_FS_confirmation_code='+encodeURIComponent(code);
+    var qs='?reserva='+encodeURIComponent(code);
     window.location.href='checkin-online.html'+qs;
 
   }catch(err){
@@ -551,6 +588,11 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v6 - Fix Auth: usar Auth.token() en lugar de Auth.isLoggedIn() (no existe) | v5 - Añadir auth.js para que Admin pueda guardar sin pin de huésped | v4 - Fix guardar: pin de sesión primero, Auth como fallback para admin; sin "Session expired" para admin | v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
+<!-- HISTORIAL: v7 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces del header y redirección de guardado pasan a ?reserva= | v6 - Fix Auth: usar Auth.token() en lugar de Auth.isLoggedIn() (no existe) | v5 - Añadir auth.js para que Admin pueda guardar sin pin de huésped | v4 - Fix guardar: pin de sesión primero, Auth como fallback para admin; sin "Session expired" para admin | v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
+<div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
+  <div class="prem-sheet">
+    <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
+  </div>
+</div>
 </body>
 </html>
