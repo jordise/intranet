@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v46 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v47 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Arrival Form v46 — 3Villas</title>
+  <title>Arrival Form v47 — 3Villas</title>
   <!-- checkin-arrival.html v1 — 28/05/2026
        Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
        Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
@@ -56,6 +56,14 @@
     .info-ico svg{width:16px;height:16px}
     .hdr-steps-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;
       color:var(--gray-4);margin:12px 0 8px;text-align:center;display:none}
+    .prem-row{display:none;justify-content:flex-end;margin:6px 0 0}
+    .prem-row.show{display:flex}
+    .prem-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:12px;background:#B8860B;color:#fff;cursor:pointer;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;letter-spacing:.3px;transition:filter .15s}
+    .prem-btn:hover{filter:brightness(.93)}
+    #premOverlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px}
+    #premOverlay.open{display:flex}
+    .prem-sheet{position:relative;width:min(96vw,600px);height:min(90vh,820px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3)}
+    .prem-iframe{width:100%;height:100%;border:none;display:block}
     /* Progress track */
     .progress-track{display:flex;align-items:center;margin-bottom:20px;
       max-width:300px;margin-left:auto;margin-right:auto}
@@ -229,6 +237,9 @@
       <a class="hdr-tab keys" id="hdrTabKeys" href="#">
         🔑 <span id="hdrTabKeysLbl">Keys</span>
       </a>
+    </div>
+    <div class="prem-row" id="premRow">
+      <button class="prem-btn" id="premBtn" onclick="openCheckinPremium()">★ Premium</button>
     </div>
     <div class="hdr-steps-lbl" id="hdrStepsLbl">4 Steps</div>
     <div class="progress-track" id="hdrSteps" style="display:none;margin-bottom:8px">
@@ -927,7 +938,12 @@ function render(r){
   var _s4=!!(r['TaBookings2021_Ecotasa_cobrada']&&['1','-1','true'].includes(String(r['TaBookings2021_Ecotasa_cobrada']).toLowerCase()));
   /* Actualizar círculos y links */
   var _ce=encodeURIComponent(_code);
-  var _qs='?TaBookings2021_FS_confirmation_code='+_ce;
+  var _qs='?reserva='+_ce;
+
+  /* ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ── */
+  window._chkCode=_code;
+  var _isPrem=!!(r['TaBookings2021_checkin_premium']&&['1','-1','true','yes','sí','si'].includes(String(r['TaBookings2021_checkin_premium']).toLowerCase().trim()));
+  var _pr=$('premRow'); if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
   var _pages=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
   var _states=[_s1,_s2,_s3,_s4];
   for(var _i=1;_i<=4;_i++){
@@ -944,6 +960,25 @@ function render(r){
     if(_s1&&_s2&&_s3&&_s4) _tk.classList.add('done-tab');
   }
 }
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+window.addEventListener('message', function(e){
+  if(e && e.data && e.data.type==='checkin-premium-close') closeCheckinPremium();
+});
 
 /* ════ SUBMIT ════ */
 var _toastTimer=null;
@@ -1031,7 +1066,7 @@ async function submitForm(){
     $('submitBar').style.display='none';
     window.scrollTo({top:0,behavior:'smooth'});
     setTimeout(function(){
-      var _qs='?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code);
+      var _qs='?reserva='+encodeURIComponent(_code);
       window.location.href='checkin-online.html'+_qs;
     }, 1500);
   }catch(err){
@@ -1086,6 +1121,11 @@ if(typeof CheckinAuth==='undefined'){
   </svg>
 </a>
   <div id="errToast"></div>
+<div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
+  <div class="prem-sheet">
+    <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
+  </div>
+</div>
 </body>
 </html>
 <!-- checkin-arrival.html v1 — 28/05/2026
@@ -1098,4 +1138,4 @@ if(typeof CheckinAuth==='undefined'){
      Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
      Mismo diseño y tipografía Montserrat que checkin-online v33.
      Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v46 - Fix adultos: precarga desde Guest_adults_nr_form con fallback Adults; parseInt() al guardar | v45 - btn_back → "Continuar con el check-in" en 8 idiomas; submitBar oculto en pantalla de éxito | v44 - Tras guardar: muestra éxito 1.5s y redirige a checkin-online | v43 - Fix campo: Guest_ages_form → Guest_adults_ages_form | v42 - Errores como toast flotante (bottom center, fijo) en lugar de formErr estático | v41 - Error de save movido junto al botón Guardar con scrollIntoView para que siempre sea visible | v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
+<!-- HISTORIAL: v47 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces del header (círculos 1-4 y tabs) y redirección tras guardar pasan a ?reserva= | v46 - Fix adultos: precarga desde Guest_adults_nr_form con fallback Adults; parseInt() al guardar | v45 - btn_back → "Continuar con el check-in" en 8 idiomas; submitBar oculto en pantalla de éxito | v44 - Tras guardar: muestra éxito 1.5s y redirige a checkin-online | v43 - Fix campo: Guest_ages_form → Guest_adults_ages_form | v42 - Errores como toast flotante (bottom center, fijo) en lugar de formErr estático | v41 - Error de save movido junto al botón Guardar con scrollIntoView para que siempre sea visible | v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
