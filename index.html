@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
+<!-- VERSIÓN ACTUAL: v06 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ══ v06: base explícita → todos los recursos relativos resuelven SIEMPRE contra /intranet/ ══ -->
+  <base href="https://www.3villas.com/intranet/">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -10,8 +13,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Menú — 3Villas v05</title>
+  <!-- ══ v06: limpieza de Service Workers erróneos (antes registraba /3villas-manuals/sw.js,
+       que pertenece al sitio Next.js y secuestraba la navegación redirigiendo a /es/3villas-manuals → 404).
+       Ya NO se registra ningún SW aquí; además se desregistran los que hubieran quedado cacheados. ══ -->
+  <script>
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations()
+      .then(function(regs){ regs.forEach(function(r){ r.unregister(); }); })
+      .catch(function(){});
+  }
+  </script>
+  <title>Menú — 3Villas v06</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -140,33 +152,6 @@
     .user-pill{display:inline-flex;align-items:center;gap:6px;background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:20px;padding:5px 14px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-4)}
     .user-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
 
-    /* ══ BOTTOM NAV ══ */
-    .bottom-nav{
-      position:fixed;bottom:0;left:0;right:0;z-index:200;
-      background:#fff;border-top:1.5px solid var(--gray-2);
-      box-shadow:0 -4px 20px rgba(0,0,0,.08);
-      display:flex;align-items:stretch;
-      padding-bottom:env(safe-area-inset-bottom,0px);
-    }
-    .bn-item{
-      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:4px;padding:10px 4px 8px;text-decoration:none;color:var(--gray-4);
-      font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.4px;
-      transition:color .15s,background .15s;cursor:pointer;
-      border:none;background:none;
-      position:relative;
-    }
-    .bn-item:hover,.bn-item.active{color:var(--red)}
-    .bn-item.active::after{
-      content:'';position:absolute;top:0;left:20%;right:20%;
-      height:2.5px;background:var(--red);border-radius:0 0 3px 3px;
-    }
-    .bn-item svg{flex-shrink:0}
-    /* Separador intranet */
-    .bn-sep{width:1px;background:var(--gray-2);margin:10px 0;flex-shrink:0}
-
-    
     /* ── Menú lateral — diseño oscuro nav-component ── */
   </style>
   <script src="auth.js"></script>
@@ -292,3 +277,27 @@ document.addEventListener('DOMContentLoaded', function(){
 
 </body>
 </html>
+
+<!--
+═══════════════════════════════════════════════════════════════════════
+ HISTORIAL DE VERSIONES — index.html
+═══════════════════════════════════════════════════════════════════════
+ v06 (actual)
+   · FIX CRÍTICO de redirección a /es/3villas-manuals → 404:
+     - Se ELIMINA el registro del Service Worker '/3villas-manuals/sw.js'.
+       Ese SW pertenece al sitio Next.js principal y secuestraba la
+       navegación de /intranet/, redirigiendo a /es/3villas-manuals (404).
+       Como se re-registraba en cada visita exitosa, limpiar caché no
+       bastaba: el problema reaparecía. Ahora, en su lugar, el código
+       DESREGISTRA cualquier SW que hubiera quedado activo.
+     - Se añade <base href="https://www.3villas.com/intranet/"> para que
+       auth.js, nav.js, nav-component.js y demás recursos relativos
+       resuelvan SIEMPRE contra /intranet/, evitando los 404 de tipo
+       GET /3villas-manuals/auth.js y el subsiguiente "Auth is not defined".
+   · Sin cambios de diseño ni de estructura de menú.
+ v05
+   · Versión previa: menú principal de la intranet (Entradas, Villas,
+     Tareas, Contactos), bottom-nav, user pill. Registraba el SW
+     erróneo en /3villas-manuals/sw.js (origen del bug corregido en v06).
+═══════════════════════════════════════════════════════════════════════
+-->
