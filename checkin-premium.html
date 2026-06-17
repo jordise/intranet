@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Checkin Premium v1 — 3Villas</title>
+  <title>Checkin Premium v2 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ══ Variables ══ */
@@ -180,6 +180,45 @@
     .succ-sub{font-size:13px;color:var(--gray-4);font-weight:500;line-height:1.55;max-width:340px;margin-bottom:24px}
     .succ-btn{display:inline-block;padding:12px 28px;background:var(--red);color:#fff;
       border-radius:10px;text-decoration:none;font-weight:900;font-size:14px;border:none;cursor:pointer}
+
+    /* ══ Botón info (ℹ) en feature ══ */
+    .info-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:20px;height:20px;border-radius:50%;
+      background:#1a73e8;color:#fff;
+      font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;
+      border:none;cursor:pointer;flex-shrink:0;margin-left:6px;vertical-align:middle;
+    }
+    .info-btn:hover{background:#1557b0}
+
+    /* ══ POPUP DRAGGABLE (centrado, arrastrable) — estilo manual-villa ══ */
+    #infoPopup{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.35)}
+    #infoPopup.open{display:block}
+    .popup-sheet{
+      position:fixed;background:var(--gray-0);border-radius:14px;
+      width:min(92vw,560px);max-height:80vh;display:flex;flex-direction:column;
+      box-shadow:0 8px 40px rgba(0,0,0,.22);cursor:default;user-select:none;
+    }
+    .popup-drag-bar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px 10px;border-bottom:1px solid var(--gray-2);
+      cursor:grab;flex-shrink:0;border-radius:14px 14px 0 0;
+    }
+    .popup-drag-bar:active{cursor:grabbing}
+    .popup-handle{width:36px;height:4px;background:var(--gray-3);border-radius:2px;margin:0 auto;pointer-events:none}
+    .popup-close{
+      background:none;border:none;font-size:24px;color:var(--gray-4);cursor:pointer;
+      line-height:1;padding:8px;margin:-8px;flex-shrink:0;min-width:44px;min-height:44px;
+      display:flex;align-items:center;justify-content:center;position:relative;z-index:20;
+      -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+    }
+    .popup-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);flex:1;margin:0 12px}
+    .popup-content{overflow-y:auto;padding:16px 20px 24px;border-radius:0 0 14px 14px}
+    .popup-body{font-size:14px;color:var(--gray-5);line-height:1.7}
+    .popup-body h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin:16px 0 6px}
+    .popup-body ul{padding-left:18px;margin:6px 0}
+    .popup-body ul li{margin-bottom:6px}
+    .popup-body p{margin-bottom:8px}
   </style>
 </head>
 <body>
@@ -235,10 +274,11 @@
           </div>
         </div>
         <ul class="feat-list">
-          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f1"><strong>NO SECURITY DEPOSIT</strong></span></li>
-          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f2">Stay insurance included</span></li>
-          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f3">FREE crib &amp; high chair (if travelling with a baby)</span></li>
-          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f4">Instant access to the 3Villas Club (exclusive promotions)</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f1">NO SECURITY DEPOSIT</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span><span data-i18n="prem_f2">Damage liability waiver</span><button class="info-btn" onclick="event.stopPropagation();showInfoPopup('exclusion')">i</button></span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f3">Welcome pack</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f4">FREE crib &amp; high chair (if travelling with a baby)</span></li>
+          <li class="feat"><span class="feat-ico pos">✓</span><span data-i18n="prem_f5">Instant access to the 3Villas Club (exclusive promotions)</span></li>
         </ul>
 
         <!-- Detalle de pago (solo si Premium seleccionado) -->
@@ -292,8 +332,9 @@
         <ul class="feat-list">
           <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f1">Deposit hold on your card</span></li>
           <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f2">Liability for any incident</span></li>
-          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f3">Extra charge for crib or high chair</span></li>
-          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f4">Regular rate in the future</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f3">No welcome pack</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f4">Extra charge for crib or high chair</span></li>
+          <li class="feat"><span class="feat-ico neg">✕</span><span data-i18n="std_f5">Regular rate in the future</span></li>
         </ul>
       </div>
 
@@ -310,6 +351,20 @@
   </div><!-- /.page-wrap -->
 </div><!-- /#pop -->
 
+<!-- ══ INFO POPUP (estilo manual-villa) ══ -->
+<div id="infoPopup" onclick="if(event.target===this||event.target.id==='infoPopup')closePopup()">
+  <div class="popup-sheet" id="popupSheet">
+    <div class="popup-drag-bar" id="popupDragBar">
+      <div class="popup-handle"></div>
+      <div class="popup-title" id="popupTitle"></div>
+      <button class="popup-close" onclick="closePopup()">&times;</button>
+    </div>
+    <div class="popup-content">
+      <div class="popup-body" id="popupBody"></div>
+    </div>
+  </div>
+</div>
+
 <script src="checkin-auth.js"></script>
 <script>
 
@@ -325,19 +380,21 @@ var LANG={};
 LANG.en={
   loading:'Loading…',
   bar_title:'Check-in Options',
-  intro_title:'Check-in Options Comparison',
+  intro_title:'Check-in Options',
   intro_sub:'Choose the option that best fits your stay.',
   prem_title:'Premium Check-in', prem_badge:'Recommended',
   prem_tagline:'All the perks, none of the hassle.',
-  prem_f1:'<strong>NO SECURITY DEPOSIT</strong>',
-  prem_f2:'Stay insurance included',
-  prem_f3:'FREE crib & high chair (if travelling with a baby)',
-  prem_f4:'Instant access to the 3Villas Club (exclusive promotions)',
+  prem_f1:'NO SECURITY DEPOSIT',
+  prem_f2:'Damage liability waiver',
+  prem_f3:'Welcome pack',
+  prem_f4:'FREE crib & high chair (if travelling with a baby)',
+  prem_f5:'Instant access to the 3Villas Club (exclusive promotions)',
   std_title:'Standard Check-in', std_tagline:'The regular option.',
   std_f1:'Deposit hold on your card',
   std_f2:'Liability for any incident',
-  std_f3:'Extra charge for crib or high chair',
-  std_f4:'Regular rate in the future',
+  std_f3:'No welcome pack',
+  std_f4:'Extra charge for crib or high chair',
+  std_f5:'Regular rate in the future',
   lbl_total:'Total due',
   all_paid_title:'Premium already active!',
   all_paid_sub:'There are no pending charges for your Premium check-in.',
@@ -345,8 +402,10 @@ LANG.en={
   btn_prem_save:'Confirm Premium', btn_std_save:'Continue with Standard',
   ok_title:'Payment received!', ok_sub:'Thank you. Your Premium check-in is confirmed.',
   btn_back:'Back to check-in',
-  item_waiver:'Security Deposit Waiver', item_ecotasa:'Tourist Tax',
+  item_waiver:'Premium Check-in', item_ecotasa:'Tourist Tax',
   status_paid:'Paid',
+  exclusion_title:'Damage liability waiver',
+  exclusion_body:"<p>It covers accidental, unintentional and minor damage that happens during everyday use of the property. It is designed so a small slip does not ruin the guest's holiday or cost them their deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental household breakages:</strong> dropped plates, glasses or wine glasses, broken mugs, or lost cutlery.</li><li><strong>Textile incidents:</strong> accidental, impossible-to-remove stains on towels, sheets, sofas or rugs (e.g. wine, coffee or oil spills).</li><li><strong>Minor wear-and-tear damage:</strong> a key that snaps inside the lock, an accidentally broken remote control, or an accidental knock that damages a decorative item.</li><li><strong>Everyday-use breakdowns:</strong> if a blind or window jams or breaks during normal use, or a small appliance (toaster, kettle) is damaged through common use.</li></ul><h4>What it does NOT include (the necessary exclusions)</h4><p>It is vital to clarify this is not a \u201cblank cheque\u201d to wreck the villa. It does not cover:</p><ul><li><strong>Vandalism or intentional damage:</strong> breaking something on purpose or through violent behaviour.</li><li><strong>Gross negligence or recklessness:</strong> leaving windows open during a storm causing flooding, or locking the keys inside forcing an emergency locksmith call through carelessness.</li><li><strong>Lost keys or garage remotes:</strong> usually charged separately due to reprogramming costs.</li><li><strong>Theft:</strong> if items go missing from the house (TVs, decor, towels) at the end of the stay.</li><li><strong>Breach of house rules:</strong> damage caused by smoking indoors, bringing unauthorised pets or holding prohibited parties.</li><li><strong>Extreme dirt:</strong> it does not cover extra cleaning hours if the house is left in a deplorable state.</li></ul>",
   cc_number:'Card number', cc_expiry:'Expiration date', cc_cvv:'Security code',
   btn_submit:'Pay now', lbl_booking_id:'Booking ID', lbl_guest:'Guest', lbl_villa:'Property',
   lbl_adults:'Adults', lbl_nights:'Nights', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
@@ -354,19 +413,21 @@ LANG.en={
 LANG.es={
   loading:'Cargando…',
   bar_title:'Opciones de Check-in',
-  intro_title:'Comparativa de Opciones de Check-in',
+  intro_title:'Opciones de Check-in',
   intro_sub:'Elige la opción que mejor se adapte a tu estancia.',
   prem_title:'Check-in Premium', prem_badge:'Recomendado',
   prem_tagline:'Todas las ventajas, sin complicaciones.',
-  prem_f1:'<strong>SIN DEPÓSITO DE SEGURIDAD</strong>',
-  prem_f2:'Seguro de estancia incluido',
-  prem_f3:'Cuna y trona GRATIS (si viajas con bebé)',
-  prem_f4:'Acceso inmediato al Club 3Villas (promociones exclusivas)',
+  prem_f1:'SIN DEPÓSITO DE SEGURIDAD',
+  prem_f2:'Exclusión de responsabilidad por daños',
+  prem_f3:'Welcome pack',
+  prem_f4:'Cuna y trona GRATIS (si viajas con bebé)',
+  prem_f5:'Acceso inmediato al Club 3Villas (promociones exclusivas)',
   std_title:'Check-in Estándar', std_tagline:'La opción habitual.',
   std_f1:'Retención de depósito con tarjeta',
   std_f2:'Responsabilidad ante cualquier imprevisto',
-  std_f3:'Cargo extra por cuna o trona',
-  std_f4:'Tarifa regular en el futuro',
+  std_f3:'Sin welcome pack',
+  std_f4:'Cargo extra por cuna o trona',
+  std_f5:'Tarifa regular en el futuro',
   lbl_total:'Total pendiente',
   all_paid_title:'¡Premium ya activo!',
   all_paid_sub:'No hay cargos pendientes para tu check-in Premium.',
@@ -374,164 +435,190 @@ LANG.es={
   btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar con Estándar',
   ok_title:'¡Pago recibido!', ok_sub:'Gracias. Tu check-in Premium está confirmado.',
   btn_back:'Volver al check-in',
-  item_waiver:'Waiver Depósito', item_ecotasa:'Tasa Turística',
+  item_waiver:'Checkin Premium', item_ecotasa:'Tasa Turística',
   status_paid:'Pagado',
+  exclusion_title:'Exclusión de responsabilidad por daños',
+  exclusion_body:"<p><strong>¿Qué incluye la Exclusión de responsabilidad por daños?</strong></p><p>Cubre los daños accidentales, involuntarios y menores que ocurren en el día a día de una estancia. Está pensada para que un pequeño despiste no arruine las vacaciones del cliente ni le cueste su depósito.</p><ul><li><strong>Roturas accidentales en el hogar:</strong> Platos, vasos o copas que se caen, tazas rotas, o cubiertos que se pierden.</li><li><strong>Incidentes con textiles:</strong> Manchas accidentales e imposibles de quitar en toallas, sábanas, sofás o alfombras (por ejemplo, derrame de vino, café o aceite).</li><li><strong>Desperfectos menores por uso:</strong> Una llave que se rompe dentro de la cerradura, la rotura accidental de un mando a distancia, o un golpe fortuito que daña un elemento decorativo.</li><li><strong>Averías por uso cotidiano:</strong> Si al cerrar una persiana o ventana de forma normal esta se atasca o rompe, o si se daña un electrodoméstico pequeño (como la tostadora o el hervidor) por un uso común.</li></ul><h4>¿Qué NO incluye? (Las exclusiones necesarias)</h4><p>Es vital aclarar que esto no es una \u201ccarta blanca\u201d para destrozar la villa. No cubre:</p><ul><li><strong>Actos de vandalismo o daños intencionados:</strong> Romper algo a propósito o por comportamiento violento.</li><li><strong>Negligencia grave o imprudencia:</strong> Dejar las ventanas abiertas durante una tormenta provocando inundaciones, o dejarse las llaves puestas por dentro obligando a llamar a un cerrajero de urgencia por descuido.</li><li><strong>Pérdida de llaves o mandos de garaje:</strong> Normalmente se cobra aparte debido al coste de reprogramación.</li><li><strong>Robo o hurto:</strong> Si faltan objetos de la casa (televisores, decoración, toallas) al terminar la estancia.</li><li><strong>Incumplimiento de las normas de la casa:</strong> Daños causados por fumar dentro de la propiedad, por meter mascotas no autorizadas o por celebrar fiestas prohibidas.</li><li><strong>Suciedad extrema:</strong> No cubre las horas de limpieza extra si la casa se deja en condiciones deplorables.</li></ul>",
   cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
   btn_submit:'Pagar ahora', lbl_booking_id:'ID de reserva', lbl_guest:'Huésped', lbl_villa:'Propiedad',
   lbl_adults:'Adultos', lbl_nights:'Noches', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
 };
 LANG.fr={
   loading:'Chargement…', bar_title:'Options de check-in',
-  intro_title:'Comparatif des options de check-in',
+  intro_title:'Options de check-in',
   intro_sub:'Choisissez l’option qui convient le mieux à votre séjour.',
   prem_title:'Check-in Premium', prem_badge:'Recommandé',
   prem_tagline:'Tous les avantages, sans contraintes.',
-  prem_f1:'<strong>AUCUNE CAUTION</strong>',
-  prem_f2:'Assurance séjour incluse',
-  prem_f3:'Lit bébé et chaise haute GRATUITS (si vous voyagez avec un bébé)',
-  prem_f4:'Accès immédiat au Club 3Villas (promotions exclusives)',
+  prem_f1:'AUCUNE CAUTION',
+  prem_f2:'Exonération de responsabilité pour dommages',
+  prem_f3:'Welcome pack',
+  prem_f4:'Lit bébé et chaise haute GRATUITS (si vous voyagez avec un bébé)',
+  prem_f5:'Accès immédiat au Club 3Villas (promotions exclusives)',
   std_title:'Check-in Standard', std_tagline:'L’option habituelle.',
   std_f1:'Empreinte de caution sur votre carte',
   std_f2:'Responsabilité en cas d’imprévu',
-  std_f3:'Supplément pour lit bébé ou chaise haute',
-  std_f4:'Tarif normal à l’avenir',
+  std_f3:'Sans welcome pack',
+  std_f4:'Supplément pour lit bébé ou chaise haute',
+  std_f5:'Tarif normal à l’avenir',
   lbl_total:'Total dû', all_paid_title:'Premium déjà actif !',
   all_paid_sub:'Aucun frais en attente pour votre check-in Premium.',
   form_title:'Détails de la carte', modal_secure:'Sécurisé par Stripe',
   btn_prem_save:'Confirmer Premium', btn_std_save:'Continuer en Standard',
   ok_title:'Paiement reçu !', ok_sub:'Merci. Votre check-in Premium est confirmé.',
   btn_back:'Retour au check-in',
-  item_waiver:'Waiver caution', item_ecotasa:'Taxe touristique', status_paid:'Payé',
+  item_waiver:'Checkin Premium', item_ecotasa:'Taxe touristique', status_paid:'Payé',
+  exclusion_title:'Exonération de responsabilité pour dommages',
+  exclusion_body:"<p>Elle couvre les dommages accidentels, involontaires et mineurs survenant au quotidien pendant un séjour. Conçue pour qu’une petite étourderie ne gâche pas les vacances du client ni ne lui coûte sa caution.</p><h4>Ce qu’elle inclut</h4><ul><li><strong>Casses accidentelles à la maison :</strong> assiettes, verres ou coupes qui tombent, tasses cassées, couverts perdus.</li><li><strong>Incidents avec le linge :</strong> taches accidentelles et indélébiles sur serviettes, draps, canapés ou tapis (vin, café, huile).</li><li><strong>Dégâts mineurs liés à l’usage :</strong> une clé cassée dans la serrure, une télécommande cassée accidentellement, ou un choc fortuit endommageant un élément décoratif.</li><li><strong>Pannes d’usage courant :</strong> un volet ou une fenêtre qui se bloque ou casse lors d’un usage normal, ou un petit électroménager (grille-pain, bouilloire) endommagé par un usage courant.</li></ul><h4>Ce qu’elle n’inclut PAS (les exclusions nécessaires)</h4><p>Il est essentiel de préciser que ce n’est pas un « chèque en blanc » pour saccager la villa. Ne couvre pas :</p><ul><li><strong>Vandalisme ou dommages intentionnels :</strong> casser quelque chose exprès ou par comportement violent.</li><li><strong>Négligence grave ou imprudence :</strong> laisser les fenêtres ouvertes pendant une tempête provoquant une inondation, ou s’enfermer dehors par négligence.</li><li><strong>Perte de clés ou de télécommandes de garage :</strong> facturée à part en raison du coût de reprogrammation.</li><li><strong>Vol :</strong> si des objets de la maison disparaissent (téléviseurs, décoration, serviettes).</li><li><strong>Non-respect du règlement :</strong> dommages dus au tabac à l’intérieur, aux animaux non autorisés ou aux fêtes interdites.</li><li><strong>Saleté extrême :</strong> ne couvre pas les heures de nettoyage supplémentaires si la maison est laissée dans un état déplorable.</li></ul>",
   cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
   btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété',
   lbl_adults:'Adultes', lbl_nights:'Nuits', lbl_checkin:'Arrivée', lbl_checkout:'Départ'
 };
 LANG.de={
   loading:'Laden…', bar_title:'Check-in-Optionen',
-  intro_title:'Vergleich der Check-in-Optionen',
+  intro_title:'Check-in-Optionen',
   intro_sub:'Wählen Sie die für Ihren Aufenthalt passende Option.',
   prem_title:'Premium-Check-in', prem_badge:'Empfohlen',
   prem_tagline:'Alle Vorteile, kein Aufwand.',
-  prem_f1:'<strong>KEINE KAUTION</strong>',
-  prem_f2:'Aufenthaltsversicherung inklusive',
-  prem_f3:'GRATIS Babybett & Hochstuhl (bei Reise mit Baby)',
-  prem_f4:'Sofortiger Zugang zum 3Villas Club (exklusive Aktionen)',
+  prem_f1:'KEINE KAUTION',
+  prem_f2:'Haftungsausschluss für Schäden',
+  prem_f3:'Welcome pack',
+  prem_f4:'GRATIS Babybett & Hochstuhl (bei Reise mit Baby)',
+  prem_f5:'Sofortiger Zugang zum 3Villas Club (exklusive Aktionen)',
   std_title:'Standard-Check-in', std_tagline:'Die normale Option.',
   std_f1:'Kautionsreservierung auf Ihrer Karte',
   std_f2:'Haftung bei Zwischenfällen',
-  std_f3:'Aufpreis für Babybett oder Hochstuhl',
-  std_f4:'Normaltarif in Zukunft',
+  std_f3:'Ohne Welcome pack',
+  std_f4:'Aufpreis für Babybett oder Hochstuhl',
+  std_f5:'Normaltarif in Zukunft',
   lbl_total:'Fälliger Betrag', all_paid_title:'Premium bereits aktiv!',
   all_paid_sub:'Keine offenen Posten für Ihren Premium-Check-in.',
   form_title:'Kartendaten', modal_secure:'Gesichert durch Stripe',
   btn_prem_save:'Premium bestätigen', btn_std_save:'Mit Standard fortfahren',
   ok_title:'Zahlung erhalten!', ok_sub:'Danke. Ihr Premium-Check-in ist bestätigt.',
   btn_back:'Zurück zum Check-in',
-  item_waiver:'Kautions-Waiver', item_ecotasa:'Touristensteuer', status_paid:'Bezahlt',
+  item_waiver:'Checkin Premium', item_ecotasa:'Touristensteuer', status_paid:'Bezahlt',
+  exclusion_title:'Haftungsausschluss für Schäden',
+  exclusion_body:"<p>Deckt versehentliche, unbeabsichtigte und kleine Schäden ab, die im täglichen Gebrauch während eines Aufenthalts entstehen. So ruiniert ein kleines Versehen nicht den Urlaub des Gastes und kostet ihn nicht seine Kaution.</p><h4>Was enthalten ist</h4><ul><li><strong>Versehentliche Brüche im Haushalt:</strong> heruntergefallene Teller, Gläser oder Weingläser, zerbrochene Tassen oder verlorenes Besteck.</li><li><strong>Textil-Vorfälle:</strong> versehentliche, nicht entfernbare Flecken auf Handtüchern, Bettwäsche, Sofas oder Teppichen (z. B. Wein, Kaffee, Öl).</li><li><strong>Kleinere Gebrauchsschäden:</strong> ein im Schloss abgebrochener Schlüssel, eine versehentlich kaputte Fernbedienung oder ein zufälliger Stoß, der ein Dekoobjekt beschädigt.</li><li><strong>Defekte durch alltäglichen Gebrauch:</strong> wenn ein Rollladen oder Fenster bei normaler Nutzung klemmt oder bricht, oder ein Kleingerät (Toaster, Wasserkocher) durch üblichen Gebrauch beschädigt wird.</li></ul><h4>Was NICHT enthalten ist (die notwendigen Ausschlüsse)</h4><p>Es ist wichtig klarzustellen, dass dies kein „Freibrief\u201c ist, die Villa zu zerstören. Nicht abgedeckt:</p><ul><li><strong>Vandalismus oder vorsätzliche Schäden:</strong> absichtliches Zerstören oder gewalttätiges Verhalten.</li><li><strong>Grobe Fahrlässigkeit:</strong> bei Sturm offene Fenster, die zu Überschwemmungen führen, oder fahrlässiges Aussperren mit Notschlüsseldienst.</li><li><strong>Verlust von Schlüsseln oder Garagenfernbedienungen:</strong> wird wegen Neuprogrammierungskosten separat berechnet.</li><li><strong>Diebstahl:</strong> wenn am Ende des Aufenthalts Gegenstände fehlen (TVs, Deko, Handtücher).</li><li><strong>Verstoß gegen die Hausregeln:</strong> Schäden durch Rauchen im Innenraum, nicht erlaubte Haustiere oder verbotene Partys.</li><li><strong>Extreme Verschmutzung:</strong> deckt keine zusätzlichen Reinigungsstunden ab, wenn das Haus in einem desolaten Zustand hinterlassen wird.</li></ul>",
   cc_number:'Kartennummer', cc_expiry:'Ablaufdatum', cc_cvv:'Sicherheitscode',
   btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft',
   lbl_adults:'Erwachsene', lbl_nights:'Nächte', lbl_checkin:'Anreise', lbl_checkout:'Abreise'
 };
 LANG.it={
   loading:'Caricamento…', bar_title:'Opzioni di check-in',
-  intro_title:'Confronto delle opzioni di check-in',
+  intro_title:'Opzioni di check-in',
   intro_sub:'Scegli l’opzione più adatta al tuo soggiorno.',
   prem_title:'Check-in Premium', prem_badge:'Consigliato',
   prem_tagline:'Tutti i vantaggi, nessun pensiero.',
-  prem_f1:'<strong>NESSUN DEPOSITO CAUZIONALE</strong>',
-  prem_f2:'Assicurazione soggiorno inclusa',
-  prem_f3:'Culla e seggiolone GRATIS (se viaggi con un bebè)',
-  prem_f4:'Accesso immediato al Club 3Villas (promozioni esclusive)',
+  prem_f1:'NESSUN DEPOSITO CAUZIONALE',
+  prem_f2:'Esonero di responsabilità per danni',
+  prem_f3:'Welcome pack',
+  prem_f4:'Culla e seggiolone GRATIS (se viaggi con un bebè)',
+  prem_f5:'Accesso immediato al Club 3Villas (promozioni esclusive)',
   std_title:'Check-in Standard', std_tagline:'L’opzione abituale.',
   std_f1:'Blocco cauzione sulla carta',
   std_f2:'Responsabilità per eventuali imprevisti',
-  std_f3:'Costo extra per culla o seggiolone',
-  std_f4:'Tariffa normale in futuro',
+  std_f3:'Senza welcome pack',
+  std_f4:'Costo extra per culla o seggiolone',
+  std_f5:'Tariffa normale in futuro',
   lbl_total:'Totale dovuto', all_paid_title:'Premium già attivo!',
   all_paid_sub:'Nessun addebito in sospeso per il tuo check-in Premium.',
   form_title:'Dati della carta', modal_secure:'Protetto da Stripe',
   btn_prem_save:'Conferma Premium', btn_std_save:'Continua con Standard',
   ok_title:'Pagamento ricevuto!', ok_sub:'Grazie. Il tuo check-in Premium è confermato.',
   btn_back:'Torna al check-in',
-  item_waiver:'Waiver deposito', item_ecotasa:'Tassa di soggiorno', status_paid:'Pagato',
+  item_waiver:'Checkin Premium', item_ecotasa:'Tassa di soggiorno', status_paid:'Pagato',
+  exclusion_title:'Esonero di responsabilità per danni',
+  exclusion_body:"<p>Copre i danni accidentali, involontari e minori che avvengono nell’uso quotidiano di un soggiorno. È pensato perché una piccola distrazione non rovini la vacanza del cliente né gli costi la cauzione.</p><h4>Cosa include</h4><ul><li><strong>Rotture accidentali in casa:</strong> piatti, bicchieri o calici che cadono, tazze rotte o posate perse.</li><li><strong>Incidenti con i tessuti:</strong> macchie accidentali e impossibili da rimuovere su asciugamani, lenzuola, divani o tappeti (es. vino, caffè, olio).</li><li><strong>Danni minori da uso:</strong> una chiave che si rompe nella serratura, un telecomando rotto accidentalmente o un urto fortuito che danneggia un elemento decorativo.</li><li><strong>Guasti da uso quotidiano:</strong> se una persiana o finestra si blocca o rompe con uso normale, o un piccolo elettrodomestico (tostapane, bollitore) si danneggia per uso comune.</li></ul><h4>Cosa NON include (le esclusioni necessarie)</h4><p>È fondamentale chiarire che non è un \u201cassegno in bianco\u201d per distruggere la villa. Non copre:</p><ul><li><strong>Vandalismo o danni intenzionali:</strong> rompere qualcosa di proposito o per comportamento violento.</li><li><strong>Negligenza grave o imprudenza:</strong> lasciare le finestre aperte durante un temporale causando allagamenti, o chiudersi fuori per distrazione obbligando a un fabbro d’urgenza.</li><li><strong>Perdita di chiavi o telecomandi del garage:</strong> di norma addebitati a parte per il costo di riprogrammazione.</li><li><strong>Furto:</strong> se mancano oggetti della casa (TV, decorazioni, asciugamani) al termine del soggiorno.</li><li><strong>Violazione delle regole della casa:</strong> danni causati dal fumo all’interno, da animali non autorizzati o da feste vietate.</li><li><strong>Sporco estremo:</strong> non copre le ore di pulizia extra se la casa è lasciata in condizioni pessime.</li></ul>",
   cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
   btn_submit:'Paga ora', lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà',
   lbl_adults:'Adulti', lbl_nights:'Notti', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
 };
 LANG.nl={
   loading:'Laden…', bar_title:'Check-in-opties',
-  intro_title:'Vergelijking van check-in-opties',
+  intro_title:'Check-in-opties',
   intro_sub:'Kies de optie die het beste bij uw verblijf past.',
   prem_title:'Premium check-in', prem_badge:'Aanbevolen',
   prem_tagline:'Alle voordelen, zonder gedoe.',
-  prem_f1:'<strong>GEEN BORG</strong>',
-  prem_f2:'Verblijfsverzekering inbegrepen',
-  prem_f3:'GRATIS wieg & kinderstoel (bij reizen met een baby)',
-  prem_f4:'Directe toegang tot de 3Villas Club (exclusieve aanbiedingen)',
+  prem_f1:'GEEN BORG',
+  prem_f2:'Aansprakelijkheidsvrijstelling voor schade',
+  prem_f3:'Welcome pack',
+  prem_f4:'GRATIS wieg & kinderstoel (bij reizen met een baby)',
+  prem_f5:'Directe toegang tot de 3Villas Club (exclusieve aanbiedingen)',
   std_title:'Standaard check-in', std_tagline:'De gewone optie.',
   std_f1:'Borgreservering op uw kaart',
   std_f2:'Aansprakelijkheid bij incidenten',
-  std_f3:'Extra kosten voor wieg of kinderstoel',
-  std_f4:'Normaal tarief in de toekomst',
+  std_f3:'Zonder welcome pack',
+  std_f4:'Extra kosten voor wieg of kinderstoel',
+  std_f5:'Normaal tarief in de toekomst',
   lbl_total:'Te betalen', all_paid_title:'Premium al actief!',
   all_paid_sub:'Geen openstaande kosten voor uw Premium check-in.',
   form_title:'Kaartgegevens', modal_secure:'Beveiligd door Stripe',
   btn_prem_save:'Premium bevestigen', btn_std_save:'Doorgaan met Standaard',
   ok_title:'Betaling ontvangen!', ok_sub:'Bedankt. Uw Premium check-in is bevestigd.',
   btn_back:'Terug naar check-in',
-  item_waiver:'Borg-waiver', item_ecotasa:'Toeristenbelasting', status_paid:'Betaald',
+  item_waiver:'Checkin Premium', item_ecotasa:'Toeristenbelasting', status_paid:'Betaald',
+  exclusion_title:'Aansprakelijkheidsvrijstelling voor schade',
+  exclusion_body:"<p>Dekt accidentele, onopzettelijke en kleine schade die ontstaat bij het dagelijks gebruik tijdens een verblijf. Bedoeld zodat een klein ongelukje de vakantie van de gast niet bederft of zijn borg kost.</p><h4>Wat het omvat</h4><ul><li><strong>Accidentele breuk in huis:</strong> gevallen borden, glazen of wijnglazen, gebroken mokken of verloren bestek.</li><li><strong>Textielincidenten:</strong> accidentele, onuitwisbare vlekken op handdoeken, lakens, banken of vloerkleden (bijv. wijn, koffie, olie).</li><li><strong>Kleine gebruiksschade:</strong> een sleutel die in het slot afbreekt, een per ongeluk kapotte afstandsbediening, of een toevallige stoot die een decoratief item beschadigt.</li><li><strong>Storingen door dagelijks gebruik:</strong> als een rolluik of raam bij normaal gebruik klemt of breekt, of een klein apparaat (broodrooster, waterkoker) door normaal gebruik beschadigt.</li></ul><h4>Wat het NIET omvat (de noodzakelijke uitsluitingen)</h4><p>Het is essentieel te verduidelijken dat dit geen \u201cvrijbrief\u201d is om de villa te vernielen. Niet gedekt:</p><ul><li><strong>Vandalisme of opzettelijke schade:</strong> iets met opzet of door gewelddadig gedrag breken.</li><li><strong>Grove nalatigheid:</strong> ramen openlaten tijdens een storm met overstroming, of door onachtzaamheid buitengesloten raken met spoedslotenmaker.</li><li><strong>Verlies van sleutels of garageafstandsbedieningen:</strong> doorgaans apart in rekening gebracht wegens herprogrammeringskosten.</li><li><strong>Diefstal:</strong> als er aan het einde van het verblijf spullen ontbreken (tv’s, decoratie, handdoeken).</li><li><strong>Overtreding van de huisregels:</strong> schade door binnen roken, niet-toegestane huisdieren of verboden feesten.</li><li><strong>Extreme vervuiling:</strong> dekt geen extra schoonmaakuren als het huis in deplorabele staat wordt achtergelaten.</li></ul>",
   cc_number:'Kaartnummer', cc_expiry:'Vervaldatum', cc_cvv:'Beveiligingscode',
   btn_submit:'Nu betalen', lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie',
   lbl_adults:'Volwassenen', lbl_nights:'Nachten', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
 };
 LANG.pt={
   loading:'A carregar…', bar_title:'Opções de check-in',
-  intro_title:'Comparação de opções de check-in',
+  intro_title:'Opções de check-in',
   intro_sub:'Escolha a opção que melhor se adapta à sua estadia.',
   prem_title:'Check-in Premium', prem_badge:'Recomendado',
   prem_tagline:'Todas as vantagens, sem complicações.',
-  prem_f1:'<strong>SEM DEPÓSITO DE SEGURANÇA</strong>',
-  prem_f2:'Seguro de estadia incluído',
-  prem_f3:'Berço e cadeira de bebé GRÁTIS (se viajar com bebé)',
-  prem_f4:'Acesso imediato ao Club 3Villas (promoções exclusivas)',
+  prem_f1:'SEM DEPÓSITO DE SEGURANÇA',
+  prem_f2:'Exclusão de responsabilidade por danos',
+  prem_f3:'Welcome pack',
+  prem_f4:'Berço e cadeira de bebé GRÁTIS (se viajar com bebé)',
+  prem_f5:'Acesso imediato ao Club 3Villas (promoções exclusivas)',
   std_title:'Check-in Padrão', std_tagline:'A opção habitual.',
   std_f1:'Retenção de depósito no seu cartão',
   std_f2:'Responsabilidade por qualquer imprevisto',
-  std_f3:'Custo extra por berço ou cadeira de bebé',
-  std_f4:'Tarifa normal no futuro',
+  std_f3:'Sem welcome pack',
+  std_f4:'Custo extra por berço ou cadeira de bebé',
+  std_f5:'Tarifa normal no futuro',
   lbl_total:'Total a pagar', all_paid_title:'Premium já ativo!',
   all_paid_sub:'Não há cobranças pendentes para o seu check-in Premium.',
   form_title:'Dados do cartão', modal_secure:'Protegido por Stripe',
   btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar com Padrão',
   ok_title:'Pagamento recebido!', ok_sub:'Obrigado. O seu check-in Premium está confirmado.',
   btn_back:'Voltar ao check-in',
-  item_waiver:'Waiver depósito', item_ecotasa:'Taxa turística', status_paid:'Pago',
+  item_waiver:'Checkin Premium', item_ecotasa:'Taxa turística', status_paid:'Pago',
+  exclusion_title:'Exclusão de responsabilidade por danos',
+  exclusion_body:"<p>Cobre os danos acidentais, involuntários e menores que ocorrem no dia a dia de uma estadia. Foi pensada para que um pequeno descuido não estrague as férias do cliente nem lhe custe o depósito.</p><h4>O que inclui</h4><ul><li><strong>Quebras acidentais em casa:</strong> pratos, copos ou taças que caem, canecas partidas ou talheres perdidos.</li><li><strong>Incidentes com têxteis:</strong> manchas acidentais e impossíveis de remover em toalhas, lençóis, sofás ou tapetes (ex.: vinho, café, óleo).</li><li><strong>Danos menores por uso:</strong> uma chave que parte dentro da fechadura, um comando partido acidentalmente, ou uma pancada fortuita que danifica um elemento decorativo.</li><li><strong>Avarias por uso quotidiano:</strong> se uma persiana ou janela encrava ou parte com uso normal, ou se um pequeno eletrodoméstico (torradeira, jarro elétrico) se danifica por uso comum.</li></ul><h4>O que NÃO inclui (as exclusões necessárias)</h4><p>É vital esclarecer que isto não é um \u201ccheque em branco\u201d para destruir a villa. Não cobre:</p><ul><li><strong>Atos de vandalismo ou danos intencionais:</strong> partir algo de propósito ou por comportamento violento.</li><li><strong>Negligência grave ou imprudência:</strong> deixar janelas abertas durante uma tempestade provocando inundações, ou ficar fechado fora por descuido obrigando a um serralheiro de urgência.</li><li><strong>Perda de chaves ou comandos de garagem:</strong> normalmente cobrados à parte devido ao custo de reprogramação.</li><li><strong>Roubo ou furto:</strong> se faltarem objetos da casa (televisores, decoração, toalhas) no fim da estadia.</li><li><strong>Incumprimento das regras da casa:</strong> danos causados por fumar dentro da propriedade, por animais não autorizados ou por festas proibidas.</li><li><strong>Sujidade extrema:</strong> não cobre as horas de limpeza extra se a casa for deixada em condições deploráveis.</li></ul>",
   cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
   btn_submit:'Pagar agora', lbl_booking_id:'ID reserva', lbl_guest:'Hóspede', lbl_villa:'Propriedade',
   lbl_adults:'Adultos', lbl_nights:'Noites', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
 };
 LANG.ca={
   loading:'Carregant…', bar_title:'Opcions de check-in',
-  intro_title:'Comparativa d’opcions de check-in',
+  intro_title:'Opcions de check-in',
   intro_sub:'Tria l’opció que millor s’adapti a la teva estada.',
   prem_title:'Check-in Premium', prem_badge:'Recomanat',
   prem_tagline:'Tots els avantatges, sense complicacions.',
-  prem_f1:'<strong>SENSE DIPÒSIT DE SEGURETAT</strong>',
-  prem_f2:'Assegurança d’estada inclosa',
-  prem_f3:'Bressol i trona GRATIS (si viatges amb nadó)',
-  prem_f4:'Accés immediat al Club 3Villas (promocions exclusives)',
+  prem_f1:'SENSE DIPÒSIT DE SEGURETAT',
+  prem_f2:'Exclusió de responsabilitat per danys',
+  prem_f3:'Welcome pack',
+  prem_f4:'Bressol i trona GRATIS (si viatges amb nadó)',
+  prem_f5:'Accés immediat al Club 3Villas (promocions exclusives)',
   std_title:'Check-in Estàndard', std_tagline:'L’opció habitual.',
   std_f1:'Retenció de dipòsit amb targeta',
   std_f2:'Responsabilitat davant qualsevol imprevist',
-  std_f3:'Càrrec extra per bressol o trona',
-  std_f4:'Tarifa regular en el futur',
+  std_f3:'Sense welcome pack',
+  std_f4:'Càrrec extra per bressol o trona',
+  std_f5:'Tarifa regular en el futur',
   lbl_total:'Total pendent', all_paid_title:'Premium ja actiu!',
   all_paid_sub:'No hi ha càrrecs pendents per al teu check-in Premium.',
   form_title:'Dades de la targeta', modal_secure:'Protegit per Stripe',
   btn_prem_save:'Confirmar Premium', btn_std_save:'Continuar amb Estàndard',
   ok_title:'Pagament rebut!', ok_sub:'Gràcies. El teu check-in Premium està confirmat.',
   btn_back:'Tornar al check-in',
-  item_waiver:'Waiver dipòsit', item_ecotasa:'Taxa turística', status_paid:'Pagat',
+  item_waiver:'Checkin Premium', item_ecotasa:'Taxa turística', status_paid:'Pagat',
+  exclusion_title:'Exclusió de responsabilitat per danys',
+  exclusion_body:"<p>Cobreix els danys accidentals, involuntaris i menors que passen en el dia a dia d’una estada. Està pensada perquè un petit descuit no arruïni les vacances del client ni li costi el dipòsit.</p><h4>Què inclou</h4><ul><li><strong>Trencaments accidentals a la llar:</strong> plats, gots o copes que cauen, tasses trencades o coberts que es perden.</li><li><strong>Incidents amb tèxtils:</strong> taques accidentals i impossibles de treure en tovalloles, llençols, sofàs o catifes (per exemple, vessament de vi, cafè o oli).</li><li><strong>Desperfectes menors per ús:</strong> una clau que es trenca dins el pany, el trencament accidental d’un comandament, o un cop fortuït que malmet un element decoratiu.</li><li><strong>Avaries per ús quotidià:</strong> si en tancar una persiana o finestra de manera normal s’encalla o trenca, o si es malmet un electrodomèstic petit (com la torradora o el bullidor) per un ús comú.</li></ul><h4>Què NO inclou? (Les exclusions necessàries)</h4><p>És vital aclarir que això no és un \u201cxec en blanc\u201d per destrossar la vil·la. No cobreix:</p><ul><li><strong>Actes de vandalisme o danys intencionats:</strong> trencar alguna cosa expressament o per comportament violent.</li><li><strong>Negligència greu o imprudència:</strong> deixar les finestres obertes durant una tempesta provocant inundacions, o quedar-se les claus posades per dins obligant a trucar a un manyà d’urgència per descuit.</li><li><strong>Pèrdua de claus o comandaments de garatge:</strong> normalment es cobra a part pel cost de reprogramació.</li><li><strong>Robatori o furt:</strong> si falten objectes de la casa (televisors, decoració, tovalloles) en acabar l’estada.</li><li><strong>Incompliment de les normes de la casa:</strong> danys causats per fumar dins la propietat, per dur mascotes no autoritzades o per celebrar festes prohibides.</li><li><strong>Brutícia extrema:</strong> no cobreix les hores de neteja extra si la casa es deixa en condicions deplorables.</li></ul>",
   cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
   btn_submit:'Pagar ara', lbl_booking_id:'ID reserva', lbl_guest:'Hoste', lbl_villa:'Propietat',
   lbl_adults:'Adults', lbl_nights:'Nits', lbl_checkin:'Check-in', lbl_checkout:'Check-out'
@@ -544,13 +631,15 @@ function applyLang(lang){
   var langChanged=(_currentLang!==lang);
   if(!LANG[lang]) lang='en';
   _currentLang=lang;
-  var htmlKeys=['prem_f1','std_f1'];
+  var htmlKeys=[];
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
     if(htmlKeys.indexOf(k)>=0) el.innerHTML=t(k);
     else el.textContent=t(k);
   });
   if(_booking) renderItems(_booking);
+  /* Si el popup de info está abierto, re-renderizar con el nuevo idioma */
+  if(_popupType){ var ip=$('infoPopup'); if(ip&&ip.classList.contains('open')) showInfoPopup(_popupType); }
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
   /* Reinyectar embed si cambió de idioma y estaba cargado */
@@ -875,6 +964,71 @@ function goBack(){
   window.location.href='checkin-online.html'+qs;
 }
 
+/* ════ POPUP INFO (estilo manual-villa: centrado + arrastrable) ════ */
+var _popupType=null;
+function showInfoPopup(type){
+  _popupType=type;
+  var title='', body='';
+  if(type==='exclusion'){ title=t('exclusion_title'); body=t('exclusion_body'); }
+  $('popupTitle').textContent=title;
+  $('popupBody').innerHTML=body;
+  openPopupCentered();
+}
+function openPopupCentered(){
+  var overlay=$('infoPopup'), sheet=$('popupSheet');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  requestAnimationFrame(function(){
+    var sw=sheet.offsetWidth, sh=sheet.offsetHeight;
+    var vw=window.innerWidth, vh=window.innerHeight;
+    var top=Math.max(16, Math.round((vh-sh)/2));
+    var left=Math.round((vw-sw)/2);
+    sheet.style.left=left+'px';
+    sheet.style.top=top+'px';
+  });
+}
+function closePopup(){
+  $('infoPopup').classList.remove('open');
+  document.body.style.overflow='';
+}
+(function(){
+  var bar, sheet, dragging=false, ox=0, oy=0;
+  document.addEventListener('DOMContentLoaded', function(){
+    bar=$('popupDragBar'); sheet=$('popupSheet');
+    if(!bar||!sheet) return;
+    bar.addEventListener('mousedown', startDrag);
+    bar.addEventListener('touchstart', startDrag, {passive:false});
+  });
+  function startDrag(e){
+    if(e.target.classList.contains('popup-close')||e.target.closest('.popup-close')) return;
+    dragging=true;
+    var r=sheet.getBoundingClientRect();
+    var pt=e.touches?e.touches[0]:e;
+    ox=pt.clientX-r.left; oy=pt.clientY-r.top;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('touchmove', onDrag, {passive:false});
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchend', stopDrag);
+    e.preventDefault();
+  }
+  function onDrag(e){
+    if(!dragging) return;
+    var pt=e.touches?e.touches[0]:e;
+    var x=pt.clientX-ox, y=pt.clientY-oy;
+    var maxLeft=window.innerWidth-sheet.offsetWidth;
+    x=Math.max(0,Math.min(x,maxLeft));
+    y=Math.max(0,y);
+    sheet.style.left=x+'px'; sheet.style.top=y+'px';
+    e.preventDefault();
+  }
+  function stopDrag(){ dragging=false;
+    document.removeEventListener('mousemove',onDrag);
+    document.removeEventListener('touchmove',onDrag);
+    document.removeEventListener('mouseup',stopDrag);
+    document.removeEventListener('touchend',stopDrag);
+  }
+})();
+
 /* ════ RENDER ════ */
 var _renderDone=false;
 function render(r){
@@ -894,7 +1048,7 @@ function render(r){
   var lang=saved||(sup.includes(nav)?nav:'en');
   _currentLang=lang;
   var sel=$('langSel'); if(sel) sel.value=lang;
-  var htmlKeys=['prem_f1','std_f1'];
+  var htmlKeys=[];
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
     if(htmlKeys.indexOf(k)>=0) el.innerHTML=t(k);
@@ -918,4 +1072,4 @@ if(typeof CheckinAuth==='undefined'){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v1 - Página pop-up comparativa Check-in Estándar vs Premium. Sin cabecera ni progress track. Premium muestra waiver (Deposit_waver_EUR) + ecotasa (Ecotasa_final) con embed Caspio /emb igual que checkin-taxes; al pagar marca Security_deposit_terminado, Deposit_waver_cobrado, Ecotasa_cobrada y checkin_premium=Yes; al confirmar Premium sin pagar guarda Security_deposit_options=1 + checkin_premium=Yes (igual que seleccionar waiver en checkin-deposit). Estándar guarda checkin_premium=No, cierra y vuelve a checkin-online. i18n 8 idiomas, guardado dual huésped(pin)/admin(Auth), cierre vía postMessage al padre si está embebido o redirección a checkin-online. -->
+<!-- HISTORIAL: v2 - Título "Comparativa de Opciones de Check-in"→"Opciones de Check-in" (8 idiomas); "SIN DEPÓSITO DE SEGURIDAD" sin negrita; "Seguro de estancia incluido"→"Exclusión de responsabilidad por daños" con botón ℹ que abre pop-up arrastrable estilo manual-villa (texto qué incluye/qué no); añadido "Welcome pack" en 3ª posición Premium; líneas de pago "Waiver Depósito"→"Checkin Premium"; añadido "Sin welcome pack" en 3ª posición Estándar | v1 - Página pop-up comparativa Check-in Estándar vs Premium. Sin cabecera ni progress track. Premium muestra waiver (Deposit_waver_EUR) + ecotasa (Ecotasa_final) con embed Caspio /emb igual que checkin-taxes; al pagar marca Security_deposit_terminado, Deposit_waver_cobrado, Ecotasa_cobrada y checkin_premium=Yes; al confirmar Premium sin pagar guarda Security_deposit_options=1 + checkin_premium=Yes (igual que seleccionar waiver en checkin-deposit). Estándar guarda checkin_premium=No, cierra y vuelve a checkin-online. i18n 8 idiomas, guardado dual huésped(pin)/admin(Auth), cierre vía postMessage al padre si está embebido o redirección a checkin-online. -->
