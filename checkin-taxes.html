@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v19 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v20 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Checkin Taxes v19 — 3Villas</title>
+  <title>Checkin Taxes v20 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ══ Variables ══ */
@@ -324,6 +324,14 @@
     .info-ico svg{width:16px;height:16px}
     .hdr-steps-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;
       color:var(--gray-4);margin:12px 0 8px;text-align:center;display:none}
+    .prem-row{display:none;justify-content:flex-end;margin:6px 0 0}
+    .prem-row.show{display:flex}
+    .prem-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:12px;background:#B8860B;color:#fff;cursor:pointer;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;letter-spacing:.3px;transition:filter .15s}
+    .prem-btn:hover{filter:brightness(.93)}
+    #premOverlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px}
+    #premOverlay.open{display:flex}
+    .prem-sheet{position:relative;width:min(96vw,600px);height:min(90vh,820px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3)}
+    .prem-iframe{width:100%;height:100%;border:none;display:block}
     /* Progress track */
     .progress-track{display:flex;align-items:center;margin-bottom:20px;
       max-width:300px;margin-left:auto;margin-right:auto}
@@ -386,6 +394,9 @@
       <a class="hdr-tab keys" id="hdrTabKeys" href="#">
         🔑 <span id="hdrTabKeysLbl">Keys</span>
       </a>
+    </div>
+    <div class="prem-row" id="premRow">
+      <button class="prem-btn" id="premBtn" onclick="openCheckinPremium()">★ Premium</button>
     </div>
     <div class="hdr-steps-lbl" id="hdrStepsLbl">4 Steps</div>
     <div class="progress-track" id="hdrSteps" style="display:none;margin-bottom:8px">
@@ -1209,7 +1220,17 @@ function render(r){
   var _pgc=$('pgCode'); if(_pgc&&typeof _code!=='undefined') _pgc.textContent='Booking ID '+_code;
   /* Links de tabs y círculos con qs actual */
   var _ce=encodeURIComponent(typeof _code!=='undefined'?_code:'');
-  var _qs='?TaBookings2021_FS_confirmation_code='+_ce;
+  var _qs='?reserva='+_ce;
+
+  /* ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ── */
+  window._chkCode=(typeof _code!=='undefined'?_code:'');
+  (function(){
+    function _truthy(v){if(!v&&v!==0)return false;return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+    var _isPrem=_truthy(g(r,'checkin_premium'));
+    var _pr=$('premRow');
+    if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
+  })();
+
   ['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'].forEach(function(p,idx){
     var el=$('hpd'+(idx+1)); if(el) el.href=p+_qs;
   });
@@ -1219,6 +1240,25 @@ function render(r){
   var _c4=$('hpd4'); if(_c4) _c4.className='pt-circle active';
   var _l4=$('hpdl4'); if(_l4) _l4.className='pt-label active';
 }
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+window.addEventListener('message', function(e){
+  if(e && e.data && e.data.type==='checkin-premium-close') closeCheckinPremium();
+});
 
 /* ════ BOOT ════ */
 /* Aplicar idioma inmediatamente al cargar (antes de datos del booking) */
@@ -1253,10 +1293,10 @@ if(typeof CheckinAuth==='undefined'){
     var pages=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
     pages.forEach(function(page,i){
       var el=document.getElementById('hpd'+(i+1));
-      if(el) el.href=page+'?TaBookings2021_FS_confirmation_code='+ce;
+      if(el) el.href=page+'?reserva='+ce;
     });
-    var t0=document.getElementById('tab0'); if(t0) t0.href='checkin-online.html?TaBookings2021_FS_confirmation_code='+ce;
-    var t5=document.getElementById('tab5'); if(t5) t5.href='checkin-online.html?TaBookings2021_FS_confirmation_code='+ce;
+    var t0=document.getElementById('tab0'); if(t0) t0.href='checkin-online.html?reserva='+ce;
+    var t5=document.getElementById('tab5'); if(t5) t5.href='checkin-online.html?reserva='+ce;
   })();
     }
   });
@@ -1268,7 +1308,12 @@ if(typeof CheckinAuth==='undefined'){
     <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
   </svg>
 </a>
+<div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
+  <div class="prem-sheet">
+    <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
+  </div>
+</div>
 </body>
 </html>
-<!-- HISTORIAL: v19 - Header idéntico a checkin-arrival v39: logo, langSel, tabs Info/Keys, 4 círculos (círculo 4 activo); título Ecotasa + Booking ID bajo el header; langWrap duplicado eliminado; tabs y círculos traducidos en applyLang | v18 - Fix duplicado: langChanged guard en applyLang (Gemini fix) — reinyecta embed SOLO si el idioma cambió de verdad | v17 - Base commit fc8f885d. _renderDone anti-duplicado, MutationObserver embed, TreeWalker traducción, CC_EXTRA i18n, AppKey 353f7000e967b11dc2a34af68b4e -->
+<!-- HISTORIAL: v20 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces de navegación del header (círculos 1-4 y tabs Info/Keys) pasan a ?reserva= (el embed Caspio /emb mantiene TaBookings2021_FS_confirmation_code, requerido por Caspio) | v19 - Header idéntico a checkin-arrival v39: logo, langSel, tabs Info/Keys, 4 círculos (círculo 4 activo); título Ecotasa + Booking ID bajo el header; langWrap duplicado eliminado; tabs y círculos traducidos en applyLang | v18 - Fix duplicado: langChanged guard en applyLang (Gemini fix) — reinyecta embed SOLO si el idioma cambió de verdad | v17 - Base commit fc8f885d. _renderDone anti-duplicado, MutationObserver embed, TreeWalker traducción, CC_EXTRA i18n, AppKey 353f7000e967b11dc2a34af68b4e -->
 <!-- HISTORIAL: v35 - Header CO antes del stLoad, todos display:none inicialmente -->
