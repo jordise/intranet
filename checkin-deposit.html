@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v9 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v10 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Security Deposit v9 — 3Villas</title>
+  <title>Security Deposit v10 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
@@ -118,6 +118,24 @@
       animation: spin-3v .9s linear infinite !important;
     }
     @keyframes spin-3v { to { transform: rotate(360deg); } }
+
+    /* ══ Botón info (ℹ) ══ */
+    .info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1a73e8;color:#fff;border:none;font-size:11px;font-weight:900;cursor:pointer;margin-left:6px;vertical-align:middle;line-height:1;padding:0;flex-shrink:0}
+    .info-btn:hover{background:#1557b0}
+    #infoPopup{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.35)}
+    #infoPopup.open{display:block}
+    .popup-sheet{position:fixed;background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);width:min(520px,94vw);max-height:80vh;display:flex;flex-direction:column;cursor:default}
+    .popup-drag-bar{display:flex;align-items:center;padding:14px 16px 10px;cursor:grab;border-bottom:1px solid var(--gray-2);border-radius:14px 14px 0 0;background:var(--gray-0)}
+    .popup-drag-bar:active{cursor:grabbing}
+    .popup-handle{width:36px;height:4px;background:var(--gray-3);border-radius:2px;margin:0 auto;pointer-events:none}
+    .popup-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-4);padding:0 4px;line-height:1}
+    .popup-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);flex:1;margin:0 12px}
+    .popup-content{overflow-y:auto;padding:16px 20px 24px;border-radius:0 0 14px 14px}
+    .popup-body{font-size:14px;color:var(--gray-5);line-height:1.7}
+    .popup-body h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin:16px 0 6px}
+    .popup-body ul{padding-left:18px;margin:6px 0}
+    .popup-body ul li{margin-bottom:6px}
+    .popup-body p{margin-bottom:8px}
   </style>
   <script src="auth.js"></script>
   <script src="checkin-auth.js"></script>
@@ -229,6 +247,7 @@
   <div class="form-err" id="formErr"></div>
 
   <div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
+    <p id="payNotice" style="display:none;font-size:12px;color:var(--gray-4);text-align:center;margin:0 0 10px;line-height:1.5" data-i18n="pay_notice">Se le solicitará realizar el pago final durante el cuarto (y último) paso de su proceso de check-in online.</p>
     <button class="btn-submit" id="btnSave" onclick="guardar()" disabled data-i18n="btn_save">Save &amp; Continue</button>
   </div>
 
@@ -257,76 +276,100 @@ const $ = id => document.getElementById(id);
 /* ════ i18n ════ */
 var LANG = {
   en:{page_title:'Security Deposit',sec_options:'Select your option',sec_bank:'Your bank details',txt_intro:'Please select the best option for you regarding the security deposit.',txt_select_hint:'Select the option and see more information about each one',txt_bank_hint:'Required for us to return your deposit after checkout.',btn_save:'Save & Continue',help_title:'Need help?',help_sub:'If you need any help, do not hesitate to contact us.',
-    opt0_label:'Not decided yet',opt1_label:'Security Deposit Waiver',opt1_proc:'Forget about involuntary damages during your stay. With this small deposit waiver you are covered for normal accidents. You do not need to pay the full security deposit upfront. It won\'t cover party damage or rubbish penalty.',opt1_cost:'Cost: {waverEUR} EUR (charged with tourist taxes)',opt1_return:'Not applicable — waiver covers normal accidents',
+    opt0_label:'Not decided yet',opt1_label:'Damage Liability Waiver',opt1_proc:'Forget about involuntary damages during your stay. With this small deposit waiver you are covered for normal accidents. You do not need to pay the full security deposit upfront. It won\'t cover party damage or rubbish penalty.',opt1_cost:'Cost: {waverEUR} EUR (charged with tourist taxes)',opt1_return:'Not applicable — waiver covers normal accidents',
     opt2_label:'Pay with Credit Card',opt2_proc:'The security deposit of {depEUR} EUR will be charged at the same time you pay the tourist taxes. Important: save your selection first, then proceed with payment in Step 4. Step 3 will not be marked completed until Step 4 payment is made.',opt2_cost:'Transaction cost: {gastoEUR} EUR',opt2_return:'Returned 1–15 days after checkout ({checkout})',
     opt3_label:'Pay with Bank Transfer',opt3_proc:'Make a bank transfer of {depEUR} EUR to: Account holder: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX. Please use your booking code as the transfer reference.',opt3_cost:'Cost: 0 EUR',opt3_return:'Returned 1–15 days after checkout ({checkout}). You must provide your bank details below.',opt3_warning:'It can take several days to receive and process your transfer. If after 5 days it still shows pending, contact bookings@3villas.com.',
     opt4_label:'No Waiver — Airbnb',opt4_proc:'You do not have to do anything. Please be aware that if anything is broken or damaged during your stay, it will be claimed through Airbnb.',opt4_cost:'Cost: 0 EUR',
     lbl_waiver_disabled:'The owner of this villa does not allow the Deposit Waiver. Please select another option.',
     greeting:'Hello {name}, please select the best option for you.',
     locked_msg:'⚠️ Your selection cannot be changed because this payment has already been processed.',
+    exclusion_title:'Damage Liability Waiver',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'You will be asked to complete the final payment during the fourth (and last) step of your online check-in process.',
   },
   es:{page_title:'Depósito de Seguridad',sec_options:'Selecciona tu opción',sec_bank:'Tus datos bancarios',txt_intro:'Por favor selecciona la mejor opción para ti respecto al depósito de seguridad.',txt_select_hint:'Selecciona la opción y verás más información sobre cada una',txt_bank_hint:'Necesitamos tus datos para devolverte el depósito tras el checkout.',btn_save:'Guardar y continuar',help_title:'¿Necesitas ayuda?',help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
-    opt0_label:'Todavía no decidido',opt1_label:'Depósito Waiver',opt1_proc:'Olvídate de los daños involuntarios durante tu estancia. Con este pequeño waiver estás cubierto para accidentes normales. No necesitas pagar el depósito completo por adelantado. No cubre daños por fiestas ni penalización por basura.',opt1_cost:'Coste: {waverEUR} EUR (se cobra con las tasas turísticas)',opt1_return:'No aplica — el waiver cubre los accidentes normales',
+    opt0_label:'Todavía no decidido',opt1_label:'Exclusión de responsabilidad por daños',opt1_proc:'Olvídate de los daños involuntarios durante tu estancia. Con este pequeño waiver estás cubierto para accidentes normales. No necesitas pagar el depósito completo por adelantado. No cubre daños por fiestas ni penalización por basura.',opt1_cost:'Coste: {waverEUR} EUR (se cobra con las tasas turísticas)',opt1_return:'No aplica — el waiver cubre los accidentes normales',
     opt2_label:'Pagar con Tarjeta de Crédito',opt2_proc:'El depósito de {depEUR} EUR se cargará junto con las tasas turísticas. Importante: guarda tu selección primero, luego realiza el pago en el Paso 4.',opt2_cost:'Coste de transacción: {gastoEUR} EUR',opt2_return:'Devuelto entre 1 y 15 días tras el checkout ({checkout})',
     opt3_label:'Pagar con Transferencia Bancaria',opt3_proc:'Realiza una transferencia de {depEUR} EUR a: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX. Usa tu código de reserva como referencia.',opt3_cost:'Coste: 0 EUR',opt3_return:'Devuelto entre 1 y 15 días tras el checkout ({checkout}). Debes indicar tus datos bancarios abajo.',opt3_warning:'Puede tardar varios días en procesarse. Si pasados 5 días aún aparece pendiente, contacta bookings@3villas.com.',
     opt4_label:'Sin Waiver — Airbnb',opt4_proc:'No tienes que hacer nada. Ten en cuenta que si algo se rompe o daña durante tu estancia, se reclamará a través de Airbnb.',opt4_cost:'Coste: 0 EUR',
     lbl_waiver_disabled:'El propietario de esta villa no permite el Depósito Waiver. Por favor elige otra opción.',
     greeting:'Hola {name}, por favor selecciona la mejor opción para ti.',
     locked_msg:'⚠️ No puedes cambiar la selección porque este pago ya ha sido procesado.',
+    exclusion_title:'Exclusión de responsabilidad por daños',
+    exclusion_body:"<p>Cubre los daños accidentales, involuntarios y menores que ocurren en el día a día de una estancia. Está pensada para que un pequeño despiste no arruine las vacaciones del cliente ni le cueste su depósito.</p><h4>¿Qué incluye?</h4><ul><li><strong>Roturas accidentales en el hogar:</strong> Platos, vasos o copas que se caen, tazas rotas, o cubiertos que se pierden.</li><li><strong>Incidentes con textiles:</strong> Manchas accidentales e imposibles de quitar en toallas, sábanas, sofás o alfombras (por ejemplo, derrame de vino, café o aceite).</li><li><strong>Desperfectos menores por uso:</strong> Una llave que se rompe dentro de la cerradura, la rotura accidental de un mando a distancia, o un golpe fortuito que daña un elemento decorativo.</li><li><strong>Averías por uso cotidiano:</strong> Si al cerrar una persiana o ventana de forma normal esta se atasca o rompe, o si se daña un electrodoméstico pequeño (como la tostadora o el hervidor) por un uso común.</li></ul><h4>¿Qué NO incluye? (Las exclusiones necesarias)</h4><p>Es vital aclarar que esto no es una “carta blanca” para destrozar la villa. (Aunque debemos mencionar que, en más de un año que llevamos ofreciendo este servicio, nunca hemos tenido que reclamar nada a nadie gracias al gran civismo y la buena fe de nuestros huéspedes. Creemos firmemente en esa buena fe.) No cubre:</p><ul><li><strong>Actos de vandalismo o daños intencionados:</strong> Romper algo a propósito o por comportamiento violento.</li><li><strong>Negligencia grave o imprudencia:</strong> Dejar las ventanas abiertas durante una tormenta provocando inundaciones, o dejarse las llaves puestas por dentro obligando a llamar a un cerrajero de urgencia por descuido.</li><li><strong>Pérdida de llaves o mandos de garaje:</strong> Normalmente se cobra aparte debido al coste de reprogramación.</li><li><strong>Robo o hurto:</strong> Si faltan objetos de la casa (televisores, decoración, toallas) al terminar la estancia.</li><li><strong>Incumplimiento de las normas de la casa:</strong> Daños causados por fumar dentro de la propiedad, por meter mascotas no autorizadas o por celebrar fiestas prohibidas.</li><li><strong>Suciedad extrema:</strong> No cubre las horas de limpieza extra si la casa se deja en condiciones deplorables.</li></ul>",
+    pay_notice:'Se le solicitará realizar el pago final durante el cuarto (y último) paso de su proceso de check-in online.',
   },
   fr:{page_title:'Dépôt de Garantie',sec_options:'Choisissez votre option',sec_bank:'Vos coordonnées bancaires',txt_intro:'Veuillez choisir la meilleure option pour vous concernant le dépôt de garantie.',txt_select_hint:'Sélectionnez une option pour voir plus d\'informations',txt_bank_hint:'Nécessaire pour vous rembourser le dépôt après le départ.',btn_save:'Enregistrer et continuer',help_title:'Besoin d\'aide ?',help_sub:'Si vous avez besoin d\'aide, n\'hésitez pas à nous contacter.',
-    opt0_label:'Pas encore décidé',opt1_label:'Garantie Waiver',opt1_proc:'Oubliez les dommages involontaires pendant votre séjour. Avec ce waiver, vous êtes couvert pour les accidents normaux. Vous n\'avez pas à payer le dépôt complet à l\'avance.',opt1_cost:'Coût: {waverEUR} EUR (prélevé avec les taxes touristiques)',opt1_return:'Non applicable — le waiver couvre les accidents normaux',
+    opt0_label:'Pas encore décidé',opt1_label:'Exclusion de responsabilité pour dommages',opt1_proc:'Oubliez les dommages involontaires pendant votre séjour. Avec ce waiver, vous êtes couvert pour les accidents normaux. Vous n\'avez pas à payer le dépôt complet à l\'avance.',opt1_cost:'Coût: {waverEUR} EUR (prélevé avec les taxes touristiques)',opt1_return:'Non applicable — le waiver couvre les accidents normaux',
     opt2_label:'Payer par Carte Bancaire',opt2_proc:'Le dépôt de {depEUR} EUR sera prélevé en même temps que les taxes touristiques. Important: enregistrez d\'abord votre choix, puis effectuez le paiement à l\'Étape 4.',opt2_cost:'Frais de transaction: {gastoEUR} EUR',opt2_return:'Remboursé entre 1 et 15 jours après le départ ({checkout})',
     opt3_label:'Payer par Virement',opt3_proc:'Effectuez un virement de {depEUR} EUR: Titulaire: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Coût: 0 EUR',opt3_return:'Remboursé entre 1 et 15 jours après le départ ({checkout}). Indiquez vos coordonnées bancaires ci-dessous.',opt3_warning:'Le virement peut prendre plusieurs jours. Si après 5 jours il est encore en attente, contactez bookings@3villas.com.',
     opt4_label:'Sans Waiver — Airbnb',opt4_proc:'Vous n\'avez rien à faire. Sachez que tout dommage sera réclamé via Airbnb.',opt4_cost:'Coût: 0 EUR',
     lbl_waiver_disabled:'Le propriétaire de cette villa ne permet pas le Waiver. Veuillez choisir une autre option.',
     greeting:'Bonjour {name}, veuillez choisir la meilleure option pour vous.',
     locked_msg:'⚠️ Vous ne pouvez pas modifier votre sélection car ce paiement a déjà été traité.',
+    exclusion_title:'Exclusion de responsabilité pour dommages',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Le paiement final vous sera demandé lors de la quatrième étape de votre check-in en ligne.',
   },
   de:{page_title:'Sicherheitskaution',sec_options:'Option auswählen',sec_bank:'Ihre Bankdaten',txt_intro:'Bitte wählen Sie die für Sie beste Option für die Sicherheitskaution.',txt_select_hint:'Option auswählen und mehr Informationen sehen',txt_bank_hint:'Erforderlich, damit wir Ihnen nach dem Checkout die Kaution zurückerstatten können.',btn_save:'Speichern & Weiter',help_title:'Brauchen Sie Hilfe?',help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
-    opt0_label:'Noch nicht entschieden',opt1_label:'Kautions-Waiver',opt1_proc:'Vergessen Sie versehentliche Schäden während Ihres Aufenthalts. Mit diesem Waiver sind Sie bei normalen Unfällen abgesichert. Sie müssen die Kaution nicht im Voraus zahlen.',opt1_cost:'Kosten: {waverEUR} EUR (wird mit der Tourismussteuer erhoben)',opt1_return:'Nicht anwendbar — der Waiver deckt normale Unfälle ab',
+    opt0_label:'Noch nicht entschieden',opt1_label:'Haftungsausschluss für Schäden',opt1_proc:'Vergessen Sie versehentliche Schäden während Ihres Aufenthalts. Mit diesem Waiver sind Sie bei normalen Unfällen abgesichert. Sie müssen die Kaution nicht im Voraus zahlen.',opt1_cost:'Kosten: {waverEUR} EUR (wird mit der Tourismussteuer erhoben)',opt1_return:'Nicht anwendbar — der Waiver deckt normale Unfälle ab',
     opt2_label:'Per Kreditkarte zahlen',opt2_proc:'Die Kaution von {depEUR} EUR wird gleichzeitig mit der Tourismussteuer belastet. Wichtig: Zuerst speichern, dann in Schritt 4 zahlen.',opt2_cost:'Transaktionskosten: {gastoEUR} EUR',opt2_return:'Rückgabe 1–15 Tage nach dem Checkout ({checkout})',
     opt3_label:'Per Banküberweisung zahlen',opt3_proc:'Überweisen Sie {depEUR} EUR an: Kontoinhaber: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Kosten: 0 EUR',opt3_return:'Rückgabe 1–15 Tage nach dem Checkout ({checkout}). Bankdaten unten eingeben.',opt3_warning:'Die Überweisung kann mehrere Tage dauern. Bei Fragen nach 5 Tagen: bookings@3villas.com.',
     opt4_label:'Kein Waiver — Airbnb',opt4_proc:'Sie müssen nichts tun. Beachten Sie: Schäden werden über Airbnb geltend gemacht.',opt4_cost:'Kosten: 0 EUR',
     lbl_waiver_disabled:'Der Eigentümer erlaubt keinen Waiver. Bitte wählen Sie eine andere Option.',
     greeting:'Hallo {name}, bitte wählen Sie die beste Option für Sie.',
     locked_msg:'⚠️ Ihre Auswahl kann nicht geändert werden, da diese Zahlung bereits verarbeitet wurde.',
+    exclusion_title:'Haftungsausschluss für Schäden',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Die abschließende Zahlung wird im vierten Schritt Ihres Online-Check-ins angefordert.',
   },
   it:{page_title:'Deposito Cauzionale',sec_options:'Seleziona la tua opzione',sec_bank:'I tuoi dati bancari',txt_intro:'Si prega di selezionare la migliore opzione per voi riguardo al deposito cauzionale.',txt_select_hint:'Seleziona un\'opzione per vedere maggiori informazioni',txt_bank_hint:'Necessario per restituirvi il deposito dopo il checkout.',btn_save:'Salva e continua',help_title:'Hai bisogno di aiuto?',help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
-    opt0_label:'Non ancora deciso',opt1_label:'Waiver Deposito',opt1_proc:'Dimentica i danni involontari durante il soggiorno. Con questo waiver sei coperto per incidenti normali. Non devi pagare il deposito in anticipo.',opt1_cost:'Costo: {waverEUR} EUR (addebitato con le tasse turistiche)',opt1_return:'Non applicabile — il waiver copre gli incidenti normali',
+    opt0_label:'Non ancora deciso',opt1_label:'Esclusione di responsabilità per danni',opt1_proc:'Dimentica i danni involontari durante il soggiorno. Con questo waiver sei coperto per incidenti normali. Non devi pagare il deposito in anticipo.',opt1_cost:'Costo: {waverEUR} EUR (addebitato con le tasse turistiche)',opt1_return:'Non applicabile — il waiver copre gli incidenti normali',
     opt2_label:'Paga con Carta di Credito',opt2_proc:'Il deposito di {depEUR} EUR sarà addebitato insieme alle tasse turistiche. Importante: salva prima la selezione, poi procedi al pagamento nel Passaggio 4.',opt2_cost:'Costo transazione: {gastoEUR} EUR',opt2_return:'Restituito tra 1 e 15 giorni dopo il checkout ({checkout})',
     opt3_label:'Paga con Bonifico Bancario',opt3_proc:'Effettua un bonifico di {depEUR} EUR a: Intestatario: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Costo: 0 EUR',opt3_return:'Restituito tra 1 e 15 giorni dopo il checkout ({checkout}). Fornisci i tuoi dati bancari qui sotto.',opt3_warning:'Il bonifico può richiedere giorni. Se dopo 5 giorni è ancora in sospeso, contatta bookings@3villas.com.',
     opt4_label:'Nessun Waiver — Airbnb',opt4_proc:'Non devi fare nulla. Qualsiasi danno sarà reclamato tramite Airbnb.',opt4_cost:'Costo: 0 EUR',
     lbl_waiver_disabled:'Il proprietario non permette il Waiver. Seleziona un\'altra opzione.',
     greeting:'Ciao {name}, seleziona la migliore opzione per te.',
     locked_msg:'⚠️ Non puoi modificare la selezione perché questo pagamento è già stato elaborato.',
+    exclusion_title:'Esclusione di responsabilità per danni',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Le sarà richiesto di completare il pagamento finale durante il quarto passo del check-in online.',
   },
   nl:{page_title:'Borgsom',sec_options:'Kies uw optie',sec_bank:'Uw bankgegevens',txt_intro:'Kies de beste optie voor u wat betreft de borgsom.',txt_select_hint:'Selecteer een optie voor meer informatie',txt_bank_hint:'Vereist om uw borgsom na het uitchecken terug te betalen.',btn_save:'Opslaan & Doorgaan',help_title:'Hulp nodig?',help_sub:'Als u hulp nodig heeft, aarzel dan niet om contact op te nemen.',
-    opt0_label:'Nog niet beslist',opt1_label:'Borgsom Waiver',opt1_proc:'Vergeet onopzettelijke schade tijdens uw verblijf. Met deze waiver bent u gedekt voor normale ongelukken. U hoeft de borgsom niet van tevoren te betalen.',opt1_cost:'Kosten: {waverEUR} EUR (samen met toeristenbelasting)',opt1_return:'Niet van toepassing — waiver dekt normale ongelukken',
+    opt0_label:'Nog niet beslist',opt1_label:'Aansprakelijkheidsbeperking voor schade',opt1_proc:'Vergeet onopzettelijke schade tijdens uw verblijf. Met deze waiver bent u gedekt voor normale ongelukken. U hoeft de borgsom niet van tevoren te betalen.',opt1_cost:'Kosten: {waverEUR} EUR (samen met toeristenbelasting)',opt1_return:'Niet van toepassing — waiver dekt normale ongelukken',
     opt2_label:'Betalen met Creditcard',opt2_proc:'De borgsom van {depEUR} EUR wordt gelijktijdig met de toeristenbelasting in rekening gebracht. Belangrijk: sla eerst op, betaal dan in Stap 4.',opt2_cost:'Transactiekosten: {gastoEUR} EUR',opt2_return:'Terugbetaald 1–15 dagen na uitchecken ({checkout})',
     opt3_label:'Betalen via Bankoverschrijving',opt3_proc:'Maak {depEUR} EUR over naar: Rekeninghouder: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Kosten: 0 EUR',opt3_return:'Terugbetaald 1–15 dagen na uitchecken ({checkout}). Vul uw bankgegevens hieronder in.',opt3_warning:'Overschrijving kan enkele dagen duren. Na 5 dagen nog in behandeling? Contact bookings@3villas.com.',
     opt4_label:'Geen Waiver — Airbnb',opt4_proc:'U hoeft niets te doen. Schade zal via Airbnb worden verhaald.',opt4_cost:'Kosten: 0 EUR',
     lbl_waiver_disabled:'De eigenaar staat geen Waiver toe. Kies een andere optie.',
     greeting:'Hallo {name}, kies de beste optie voor u.',
     locked_msg:'⚠️ U kunt uw keuze niet wijzigen omdat deze betaling al is verwerkt.',
+    exclusion_title:'Aansprakelijkheidsbeperking voor schade',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'U wordt gevraagd de definitieve betaling te doen tijdens de vierde stap van uw online check-in.',
   },
   pt:{page_title:'Depósito de Segurança',sec_options:'Selecione a sua opção',sec_bank:'Os seus dados bancários',txt_intro:'Por favor selecione a melhor opção para si quanto ao depósito de segurança.',txt_select_hint:'Selecione uma opção para ver mais informações',txt_bank_hint:'Necessário para devolvermos o depósito após o checkout.',btn_save:'Guardar e continuar',help_title:'Precisa de ajuda?',help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
-    opt0_label:'Ainda não decidido',opt1_label:'Waiver de Depósito',opt1_proc:'Esqueça os danos involuntários durante a sua estada. Com este waiver fica coberto para acidentes normais. Não precisa pagar o depósito antecipadamente.',opt1_cost:'Custo: {waverEUR} EUR (cobrado com as taxas turísticas)',opt1_return:'Não aplicável — o waiver cobre os acidentes normais',
+    opt0_label:'Ainda não decidido',opt1_label:'Exclusão de responsabilidade por danos',opt1_proc:'Esqueça os danos involuntários durante a sua estada. Com este waiver fica coberto para acidentes normais. Não precisa pagar o depósito antecipadamente.',opt1_cost:'Custo: {waverEUR} EUR (cobrado com as taxas turísticas)',opt1_return:'Não aplicável — o waiver cobre os acidentes normais',
     opt2_label:'Pagar com Cartão de Crédito',opt2_proc:'O depósito de {depEUR} EUR será cobrado juntamente com as taxas turísticas. Importante: guarde primeiro a seleção, depois proceda ao pagamento no Passo 4.',opt2_cost:'Custo de transação: {gastoEUR} EUR',opt2_return:'Devolvido entre 1 e 15 dias após o checkout ({checkout})',
     opt3_label:'Pagar por Transferência Bancária',opt3_proc:'Faça uma transferência de {depEUR} EUR para: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Custo: 0 EUR',opt3_return:'Devolvido entre 1 e 15 dias após o checkout ({checkout}). Indique os seus dados bancários abaixo.',opt3_warning:'A transferência pode demorar vários dias. Após 5 dias ainda pendente? Contacte bookings@3villas.com.',
     opt4_label:'Sem Waiver — Airbnb',opt4_proc:'Não tem de fazer nada. Tenha em conta que quaisquer danos serão reclamados através do Airbnb.',opt4_cost:'Custo: 0 EUR',
     lbl_waiver_disabled:'O proprietário não permite o Waiver. Por favor escolha outra opção.',
     greeting:'Olá {name}, por favor selecione a melhor opção para si.',
     locked_msg:'⚠️ Não pode alterar a sua seleção porque este pagamento já foi processado.',
+    exclusion_title:'Exclusão de responsabilidade por danos',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Ser-lhe-á solicitado o pagamento final durante o quarto passo do check-in online.',
   },
   ca:{page_title:'Dipòsit de Seguretat',sec_options:'Selecciona la teva opció',sec_bank:'Les teves dades bancàries',txt_intro:'Si us plau selecciona la millor opció per a tu pel que fa al dipòsit de seguretat.',txt_select_hint:'Selecciona una opció per veure\'n més informació',txt_bank_hint:'Necessari per retornar-te el dipòsit després del checkout.',btn_save:'Desar i continuar',help_title:'Necessites ajuda?',help_sub:'Si necessites ajuda, no dubtis en contactar-nos.',
-    opt0_label:'Encara no decidit',opt1_label:'Waiver de Dipòsit',opt1_proc:'Oblida\'t dels danys involuntaris durant l\'estada. Amb aquest waiver estàs cobert per accidents normals. No cal pagar el dipòsit per endavant.',opt1_cost:'Cost: {waverEUR} EUR (es cobra amb les taxes turístiques)',opt1_return:'No aplicable — el waiver cobreix els accidents normals',
+    opt0_label:'Encara no decidit',opt1_label:'Exclusió de responsabilitat per danys',opt1_proc:'Oblida\'t dels danys involuntaris durant l\'estada. Amb aquest waiver estàs cobert per accidents normals. No cal pagar el dipòsit per endavant.',opt1_cost:'Cost: {waverEUR} EUR (es cobra amb les taxes turístiques)',opt1_return:'No aplicable — el waiver cobreix els accidents normals',
     opt2_label:'Pagar amb Targeta de Crèdit',opt2_proc:'El dipòsit de {depEUR} EUR es cobrarà alhora que les taxes turístiques. Important: desa la selecció primer, després fes el pagament al Pas 4.',opt2_cost:'Cost de transacció: {gastoEUR} EUR',opt2_return:'Retornat entre 1 i 15 dies després del checkout ({checkout})',
     opt3_label:'Pagar per Transferència Bancària',opt3_proc:'Fes una transferència de {depEUR} EUR a: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Cost: 0 EUR',opt3_return:'Retornat entre 1 i 15 dies després del checkout ({checkout}). Indica les teves dades bancàries a continuació.',opt3_warning:'La transferència pot tardar uns dies. Si passat 5 dies encara apareix pendent, contacta bookings@3villas.com.',
     opt4_label:'Sense Waiver — Airbnb',opt4_proc:'No has de fer res. Tingues en compte que qualsevol dany es reclamarà a través d\'Airbnb.',opt4_cost:'Cost: 0 EUR',
     lbl_waiver_disabled:'El propietari d\'aquesta villa no permet el Waiver. Si us plau tria una altra opció.',
     greeting:'Hola {name}, si us plau selecciona la millor opció per a tu.',
     locked_msg:'⚠️ No pots canviar la selecció perquè aquest pagament ja ha estat processat.',
+    exclusion_title:'Exclusió de responsabilitat per danys',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Se us demanarà el pagament final durant el quart pas del check-in en línia.',
   },
 };
 
@@ -416,7 +459,7 @@ function buildOptions(r){
     } else {
     html+='<div class="opt-card'+(isSel?' selected':'')+(o.disabled?' disabled-opt':'')+'" id="optCard'+o.id+'" onclick="selectOpt('+o.id+')">';
     html+='<div class="opt-head"><div class="opt-radio"></div>';
-    html+='<div class="opt-label">'+o.label+'</div>';
+    html+='<div class="opt-label">'+o.label+(o.id===1?'<button class="info-btn" onclick="event.stopPropagation();showInfoPopup()"  style="pointer-events:auto">i</button>':'')+'</div>';
     if(!o.disabled) html+='<div class="opt-price">'+o.price+'</div>';
     html+='</div>';
     if(o.disabled){
@@ -452,6 +495,7 @@ function buildOptions(r){
 }
 
 function selectOpt(id){
+  updatePayNotice();
   if(_locked){
     var b=$('lockedBanner');
     if(b){ b.style.animation='none'; b.offsetHeight; b.style.animation='shake .4s'; }
@@ -492,6 +536,7 @@ function render(r){
   var nombre=r['TaBookings2021_Fiscal_guest_name']||r['TaBookings2021_Guest_Full_Name']||'';
   var gTxt=$('greetingTxt');
   if(gTxt&&nombre) gTxt.textContent=t('greeting').replace('{name}',nombre);
+  updatePayNotice();
 
   // Progress track + links
   var s1=isTruthy(r['TaBookings2021_Arrivalform_done']);
@@ -614,6 +659,55 @@ function showErr(msg){
 }
 
 /* ════ INIT ════ */
+
+/* ════ POPUP INFO ════ */
+var _popupType=null;
+function showInfoPopup(){
+  $('popupTitle').textContent=t('exclusion_title');
+  $('popupBody').innerHTML=t('exclusion_body');
+  openPopupCentered();
+}
+function openPopupCentered(){
+  var overlay=$('infoPopup'), sheet=$('popupSheet');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  requestAnimationFrame(function(){
+    var sw=sheet.offsetWidth, sh=sheet.offsetHeight;
+    var vw=window.innerWidth, vh=window.innerHeight;
+    var top=Math.max(16, Math.round((vh-sh)/2));
+    var left=Math.round((vw-sw)/2);
+    sheet.style.left=left+'px';
+    sheet.style.top=top+'px';
+  });
+}
+function closePopup(){
+  $('infoPopup').classList.remove('open');
+  document.body.style.overflow='';
+}
+(function(){
+  var bar, sheet, dragging=false, ox=0, oy=0;
+  document.addEventListener('DOMContentLoaded', function(){
+    bar=$('popupDragBar'); sheet=$('popupSheet');
+    if(!bar||!sheet) return;
+    bar.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    bar.addEventListener('touchstart', function(e){startDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchmove', function(e){onDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchend', stopDrag);
+  });
+  function startDrag(e){ dragging=true; ox=e.clientX-sheet.getBoundingClientRect().left; oy=e.clientY-sheet.getBoundingClientRect().top; }
+  function onDrag(e){ if(!dragging) return; sheet.style.left=(e.clientX-ox)+'px'; sheet.style.top=(e.clientY-oy)+'px'; }
+  function stopDrag(){ dragging=false; }
+})();
+
+/* ════ TEXTO AVISO PAGO ════ */
+function updatePayNotice(){
+  var el=$('payNotice'); if(!el) return;
+  el.style.display=(_selectedOpt===1||_selectedOpt===2)?'block':'none';
+  el.textContent=t('pay_notice');
+}
+
 if(typeof CheckinAuth==='undefined'){
   $('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px">'+
     '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
@@ -629,10 +723,23 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v9 - Bloqueo selección si ya pagado: si Deposit_waver_cobrado=1 o Gasto_tarjeta_dep_seguri_cobrado=1 se muestra banner de aviso (locked_msg en 8 idiomas), selectOpt() no cambia nada, botón guardar deshabilitado, animación shake al intentar cambiar | v8 - Greeting i18n: texto "Hello {nombre}, please select..." hardcodeado en inglés → ahora usa t('greeting').replace('{name}', nombre) con traducciones en los 8 idiomas (en,es,fr,de,it,nl,pt,ca) | v7 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces del header y redirección de guardado pasan a ?reserva= | v6 - Fix Auth: usar Auth.token() en lugar de Auth.isLoggedIn() (no existe) | v5 - Añadir auth.js para que Admin pueda guardar sin pin de huésped | v4 - Fix guardar: pin de sesión primero, Auth como fallback para admin; sin "Session expired" para admin | v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
+<!-- HISTORIAL: v10 - opt1_label renombrado a "Exclusión de responsabilidad por daños" (8 idiomas); botón ℹ en opt1 abre popup con texto completo (qué incluye/no incluye); texto pay_notice antes del botón guardar si selección es opt1 o opt2; popup HTML+CSS+JS arrastrable igual que premium | v9 - Bloqueo selección si ya pagado: si Deposit_waver_cobrado=1 o Gasto_tarjeta_dep_seguri_cobrado=1 se muestra banner de aviso (locked_msg en 8 idiomas), selectOpt() no cambia nada, botón guardar deshabilitado, animación shake al intentar cambiar | v8 - Greeting i18n: texto "Hello {nombre}, please select..." hardcodeado en inglés → ahora usa t('greeting').replace('{name}', nombre) con traducciones en los 8 idiomas (en,es,fr,de,it,nl,pt,ca) | v7 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces del header y redirección de guardado pasan a ?reserva= | v6 - Fix Auth: usar Auth.token() en lugar de Auth.isLoggedIn() (no existe) | v5 - Añadir auth.js para que Admin pueda guardar sin pin de huésped | v4 - Fix guardar: pin de sesión primero, Auth como fallback para admin; sin "Session expired" para admin | v3 - Fix guardar: lógica dual admin (Auth.url) / huésped (checkin-save+pin); historial limpio | v2 - Imagen vino bajo intro; opción 0 "Not decided yet" primera y por defecto | v1 - Página inicial -->
 <div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
   <div class="prem-sheet">
     <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
+  </div>
+</div>
+
+<div id="infoPopup" onclick="if(event.target===this||event.target.id==='infoPopup')closePopup()">
+  <div class="popup-sheet" id="popupSheet">
+    <div class="popup-drag-bar" id="popupDragBar">
+      <div class="popup-handle"></div>
+      <div class="popup-title" id="popupTitle"></div>
+      <button class="popup-close" onclick="closePopup()">&times;</button>
+    </div>
+    <div class="popup-content">
+      <div class="popup-body" id="popupBody"></div>
+    </div>
   </div>
 </div>
 </body>
