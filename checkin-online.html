@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v49 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v51 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
-  <title>Check-in Online v49 — 3Villas</title>
+  <title>Check-in Online v51 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
@@ -513,6 +513,8 @@ function render(r, code){
   var villa   = g('TaVillas_Name_villa_para_inquilinos')||'—';
   var guest   = g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
   var nights  = g('TaBookings2021_Nights');
+  var checkinDate = g('TaBookings2021_Checkin');
+  var checkinTime = g('TaBookings2021_Checkin_time')||'';
   var address = g('TaVillas_Address');
   var maps    = g('TaVillas_Googlemaps_link');
   var wifiU   = g('TaVillas_Wifi_user');
@@ -556,7 +558,7 @@ function render(r, code){
   });
 
   /* Panel 5: llaves */
-  if(_allDone){
+  if(_allDone && isKeyboxVisible(checkinDate, checkinTime)){
     /* Keybox: uno por multiunit leyendo directo de la vista, o el de la villa si no hay */
     var _muIdsKeys=getMuIds(r);
     var _keyboxEl=$('kiKeybox');
@@ -589,6 +591,14 @@ function render(r, code){
       if(r._vm_phone) $('vmWaBtnKeys').href='https://api.whatsapp.com/send?phone='+cleanPh(r._vm_phone);
       else $('vmWaBtnKeys').style.display='none';
     }
+  } else if(_allDone && !isKeyboxVisible(checkinDate, checkinTime)){
+    /* Todos los pasos OK pero aún no es la hora — mostrar cuenta atrás */
+    var _dateStr=keyboxCountdown(checkinDate, checkinTime);
+    var _pendEl=$('keysPending');
+    var _pdesc=_pendEl?_pendEl.querySelector('.keys-pending-desc'):null;
+    if(_pdesc) _pdesc.textContent=t('keybox_countdown').replace('{date}',_dateStr);
+    $('keysReady').style.display='none';
+    $('keysPending').style.display='block';
   } else {
     $('keysReady').style.display='none';
     $('keysPending').style.display='block';
@@ -691,6 +701,7 @@ LANG.en = {
   tab_deposit:'Deposit', tab_tax:'Tax', tab_keys:'Keys',
   congrats_title:'🎉 Congratulations!', congrats_sub:'You are ready to enjoy your stay.',
   keybox_lbl:'🔑 Keybox code', units_lbl:'units', keybox_note:'Use this code to open the keybox at the entrance and get the keys.',
+  keybox_countdown:'The keybox code will be shown on {date} at 15:55.',
   arrive_lbl:'How to arrive?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
   during_lbl:'Contact during your Stay',
   steps_lbl:'Steps',
@@ -710,6 +721,7 @@ LANG.es = {
   tab_home:'Check-in', tab_arrival:'Llegada', tab_police:'Policía',
   tab_deposit:'Depósito', tab_tax:'Tasa', tab_keys:'Llaves',
   keybox_lbl:'🔑 Código del keybox', units_lbl:'unidades', keybox_note:'Usa este código para abrir el keybox en la entrada y recoger las llaves.',
+  keybox_countdown:'El código del keybox se mostrará el {date} a las 15:55.',
   arrive_lbl:'¿Cómo llegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contraseña',
   during_lbl:'Contacto durante tu estancia',
   steps_lbl:'Pasos',
@@ -729,6 +741,7 @@ LANG.fr = {
   tab_home:'Check-in', tab_arrival:'Arrivée', tab_police:'Police',
   tab_deposit:'Dépôt', tab_tax:'Taxe', tab_keys:'Clés',
   keybox_lbl:'🔑 Code du keybox', units_lbl:'unités', keybox_note:"Utilisez ce code pour ouvrir le keybox à l'entrée et récupérer les clés.",
+  keybox_countdown:'Le code du keybox sera affiché le {date} à 15h55.',
   arrive_lbl:'Comment arriver ?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Mot de passe',
   during_lbl:'Contact pendant votre séjour',
   steps_lbl:'Étapes',
@@ -748,6 +761,7 @@ LANG.de = {
   tab_home:'Check-in', tab_arrival:'Ankunft', tab_police:'Polizei',
   tab_deposit:'Kaution', tab_tax:'Steuer', tab_keys:'Schlüssel',
   keybox_lbl:'🔑 Keybox-Code', units_lbl:'Einheiten', keybox_note:'Verwenden Sie diesen Code, um die Keybox am Eingang zu öffnen und die Schlüssel zu holen.',
+  keybox_countdown:'Der Keybox-Code wird am {date} um 15:55 Uhr angezeigt.',
   arrive_lbl:'Wie komme ich an?', wifi_lbl:'Wifi', wifi_net:'WLAN', wifi_pass:'Passwort',
   during_lbl:'Kontakt während Ihres Aufenthalts',
   steps_lbl:'Schritte',
@@ -767,6 +781,7 @@ LANG.it = {
   tab_home:'Check-in', tab_arrival:'Arrivo', tab_police:'Polizia',
   tab_deposit:'Deposito', tab_tax:'Tassa', tab_keys:'Chiavi',
   keybox_lbl:'🔑 Codice keybox', units_lbl:'unità', keybox_note:"Usate questo codice per aprire la keybox all'ingresso e prendere le chiavi.",
+  keybox_countdown:'Il codice keybox sarà mostrato il {date} alle 15:55.',
   arrive_lbl:'Come arrivare?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Password',
   during_lbl:'Contatto durante il soggiorno',
   steps_lbl:'Passi',
@@ -786,6 +801,7 @@ LANG.nl = {
   tab_home:'Check-in', tab_arrival:'Aankomst', tab_police:'Politie',
   tab_deposit:'Borg', tab_tax:'Belasting', tab_keys:'Sleutels',
   keybox_lbl:'🔑 Keybox-code', units_lbl:'eenheden', keybox_note:'Gebruik deze code om de keybox bij de ingang te openen en de sleutels te halen.',
+  keybox_countdown:'De keybox-code wordt weergegeven op {date} om 15:55.',
   arrive_lbl:'Hoe te arriveren?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Wachtwoord',
   during_lbl:'Contact tijdens uw verblijf',
   steps_lbl:'Stappen',
@@ -805,6 +821,7 @@ LANG.pt = {
   tab_home:'Check-in', tab_arrival:'Chegada', tab_police:'Polícia',
   tab_deposit:'Depósito', tab_tax:'Taxa', tab_keys:'Chaves',
   keybox_lbl:'🔑 Código da keybox', units_lbl:'unidades', keybox_note:'Use este código para abrir a keybox na entrada e pegar as chaves.',
+  keybox_countdown:'O código da keybox será mostrado em {date} às 15:55.',
   arrive_lbl:'Como chegar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Senha',
   during_lbl:'Contacto durante a sua estadia',
   steps_lbl:'Passos',
@@ -824,6 +841,7 @@ LANG.ca = {
   tab_home:'Check-in', tab_arrival:'Arribada', tab_police:'Policia',
   tab_deposit:'Dipòsit', tab_tax:'Taxa', tab_keys:'Claus',
   keybox_lbl:"🔑 Codi del keybox", units_lbl:'unitats', keybox_note:"Feu servir aquest codi per obrir el keybox a l'entrada i agafar les claus.",
+  keybox_countdown:'El codi del keybox es mostrarà el {date} a les 15:55.',
   arrive_lbl:'Com arribar?', wifi_lbl:'Wifi', wifi_net:'WiFi', wifi_pass:'Contrasenya',
   during_lbl:"Contacte durant la vostra estada",
   steps_lbl:'Passos',
@@ -894,6 +912,73 @@ function applyLang(lang){
 
 
 
+/* ════ CONTROL HORA KEYBOX ════
+   Si Checkin_time >= 16:00 → mostrar a las 15:55 (5 min antes de las 16:00)
+   Si Checkin_time <  16:00 → mostrar a Checkin_time - 5 minutos
+   Hora España = UTC+2                                                        */
+function _parseCutoff(checkinRaw, checkinTimeRaw){
+  if(!checkinRaw) return null;
+  /* Parsear fecha */
+  var d=new Date(checkinRaw);
+  if(isNaN(d.getTime())){
+    var m=String(checkinRaw).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) d=new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));
+  }
+  if(isNaN(d.getTime())) return null;
+
+  /* Parsear hora (puede venir como "14:00", "14:00:00", "2:00 PM"...) */
+  var hh=16, mm=0; /* default 16:00 */
+  var ts=String(checkinTimeRaw||'').trim();
+  var tm=ts.match(/(\d{1,2}):(\d{2})/);
+  if(tm){ hh=parseInt(tm[1]); mm=parseInt(tm[2]); }
+  if(/pm/i.test(ts)&&hh<12) hh+=12;
+
+  /* Aplicar casuística */
+  var cutoffH, cutoffM;
+  if(hh>16||(hh===16&&mm>0)){
+    /* Checkin_time > 16:00 → mostrar a las 15:55 */
+    cutoffH=15; cutoffM=55;
+  } else if(hh===16&&mm===0){
+    /* Checkin_time = 16:00 → mostrar a las 15:55 */
+    cutoffH=15; cutoffM=55;
+  } else {
+    /* Checkin_time < 16:00 → mostrar a Checkin_time - 5 min */
+    var total=hh*60+mm-5;
+    if(total<0) total=0;
+    cutoffH=Math.floor(total/60); cutoffM=total%60;
+  }
+
+  /* Convertir a UTC (hora España = UTC+2) */
+  return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate(),cutoffH-2,cutoffM,0));
+}
+
+function isKeyboxVisible(checkinRaw, checkinTimeRaw){
+  var cutoff=_parseCutoff(checkinRaw, checkinTimeRaw);
+  if(!cutoff) return false;
+  return Date.now()>=cutoff.getTime();
+}
+
+function keyboxCountdown(checkinRaw, checkinTimeRaw){
+  if(!checkinRaw) return '';
+  var d=new Date(checkinRaw);
+  if(isNaN(d.getTime())){
+    var m=String(checkinRaw).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(m) d=new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));
+  }
+  if(isNaN(d.getTime())) return '';
+  /* Calcular hora de muestra para el mensaje */
+  var ts=String(checkinTimeRaw||'').trim();
+  var hh=16,mm=0;
+  var tm=ts.match(/(\d{1,2}):(\d{2})/);
+  if(tm){hh=parseInt(tm[1]);mm=parseInt(tm[2]);}
+  if(/pm/i.test(ts)&&hh<12) hh+=12;
+  var dispH,dispM;
+  if(hh>16||(hh===16&&mm>=0)){dispH=15;dispM=55;}
+  else{var t2=hh*60+mm-5;if(t2<0)t2=0;dispH=Math.floor(t2/60);dispM=t2%60;}
+  var timeStr=(dispH<10?'0':'')+dispH+':'+(dispM<10?'0':'')+dispM;
+  return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+' '+timeStr;
+}
+
 /* ════ MULTIUNITS — lee directo de la vista (alias TaMultiunits, _2, _3, _4, _5) ════ */
 function getMuIds(r){
   return [
@@ -947,4 +1032,4 @@ if(typeof CheckinAuth === 'undefined'){
 </div>
 </body>
 </html>
-<!-- HISTORIAL: v49 - (X unidades): solo aparece si hay más de 1 multiunit; texto traducido con clave i18n units_lbl en 8 idiomas | v48 - Multiunits: eliminado loadMultiunits() y fetch a TaMultiunits; ahora lee directo de la vista con getMuData(r,idx) usando los alias TaMultiunits (mu0), TaMultiunits_2..5 (mu1..4); 1 sola llamada al Worker en lugar de 2 | v47 - Multiunits: carga TaMultiunits al inicio (loadMultiunits); pgVilla muestra "Villa X (N units)" si hay multiunits; keybox muestra un bloque por cada PMSmultiunitID (hasta ID5) con nombre del multiunit y su código keybox; sin multiunits comportamiento estándar | v46 - Fix bucle popup sin tocar Caspio (campo Yes/No estricto no sirve de señal): se usa marca de sesión '3v_premium_seen_<code>' (sessionStorage) por reserva. El popup automático se abre solo si esa marca NO existe. Se siembra al cerrar el popup vía postMessage (flujo iframe) o detectando ?pf=1 en la URL (fallback redirección desde checkin-premium). El botón "★ Premium" queda siempre visible para reabrir el comparador | v45 - Fix bucle popup Premium: el popup automático ahora se abre SOLO si checkin_premium está vacío (huésped no ha elegido aún); tras elegir Premium('Yes') o Estándar('No') el campo deja de estar vacío y al recargar ya no se reabre. El botón "★ Premium" se muestra en cuanto hay elección (Yes o No) para poder reabrir manualmente | v44 - Checkin Premium en checkin-online: si TaBookings2021_checkin_premium=Yes muestra botón "★ Premium" (dorado #B8860B, a la derecha bajo los tabs Info/Keys) que abre checkin-premium.html en popup iframe centrado H y V; si NO está marcado, abre ese mismo popup automáticamente al cargar (cada vez, sin X, el huésped elige opción dentro del popup). Cierre vía postMessage 'checkin-premium-close' + recarga para reflejar la opción elegida. URL del popup con ?reserva= | v43 - Greeting al panel0, steps ocultos en cuerpo, i SVG correcta, "4 Steps" con margen | v42 - Solo CSS: header compacto, logo pequeño, idioma top-right, Info azul SVG, título Steps; sin tocar HTML funcional | v41 - Fix: steps en header son progress-track (círculos) clicables, no mini-cards | v40 - Cabecera rediseñada: logo arriba, título debajo, tabs Info+Keys, mini step-cards 1-4 en header | v39 - Copia estable de v38 (versión de referencia) | v38 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v37 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v36 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v35 - Barra de navegación con 6 tabs (🏠 Check-in, 1-4 steps externos, 🔑 Llaves). Al entrar: allDone→tab llaves, pendiente→tab check-in. Panel llaves: info si allDone, mensaje si no. | v34 - i18n extendido al overlay checkin-auth | v33 - Sistema i18n propio 8 idiomas | v32 - Botones play → páginas GitHub locales | v31 - Homogeneizar 3 boxes key-row | v30 - versión anterior -->
+<!-- HISTORIAL: v51 - Hora keybox dinámica: si Checkin_time>=16:00 muestra a las 15:55; si Checkin_time<16:00 muestra a Checkin_time-5min; mensaje de cuenta atrás incluye hora exacta | v50 - Control hora keybox: igual que Caspio, se muestra solo a partir de las 15:55 del día de checkin (UTC+2); si allDone pero aún no es hora, muestra mensaje "El código se mostrará el DD/MM/YYYY a las 15:55" en 8 idiomas (keybox_countdown) | v49 - (X unidades): solo aparece si hay más de 1 multiunit; texto traducido con clave i18n units_lbl en 8 idiomas | v48 - Multiunits: eliminado loadMultiunits() y fetch a TaMultiunits; ahora lee directo de la vista con getMuData(r,idx) usando los alias TaMultiunits (mu0), TaMultiunits_2..5 (mu1..4); 1 sola llamada al Worker en lugar de 2 | v47 - Multiunits: carga TaMultiunits al inicio (loadMultiunits); pgVilla muestra "Villa X (N units)" si hay multiunits; keybox muestra un bloque por cada PMSmultiunitID (hasta ID5) con nombre del multiunit y su código keybox; sin multiunits comportamiento estándar | v46 - Fix bucle popup sin tocar Caspio (campo Yes/No estricto no sirve de señal): se usa marca de sesión '3v_premium_seen_<code>' (sessionStorage) por reserva. El popup automático se abre solo si esa marca NO existe. Se siembra al cerrar el popup vía postMessage (flujo iframe) o detectando ?pf=1 en la URL (fallback redirección desde checkin-premium). El botón "★ Premium" queda siempre visible para reabrir el comparador | v45 - Fix bucle popup Premium: el popup automático ahora se abre SOLO si checkin_premium está vacío (huésped no ha elegido aún); tras elegir Premium('Yes') o Estándar('No') el campo deja de estar vacío y al recargar ya no se reabre. El botón "★ Premium" se muestra en cuanto hay elección (Yes o No) para poder reabrir manualmente | v44 - Checkin Premium en checkin-online: si TaBookings2021_checkin_premium=Yes muestra botón "★ Premium" (dorado #B8860B, a la derecha bajo los tabs Info/Keys) que abre checkin-premium.html en popup iframe centrado H y V; si NO está marcado, abre ese mismo popup automáticamente al cargar (cada vez, sin X, el huésped elige opción dentro del popup). Cierre vía postMessage 'checkin-premium-close' + recarga para reflejar la opción elegida. URL del popup con ?reserva= | v43 - Greeting al panel0, steps ocultos en cuerpo, i SVG correcta, "4 Steps" con margen | v42 - Solo CSS: header compacto, logo pequeño, idioma top-right, Info azul SVG, título Steps; sin tocar HTML funcional | v41 - Fix: steps en header son progress-track (círculos) clicables, no mini-cards | v40 - Cabecera rediseñada: logo arriba, título debajo, tabs Info+Keys, mini step-cards 1-4 en header | v39 - Copia estable de v38 (versión de referencia) | v38 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v37 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v36 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v35 - Barra de navegación con 6 tabs (🏠 Check-in, 1-4 steps externos, 🔑 Llaves). Al entrar: allDone→tab llaves, pendiente→tab check-in. Panel llaves: info si allDone, mensaje si no. | v34 - i18n extendido al overlay checkin-auth | v33 - Sistema i18n propio 8 idiomas | v32 - Botones play → páginas GitHub locales | v31 - Homogeneizar 3 boxes key-row | v30 - versión anterior -->
