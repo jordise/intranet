@@ -262,6 +262,15 @@ const CheckinAuth = (function(){
       el.placeholder=_t(el.getAttribute('data-ca-ph'));
     });
   }
+  function _setLang(lang){
+    try{ localStorage.setItem('3v_lang', lang); }catch(e){}
+    /* Refrescar también la página principal si tiene applyLang */
+    if(typeof applyLang === 'function') applyLang(lang);
+    var lsel = document.getElementById('caLangSel');
+    if(lsel) lsel.value = lang;
+    _refreshOverlay();
+  }
+
   function _refreshOverlay(){
     _applyOverlayTexts();
     var btnE=document.getElementById('caBtnEmail');
@@ -437,6 +446,18 @@ const CheckinAuth = (function(){
       <div class="ca-card">
         <img class="ca-logo" src="logo-negro.png" alt="3Villas"
              onerror="this.onerror=null;this.style.display='none'">
+        <div style="text-align:right;margin-bottom:8px">
+          <select id="caLangSel" onchange="CheckinAuth._setLang(this.value)" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:1px solid #dee2e6;border-radius:8px;padding:4px 8px;background:#fff;color:#495057;cursor:pointer;outline:none">
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="fr">FR</option>
+            <option value="de">DE</option>
+            <option value="it">IT</option>
+            <option value="nl">NL</option>
+            <option value="pt">PT</option>
+            <option value="ca">CA</option>
+          </select>
+        </div>
         <div id="caStepEmail">
           <div class="ca-title" data-ca-i18n="title_email">Check-in Online</div>
           <div class="ca-sub" id="caEmailSub" data-ca-i18n="sub_email">Enter the email address you used when booking to receive your access code.</div>
@@ -482,6 +503,9 @@ const CheckinAuth = (function(){
     document.body.appendChild(d);
     document.getElementById('caEmail').addEventListener('keydown', e => { if(e.key==='Enter') CheckinAuth._send(); });
     document.getElementById('caPin').addEventListener('keydown',  e => { if(e.key==='Enter') CheckinAuth._verify(); });
+    /* Inicializar selector de idioma con el idioma actual */
+    var _lsel = document.getElementById('caLangSel');
+    if(_lsel) _lsel.value = _getLang();
     _applyOverlayTexts();
     document.getElementById('caBtnEmail').textContent = _t('btn_email');
     document.getElementById('caBtnPin').textContent   = _t('btn_pin');
@@ -490,10 +514,17 @@ const CheckinAuth = (function(){
     fetch(`${WORKER}?action=checkin-hint&code=${encodeURIComponent(_code)}`)
       .then(r => r.ok ? r.json() : null)
       .then(j => {
-        if(!j) return;
-        /* Mostrar checkbox "no tengo email" solo si la reserva no tiene emails */
+        if(!j) {
+          /* Sin respuesta del Worker — mostrar checkbox por si acaso */
+          const nw = document.getElementById('caNoEmailWrap');
+          if(nw) nw.style.display = 'block';
+          return;
+        }
+        /* Mostrar checkbox "no tengo email":
+           - Worker v40: hasEmail===false
+           - Worker v39 (fallback): hint está vacío */
         const noEmailWrap = document.getElementById('caNoEmailWrap');
-        if(noEmailWrap && j.hasEmail === false){
+        if(noEmailWrap && (j.hasEmail === false || !j.hint)){
           noEmailWrap.style.display = 'block';
         }
         if(!j.hint) return;
@@ -757,6 +788,8 @@ const CheckinAuth = (function(){
     _send:   () => send(),
     _verify: () => verify(),
     _back:   () => back(),
+    _toggleNoEmail: () => _toggleNoEmail(),
+    _setLang: (l) => _setLang(l),
     _refreshLang: () => { if(document.getElementById('caOverlay')) _refreshOverlay(); },
 
     getCode:    () => _code,
