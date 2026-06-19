@@ -1,4 +1,4 @@
-/* checkin-auth.js v11 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v12 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -446,9 +446,9 @@ const CheckinAuth = (function(){
       <div class="ca-card">
         <img class="ca-logo" src="logo-negro.png" alt="3Villas"
              onerror="this.onerror=null;this.style.display='none'">
-        <div style="text-align:right;margin-bottom:8px">
-          <select id="caLangSel" onchange="CheckinAuth._setLang(this.value)" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:1px solid #dee2e6;border-radius:8px;padding:4px 8px;background:#fff;color:#495057;cursor:pointer;outline:none">
-            <option value="en">EN</option>
+        <div id="caLangWrap" style="position:absolute;top:12px;right:12px">
+          <select id="caLangSel" onchange="CheckinAuth._setLang(this.value)" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:1px solid #dee2e6;border-radius:8px;padding:4px 8px;background:#fff;color:#495057;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;padding-right:6px">
+            <option value="en">🌐 EN</option>
             <option value="es">ES</option>
             <option value="fr">FR</option>
             <option value="de">DE</option>
@@ -557,20 +557,15 @@ const CheckinAuth = (function(){
 
   function _toggleNoEmail(){
     _noEmailMode = document.getElementById('caNoEmail').checked;
-    const emailInp = document.getElementById('caEmail');
-    const btn      = document.getElementById('caBtnEmail');
     if(_noEmailMode){
-      emailInp.disabled = true;
-      emailInp.style.opacity = '0.4';
-      btn.textContent = _t('btn_pin'); /* "Verify code" / directo al PIN */
-      const sub = document.getElementById('caEmailSub');
-      if(sub) sub.textContent = _t('no_email_hint');
+      /* Ir directamente al paso PIN con el label de código especial */
+      const lbl = document.querySelector('#caStepPin .ca-lbl');
+      if(lbl) lbl.textContent = _t('lbl_alt_code');
+      document.getElementById('caPinSub').textContent = _t('no_email_hint');
+      step('Pin');
     } else {
-      emailInp.disabled = false;
-      emailInp.style.opacity = '';
-      btn.textContent = _t('btn_email');
-      const sub = document.getElementById('caEmailSub');
-      if(sub) sub.textContent = _t('sub_email');
+      /* Volver al paso Email */
+      step('Email');
     }
   }
 
