@@ -1,4 +1,4 @@
-/* checkin-auth.js v9 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v10 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -10,12 +10,14 @@
    Flujo admin/manager:
       → si Auth está disponible y autenticado → bypass total, carga directa por el code de la URL (sin sesión huésped)
 
-   CAMBIOS v9 (sobre v8):
-   - Caché del booking en sessionStorage (clave BOOKING_CACHE_KEY = '3v_booking_cache').
-     loadBookingData() consulta la caché antes de llamar al Worker. Si el booking ya está
-     cacheado para ese code, lo devuelve directamente (0 llamadas al Worker en navegación
-     entre páginas). La caché se invalida al limpiar la sesión o al cambiar de reserva.
-     loadBookingDataAdmin() también cachea el resultado.
+   CAMBIOS v10 (sobre v9):
+   - checkin-hint: lee hasEmail; si hasEmail=false muestra checkbox "No tengo email"
+   - hint preferido: Segundo_email (si existe), si no Guest_email
+   - Checkbox "no tengo email": entra directamente al paso PIN con el código alternativo
+     (el huésped escribe 5+código_reserva+7, sin necesidad de email ni OTP)
+   - PIN ahora es OTP aleatorio (el Worker lo genera); maxlength del input ajustado
+   - Bloqueo progresivo: el Worker devuelve locked=true con remainingSeconds;
+     la UI muestra cuenta atrás y bloquea el botón hasta que expire
 
    CAMBIOS v8 (sobre v7):
    - Fix: isMainPage usaba location.pathname.includes('checkin-online.html'), que falla
@@ -33,7 +35,6 @@ const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const BOOKING_CACHE_KEY = '3v_booking_cache';
   const SESSION_TTL = 15 * 24 * 60 * 60 * 1000; // 15 días
   const MAX_ATT     = 5;
   const CHECKIN_MAIN = 'checkin-online.html'; // página principal
@@ -56,6 +57,10 @@ const CheckinAuth = (function(){
       err_email:'Please enter a valid email address.',
       err_not_found:'This email does not match our records. Please use the email you booked with.',
       err_send:'Could not send the code. Please try again or contact us.',
+      no_email_check:'I don\'t have access to the booking email',
+      no_email_hint:'Enter the special access code provided by 3Villas staff.',
+      err_locked:'Access blocked. Try again in {mins} minute{s}.',
+      lbl_alt_code:'Special access code',
       err_code:'Please enter the full code.',
       err_too_many:'Too many incorrect attempts. Please contact us at bookings@3villas.com',
       err_incorrect:'Incorrect code. {left} attempt{s} remaining.',
@@ -125,6 +130,10 @@ const CheckinAuth = (function(){
       err_email:'Bitte geben Sie eine g\u00fcltige E-Mail-Adresse ein.',
       err_not_found:'Diese E-Mail stimmt nicht mit unseren Daten \u00fcberein. Bitte die Buchungs-E-Mail verwenden.',
       err_send:'Code konnte nicht gesendet werden. Bitte erneut versuchen oder uns kontaktieren.',
+      no_email_check:'Ich habe keinen Zugriff auf die Buchungs-E-Mail',
+      no_email_hint:'Geben Sie den Sonderzugangscode des 3Villas-Teams ein.',
+      err_locked:'Zugang gesperrt. Versuchen Sie es in {mins} Minute{s} erneut.',
+      lbl_alt_code:'Sonderzugangscode',
       err_code:'Bitte geben Sie den vollst\u00e4ndigen Code ein.',
       err_too_many:'Zu viele falsche Versuche. Kontaktieren Sie uns: bookings@3villas.com',
       err_incorrect:'Falscher Code. Noch {left} Versuch{s}.',
@@ -148,6 +157,10 @@ const CheckinAuth = (function(){
       err_email:'Inserisci un indirizzo email valido.',
       err_not_found:"Questa email non corrisponde ai nostri dati. Usa l\u2019email con cui hai prenotato.",
       err_send:'Impossibile inviare il codice. Riprova o contattaci.',
+      no_email_check:"Non ho accesso all\'email della prenotazione",
+      no_email_hint:"Inserisci il codice speciale fornito dal team 3Villas.",
+      err_locked:'Accesso bloccato. Riprova tra {mins} minuto{s}.',
+      lbl_alt_code:'Codice speciale di accesso',
       err_code:'Inserisci il codice completo.',
       err_too_many:'Troppi tentativi errati. Contattaci a bookings@3villas.com',
       err_incorrect:'Codice errato. Rimangono {left} tentativo{s}.',
@@ -308,38 +321,9 @@ const CheckinAuth = (function(){
   }
 
   /* Cargar booking data del Worker usando code + pin */
-
-  /* ── Caché del booking en sessionStorage (dura mientras la pestaña esté abierta) ──
-     Evita llamar al Worker cada vez que el huésped navega entre páginas.
-     La clave incluye el code para que no se mezclen reservas distintas. */
-  function getCachedBooking(code){
-    try{
-      const raw = sessionStorage.getItem(BOOKING_CACHE_KEY);
-      if(!raw) return null;
-      const obj = JSON.parse(raw);
-      if(obj.code !== code) return null;          /* reserva distinta → ignorar */
-      return obj.booking || null;
-    }catch(e){ return null; }
-  }
-
-  function setCachedBooking(code, booking){
-    try{
-      sessionStorage.setItem(BOOKING_CACHE_KEY, JSON.stringify({ code, booking }));
-    }catch(e){}
-  }
-
-  function clearBookingCache(){
-    try{ sessionStorage.removeItem(BOOKING_CACHE_KEY); }catch(e){}
-  }
-
   async function loadBookingData(code, pin){
-    /* Intentar caché primero — evita llamada al Worker si ya tenemos el booking */
-    const cached = getCachedBooking(code);
-    if(cached) return cached;
-    /* No en caché → llamar al Worker y guardar resultado */
     const j = await wPost('verify-checkin-code', { bookingCode: code, pin });
     if(!j.booking) throw new Error('no booking data');
-    setCachedBooking(code, j.booking);
     return j.booking;
   }
 
@@ -352,9 +336,7 @@ const CheckinAuth = (function(){
     if(!r.ok) throw new Error(j.error || 'Error ' + r.status);
     const rows = j.Result || j.result || j;
     if(!rows || !rows.length) throw new Error('booking not found');
-    const booking = rows[0];
-    setCachedBooking(code, booking);
-    return booking;
+    return rows[0];
   }
 
   /* ── Redirigir a checkin-online si no hay sesión y no es admin ── */
@@ -431,6 +413,12 @@ const CheckinAuth = (function(){
           <div class="ca-err" id="caErrEmail"></div>
           <label class="ca-lbl" data-ca-i18n="lbl_email">Email address</label>
           <input class="ca-inp" id="caEmail" type="email" data-ca-ph="ph_email" placeholder="your@email.com" autocomplete="email">
+          <div id="caNoEmailWrap" style="display:none;margin-bottom:12px">
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:#868e96;line-height:1.4">
+              <input type="checkbox" id="caNoEmail" onchange="CheckinAuth._toggleNoEmail()" style="margin-top:2px;flex-shrink:0">
+              <span id="caNoEmailLbl" data-ca-i18n="no_email_check">I don't have access to the booking email</span>
+            </label>
+          </div>
           <button class="ca-btn" id="caBtnEmail" onclick="CheckinAuth._send()">Send access code</button>
           <div class="ca-contact">
             <span data-ca-i18n="need_help">Need help?</span>
@@ -444,7 +432,7 @@ const CheckinAuth = (function(){
           <div class="ca-err" id="caErrPin"></div>
           <label class="ca-lbl" data-ca-i18n="lbl_pin">Access code</label>
           <input class="ca-inp pin" id="caPin" type="text" inputmode="numeric"
-                 maxlength="5" data-ca-ph="ph_pin" placeholder="&middot; &middot; &middot; &middot; &middot;" autocomplete="one-time-code">
+                 maxlength="30" data-ca-ph="ph_pin" placeholder="&middot; &middot; &middot; &middot; &middot;" autocomplete="one-time-code">
           <button class="ca-btn" id="caBtnPin" onclick="CheckinAuth._verify()">Verify code</button>
           <div class="ca-att" id="caAtt"></div>
           <button class="ca-back" id="caBack" onclick="CheckinAuth._back()">&#8592; Try a different email</button>
@@ -472,7 +460,13 @@ const CheckinAuth = (function(){
     fetch(`${WORKER}?action=checkin-hint&code=${encodeURIComponent(_code)}`)
       .then(r => r.ok ? r.json() : null)
       .then(j => {
-        if(!j || !j.hint) return;
+        if(!j) return;
+        /* Mostrar checkbox "no tengo email" solo si la reserva no tiene emails */
+        const noEmailWrap = document.getElementById('caNoEmailWrap');
+        if(noEmailWrap && j.hasEmail === false){
+          noEmailWrap.style.display = 'block';
+        }
+        if(!j.hint) return;
         const inp = document.getElementById('caEmail');
         if(inp) inp.value = j.hint;
         const sub = document.getElementById('caEmailSub');
@@ -497,8 +491,37 @@ const CheckinAuth = (function(){
 
   let _code='', _email='', _att=0, _cb=null;
 
+  let _noEmailMode = false;
+
+  function _toggleNoEmail(){
+    _noEmailMode = document.getElementById('caNoEmail').checked;
+    const emailInp = document.getElementById('caEmail');
+    const btn      = document.getElementById('caBtnEmail');
+    if(_noEmailMode){
+      emailInp.disabled = true;
+      emailInp.style.opacity = '0.4';
+      btn.textContent = _t('btn_pin'); /* "Verify code" / directo al PIN */
+      const sub = document.getElementById('caEmailSub');
+      if(sub) sub.textContent = _t('no_email_hint');
+    } else {
+      emailInp.disabled = false;
+      emailInp.style.opacity = '';
+      btn.textContent = _t('btn_email');
+      const sub = document.getElementById('caEmailSub');
+      if(sub) sub.textContent = _t('sub_email');
+    }
+  }
+
   async function send(){
     noErr('caErrEmail');
+    /* Modo sin email: saltar directamente al paso PIN */
+    if(_noEmailMode){
+      document.getElementById('caPinSub').textContent = _t('no_email_hint');
+      const lbl = document.querySelector('#caStepPin .ca-lbl');
+      if(lbl) lbl.textContent = _t('lbl_alt_code');
+      step('Pin');
+      return;
+    }
     const email = (document.getElementById('caEmail').value||'').toLowerCase().trim();
     if(!email || !email.includes('@')){ err('caErrEmail',_t('err_email')); return; }
     busy('caBtnEmail', true, _t('sending'));
@@ -512,9 +535,32 @@ const CheckinAuth = (function(){
     } finally { busy('caBtnEmail', false); }
   }
 
+  function _startLockoutTimer(secs){
+    const btn = document.getElementById('caBtnPin');
+    const inp = document.getElementById('caPin');
+    if(btn) btn.disabled = true;
+    if(inp) inp.disabled = true;
+    const end = Date.now() + secs * 1000;
+    const tick = setInterval(() => {
+      const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      const mins = Math.ceil(left / 60);
+      if(left <= 0){
+        clearInterval(tick);
+        if(btn){ btn.disabled = false; btn.textContent = _t('btn_pin'); }
+        if(inp){ inp.disabled = false; inp.value = ''; }
+        noErr('caErrPin');
+        document.getElementById('caAtt').textContent = '';
+      } else {
+        err('caErrPin', _t('err_locked',{mins:String(mins),s:mins!==1?'s':''}));
+      }
+    }, 1000);
+  }
+
   async function verify(){
     noErr('caErrPin');
-    const pin = (document.getElementById('caPin').value||'').replace(/\D/g,'').trim();
+    const rawPin = (document.getElementById('caPin').value||'').trim();
+    /* En modo sin email el código alternativo puede tener cualquier longitud */
+    const pin = _noEmailMode ? rawPin : rawPin.replace(/\D/g,'');
     if(pin.length < 4){ err('caErrPin',_t('err_code')); return; }
     busy('caBtnPin', true, _t('verifying'));
     try {
@@ -526,6 +572,14 @@ const CheckinAuth = (function(){
         if(_cb) _cb(j.booking);
       }, 700);
     } catch(e){
+      /* El Worker puede devolver locked=true con remainingSeconds */
+      let data = {};
+      try { data = JSON.parse(e.message); } catch(pe) { data = { message: e.message }; }
+      if(data.locked && data.remainingSeconds){
+        busy('caBtnPin', false);
+        _startLockoutTimer(data.remainingSeconds);
+        return;
+      }
       _att++;
       const left = MAX_ATT - _att;
       if(left <= 0){
@@ -604,7 +658,7 @@ const CheckinAuth = (function(){
               .then(booking => { if(_cb) _cb(booking); })
               .catch(() => {
                 /* Sesión caducada o inválida → pedir verificación de nuevo */
-                localStorage.removeItem(SESSION_KEY); clearBookingCache();
+                localStorage.removeItem(SESSION_KEY);
                 inject();
               });
           };
@@ -651,7 +705,7 @@ const CheckinAuth = (function(){
             .then(booking => { if(_cb) _cb(booking); })
             .catch(() => {
               /* Sesión caducada/ inválida → pedir verificación de nuevo */
-              localStorage.removeItem(SESSION_KEY); clearBookingCache();
+              localStorage.removeItem(SESSION_KEY);
               inject();
             });
         };
