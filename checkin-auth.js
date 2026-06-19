@@ -1,4 +1,4 @@
-/* checkin-auth.js  v12 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v13 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -58,7 +58,7 @@ const CheckinAuth = (function(){
       err_not_found:'This email does not match our records. Please use the email you booked with.',
       err_send:'Could not send the code. Please try again or contact us.',
       no_email_check:'I don\'t have access to the booking email',
-      no_email_hint:'Enter the special access code provided by 3Villas staff.',
+      no_email_hint:'Enter the code we sent you by email or WhatsApp.',
       err_locked:'Access blocked. Try again in {mins} minute{s}.',
       lbl_alt_code:'Special access code',
       err_code:'Please enter the full code.',
@@ -79,6 +79,8 @@ const CheckinAuth = (function(){
       btn_pin:'Verificar c\u00f3digo', verifying:'Verificando\u2026',
       back:'\u2190 Usar otro email',
       no_email:'\u00bfNo lo has recibido? Revisa el spam o cont\u00e1ctanos en',
+      no_email_check:'No tengo acceso al email de la reserva',
+      no_email_hint:'Introduce el c\u00f3digo que te hemos enviado por email o WhatsApp.',
       verified:'\u00a1Verificado!', loading:'Cargando tu check-in\u2026',
       need_help:'\u00bfNecesitas ayuda?',
       err_email:'Por favor, introduce un email v\u00e1lido.',
@@ -102,6 +104,8 @@ const CheckinAuth = (function(){
       btn_pin:'V\u00e9rifier le code', verifying:'V\u00e9rification\u2026',
       back:'\u2190 Utiliser un autre email',
       no_email:"Vous ne l\u2019avez pas re\u00e7u ? V\u00e9rifiez les spams ou contactez-nous :",
+      no_email_check:"Je n'ai pas acc\u00e8s \u00e0 l'e-mail de r\u00e9servation",
+      no_email_hint:'Entrez le code que nous vous avons envoy\u00e9 par e-mail ou WhatsApp.',
       verified:'V\u00e9rifi\u00e9 !', loading:'Chargement de votre check-in\u2026',
       need_help:"Besoin d\u2019aide ?",
       err_email:'Veuillez entrer une adresse e-mail valide.',
@@ -131,7 +135,7 @@ const CheckinAuth = (function(){
       err_not_found:'Diese E-Mail stimmt nicht mit unseren Daten \u00fcberein. Bitte die Buchungs-E-Mail verwenden.',
       err_send:'Code konnte nicht gesendet werden. Bitte erneut versuchen oder uns kontaktieren.',
       no_email_check:'Ich habe keinen Zugriff auf die Buchungs-E-Mail',
-      no_email_hint:'Geben Sie den Sonderzugangscode des 3Villas-Teams ein.',
+      no_email_hint:'Geben Sie den Code ein, den wir Ihnen per E-Mail oder WhatsApp gesendet haben.',
       err_locked:'Zugang gesperrt. Versuchen Sie es in {mins} Minute{s} erneut.',
       lbl_alt_code:'Sonderzugangscode',
       err_code:'Bitte geben Sie den vollst\u00e4ndigen Code ein.',
@@ -158,7 +162,7 @@ const CheckinAuth = (function(){
       err_not_found:"Questa email non corrisponde ai nostri dati. Usa l\u2019email con cui hai prenotato.",
       err_send:'Impossibile inviare il codice. Riprova o contattaci.',
       no_email_check:"Non ho accesso all\'email della prenotazione",
-      no_email_hint:"Inserisci il codice speciale fornito dal team 3Villas.",
+      no_email_hint:'Inserisci il codice che ti abbiamo inviato via email o WhatsApp.',
       err_locked:'Accesso bloccato. Riprova tra {mins} minuto{s}.',
       lbl_alt_code:'Codice speciale di accesso',
       err_code:'Inserisci il codice completo.',
@@ -179,6 +183,8 @@ const CheckinAuth = (function(){
       btn_pin:'Code verifi\u00ebren', verifying:'Verifi\u00ebren\u2026',
       back:'\u2190 Ander e-mailadres gebruiken',
       no_email:'Niet ontvangen? Controleer spam of neem contact op:',
+      no_email_check:'Ik heb geen toegang tot het boekings-e-mailadres',
+      no_email_hint:'Voer de code in die wij u per e-mail of WhatsApp hebben gestuurd.',
       verified:'Geverifieerd!', loading:'Check-in wordt geladen\u2026',
       need_help:'Hulp nodig?',
       err_email:'Voer een geldig e-mailadres in.',
@@ -202,6 +208,8 @@ const CheckinAuth = (function(){
       btn_pin:'Verificar c\u00f3digo', verifying:'A verificar\u2026',
       back:'\u2190 Usar outro email',
       no_email:'N\u00e3o recebeu? Verifique o spam ou contacte-nos:',
+      no_email_check:'N\u00e3o tenho acesso ao email de reserva',
+      no_email_hint:'Introduza o c\u00f3digo que lhe envi\u00e1mos por email ou WhatsApp.',
       verified:'Verificado!', loading:'A carregar o check-in\u2026',
       need_help:'Precisa de ajuda?',
       err_email:'Por favor, introduza um email v\u00e1lido.',
@@ -225,6 +233,8 @@ const CheckinAuth = (function(){
       btn_pin:'Verificar codi', verifying:'Verificant\u2026',
       back:'\u2190 Usar un altre correu',
       no_email:"No l\u2019has rebut? Revisa l\u2019spam o contacta\u2019ns a",
+      no_email_check:"No tinc acc\u00e9s a l'email de la reserva",
+      no_email_hint:"Introdueix el codi que t'hem enviat per correu electr\u00f2nic o WhatsApp.",
       verified:'Verificat!', loading:"Carregant el check-in\u2026",
       need_help:'Necessites ajuda?',
       err_email:'Si us plau, introdueix un email v\u00e0lid.',
@@ -526,7 +536,14 @@ const CheckinAuth = (function(){
         const noEmailWrap = document.getElementById('caNoEmailWrap');
         if(noEmailWrap && (j.hasEmail === false || !j.hint)){
           noEmailWrap.style.display = 'block';
-          _applyOverlayTexts(); /* traducir el checkbox al idioma actual */
+          _applyOverlayTexts();
+          /* Sin email: pre-marcar checkbox e ir directamente al PIN */
+          const cb = document.getElementById('caNoEmail');
+          if(cb){ cb.checked = true; _noEmailMode = true; }
+          const lbl = document.querySelector('#caStepPin .ca-lbl');
+          if(lbl) lbl.textContent = _t('lbl_alt_code');
+          document.getElementById('caPinSub').textContent = _t('no_email_hint');
+          step('Pin');
         }
         if(!j.hint) return;
         const inp = document.getElementById('caEmail');
