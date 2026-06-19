@@ -1,4 +1,4 @@
-/* checkin-auth.js v10 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v11 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -526,6 +526,7 @@ const CheckinAuth = (function(){
         const noEmailWrap = document.getElementById('caNoEmailWrap');
         if(noEmailWrap && (j.hasEmail === false || !j.hint)){
           noEmailWrap.style.display = 'block';
+          _applyOverlayTexts(); /* traducir el checkbox al idioma actual */
         }
         if(!j.hint) return;
         const inp = document.getElementById('caEmail');
