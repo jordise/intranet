@@ -1,4 +1,4 @@
-/* checkin-auth.js v8 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v9 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -9,6 +9,13 @@
       → si no hay sesión → mostrar overlay de verificación con el code de la URL
    Flujo admin/manager:
       → si Auth está disponible y autenticado → bypass total, carga directa por el code de la URL (sin sesión huésped)
+
+   CAMBIOS v9 (sobre v8):
+   - Caché del booking en sessionStorage (clave BOOKING_CACHE_KEY = '3v_booking_cache').
+     loadBookingData() consulta la caché antes de llamar al Worker. Si el booking ya está
+     cacheado para ese code, lo devuelve directamente (0 llamadas al Worker en navegación
+     entre páginas). La caché se invalida al limpiar la sesión o al cambiar de reserva.
+     loadBookingDataAdmin() también cachea el resultado.
 
    CAMBIOS v8 (sobre v7):
    - Fix: isMainPage usaba location.pathname.includes('checkin-online.html'), que falla
@@ -26,6 +33,7 @@ const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
+  const BOOKING_CACHE_KEY = '3v_booking_cache';
   const SESSION_TTL = 15 * 24 * 60 * 60 * 1000; // 15 días
   const MAX_ATT     = 5;
   const CHECKIN_MAIN = 'checkin-online.html'; // página principal
@@ -300,9 +308,38 @@ const CheckinAuth = (function(){
   }
 
   /* Cargar booking data del Worker usando code + pin */
+
+  /* ── Caché del booking en sessionStorage (dura mientras la pestaña esté abierta) ──
+     Evita llamar al Worker cada vez que el huésped navega entre páginas.
+     La clave incluye el code para que no se mezclen reservas distintas. */
+  function getCachedBooking(code){
+    try{
+      const raw = sessionStorage.getItem(BOOKING_CACHE_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(obj.code !== code) return null;          /* reserva distinta → ignorar */
+      return obj.booking || null;
+    }catch(e){ return null; }
+  }
+
+  function setCachedBooking(code, booking){
+    try{
+      sessionStorage.setItem(BOOKING_CACHE_KEY, JSON.stringify({ code, booking }));
+    }catch(e){}
+  }
+
+  function clearBookingCache(){
+    try{ sessionStorage.removeItem(BOOKING_CACHE_KEY); }catch(e){}
+  }
+
   async function loadBookingData(code, pin){
+    /* Intentar caché primero — evita llamada al Worker si ya tenemos el booking */
+    const cached = getCachedBooking(code);
+    if(cached) return cached;
+    /* No en caché → llamar al Worker y guardar resultado */
     const j = await wPost('verify-checkin-code', { bookingCode: code, pin });
     if(!j.booking) throw new Error('no booking data');
+    setCachedBooking(code, j.booking);
     return j.booking;
   }
 
@@ -315,7 +352,9 @@ const CheckinAuth = (function(){
     if(!r.ok) throw new Error(j.error || 'Error ' + r.status);
     const rows = j.Result || j.result || j;
     if(!rows || !rows.length) throw new Error('booking not found');
-    return rows[0];
+    const booking = rows[0];
+    setCachedBooking(code, booking);
+    return booking;
   }
 
   /* ── Redirigir a checkin-online si no hay sesión y no es admin ── */
@@ -565,7 +604,7 @@ const CheckinAuth = (function(){
               .then(booking => { if(_cb) _cb(booking); })
               .catch(() => {
                 /* Sesión caducada o inválida → pedir verificación de nuevo */
-                localStorage.removeItem(SESSION_KEY);
+                localStorage.removeItem(SESSION_KEY); clearBookingCache();
                 inject();
               });
           };
@@ -612,7 +651,7 @@ const CheckinAuth = (function(){
             .then(booking => { if(_cb) _cb(booking); })
             .catch(() => {
               /* Sesión caducada/ inválida → pedir verificación de nuevo */
-              localStorage.removeItem(SESSION_KEY);
+              localStorage.removeItem(SESSION_KEY); clearBookingCache();
               inject();
             });
         };
