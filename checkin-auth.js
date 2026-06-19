@@ -321,9 +321,39 @@ const CheckinAuth = (function(){
   }
 
   /* Cargar booking data del Worker usando code + pin */
+
+  /* ── Caché del booking en sessionStorage ───────────────────────────
+     Evita llamar al Worker con el OTP ya consumido al navegar entre páginas.
+     La clave incluye el code para que no se mezclen reservas distintas. */
+  const BOOKING_CACHE_KEY = '3v_booking_cache';
+
+  function getCachedBooking(code){
+    try{
+      const raw = sessionStorage.getItem(BOOKING_CACHE_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(obj.code !== code) return null;
+      return obj.booking || null;
+    }catch(e){ return null; }
+  }
+
+  function setCachedBooking(code, booking){
+    try{ sessionStorage.setItem(BOOKING_CACHE_KEY, JSON.stringify({ code, booking })); }catch(e){}
+  }
+
+  function clearBookingCache(){
+    try{ sessionStorage.removeItem(BOOKING_CACHE_KEY); }catch(e){}
+  }
+
   async function loadBookingData(code, pin){
+    /* Leer caché primero — tras verify() el OTP ya está consumido en Caspio,
+       así que no podemos volver a llamar a verify-checkin-code con ese PIN. */
+    const cached = getCachedBooking(code);
+    if(cached) return cached;
+    /* No en caché → llamar al Worker (solo funciona si el PIN es el código alternativo) */
     const j = await wPost('verify-checkin-code', { bookingCode: code, pin });
     if(!j.booking) throw new Error('no booking data');
+    setCachedBooking(code, j.booking);
     return j.booking;
   }
 
@@ -567,6 +597,8 @@ const CheckinAuth = (function(){
       const j = await wPost('verify-checkin-code', { bookingCode:_code, pin });
       step('Ok');
       setSession(_code, pin);
+      /* Guardar booking en sessionStorage para que loadBookingData lo use sin llamar al Worker */
+      try{ sessionStorage.setItem('3v_booking_cache', JSON.stringify({code:_code, booking:j.booking})); }catch(e){}
       setTimeout(() => {
         document.getElementById('caOverlay').remove();
         if(_cb) _cb(j.booking);
@@ -658,7 +690,7 @@ const CheckinAuth = (function(){
               .then(booking => { if(_cb) _cb(booking); })
               .catch(() => {
                 /* Sesión caducada o inválida → pedir verificación de nuevo */
-                localStorage.removeItem(SESSION_KEY);
+                localStorage.removeItem(SESSION_KEY); try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
                 inject();
               });
           };
@@ -705,7 +737,7 @@ const CheckinAuth = (function(){
             .then(booking => { if(_cb) _cb(booking); })
             .catch(() => {
               /* Sesión caducada/ inválida → pedir verificación de nuevo */
-              localStorage.removeItem(SESSION_KEY);
+              localStorage.removeItem(SESSION_KEY); try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
               inject();
             });
         };
