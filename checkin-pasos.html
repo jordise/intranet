@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v15 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v16 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v15 — 3Villas</title>
+  <title>Check-in Pasos v16 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -570,14 +570,17 @@
     @media(max-width:420px){.cf-btns{flex-direction:column;align-items:center}}
   
 
-    /* ══ PASO-NAV ══ */
-    #pasoNav{display:none;border-bottom:2px solid var(--gray-2);background:#fff;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:0;z-index:100}
+    /* ══ PASO-NAV: reemplaza el progress-track de las páginas individuales ══ */
+    #pasoNav{display:none;background:#fff;border-bottom:2px solid var(--gray-2);overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:0;z-index:100;padding:0 8px}
     .paso-tab{flex:1;min-width:75px;padding:10px 4px 8px;text-align:center;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-4);border-bottom:3px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;display:inline-block;text-decoration:none}
     .paso-tab.active{color:var(--red);border-bottom-color:var(--red)}
     .paso-tab.done{color:#28a745}
     .paso-tab.done::before{content:'✓ '}
     .paso-panel{display:none}
     .paso-panel.active{display:block}
+    /* Ocultar el progress-track de dentro de los paneles (ya no se usa) */
+    .paso-panel .progress-track{display:none!important}
+    .paso-panel .hdr-steps-lbl{display:none!important}
 
   </style>
 </head>
@@ -590,38 +593,40 @@
 
 <div id="content" style="display:none">
 
-  <div id="langWrap">
-    <select id="langSel" onchange="applyLang(this.value)">
-      <option value="en">🌐 EN</option>
-      <option value="es">ES</option>
-      <option value="fr">FR</option>
-      <option value="de">DE</option>
-      <option value="it">IT</option>
-      <option value="nl">NL</option>
-      <option value="pt">PT</option>
-      <option value="ca">CA</option>
-    </select>
-  </div>
-
   <div class="page-header">
     <img class="page-logo" src="logo-negro.png" alt="3Villas"
          onerror="this.onerror=null;this.src='https://www.3villas.com/intranet/logo-negro.png'">
-    <div class="hdr-right">
-      <div id="pgCode" class="hdr-booking-id"></div>
-      <div id="premRow" class="prem-row">
-        <button class="prem-btn" onclick="openCheckinPremium()">★ Premium</button>
-      </div>
+    <div class="page-title" id="pgTitle" data-i18n="page_title">Check-in</div>
+    <div id="langWrap">
+      <select id="langSel" onchange="applyLang(this.value)">
+        <option value="en">🌐 EN</option>
+        <option value="es">ES</option>
+        <option value="fr">FR</option>
+        <option value="de">DE</option>
+        <option value="it">IT</option>
+        <option value="nl">NL</option>
+        <option value="pt">PT</option>
+        <option value="ca">CA</option>
+      </select>
+    </div>
+    <div class="prem-row" id="premRow">
+      <button class="prem-btn" id="premBtn" onclick="openCheckinPremium()">★ Premium</button>
     </div>
   </div>
 
-  <nav id="pasoNav">
-    <a class="paso-tab" id="ptab1" onclick="pasoGo(1)">Arrival</a>
+  <div style="text-align:center;padding:18px 0 10px">
+    <div class="page-code" id="pgCode"></div>
+  </div>
+
+  <!-- Barra de navegación entre pasos (reemplaza el progress-track) -->
+  <nav id="pasoNav" style="display:flex">
+    <a class="paso-tab active" id="ptab1" onclick="pasoGo(1)">Arrival</a>
     <a class="paso-tab" id="ptab2" onclick="pasoGo(2)">Police</a>
     <a class="paso-tab" id="ptab3" onclick="pasoGo(3)">Deposit</a>
     <a class="paso-tab" id="ptab4" onclick="pasoGo(4)">Taxes</a>
   </nav>
 
-  <div class="paso-panel" id="paso1">
+  <div class="paso-panel active" id="paso1">
 <div id="stSuccess" style="display:none">
   <div class="ok-ico">✅</div>
   <div class="ok-title" data-i18n="ok_title">Form sent!</div>
@@ -930,7 +935,7 @@
   </div>
 
   <div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
-    <button class="btn-submit" id="btnSave" onclick="guardarDep()" disabled data-i18n="btn_save">Save &amp; Continue</button>
+    <button class="btn-submit" id="btnSave" onclick="guardarPol()" disabled data-i18n="btn_save">Save &amp; Continue</button>
   </div>
   </div>
 
@@ -940,7 +945,7 @@
       <p class="greeting" id="greetingTxt"></p>
       <div class="hint-info" data-i18n-html="txt_intro">Please select the best option for you regarding the security deposit.</div>
       <div style="text-align:center;margin-top:4px">
-        <img src="" style="display:none" alt="">
+        
       </div>
     </div>
   </div>
@@ -985,8 +990,7 @@
     <p id="payNotice" style="display:none;font-size:12px;color:var(--gray-4);text-align:center;margin:0 0 10px;line-height:1.5" data-i18n="pay_notice">Se le solicitará realizar el pago final durante el cuarto (y último) paso de su proceso de check-in online.</p>
     <button class="btn-submit" id="btnSave" onclick="guardarDep()" disabled data-i18n="btn_save">Save &amp; Continue</button>
   </div>
-
-</div>
+  </div>
 
   <div class="paso-panel" id="paso4">
 <div id="stSummary">
@@ -2008,11 +2012,23 @@ function initLang(){
 var _currentPaso=1;
 var _stepDone={1:false,2:false,3:false,4:false};
 
+var _STEP_TITLES = {
+  1:{en:'Arrival Form',es:'Formulario de llegada',fr:"Formulaire d'arrivée",de:'Ankunftsformular',it:'Modulo di arrivo',nl:'Aankomstformulier',pt:'Formulário de chegada',ca:"Formulari d'arribada"},
+  2:{en:'Police Registration',es:'Registro policial',fr:'Enregistrement policier',de:'Polizeiregistrierung',it:'Registrazione poliziale',nl:'Politieregistratie',pt:'Registo policial',ca:'Registre policial'},
+  3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
+  4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'},
+};
+
 function pasoGo(n){
   _currentPaso=n;
   for(var i=1;i<=4;i++){
     var p=$('paso'+i); if(p) p.classList.toggle('active',i===n);
     var tb=$('ptab'+i); if(tb) tb.classList.toggle('active',i===n);
+  }
+  /* Actualizar título de la página según el step */
+  var pgTitle=$('pgTitle');
+  if(pgTitle && _STEP_TITLES[n]){
+    pgTitle.textContent=(_STEP_TITLES[n][_currentLang]||_STEP_TITLES[n].en);
   }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -2061,6 +2077,9 @@ function renderAll(r){
   $('stLoad').style.display='none';
   $('content').style.display='block';
   $('pasoNav').style.display='flex';
+  /* Ocultar progress-tracks internos de los paneles */
+  document.querySelectorAll('.paso-panel .progress-track, .paso-panel #hdrSteps').forEach(function(el){el.style.display='none';});
+  document.querySelectorAll('.paso-panel .hdr-steps-lbl').forEach(function(el){el.style.display='none';});
   var pgc=$('pgCode'); if(pgc) pgc.textContent='Booking #'+_code;
 
   var isPrem=isTruthy(r['TaBookings2021_checkin_premium']||r['checkin_premium']);
@@ -3495,6 +3514,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v15 - Fix HTML limpio: 1 footer, sin fragmentos sueltos, guardarDep/Pol en botones, stSuccess oculto | v14-v1 -->
+<!-- HISTORIAL: v16 - Cabecera idéntica a páginas individuales; título de página dinámico según step; progress-tracks internos ocultos; pasoNav visible desde renderAll | v15-v1 -->
 </body>
 </html>
