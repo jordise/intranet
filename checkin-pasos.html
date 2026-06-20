@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v9 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v10 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v9 — 3Villas</title>
+  <title>Check-in Pasos v10 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2238,13 +2238,6 @@ function renderAll(r){
     if(tab&&_stepDone[i]) tab.classList.add('done');
   }
 
-  /* Inicializar selects de arrival */
-  fillHoursArr('fArrivalTime',  HOURS_ALL_ARR);
-  fillHoursArr('fCheckinTime',  HOURS_CHECKIN_ARR);
-  fillHoursArr('fDepartureTime',HOURS_ALL_ARR);
-  fillHoursArr('fCheckoutTime', HOURS_CHECKOUT_ARR);
-  fillCountriesArr();
-
   renderArr(r);
   renderPol(r);
   renderDep(r);
@@ -2375,6 +2368,12 @@ function fillCountriesArr(){
 
 /* ════ RENDER ════ */
 function renderArr(r){
+  /* Inicializar selects (aquí porque HOURS_ALL_ARR ya está declarado) */
+  fillHoursArr('fArrivalTime',  HOURS_ALL_ARR);
+  fillHoursArr('fCheckinTime',  HOURS_CHECKIN_ARR);
+  fillHoursArr('fDepartureTime',HOURS_ALL_ARR);
+  fillHoursArr('fCheckoutTime', HOURS_CHECKOUT_ARR);
+  fillCountriesArr();
   const g=k=>r[k]||'';
   var guest=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
   var villa=g('TaVillas_Name_villa_para_inquilinos')||'';
@@ -3646,24 +3645,14 @@ if(typeof CheckinAuth==='undefined'){
   var _cached=null;
   try{
     var _raw=sessionStorage.getItem('3v_booking_cache');
-    if(_raw){
-      var _obj=JSON.parse(_raw);
-      var _urlCode=new URLSearchParams(location.search).get('reserva')||'';
-      if(_obj&&_obj.booking&&(!_urlCode||_obj.code===_urlCode)) _cached=_obj.booking;
-    }
+    if(_raw){var _obj=JSON.parse(_raw);var _urlCode=new URLSearchParams(location.search).get('reserva')||'';
+      if(_obj&&_obj.booking&&(!_urlCode||_obj.code===_urlCode)) _cached=_obj.booking;}
   }catch(e){}
   if(_cached){ renderAll(_cached); }
-  else{
-    CheckinAuth.init({
-      onVerified:function(booking){
-        try{sessionStorage.setItem('3v_booking',JSON.stringify(booking));}catch(e){}
-        renderAll(booking);
-      }
-    });
-  }
+  else{ CheckinAuth.init({ onVerified:function(booking){ try{sessionStorage.setItem('3v_booking',JSON.stringify(booking));}catch(e){} renderAll(booking); } }); }
 }
 </script>
 
-<!-- HISTORIAL: v9 - Fix completo variables globales: _booking en arr/tax, _isSaving en dep, _bookingTax en tax | v8-v1 -->
+<!-- HISTORIAL: v10 - Fix HOURS_ALL_ARR: fillHoursArr movido a renderArr (dentro del script arr) en lugar del orquestador | v9 - Fix variables globales | v8-v1 -->
 </body>
 </html>
