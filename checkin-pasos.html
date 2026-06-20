@@ -2320,7 +2320,7 @@ function fillSel(id, opts, addEmpty){
 function tArr(k){return(LANG_ARR[_currentLang]&&LANG_ARR[_currentLang][k])||(LANG_ARR.en[k])||k;}
 
 function applyLangArr(lang){
-  if(!LANG[lang]) lang='en';
+  if(!LANG_ARR[lang]) lang='en';
   _currentLang=lang;
   /* Nodos data-i18n (texto plano) */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
@@ -2567,7 +2567,7 @@ async function submitForm(){
 function tPol(k){ return (LANG_POL[_currentLang]||LANG_POL.en)[k]||k; }
 
 function applyLangPol(lang){
-  if(!LANG[lang]) lang='en';
+  if(!LANG_POL[lang]) lang='en';
   _currentLang=lang;
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     if(el.id==='txtAuto') return; /* se actualiza manualmente según _lintPolicia */
@@ -2818,7 +2818,7 @@ function tDep(k){return (LANG_DEP[_currentLang]||LANG_DEP.en)[k]||k;}
 function fmtDep(s,vars){return s.replace(/\{(\w+)\}/g,function(_,k){return vars[k]!==undefined?vars[k]:'{'+k+'}';});}
 
 function applyLangDep(lang){
-  if(!LANG[lang]) lang='en';
+  if(!LANG_DEP[lang]) lang='en';
   _currentLang=lang;
   document.querySelectorAll('[data-i18n]').forEach(function(el){el.textContent=tDep(el.getAttribute('data-i18n'));});
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){el.innerHTML=tDep(el.getAttribute('data-i18n-html'));});
@@ -3156,7 +3156,7 @@ function tTax(k){return(LANG_TAX[_currentLang]&&LANG_TAX[_currentLang][k])||(LAN
 
 function applyLangTax(lang){
   var langChanged = (_currentLang !== lang);
-  if(!LANG[lang]) lang='en';
+  if(!LANG_TAX[lang]) lang='en';
   _currentLang=lang;
   /* Textos nativos data-i18n */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
@@ -3639,24 +3639,18 @@ function closeCheckinPremium(){
 if(typeof CheckinAuth==='undefined'){
   document.getElementById('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:36px;margin-bottom:12px">⚠️</div><p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">Error: checkin-auth.js not found</p></div>';
 }else{
-  /* Intentar leer el booking de la caché antes de llamar al Worker */
-  var _cached = null;
+  var _cached=null;
   try{
-    var _raw = sessionStorage.getItem('3v_booking_cache');
+    var _raw=sessionStorage.getItem('3v_booking_cache');
     if(_raw){
-      var _obj = JSON.parse(_raw);
-      /* Verificar que la caché es de esta reserva */
-      var _urlCode = new URLSearchParams(location.search).get('reserva')||'';
-      if(_obj && _obj.booking && (!_urlCode || _obj.code === _urlCode)){
-        _cached = _obj.booking;
-      }
+      var _obj=JSON.parse(_raw);
+      var _urlCode=new URLSearchParams(location.search).get('reserva')||'';
+      if(_obj&&_obj.booking&&(!_urlCode||_obj.code===_urlCode)) _cached=_obj.booking;
     }
   }catch(e){}
-
   if(_cached){
-    /* Booking en caché — renderizar directamente sin llamar al Worker */
     renderAll(_cached);
-  } else {
+  }else{
     CheckinAuth.init({
       onVerified:function(booking){
         try{sessionStorage.setItem('3v_booking',JSON.stringify(booking));}catch(e){}
@@ -3667,6 +3661,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v6 - Boot lee 3v_booking_cache antes de llamar al Worker; si existe renderiza directamente sin mostrar overlay de auth | v5 - Fix: eliminado $ de arrival también | v4 - Fix: $ eliminado de police/deposit/taxes | v3 - JS reconstruido limpio | v2 - checkin-auth.js nombre fijo | v1 - Página unificada 4 steps -->
+<!-- HISTORIAL: v6 - Boot lee 3v_booking_cache; fix LANG→LANG_ARR en applyLangArr | v5 - Fix $ duplicado | v4 - Fix versión | v3 - JS reconstruido | v2 - nombre checkin-auth.js fijo | v1 - Página unificada -->
 </body>
 </html>
