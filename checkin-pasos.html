@@ -570,17 +570,13 @@
     @media(max-width:420px){.cf-btns{flex-direction:column;align-items:center}}
   
 
-    /* ══ PASO-NAV: reemplaza el progress-track de las páginas individuales ══ */
-    #pasoNav{display:none;background:#fff;border-bottom:2px solid var(--gray-2);overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:0;z-index:100;padding:0 8px}
-    .paso-tab{flex:1;min-width:75px;padding:10px 4px 8px;text-align:center;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-4);border-bottom:3px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;display:inline-block;text-decoration:none}
-    .paso-tab.active{color:var(--red);border-bottom-color:var(--red)}
-    .paso-tab.done{color:#28a745}
-    .paso-tab.done::before{content:'✓ '}
+    /* ══ PASOS ══ */
     .paso-panel{display:none}
     .paso-panel.active{display:block}
-    /* Ocultar el progress-track de dentro de los paneles (ya no se usa) */
+    /* El progress-track de los paneles internos se oculta (el principal está en la cabecera) */
     .paso-panel .progress-track{display:none!important}
     .paso-panel .hdr-steps-lbl{display:none!important}
+    #pasoNav{cursor:pointer}
 
   </style>
 </head>
@@ -618,13 +614,29 @@
     <div class="page-code" id="pgCode"></div>
   </div>
 
-  <!-- Barra de navegación entre pasos (reemplaza el progress-track) -->
-  <nav id="pasoNav" style="display:flex">
-    <a class="paso-tab active" id="ptab1" onclick="pasoGo(1)">Arrival</a>
-    <a class="paso-tab" id="ptab2" onclick="pasoGo(2)">Police</a>
-    <a class="paso-tab" id="ptab3" onclick="pasoGo(3)">Deposit</a>
-    <a class="paso-tab" id="ptab4" onclick="pasoGo(4)">Taxes</a>
-  </nav>
+  <!-- Progress-track idéntico al de las páginas individuales -->
+  <div class="hdr-steps-lbl" id="hdrStepsLbl" style="display:none">4 Steps</div>
+  <div class="progress-track" id="pasoNav" style="display:none;margin-bottom:8px">
+    <div class="pt-step">
+      <a class="pt-circle active" id="ptab1" onclick="pasoGo(1)" href="#" style="text-decoration:none">1</a>
+      <div class="pt-label active" id="ptabl1">Arrival</div>
+    </div>
+    <div class="pt-line" id="ptline1"></div>
+    <div class="pt-step">
+      <a class="pt-circle pend" id="ptab2" onclick="pasoGo(2)" href="#" style="text-decoration:none">2</a>
+      <div class="pt-label" id="ptabl2">Police</div>
+    </div>
+    <div class="pt-line" id="ptline2"></div>
+    <div class="pt-step">
+      <a class="pt-circle pend" id="ptab3" onclick="pasoGo(3)" href="#" style="text-decoration:none">3</a>
+      <div class="pt-label" id="ptabl3">Deposit</div>
+    </div>
+    <div class="pt-line" id="ptline3"></div>
+    <div class="pt-step">
+      <a class="pt-circle pend" id="ptab4" onclick="pasoGo(4)" href="#" style="text-decoration:none">4</a>
+      <div class="pt-label" id="ptabl4">Tax</div>
+    </div>
+  </div>
 
   <div class="paso-panel active" id="paso1">
 <div id="stSuccess" style="display:none">
@@ -1927,6 +1939,41 @@ LANG_TAX.ca={
 
 </script>
 <script>
+var _STEP_TITLES = {
+  1:{en:'Arrival Form',es:'Formulario de llegada',fr:"Formulaire d'arrivée",de:'Ankunftsformular',it:'Modulo di arrivo',nl:'Aankomstformulier',pt:'Formulário de chegada',ca:"Formulari d'arribada"},
+  2:{en:'Police Registration',es:'Registro policial',fr:'Enregistrement policier',de:'Polizeiregistrierung',it:'Registrazione poliziale',nl:'Politieregistratie',pt:'Registo policial',ca:'Registre policial'},
+  3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
+  4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'},
+};
+var _NAV_LABELS = {
+  en:['Arrival','Police','Deposit','Tax'],
+  es:['Llegada','Policía','Depósito','Tasas'],
+  fr:['Arrivée','Police','Dépôt','Taxes'],
+  de:['Ankunft','Polizei','Kaution','Steuer'],
+  it:['Arrivo','Polizia','Deposito','Tasse'],
+  nl:['Aankomst','Politie','Borg','Belasting'],
+  pt:['Chegada','Polícia','Depósito','Impostos'],
+  ca:['Arribada','Policia','Dipòsit','Taxes'],
+};
+
+function _updateProgressTrack(){
+  var labels=_NAV_LABELS[_currentLang]||_NAV_LABELS.en;
+  for(var i=1;i<=4;i++){
+    var circle=$('ptab'+i), label=$('ptabl'+i), line=$('ptline'+i);
+    if(!circle) continue;
+    circle.className='pt-circle';
+    if(_stepDone[i]) circle.classList.add('done');
+    else if(i===_currentPaso) circle.classList.add('active');
+    else circle.classList.add('pend');
+    if(line){line.className='pt-line';if(_stepDone[i-1]&&i>1)line.classList.add('done');}
+    if(label){label.className='pt-label';if(i===_currentPaso)label.classList.add('active');label.textContent=labels[i-1];}
+  }
+  var nav=$('pasoNav'),lbl=$('hdrStepsLbl');
+  if(nav){nav.style.display='flex';}
+  if(lbl){lbl.style.display='block';}
+}
+
+
 
 
 /* ════════════════════════════════════════════════════════
@@ -1980,6 +2027,7 @@ var NAV_LANG = {
 };
 
 function applyLang(lang){
+  if(typeof _updateProgressTrack==='function'&&$('pasoNav')) _updateProgressTrack();
   var sup=['en','es','fr','de','it','nl','pt','ca'];
   if(!sup.includes(lang)) lang='en';
   _currentLang=lang;
@@ -2023,22 +2071,17 @@ function pasoGo(n){
   _currentPaso=n;
   for(var i=1;i<=4;i++){
     var p=$('paso'+i); if(p) p.classList.toggle('active',i===n);
-    var tb=$('ptab'+i); if(tb) tb.classList.toggle('active',i===n);
   }
-  /* Actualizar título de la página según el step */
+  _updateProgressTrack();
   var pgTitle=$('pgTitle');
-  if(pgTitle && _STEP_TITLES[n]){
-    pgTitle.textContent=(_STEP_TITLES[n][_currentLang]||_STEP_TITLES[n].en);
-  }
+  if(pgTitle&&_STEP_TITLES[n]) pgTitle.textContent=(_STEP_TITLES[n][_currentLang]||_STEP_TITLES[n].en);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function pasoMarkDone(n){
   _stepDone[n]=true;
   try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
-  var tab=$('ptab'+n);
-  var nl=NAV_LANG[_currentLang]||NAV_LANG.en;
-  if(tab){tab.classList.add('done');tab.classList.remove('active');tab.textContent='✓ '+nl['s'+n];}
+  _updateProgressTrack();
   for(var i=n+1;i<=4;i++){
     if(!_stepDone[i]){ var ni=i; setTimeout(function(){pasoGo(ni);},1200); return; }
   }
@@ -2076,10 +2119,6 @@ function renderAll(r){
 
   $('stLoad').style.display='none';
   $('content').style.display='block';
-  $('pasoNav').style.display='flex';
-  /* Ocultar progress-tracks internos de los paneles */
-  document.querySelectorAll('.paso-panel .progress-track, .paso-panel #hdrSteps').forEach(function(el){el.style.display='none';});
-  document.querySelectorAll('.paso-panel .hdr-steps-lbl').forEach(function(el){el.style.display='none';});
   var pgc=$('pgCode'); if(pgc) pgc.textContent='Booking #'+_code;
 
   var isPrem=isTruthy(r['TaBookings2021_checkin_premium']||r['checkin_premium']);
@@ -2118,6 +2157,7 @@ function renderAll(r){
   }
   pasoGo(startPaso);
 }
+
 
 
 </script>
@@ -3514,6 +3554,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v16 - Cabecera idéntica a páginas individuales; título de página dinámico según step; progress-tracks internos ocultos; pasoNav visible desde renderAll | v15-v1 -->
+<!-- HISTORIAL: v17 - Progress-track idéntico con pt-circle de colores; _updateProgressTrack actualiza activo/hecho/pendiente al navegar | v16-v1 -->
 </body>
 </html>
