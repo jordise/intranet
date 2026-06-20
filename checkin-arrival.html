@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v50 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v20 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
+  <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
+  <title>Check-in Pasos v20 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
-  <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Arrival Form v50 — 3Villas</title>
-  <!-- checkin-arrival.html v1 — 28/05/2026
-       Campos exactos del XML Caspio (TaBookings2021 formulario arrival form ENG).
-       Sistema i18n propio idéntico al de checkin-online v33 (8 idiomas, sin Google Translate).
-       Misma tipografía Montserrat/Open Sans y mismo lenguaje visual. -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+
     :root{--red:#C8102E;--red-dk:#a50e25;--red-lt:#fce8eb;
       --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#86efac;
       --blue:#2563EB;--blue-lt:#EFF6FF;
@@ -200,9 +199,385 @@
       animation: spin-3v .9s linear infinite !important;
     }
     @keyframes spin-3v { to { transform: rotate(360deg); } }
+  
+/* ── Opciones de depósito ── */
+    .opt-cards{display:flex;flex-direction:column;gap:10px}
+    .opt-card{border:2px solid var(--gray-3);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+    .opt-card.selected{border-color:var(--blue);background:var(--blue-lt)}
+    .opt-card.disabled-opt{opacity:.5;cursor:not-allowed;pointer-events:none}
+    .locked-cards .opt-card{cursor:not-allowed;opacity:.75}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    .opt-head{display:flex;align-items:center;gap:12px;padding:14px 16px}
+    .opt-radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .opt-card.selected .opt-radio{border-color:var(--blue);background:var(--blue)}
+    .opt-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:#fff;display:none}
+    .opt-card.selected .opt-radio::after{display:block}
+    .opt-label{font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);flex:1}
+    .opt-price{font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:var(--blue);white-space:nowrap}
+    .opt-card.selected .opt-label,.opt-card.selected .opt-price{color:var(--blue)}
+    .opt-detail{display:none;padding:0 16px 14px;border-top:1px solid var(--gray-3)}
+    .opt-card.selected .opt-detail{display:block}
+    .opt-section{margin-bottom:8px}
+    .opt-section-title{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:4px;margin-top:10px}
+    .opt-section-body{font-size:11px;color:var(--gray-5);line-height:1.65}
+    /* ── Campos IBAN/BIC ── */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .lbl{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-4);display:block}
+    .inp{width:100%;padding:10px 13px;border:1.5px solid var(--gray-3);border-radius:10px;font-size:14px;font-family:Montserrat,sans-serif;font-weight:600;color:var(--gray-5);background:#fff;outline:none;transition:border-color .15s}
+    .inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+    /* ── Submit ── */
+    #submitBar{padding:12px 0 0}
+    .btn-submit{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;cursor:pointer;transition:background .15s;letter-spacing:.2px}
+    .btn-submit:hover:not(:disabled){background:var(--red-dk)}
+    .btn-submit:disabled{background:var(--gray-3);cursor:not-allowed}
+    .form-err{background:var(--red-lt);border:1px solid #fca5a5;border-radius:10px;padding:12px 14px;font-size:12px;color:var(--red);font-weight:700;display:none;margin-bottom:14px;font-family:Montserrat,sans-serif}
+    
+/* ══ Botón info (ℹ) ══ */
+    .info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1a73e8;color:#fff;border:none;font-size:11px;font-weight:900;cursor:pointer;margin-left:6px;vertical-align:middle;line-height:1;padding:0;flex-shrink:0}
+    .info-btn:hover{background:#1557b0}
+    #infoPopup{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.35)}
+    #infoPopup.open{display:block}
+    .popup-sheet{position:fixed;background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);width:min(520px,94vw);max-height:80vh;display:flex;flex-direction:column;cursor:default}
+    .popup-drag-bar{display:flex;align-items:center;padding:14px 16px 10px;cursor:grab;border-bottom:1px solid var(--gray-2);border-radius:14px 14px 0 0;background:var(--gray-0)}
+    .popup-drag-bar:active{cursor:grabbing}
+    .popup-handle{width:36px;height:4px;background:var(--gray-3);border-radius:2px;margin:0 auto;pointer-events:none}
+    .popup-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-4);padding:0 4px;line-height:1}
+    .popup-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);flex:1;margin:0 12px}
+    .popup-content{overflow-y:auto;padding:16px 20px 24px;border-radius:0 0 14px 14px}
+    .popup-body{font-size:14px;color:var(--gray-5);line-height:1.7}
+    .popup-body h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin:16px 0 6px}
+    .popup-body ul{padding-left:18px;margin:6px 0}
+    .popup-body ul li{margin-bottom:6px}
+    .popup-body p{margin-bottom:8px}
+  
+/* ══ Content wrapper ══ */
+    .page-wrap{max-width:560px;margin:0 auto;padding:0 16px}
+
+    /* ══ Hero reserva ══ */
+    .booking-hero{background:var(--gray-0);border-radius:var(--r-lg);
+      box-shadow:var(--shadow-sm);padding:20px;margin:16px 0;
+      border:1px solid var(--gray-2)}
+    .booking-hero-name{font-size:18px;font-weight:900;color:var(--gray-5);margin-bottom:2px}
+    .booking-hero-villa{font-size:13px;font-weight:600;color:var(--gray-4);margin-bottom:14px}
+    .booking-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .bm-item{background:var(--gray-1);border-radius:var(--r-sm);padding:10px 12px}
+    .bm-lbl{font-size:9px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.6px;color:var(--gray-4);margin-bottom:3px}
+    .bm-val{font-size:13px;font-weight:700;color:var(--gray-5)}
+    .booking-id{display:inline-block;font-size:10px;font-weight:700;
+      color:var(--gray-4);background:var(--gray-2);padding:3px 10px;
+      border-radius:20px;margin-top:10px}
+
+    /* ══ Sección conceptos ══ */
+    .pay-card{background:var(--gray-0);border-radius:var(--r-lg);
+      box-shadow:var(--shadow-sm);border:1px solid var(--gray-2);
+      margin-bottom:12px;overflow:hidden}
+    .pay-card-head{padding:12px 16px;display:flex;align-items:center;
+      gap:10px;border-bottom:1px solid var(--gray-2);background:var(--gray-1)}
+    .pay-card-ico{font-size:16px}
+    .pay-card-title{font-size:11px;font-weight:900;text-transform:uppercase;
+      letter-spacing:.6px;color:var(--gray-5);flex:1}
+    .pay-card-body{padding:0 16px}
+
+    .pay-line{display:flex;align-items:center;gap:12px;
+      padding:13px 0;border-bottom:1px solid var(--gray-2)}
+    .pay-line:last-child{border-bottom:none}
+    .pl-ico{width:36px;height:36px;border-radius:var(--r-sm);
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;flex-shrink:0}
+    .pl-ico.pend{background:#fff3e0}
+    .pl-ico.paid{background:var(--green-lt)}
+    .pl-body{flex:1;min-width:0}
+    .pl-name{font-size:13px;font-weight:700;color:var(--gray-5);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pl-sub{font-size:11px;color:var(--gray-4);margin-top:1px;font-weight:500}
+    .pl-right{flex-shrink:0;text-align:right}
+    .pl-amt{font-size:15px;font-weight:900;color:var(--gray-5)}
+    .pl-badge-paid{font-size:10px;font-weight:800;color:var(--green);
+      background:var(--green-lt);padding:3px 9px;border-radius:20px;
+      border:1px solid var(--green-bd)}
+
+    /* ══ Total strip ══ */
+    .total-strip{background:linear-gradient(135deg,var(--red) 0%,var(--red-dk) 100%);
+      border-radius:var(--r-lg);padding:16px 18px;
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:16px;box-shadow:0 4px 20px rgba(200,16,46,.25);
+      cursor:pointer;transition:filter .15s}
+    .total-strip:hover{filter:brightness(.92)}
+    .ts-lbl{font-size:11px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.7px;color:rgba(255,255,255,.75)}
+    .ts-amt{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px}
+    .ts-amt span{font-size:16px;font-weight:600;margin-left:2px}
+
+    /* ══ Todo pagado ══ */
+    .all-paid-card{background:var(--green-lt);border:1.5px solid var(--green-bd);
+      border-radius:var(--r-lg);padding:28px 20px;text-align:center;margin-bottom:16px}
+    .apc-ico{font-size:44px;margin-bottom:10px;display:block}
+    .apc-title{font-size:17px;font-weight:900;color:var(--green);margin-bottom:6px}
+    .apc-sub{font-size:12px;color:#166534;font-weight:500;line-height:1.5}
+
+    /* ══ SECCIÓN PAGO CASPIO ══
+       Envuelve el formulario embebido con nuestro diseño.
+       CSS override agresivo para que Caspio parezca nativo. ══ */
+    .pay-form-wrap{background:var(--gray-0);border-radius:var(--r-lg);
+      box-shadow:var(--shadow-md);border:1px solid var(--gray-2);
+      margin-bottom:24px;overflow:hidden}
+    .pfw-head{padding:16px 20px;border-bottom:1px solid var(--gray-2);
+      background:var(--gray-1);display:flex;align-items:center;gap:12px}
+    .pfw-head-title{font-size:13px;font-weight:900;color:var(--gray-5);flex:1}
+    .pfw-secure{font-size:10px;font-weight:700;color:var(--gray-4);
+      display:flex;align-items:center;gap:4px}
+    .pfw-body{padding:20px}
+
+    /* ══ CSS override del formulario Caspio ══
+       Se inyecta en la propia página (mismo DOM que el embed /emb). */
+    /* Ocultar header/logo de Caspio que viene dentro */
+    .cbFormTable img[src*="caspio"],
+    .cbFormTable img[src*="logo3villas"],
+    .cbFormTable img[src*="Logo"],
+    .cbFormTable img[src*="stripe-icon"],
+    .cbFormTableCell img { display:none !important }
+
+    /* Ocultar campos que Caspio muestra pero deben ser ocultos */
+    .cbFormTable tr:has(.cbFormula),
+    .cbFormTable tr:has(input[type=hidden]),
+    .cbFormTableCell:has(.cbFormula) { display:none !important }
+
+    /* Tipografía Caspio → Montserrat */
+    .cbFormTable, .cbFormTableCell, .cbLabel,
+    .cbFormCaption, .cbFormInput, .cbFormInputHigh,
+    #Submit_0 {
+      font-family: Montserrat, sans-serif !important;
+    }
+
+    /* Labels */
+    .cbLabel, .cbFormCaption {
+      font-size: 10px !important;
+      font-weight: 800 !important;
+      text-transform: uppercase !important;
+      letter-spacing: .5px !important;
+      color: var(--gray-4) !important;
+      margin-bottom: 5px !important;
+      display: block !important;
+    }
+
+    /* Inputs de tarjeta */
+    .cbFormInput, .cbFormInputHigh {
+      width: 100% !important;
+      padding: 11px 14px !important;
+      border: 1.5px solid var(--gray-3) !important;
+      border-radius: 10px !important;
+      font-size: 15px !important;
+      font-family: Montserrat, sans-serif !important;
+      font-weight: 600 !important;
+      color: var(--gray-5) !important;
+      background: var(--gray-0) !important;
+      outline: none !important;
+      transition: border-color .15s !important;
+      box-shadow: none !important;
+      margin-bottom: 4px !important;
+    }
+    .cbFormInput:focus, .cbFormInputHigh:focus {
+      border-color: var(--red) !important;
+      box-shadow: 0 0 0 3px rgba(200,16,46,.08) !important;
+    }
+
+    /* Fila de la tabla Caspio → flex */
+    .cbFormTable { width: 100% !important; border: none !important }
+    .cbFormTableCell {
+      display: block !important;
+      padding: 0 0 14px !important;
+      border: none !important;
+    }
+
+    /* El importe total — hacerlo visible y estilizado */
+    .cbFormTable tr:has(#Edit_Importe) .cbFormTableCell,
+    .cbFormTable tr:has([id*="Importe"]) .cbFormTableCell { display:block !important }
+    input[id*="Importe"], input[id*="importe"] {
+      font-size: 22px !important;
+      font-weight: 900 !important;
+      color: var(--red) !important;
+      text-align: center !important;
+      border: 2px dashed var(--red) !important;
+      border-radius: 10px !important;
+      background: var(--red-lt) !important;
+      padding: 12px !important;
+      pointer-events: none !important;
+    }
+
+    /* Botón Submit de Caspio — flex para centrado perfecto */
+    #Submit_0, input[type=submit], button[type=submit] {
+      width: 100% !important;
+      height: 52px !important;
+      padding: 0 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: var(--red) !important;
+      color: #fff !important;
+      border: none !important;
+      border-radius: 12px !important;
+      font-family: Montserrat, sans-serif !important;
+      font-size: 15px !important;
+      font-weight: 900 !important;
+      cursor: pointer !important;
+      letter-spacing: 1px !important;
+      text-transform: uppercase !important;
+      transition: background .15s !important;
+      box-shadow: 0 4px 20px rgba(200,16,46,.25) !important;
+      margin-top: 12px !important;
+      box-sizing: border-box !important;
+    }
+    #Submit_0:hover, input[type=submit]:hover, button[type=submit]:hover {
+      background: var(--red-dk) !important;
+    }
+    /* La celda padre del botón también necesita reset */
+    .cbFormTableCell:has(#Submit_0),
+    .cbFormTableCell:has(input[type=submit]),
+    .cbFormTableCell:has(button[type=submit]) {
+      display: block !important;
+      padding: 0 !important;
+    }
+
+    /* Mensajes de error Caspio */
+    .cbValidatorRequired, .cbValidator {
+      font-size: 11px !important;
+      color: var(--red) !important;
+      font-weight: 700 !important;
+      font-family: Montserrat, sans-serif !important;
+    }
+
+    /* Stripe iframe dentro del embed */
+    .cbFormTable iframe {
+      width: 100% !important;
+      border: 1.5px solid var(--gray-3) !important;
+      border-radius: 10px !important;
+      overflow: hidden !important;
+    }
+
+    /* Separador horizontal de Caspio */
+    .cbFormTable hr { border-color: var(--gray-2) !important; margin: 12px 0 !important }
+
+    /* Ocultar el HTML block que tiene el logo de Stripe que viene como HTML block */
+    .cbFormTableCell div[style*="text-align: center"] img { display:none !important }
+
+    /* ══ Info legal ══ */
+    .legal-box{background:var(--blue-lt);border-radius:var(--r-md);
+      padding:13px 15px;font-size:11px;color:#1e40af;line-height:1.65;
+      font-weight:500;margin-bottom:16px}
+    .legal-box strong{font-weight:800}
+
+    /* ══ Success screen ══ */
+    #stSuccess{display:none;min-height:100vh;display:none;
+      align-items:center;justify-content:center;padding:40px 20px}
+    .success-card{background:var(--gray-0);border-radius:var(--r-lg);
+      box-shadow:var(--shadow-lg);padding:40px 32px;text-align:center;
+      max-width:380px;width:100%;border:1px solid var(--gray-2)}
+    .sc-check{width:72px;height:72px;background:var(--green-lt);
+      border-radius:50%;display:flex;align-items:center;justify-content:center;
+      margin:0 auto 20px;font-size:36px;
+      box-shadow:0 0 0 8px rgba(22,163,74,.1)}
+    .sc-title{font-size:22px;font-weight:900;color:var(--green);margin-bottom:10px}
+    .sc-sub{font-size:13px;color:var(--gray-4);line-height:1.7;margin-bottom:28px;font-weight:500}
+    .btn-back{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;
+      background:var(--gray-2);color:var(--gray-5);border-radius:var(--r-md);
+      font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;
+      text-decoration:none;border:none;cursor:pointer;transition:background .15s}
+    .btn-back:hover{background:var(--gray-3)}
+
+    /* ══ Nota Stripe ══ */
+    .stripe-note{display:flex;align-items:center;justify-content:center;
+      gap:6px;font-size:10px;color:var(--gray-4);font-weight:700;
+      margin-top:16px}
+    .stripe-note svg{opacity:.5}
+
+    @media(max-width:400px){
+      .ts-amt{font-size:22px}
+      .booking-meta{grid-template-columns:1fr 1fr}
+    }
+  
+    :root{--wa:#25D366}
+    /* ── Header — idéntico a checkin-online v43 ── */
+    .page-header{text-align:center;padding:12px 16px 14px;border-bottom:1px solid var(--gray-2);
+      margin-bottom:0;position:relative;max-width:560px;margin-left:auto;margin-right:auto}
+    .page-logo{height:52px;display:block;margin:0 auto 6px;max-width:180px;object-fit:contain}
+    .page-title{font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:var(--red);margin-bottom:6px}
+    .page-greeting{font-size:15px;font-weight:600;margin-bottom:2px}
+    .page-villa{font-size:13px;color:var(--gray-4)}
+    .page-code{display:inline-block;margin-top:6px;font-size:11px;color:var(--gray-4);
+      background:var(--gray-2);padding:3px 12px;border-radius:20px;
+      font-family:Montserrat,sans-serif;font-weight:700}
+    #langWrap{display:none;position:absolute;top:12px;right:12px}
+    #langSel{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;
+      border:1px solid var(--gray-3);border-radius:8px;padding:4px 8px;
+      background:#fff;color:var(--gray-5);cursor:pointer;outline:none;
+      appearance:none;-webkit-appearance:none;padding-right:6px}
+    /* Tabs Info+Keys */
+    .hdr-tabs{display:flex;gap:10px;justify-content:center;margin:10px 0 6px}
+    .hdr-tab{display:flex;align-items:center;gap:6px;padding:8px 16px;
+      border:none;border-radius:12px;cursor:pointer;font-family:Montserrat,sans-serif;
+      font-size:12px;font-weight:800;text-decoration:none;transition:all .15s}
+    .hdr-tab:hover{opacity:.85}
+    .hdr-tab.info{background:var(--blue);color:#fff}
+    .hdr-tab.keys{background:var(--gray-2);color:var(--gray-4);border:1.5px solid var(--gray-3)}
+    .hdr-tab.keys.done-tab{background:var(--green);color:#fff;border-color:var(--green)}
+    .info-ico{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center}
+    .info-ico svg{width:16px;height:16px}
+    .hdr-steps-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;
+      color:var(--gray-4);margin:12px 0 8px;text-align:center;display:none}
+    .prem-row{display:none;justify-content:flex-end;margin:6px 0 0}
+    .prem-row.show{display:flex}
+    .prem-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:12px;background:#B8860B;color:#fff;cursor:pointer;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;letter-spacing:.3px;transition:filter .15s}
+    .prem-btn:hover{filter:brightness(.93)}
+    #premOverlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px}
+    #premOverlay.open{display:flex}
+    .prem-sheet{position:relative;width:min(96vw,600px);height:min(90vh,820px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3)}
+    .prem-iframe{width:100%;height:100%;border:none;display:block}
+    /* Progress track */
+    .progress-track{display:flex;align-items:center;margin-bottom:20px;
+      max-width:300px;margin-left:auto;margin-right:auto}
+    .pt-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
+    .pt-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;font-weight:900;font-size:13px;position:relative;text-decoration:none}
+    .pt-circle.pend{border:2px solid var(--gray-3);background:var(--gray-2);color:var(--gray-4)}
+    .pt-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
+    .pt-circle.active{background:var(--blue);color:#fff;border:2px solid var(--blue)}
+    .pt-circle.done::after{content:'✓';position:absolute;top:-6px;right:-6px;
+      font-size:9px;background:#fff;color:var(--green);border-radius:50%;
+      width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+      border:1.5px solid var(--green-bd);font-weight:900;line-height:16px;text-align:center}
+    .pt-label{font-size:10px;font-weight:700;color:var(--gray-4);
+      text-align:center;max-width:56px;line-height:1.2}
+    .pt-label.done{color:var(--green)}
+    .pt-label.active{color:var(--blue)}
+    .pt-line{flex:1;height:2px;background:var(--gray-3);margin:0 4px;margin-bottom:20px}
+    .pt-line.done{background:var(--green)}
+    /* waFloat y contact-footer */
+    #waFloat{position:fixed;bottom:20px;right:20px;z-index:500;background:#25D366;
+      width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px rgba(37,211,102,.35);text-decoration:none}
+    .contact-footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-2);text-align:center}
+    .cf-title{font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:6px}
+    .cf-sub{font-size:11px;color:var(--gray-4);margin-bottom:14px}
+    .cf-btns{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+    .btn-wa{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;
+      background:#25D366;color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;text-decoration:none}
+    .btn-phone{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
+      background:#1a73e8;color:#fff;border-radius:9px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;text-decoration:none}
+    .btn-email{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;
+      background:var(--gray-2);color:var(--gray-5);border:1px solid var(--gray-3);
+      border-radius:9px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;text-decoration:none}
+    @media(max-width:420px){.cf-btns{flex-direction:column;align-items:center}}
+  
+
+    /* ══ PASOS ══ */
+    .paso-panel{display:none}
+    .paso-panel.active{display:block}
+    .paso-panel .progress-track{display:none!important}
+    .paso-panel .hdr-steps-lbl{display:none!important}
+    #hpd1,#hpd2,#hpd3,#hpd4{cursor:pointer}
+
   </style>
-  <script src="auth.js"></script>
-  <script src="checkin-auth.js"></script>
 </head>
 <body>
 
@@ -211,13 +586,6 @@
   <div class="load-txt">Loading your booking…</div>
 </div>
 
-<div id="stSuccess">
-  <div class="ok-ico">✅</div>
-  <div class="ok-title" data-i18n="ok_title">Form sent!</div>
-  <div class="ok-sub" data-i18n="ok_sub">Thank you. Your information has been saved successfully.</div>
-  <button class="btn-back" onclick="history.back()">
-    ← <span data-i18n="btn_back">Back to check-in</span>
-  </button>
 </div>
 
 <div id="content">
@@ -251,22 +619,22 @@
     <div class="hdr-steps-lbl" id="hdrStepsLbl">4 Steps</div>
     <div class="progress-track" id="hdrSteps" style="display:none;margin-bottom:8px">
       <div class="pt-step">
-        <a class="pt-circle active" id="hpd1" href="#" style="text-decoration:none">1</a>
+        <a class="pt-circle active" id="hpd1" onclick="pasoGo(1);return false;" href="#" style="text-decoration:none">1</a>
         <div class="pt-label active" id="hpdl1">Arrival</div>
       </div>
       <div class="pt-line" id="hpl1"></div>
       <div class="pt-step">
-        <a class="pt-circle pend" id="hpd2" href="#" style="text-decoration:none">2</a>
+        <a class="pt-circle pend" id="hpd2" onclick="pasoGo(2);return false;" href="#" style="text-decoration:none">2</a>
         <div class="pt-label" id="hpdl2">Police</div>
       </div>
       <div class="pt-line" id="hpl2"></div>
       <div class="pt-step">
-        <a class="pt-circle pend" id="hpd3" href="#" style="text-decoration:none">3</a>
+        <a class="pt-circle pend" id="hpd3" onclick="pasoGo(3);return false;" href="#" style="text-decoration:none">3</a>
         <div class="pt-label" id="hpdl3">Deposit</div>
       </div>
       <div class="pt-line" id="hpl3"></div>
       <div class="pt-step">
-        <a class="pt-circle pend" id="hpd4" href="#" style="text-decoration:none">4</a>
+        <a class="pt-circle pend" id="hpd4" onclick="pasoGo(4);return false;" href="#" style="text-decoration:none">4</a>
         <div class="pt-label" id="hpdl4">Tax</div>
       </div>
     </div>
@@ -280,7 +648,18 @@
 
 
   <!-- ══ SEC 1: GUESTS ══ -->
-  <div class="sec">
+
+  <div class="paso-panel active" id="paso1">
+<div id="stSuccess" style="display:none">
+  <div class="ok-ico">✅</div>
+  <div class="ok-title" data-i18n="ok_title">Form sent!</div>
+  <div class="ok-sub" data-i18n="ok_sub">Thank you. Your information has been saved successfully.</div>
+  <button class="btn-back" onclick="history.back()">
+    ← <span data-i18n="btn_back">Back to check-in</span>
+  </button>
+</div>
+
+<div class="sec">
     <div class="sec-head">
       <span class="sec-ico">👤</span>
       <span class="sec-title" data-i18n="sec_guests">Guests</span>
@@ -478,60 +857,287 @@
   </div>
 
 </div><!-- /#content -->
+<div class="form-err" id="formErr" style="margin:0 0 8px"></div>
+<div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
+  <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Guardar</button>
+</div>
+  </div>
+
+  <div class="paso-panel" id="paso2">
+<div id="stSuccess" style="display:none">
+  <div class="ok-ico">✅</div>
+  <div class="ok-title" data-i18n="ok_title">Saved!</div>
+  <div class="ok-sub" data-i18n="ok_sub">Thank you. This step has been marked as completed.</div>
+  <button class="btn-back" onclick="history.back()">← <span data-i18n="btn_back">Back to check-in</span></button>
+</div>
+
+<div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">🏛️</span>
+      <span class="sec-title" data-i18n="sec_what">What is this?</span>
+    </div>
+    <div class="sec-body">
+      <div class="hint-info" data-i18n-html="txt_law">
+        Every host in the Balearic Islands is required to present a list of all guests with their identifications within 24h after the Check-in. <strong>(Law 1/1992, of 21 February, INT/1922/2003, 3 July)</strong>. As it is sanctioned with heavy fines, we must deliver the report in time. We have prepared this tool so you can submit your data before your holidays and relax when you arrive!
+      </div>
+      <div class="hint" data-i18n="txt_privacy">
+        The information is only stored in the database of the Spanish police and not used for any other purposes. Please use the link below for each registration of all guests.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SEC 2: POLICE LINK ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">🔗</span>
+      <span class="sec-title" data-i18n="sec_link">Registration Link</span>
+    </div>
+    <div class="sec-body">
+
+      <!-- Link principal -->
+      <div class="police-link-box">
+        <div class="police-link-title" data-i18n="lbl_click_link">Click the link to register each guest</div>
+        <a id="policeMainLink" href="#" target="_blank" class="police-link-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e3a5f"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          <span data-i18n="btn_police_link">Open Police Registration</span>
+        </a>
+      </div>
+
+      <!-- Share row -->
+      <div class="share-row">
+        <span class="share-lbl" data-i18n="lbl_share">Share with other guests:</span>
+        <button class="share-btn" id="waShareBtn" title="Share on WhatsApp">
+          <img src="https://img.icons8.com/color/48/whatsapp.png" width="40" height="40" alt="WhatsApp">
+        </button>
+        <button class="share-btn" id="mailShareBtn" title="Share by Email">
+          <img src="https://img.icons8.com/color/48/apple-mail.png" width="40" height="40" alt="Email">
+        </button>
+        <button class="share-btn" id="copyShareBtn" title="Copy link" style="background:var(--gray-2);border-radius:8px;width:40px;height:40px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        </button>
+      </div>
+      <div class="copy-ok" id="copyOkMsg">✓ Link copied!</div>
+
+      <div class="hint-warn" data-i18n="txt_help">
+        If you have any problem with the link or the process, please use the WhatsApp button at the bottom-right of the page to ask for help.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SEC 3: RESPONSIBILITY ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">⚠️</span>
+      <span class="sec-title" data-i18n="sec_responsibility">Responsibility</span>
+    </div>
+    <div class="sec-body">
+      <div class="hint-warn" id="txtResponsibility">
+        <!-- filled by JS with guest name + checkin date -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SEC 4: CONFIRM DONE ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">✅</span>
+      <span class="sec-title" data-i18n="sec_confirm">Confirm completion</span>
+    </div>
+    <div class="sec-body">
+      <label class="check-row" id="chkRow">
+        <input type="checkbox" id="cbDone">
+        <span class="check-lbl" data-i18n-html="lbl_confirm_done">
+          I confirm that all guests in our group have completed the police registration form. I understand that <strong>I am responsible</strong> for the accuracy of all data submitted.
+        </span>
+      </label>
+      <div class="hint" id="txtAuto" data-i18n="txt_auto">
+        Once all guests have completed the police registration form, this step will be automatically marked as completed in the check-in process.
+      </div>
+    </div>
+  </div>
+
+  <div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
+    <button class="btn-submit" id="btnSave" onclick="guardarPol()" disabled data-i18n="btn_save">Save &amp; Continue</button>
+  </div>
+  </div>
+
+  <div class="paso-panel" id="paso3">
+<div class="sec">
+    <div class="sec-body">
+      <p class="greeting" id="greetingTxt"></p>
+      <div class="hint-info" data-i18n-html="txt_intro">Please select the best option for you regarding the security deposit.</div>
+      <div style="text-align:center;margin-top:4px">
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ OPCIONES ══ -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-ico">🏦</span>
+      <span class="sec-title" data-i18n="sec_options">Select your option</span>
+    </div>
+    <div class="sec-body">
+      <div class="hint" data-i18n="txt_select_hint">Select the option and see more information about each one</div>
+      <div id="lockedBanner" style="display:none;background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:700;color:#856404;margin-bottom:12px;line-height:1.4"></div>
+      <div class="opt-cards" id="optCards">
+        <!-- Se construye dinámicamente según Se_permite_waver y Portal_Name -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CAMPOS IBAN/BIC (solo opción 3) ══ -->
+  <div class="sec" id="secBankDetails" style="display:none">
+    <div class="sec-head">
+      <span class="sec-ico">🏛️</span>
+      <span class="sec-title" data-i18n="sec_bank">Your bank details</span>
+    </div>
+    <div class="sec-body">
+      <div class="hint-warn" data-i18n="txt_bank_hint">Required for us to return your deposit after checkout.</div>
+      <div class="field">
+        <label class="lbl" for="fIban">IBAN <span style="color:var(--red)">*</span></label>
+        <input class="inp" id="fIban" type="text" placeholder="ES3031400001910012804500" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="lbl" for="fBic">BIC / SWIFT <span style="color:var(--red)">*</span></label>
+        <input class="inp" id="fBic" type="text" placeholder="CGUIESBAXXX" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-err" id="formErr"></div>
+
+  <div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
+    <p id="payNotice" style="display:none;font-size:12px;color:var(--gray-4);text-align:center;margin:0 0 10px;line-height:1.5" data-i18n="pay_notice">Se le solicitará realizar el pago final durante el cuarto (y último) paso de su proceso de check-in online.</p>
+    <button class="btn-submit" id="btnSave" onclick="guardarDep()" disabled data-i18n="btn_save">Save &amp; Continue</button>
+  </div>
+  </div>
+
+  <div class="paso-panel" id="paso4">
+<div id="stSummary">
+
+  <div class="page-wrap">
+
+    <!-- Hero reserva -->
+    <div class="booking-hero">
+      <div class="booking-hero-name" id="pgGreeting"></div>
+      <div class="booking-hero-villa" id="pgVilla"></div>
+      <div class="booking-meta">
+        <div class="bm-item">
+          <div class="bm-lbl" data-i18n="lbl_checkin">Check-in</div>
+          <div class="bm-val" id="bCheckin">—</div>
+        </div>
+        <div class="bm-item">
+          <div class="bm-lbl" data-i18n="lbl_checkout">Check-out</div>
+          <div class="bm-val" id="bCheckout">—</div>
+        </div>
+        <div class="bm-item">
+          <div class="bm-lbl" data-i18n="lbl_nights">Nights</div>
+          <div class="bm-val" id="bNights">—</div>
+        </div>
+        <div class="bm-item">
+          <div class="bm-lbl" data-i18n="lbl_adults">Adults</div>
+          <div class="bm-val" id="bAdults">—</div>
+        </div>
+      </div>
+      <div class="booking-id" id="pgCode"></div>
+    </div>
+
+    <!-- Conceptos pendientes -->
+    <div class="pay-card" id="secItems">
+      <div class="pay-card-head">
+        <span class="pay-card-ico">💳</span>
+        <span class="pay-card-title" data-i18n="sec_items">Pending payments</span>
+      </div>
+      <div class="pay-card-body" id="itemsList"></div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-strip" id="totalRow" style="display:none"
+         onclick="document.getElementById('payFormWrap').scrollIntoView({behavior:'smooth',block:'start'})"
+         style="cursor:pointer;display:none">
+      <div>
+        <div class="ts-lbl" data-i18n="lbl_total">Total due</div>
+        <div class="ts-amt" id="totalAmt">0,00 <span>€</span></div>
+      </div>
+      <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;
+                  font-size:13px;font-weight:800;color:#fff;white-space:nowrap;
+                  display:flex;align-items:center;justify-content:center;gap:6px">
+        💳
+      </div>
+    </div>
+
+    <!-- Todo pagado -->
+    <div class="all-paid-card" id="allPaid" style="display:none">
+      <span class="apc-ico">🎉</span>
+      <div class="apc-title" data-i18n="all_paid_title">All payments complete!</div>
+      <div class="apc-sub" data-i18n="all_paid_sub">There are no pending charges for your booking.</div>
+    </div>
+
+    <!-- Info legal -->
+    <div class="legal-box" data-i18n="legal_info">
+      <strong>Tourist tax</strong> is mandatory under Balearic Islands law. The amount depends on the number of adults and nights of your stay.
+    </div>
+
+    <!-- ══ Formulario de pago embebido (Caspio /emb) ══
+         Solo se muestra si hay total > 0.
+         El script /emb inyecta el formulario de Stripe/Caspio aquí. ══ -->
+    <div class="pay-form-wrap" id="payFormWrap" style="display:none">
+      <div class="pfw-head">
+        <div class="pfw-head-title" data-i18n="form_title">Card details</div>
+        <div class="pfw-secure">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span data-i18n="modal_secure">Secured by Stripe</span>
+        </div>
+      </div>
+      <div class="pfw-body">
+        <!-- El embed de Caspio se inyecta aquí -->
+        <div id="caspioPay"></div>
+      </div>
+    </div>
+
+    <div style="height:40px"></div>
+
+  </div><!-- /.page-wrap -->
+</div><!-- /#stSummary -->
+  </div>
+
+</div><!-- /#content -->
+
+<div id="errToast" class="toast-err"></div>
+
+<div class="contact-footer">
+  <div class="cf-title" data-i18n="help_title">Need help?</div>
+  <div class="cf-sub" data-i18n="help_sub">If you need any help, do not hesitate to contact us.</div>
+  <div class="cf-btns">
+    <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
+    <a class="btn-phone" href="tel:+34659933434"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.1 6.1l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+34 659 93 34 34</a>
+    <a class="btn-email" href="mailto:bookings@3villas.com">bookings@3villas.com</a>
+  </div>
+</div>
+<a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
+  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
+    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
+    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
+  </svg>
+</a>
+
+<!-- Premium overlay -->
+<div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
+  <div class="prem-sheet">
+    <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
+  </div>
+</div>
+
+<script src="checkin-auth.js"></script>
+
 
 <script>
-/* ════════════════════════════════════════════════
-   checkin-arrival.html v1 — JS
-   ════════════════════════════════════════════════ */
-const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
-const $ = id => document.getElementById(id);
-
-/* ── Horas disponibles (hardcoded — fuente: Ta_hora_del_dia y Ta_hora_checkin / checkout) ── */
-const HOURS_ALL     = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00',
-                       '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00',
-                       '22:00','23:00','00:00','01:00','02:00','03:00'];
-const HOURS_CHECKIN  = ['16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
-                        '20:00','20:30','21:00','21:30','22:00','23:00'];
-const HOURS_CHECKOUT = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00'];
-
-/* ── Países (fuente: Ta_paises — lista completa ordenada) ── */
-const COUNTRIES = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda',
-  'Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh',
-  'Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina',
-  'Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia',
-  'Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros',
-  'Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti',
-  'Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia',
-  'Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana',
-  'Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary',
-  'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan',
-  'Jordan','Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon',
-  'Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi',
-  'Malaysia','Maldives','Mali','Malta','Mauritania','Mauritius','Mexico','Moldova','Monaco',
-  'Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nepal','Netherlands',
-  'New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman',
-  'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines',
-  'Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia',
-  'Saint Vincent and the Grenadines','Samoa','San Marino','Saudi Arabia','Senegal','Serbia',
-  'Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
-  'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden',
-  'Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo',
-  'Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine',
-  'United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu',
-  'Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe','Other'];
-
-function fillSel(id, opts, addEmpty){
-  const s=$(id); if(!s) return;
-  s.innerHTML = addEmpty ? '<option value="">—</option>' : '';
-  opts.forEach(o=>{ const op=document.createElement('option'); op.value=o; op.textContent=o; s.appendChild(op); });
-}
-
-/* ════ ESTADO ════ */
-let _code='', _booking=null;
-
-/* ════ I18N — mismo patrón que checkin-online v33 ════ */
-var LANG={};
-LANG.en={
+/* ══ LANG ARRIVAL ══ */
+var LANG_ARR={};
+LANG_ARR.en={
   page_title:'Arrival Form',
   sec_guests:'Guests', sec_times:'Arrival & Departure',
   sec_contact:'Contact', sec_legal:'Legal information', sec_gdpr:'Data protection',
@@ -569,7 +1175,7 @@ LANG.en={
   ph_email:'your@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
   greeting:'Hello',
 };
-LANG.es={
+LANG_ARR.es={
   page_title:'Formulario de llegada',
   sec_guests:'Hu\u00e9spedes', sec_times:'Llegada y salida',
   sec_contact:'Contacto', sec_legal:'Informaci\u00f3n legal', sec_gdpr:'Protecci\u00f3n de datos',
@@ -607,7 +1213,7 @@ LANG.es={
   ph_email:'tu@email.com', ph_phone:'+34 600 000 000', ph_dni:'12345678A',
   greeting:'Hola',
 };
-LANG.fr={
+LANG_ARR.fr={
   page_title:"Formulaire d\u2019arriv\u00e9e",
   sec_guests:'Voyageurs', sec_times:'Arriv\u00e9e et d\u00e9part',
   sec_contact:'Contact', sec_legal:'Informations l\u00e9gales', sec_gdpr:'Protection des donn\u00e9es',
@@ -645,7 +1251,7 @@ LANG.fr={
   ph_email:'votre@email.com', ph_phone:'+33 6 00 00 00 00', ph_dni:'12345678',
   greeting:'Bonjour',
 };
-LANG.de={
+LANG_ARR.de={
   page_title:'Anmeldeformular',
   sec_guests:'G\u00e4ste', sec_times:'Ankunft und Abreise',
   sec_contact:'Kontakt', sec_legal:'Rechtliche Informationen', sec_gdpr:'Datenschutz',
@@ -683,7 +1289,7 @@ LANG.de={
   ph_email:'ihre@email.com', ph_phone:'+49 600 000 000', ph_dni:'12345678',
   greeting:'Hallo',
 };
-LANG.it={
+LANG_ARR.it={
   page_title:'Modulo di arrivo',
   sec_guests:'Ospiti', sec_times:'Arrivo e partenza',
   sec_contact:'Contatto', sec_legal:'Informazioni legali', sec_gdpr:'Protezione dei dati',
@@ -721,7 +1327,7 @@ LANG.it={
   ph_email:'tuo@email.com', ph_phone:'+39 600 000 000', ph_dni:'12345678',
   greeting:'Ciao',
 };
-LANG.nl={
+LANG_ARR.nl={
   page_title:'Aankomstformulier',
   sec_guests:'Gasten', sec_times:'Aankomst en vertrek',
   sec_contact:'Contact', sec_legal:'Juridische informatie', sec_gdpr:'Gegevensbescherming',
@@ -759,7 +1365,7 @@ LANG.nl={
   ph_email:'uw@email.com', ph_phone:'+31 6 00 00 00 00', ph_dni:'12345678',
   greeting:'Hallo',
 };
-LANG.pt={
+LANG_ARR.pt={
   page_title:'Formul\u00e1rio de chegada',
   sec_guests:'H\u00f3spedes', sec_times:'Chegada e partida',
   sec_contact:'Contacto', sec_legal:'Informa\u00e7\u00e3o legal', sec_gdpr:'Prote\u00e7\u00e3o de dados',
@@ -797,7 +1403,7 @@ LANG.pt={
   ph_email:'seu@email.com', ph_phone:'+351 600 000 000', ph_dni:'12345678',
   greeting:'Ol\u00e1',
 };
-LANG.ca={
+LANG_ARR.ca={
   page_title:"Formulari d\u2019arribada",
   sec_guests:'Hostes', sec_times:'Arribada i sortida',
   sec_contact:'Contacte', sec_legal:'Informaci\u00f3 legal', sec_gdpr:'Protecci\u00f3 de dades',
@@ -836,23 +1442,809 @@ LANG.ca={
   greeting:'Hola',
 };
 
-var _currentLang='en';
-function t(k){return(LANG[_currentLang]&&LANG[_currentLang][k])||(LANG.en[k])||k;}
+</script>
+<script>
+/* ══ LANG POLICE ══ */
+var LANG_POL = {
+  en:{
+    page_title:'Police Registration',
+    help_title:'Need help?',
+    help_sub:'If you need any help, do not hesitate to contact us.',
+    sec_what:'What is this?',
+    sec_link:'Registration Link',
+    sec_responsibility:'Responsibility',
+    sec_confirm:'Confirm completion',
+    txt_law:'Every host in the Balearic Islands is required to present a list of all guests with their identifications within 24h after Check-in. <strong>(Law 1/1992, of 21 February, INT/1922/2003, 3 July)</strong>. As it is sanctioned with heavy fines, we must deliver the report in time.',
+    txt_privacy:'The information is only stored in the Spanish police database and not used for any other purposes. Please use the link below for each registration of all guests.',
+    lbl_click_link:'Click the link to register each guest',
+    btn_police_link:'Open Police Registration',
+    lbl_share:'Share with other guests:',
+    txt_help:'If you have any problem with the link or the process, please use the WhatsApp button at the bottom-right to ask for help.',
+    txt_auto:'Once all guests have completed the registration, this step will be automatically marked as completed.',
+    txt_auto_comunidad:'As this is a residential community, police registration requires manual validation by the community managers. Once they confirm that all guests\' data has been correctly submitted, this step will be automatically marked as completed. This confirmation process may take from a few hours to one day. For this reason, we kindly ask you to complete the registration as soon as possible to avoid any delays upon arrival. Thank you very much for your cooperation!',
+    resp_txt:'<strong>IMPORTANT:</strong> <strong>{name}</strong> is responsible that all data filled in the police report before <strong>{date}</strong> is real and includes all members of the group.',
+    lbl_confirm_done:'I confirm that all guests have completed the police registration. I understand that <strong>I am responsible</strong> for the accuracy of all data submitted.',
+    btn_save:'Save & Continue',
+    ok_title:'Saved!',
+    ok_sub:'Thank you. This step has been marked as completed.',
+    btn_back:'Back to check-in',
+  },
+  es:{
+    page_title:'Registro de Policía',
+    help_title:'¿Necesitas ayuda?',
+    help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
+    sec_what:'¿Qué es esto?',
+    sec_link:'Enlace de registro',
+    sec_responsibility:'Responsabilidad',
+    sec_confirm:'Confirmar finalización',
+    txt_law:'Todo anfitrión en las Islas Baleares debe presentar una lista de todos los huéspedes con sus identificaciones en las 24h siguientes al Check-in. <strong>(Ley 1/1992, de 21 de febrero, INT/1922/2003, 3 de julio)</strong>. Al estar sancionado con fuertes multas, debemos entregar el informe a tiempo.',
+    txt_privacy:'La información solo se almacena en la base de datos de la policía española y no se utiliza para ningún otro propósito. Usa el enlace para registrar a cada huésped.',
+    lbl_click_link:'Haz clic para registrar a cada huésped',
+    btn_police_link:'Abrir registro policial',
+    lbl_share:'Comparte con los demás huéspedes:',
+    txt_help:'Si tienes algún problema con el enlace, usa el botón de WhatsApp en la parte inferior derecha.',
+    txt_auto:'Una vez todos los huéspedes hayan completado el registro, este paso se marcará automáticamente como completado.',
+    txt_auto_comunidad:'Al tratarse de una comunidad, el registro de policía requiere una validación manual por parte de los responsables de la misma. En cuanto nos confirmen que los datos de todos los huéspedes se han rellenado correctamente, este paso se marcará automáticamente como completado. Este proceso de confirmación puede demorar desde unas pocas horas hasta un día. Por este motivo, le rogamos que complete el registro lo antes posible para evitar cualquier retraso en su llegada. ¡Muchas gracias por su colaboración!',
+    resp_txt:'<strong>IMPORTANTE:</strong> <strong>{name}</strong> es responsable de que todos los datos rellenados en el parte policial antes del <strong>{date}</strong> sean reales e incluyan a todos los miembros del grupo.',
+    lbl_confirm_done:'Confirmo que todos los huéspedes han completado el registro policial. Entiendo que <strong>soy responsable</strong> de la exactitud de todos los datos enviados.',
+    btn_save:'Guardar y continuar',
+    ok_title:'¡Guardado!',
+    ok_sub:'Gracias. Este paso ha sido marcado como completado.',
+    btn_back:'Volver al check-in',
+  },
+  fr:{
+    page_title:'Enregistrement Policier',
+    help_title:"Besoin d'aide ?",
+    help_sub:"Si vous avez besoin d'aide, n'hésitez pas à nous contacter.",
+    sec_what:"Qu'est-ce que c'est ?",
+    sec_link:"Lien d'enregistrement",
+    sec_responsibility:'Responsabilité',
+    sec_confirm:'Confirmer la finalisation',
+    txt_law:"Tout hôte aux Îles Baléares doit présenter une liste de tous les clients avec leurs pièces d'identité dans les 24h suivant le Check-in. <strong>(Loi 1/1992 du 21 février, INT/1922/2003 du 3 juillet)</strong>.",
+    txt_privacy:"Les informations sont uniquement stockées dans la base de données de la police espagnole. Veuillez utiliser le lien ci-dessous pour chaque enregistrement.",
+    lbl_click_link:'Cliquez pour enregistrer chaque invité',
+    btn_police_link:"Ouvrir l'enregistrement policier",
+    lbl_share:'Partagez avec les autres invités:',
+    txt_help:"En cas de problème avec le lien, utilisez le bouton WhatsApp en bas à droite.",
+    txt_auto:"Une fois tous les invités enregistrés, cette étape sera automatiquement marquée comme terminée.",
+    txt_auto_comunidad:"S'agissant d'une communauté, l'enregistrement de police nécessite une validation manuelle par les responsables. Dès qu'ils confirmeront que toutes les données sont correctes, cette étape sera marquée comme terminée. Ce processus peut prendre de quelques heures à une journée. Nous vous prions de compléter l'enregistrement dès que possible. Merci!",
+    resp_txt:'<strong>IMPORTANT :</strong> <strong>{name}</strong> est responsable de l\'exactitude de toutes les données saisies dans le rapport de police avant le <strong>{date}</strong>, incluant tous les membres du groupe.',
+    lbl_confirm_done:"Je confirme que tous les invités ont complété l'enregistrement. Je comprends que <strong>je suis responsable</strong> de l'exactitude des données soumises.",
+    btn_save:'Enregistrer et continuer',
+    ok_title:'Enregistré !',
+    ok_sub:'Merci. Cette étape a été marquée comme terminée.',
+    btn_back:'Retour au check-in',
+  },
+  de:{
+    page_title:'Polizeiliche Anmeldung',
+    help_title:'Brauchen Sie Hilfe?',
+    help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
+    sec_what:'Was ist das?',
+    sec_link:'Anmeldelink',
+    sec_responsibility:'Verantwortung',
+    sec_confirm:'Abschluss bestätigen',
+    txt_law:'Jeder Gastgeber auf den Balearischen Inseln muss innerhalb von 24h nach dem Check-in eine Liste aller Gäste mit ihren Ausweisen vorlegen. <strong>(Gesetz 1/1992, 21. Februar, INT/1922/2003, 3. Juli)</strong>.',
+    txt_privacy:'Die Daten werden ausschließlich in der Datenbank der spanischen Polizei gespeichert. Bitte nutzen Sie den Link für jeden Gast.',
+    lbl_click_link:'Klicken Sie, um jeden Gast anzumelden',
+    btn_police_link:'Polizeiliche Anmeldung öffnen',
+    lbl_share:'Mit anderen Gästen teilen:',
+    txt_help:'Bei Problemen mit dem Link nutzen Sie bitte die WhatsApp-Schaltfläche unten rechts.',
+    txt_auto:'Sobald alle Gäste die Anmeldung abgeschlossen haben, wird dieser Schritt automatisch als erledigt markiert.',
+    txt_auto_comunidad:'Da es sich um eine Gemeinschaftsanlage handelt, erfordert die Polizeianmeldung eine manuelle Validierung durch die Verantwortlichen. Sobald bestätigt wird, dass alle Gästendaten korrekt eingereicht wurden, wird dieser Schritt automatisch als erledigt markiert. Dieser Prozess kann einige Stunden bis einen Tag dauern. Wir bitten Sie daher, die Anmeldung so früh wie möglich abzuschließen. Vielen Dank!',
+    resp_txt:'<strong>WICHTIG:</strong> <strong>{name}</strong> ist dafür verantwortlich, dass alle Daten im Polizeibericht vor dem <strong>{date}</strong> korrekt und vollständig sind und alle Gruppenmitglieder umfassen.',
+    lbl_confirm_done:'Ich bestätige, dass alle Gäste die polizeiliche Anmeldung abgeschlossen haben. Ich verstehe, dass ich <strong>für die Richtigkeit</strong> aller eingereichten Daten verantwortlich bin.',
+    btn_save:'Speichern & Weiter',
+    ok_title:'Gespeichert!',
+    ok_sub:'Vielen Dank. Dieser Schritt wurde als abgeschlossen markiert.',
+    btn_back:'Zurück zum Check-in',
+  },
+  it:{
+    page_title:'Registrazione Polizia',
+    help_title:'Hai bisogno di aiuto?',
+    help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
+    sec_what:"Cos'è questo?",
+    sec_link:'Link di registrazione',
+    sec_responsibility:'Responsabilità',
+    sec_confirm:'Conferma completamento',
+    txt_law:'Ogni host nelle Isole Baleari deve presentare un elenco di tutti gli ospiti con i loro documenti entro 24h dal Check-in. <strong>(Legge 1/1992, 21 febbraio, INT/1922/2003, 3 luglio)</strong>.',
+    txt_privacy:"Le informazioni vengono archiviate solo nel database della polizia spagnola. Usa il link per registrare ogni ospite.",
+    lbl_click_link:'Clicca per registrare ogni ospite',
+    btn_police_link:'Apri registrazione polizia',
+    lbl_share:'Condividi con gli altri ospiti:',
+    txt_help:'In caso di problemi con il link, usa il pulsante WhatsApp in basso a destra.',
+    txt_auto:'Una volta che tutti gli ospiti hanno completato la registrazione, questo passaggio verrà automaticamente contrassegnato come completato.',
+    txt_auto_comunidad:'Trattandosi di una comunità, la registrazione di polizia richiede una convalida manuale da parte dei responsabili. Non appena confermeranno che i dati di tutti gli ospiti sono stati compilati correttamente, questo passaggio sarà contrassegnato come completato. Questo processo può richiedere da poche ore a un giorno. La preghiamo di completare la registrazione il prima possibile. Grazie!',
+    resp_txt:'<strong>IMPORTANTE:</strong> <strong>{name}</strong> è responsabile del fatto che tutti i dati inseriti nel rapporto di polizia entro il <strong>{date}</strong> siano reali e includano tutti i membri del gruppo.',
+    lbl_confirm_done:'Confermo che tutti gli ospiti hanno completato la registrazione. Capisco di essere <strong>responsabile</strong> dell\'accuratezza di tutti i dati.',
+    btn_save:'Salva e continua',
+    ok_title:'Salvato!',
+    ok_sub:'Grazie. Questo passaggio è stato contrassegnato come completato.',
+    btn_back:'Torna al check-in',
+  },
+  nl:{
+    page_title:'Politie Registratie',
+    help_title:'Hulp nodig?',
+    help_sub:'Als u hulp nodig heeft, aarzel dan niet om contact met ons op te nemen.',
+    sec_what:'Wat is dit?',
+    sec_link:'Registratielink',
+    sec_responsibility:'Verantwoordelijkheid',
+    sec_confirm:'Voltooiing bevestigen',
+    txt_law:'Elke gastheer op de Balearen moet binnen 24u na Check-in een lijst van alle gasten met hun identiteitsbewijzen indienen. <strong>(Wet 1/1992, 21 februari, INT/1922/2003, 3 juli)</strong>.',
+    txt_privacy:'De informatie wordt alleen opgeslagen in de database van de Spaanse politie. Gebruik de link voor elke gast.',
+    lbl_click_link:'Klik om elke gast te registreren',
+    btn_police_link:'Open politieregistratie',
+    lbl_share:'Deel met andere gasten:',
+    txt_help:'Bij problemen met de link, gebruik dan de WhatsApp-knop rechtsonder.',
+    txt_auto:'Zodra alle gasten de registratie hebben voltooid, wordt deze stap automatisch als voltooid gemarkeerd.',
+    txt_auto_comunidad:'Omdat het een gemeenschap betreft, vereist de politieregistratie handmatige validatie door de verantwoordelijken. Zodra zij bevestigen dat alle gegevens correct zijn ingediend, wordt deze stap automatisch als voltooid gemarkeerd. Dit proces kan enkele uren tot een dag duren. Wij verzoeken u de registratie zo snel mogelijk te voltooien. Hartelijk dank!',
+    resp_txt:'<strong>BELANGRIJK:</strong> <strong>{name}</strong> is verantwoordelijk dat alle gegevens in het politierapport vóór <strong>{date}</strong> correct zijn en alle groepsleden omvatten.',
+    lbl_confirm_done:'Ik bevestig dat alle gasten de politieregistratie hebben voltooid. Ik begrijp dat ik <strong>verantwoordelijk ben</strong> voor de juistheid van alle ingediende gegevens.',
+    btn_save:'Opslaan & Doorgaan',
+    ok_title:'Opgeslagen!',
+    ok_sub:'Dank u. Deze stap is als voltooid gemarkeerd.',
+    btn_back:'Terug naar check-in',
+  },
+  pt:{
+    page_title:'Registo Policial',
+    help_title:'Precisa de ajuda?',
+    help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
+    sec_what:'O que é isto?',
+    sec_link:'Link de registo',
+    sec_responsibility:'Responsabilidade',
+    sec_confirm:'Confirmar conclusão',
+    txt_law:'Todo o anfitrião nas Ilhas Baleares deve apresentar uma lista de todos os hóspedes com os seus documentos dentro de 24h após o Check-in. <strong>(Lei 1/1992, 21 de fevereiro, INT/1922/2003, 3 de julho)</strong>.',
+    txt_privacy:'As informações são armazenadas apenas na base de dados da polícia espanhola. Use o link para registar cada hóspede.',
+    lbl_click_link:'Clique para registar cada hóspede',
+    btn_police_link:'Abrir registo policial',
+    lbl_share:'Partilhe com os outros hóspedes:',
+    txt_help:'Se tiver algum problema com o link, use o botão do WhatsApp no canto inferior direito.',
+    txt_auto:'Assim que todos os hóspedes completarem o registo, esta etapa será automaticamente marcada como concluída.',
+    txt_auto_comunidad:'Por se tratar de uma comunidade, o registo policial requer validação manual pelos responsáveis. Assim que confirmarem que os dados de todos os hóspedes foram preenchidos corretamente, esta etapa será marcada como concluída. Este processo pode demorar algumas horas a um dia. Solicitamos que complete o registo o mais cedo possível. Muito obrigado!',
+    resp_txt:'<strong>IMPORTANTE:</strong> <strong>{name}</strong> é responsável por garantir que todos os dados preenchidos no relatório policial antes de <strong>{date}</strong> são reais e incluem todos os membros do grupo.',
+    lbl_confirm_done:'Confirmo que todos os hóspedes completaram o registo policial. Compreendo que sou <strong>responsável</strong> pela exatidão de todos os dados submetidos.',
+    btn_save:'Guardar e continuar',
+    ok_title:'Guardado!',
+    ok_sub:'Obrigado. Esta etapa foi marcada como concluída.',
+    btn_back:'Voltar ao check-in',
+  },
+  ca:{
+    page_title:'Registre Policial',
+    help_title:'Necessites ajuda?',
+    help_sub:"Si necessites ajuda, no dubtis en contactar-nos.",
+    sec_what:'Què és això?',
+    sec_link:'Enllaç de registre',
+    sec_responsibility:'Responsabilitat',
+    sec_confirm:'Confirmar finalització',
+    txt_law:"Tot amfitrió a les Illes Balears ha de presentar una llista de tots els hostes amb les seves identificacions en les 24h posteriors al Check-in. <strong>(Llei 1/1992, de 21 de febrer, INT/1922/2003, 3 de juliol)</strong>.",
+    txt_privacy:"La informació només s'emmagatzema a la base de dades de la policia espanyola. Utilitza l'enllaç per registrar cada hoste.",
+    lbl_click_link:'Fes clic per registrar cada hoste',
+    btn_police_link:'Obrir registre policial',
+    lbl_share:'Comparteix amb els altres hostes:',
+    txt_help:"Si tens algun problema amb l'enllaç, utilitza el botó de WhatsApp a la part inferior dreta.",
+    txt_auto:"Un cop tots els hostes hagin completat el registre, aquest pas es marcarà automàticament com a completat.",
+    txt_auto_comunidad:"En tractar-se d'una comunitat, el registre de policía requereix una validació manual per part dels responsables. En quant confirmin que les dades de tots els hostes s'han omplert correctament, aquest pas es marcarà automàticament com a completat. Aquest procés pot trigar des d'unes poques hores fins a un dia. Us preguem que completeu el registre com abans millor. Moltes gràcies!",
+    resp_txt:'<strong>IMPORTANT:</strong> <strong>{name}</strong> és responsable que totes les dades emplenades al part policial abans del <strong>{date}</strong> siguin reals i incloguin tots els membres del grup.',
+    lbl_confirm_done:"Confirmo que tots els hostes han completat el registre policial. Entenc que soc <strong>responsable</strong> de l'exactitud de totes les dades enviades.",
+    btn_save:'Desar i continuar',
+    ok_title:'Desat!',
+    ok_sub:'Gràcies. Aquest pas ha estat marcat com a completat.',
+    btn_back:'Tornar al check-in',
+  },
+};
+
+</script>
+<script>
+/* ══ LANG DEPOSIT ══ */
+var LANG_DEP = {
+  en:{page_title:'Security Deposit',sec_options:'Select your option',sec_bank:'Your bank details',txt_intro:'Please select the best option for you regarding the security deposit.',txt_select_hint:'Select the option and see more information about each one',txt_bank_hint:'Required for us to return your deposit after checkout.',btn_save:'Save & Continue',help_title:'Need help?',help_sub:'If you need any help, do not hesitate to contact us.',
+    opt0_label:'Not decided yet',opt1_label:'Damage Liability Waiver',opt1_proc:'Forget about involuntary damages during your stay. With this small deposit waiver you are covered for normal accidents. You do not need to pay the full security deposit upfront. It won\'t cover party damage or rubbish penalty.',opt1_cost:'Cost: {waverEUR} EUR (charged with tourist taxes)',opt1_return:'Not applicable — waiver covers normal accidents',
+    opt2_label:'Pay with Credit Card',opt2_proc:'The security deposit of {depEUR} EUR will be charged at the same time you pay the tourist taxes. Important: save your selection first, then proceed with payment in Step 4. Step 3 will not be marked completed until Step 4 payment is made.',opt2_cost:'Transaction cost: {gastoEUR} EUR',opt2_return:'Returned 1–15 days after checkout ({checkout})',
+    opt3_label:'Pay with Bank Transfer',opt3_proc:'Make a bank transfer of {depEUR} EUR to: Account holder: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX. Please use your booking code as the transfer reference.',opt3_cost:'Cost: 0 EUR',opt3_return:'Returned 1–15 days after checkout ({checkout}). You must provide your bank details below.',opt3_warning:'It can take several days to receive and process your transfer. If after 5 days it still shows pending, contact bookings@3villas.com.',
+    opt4_label:'No Waiver — Airbnb',opt4_proc:'You do not have to do anything. Please be aware that if anything is broken or damaged during your stay, it will be claimed through Airbnb.',opt4_cost:'Cost: 0 EUR',
+    lbl_waiver_disabled:'The owner of this villa does not allow the Deposit Waiver. Please select another option.',
+    greeting:'Hello {name}, please select the best option for you.',
+    locked_msg:'⚠️ Your selection cannot be changed because this payment has already been processed.',
+    exclusion_title:'Damage Liability Waiver',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'You will be asked to complete the final payment during the fourth (and last) step of your online check-in process.',
+  },
+  es:{page_title:'Depósito de Seguridad',sec_options:'Selecciona tu opción',sec_bank:'Tus datos bancarios',txt_intro:'Por favor selecciona la mejor opción para ti respecto al depósito de seguridad.',txt_select_hint:'Selecciona la opción y verás más información sobre cada una',txt_bank_hint:'Necesitamos tus datos para devolverte el depósito tras el checkout.',btn_save:'Guardar y continuar',help_title:'¿Necesitas ayuda?',help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
+    opt0_label:'Todavía no decidido',opt1_label:'Exclusión de responsabilidad por daños',opt1_proc:'Olvídate de los daños involuntarios durante tu estancia. Con este pequeño waiver estás cubierto para accidentes normales. No necesitas pagar el depósito completo por adelantado. No cubre daños por fiestas ni penalización por basura.',opt1_cost:'Coste: {waverEUR} EUR (se cobra con las tasas turísticas)',opt1_return:'No aplica — el waiver cubre los accidentes normales',
+    opt2_label:'Pagar con Tarjeta de Crédito',opt2_proc:'El depósito de {depEUR} EUR se cargará junto con las tasas turísticas. Importante: guarda tu selección primero, luego realiza el pago en el Paso 4.',opt2_cost:'Coste de transacción: {gastoEUR} EUR',opt2_return:'Devuelto entre 1 y 15 días tras el checkout ({checkout})',
+    opt3_label:'Pagar con Transferencia Bancaria',opt3_proc:'Realiza una transferencia de {depEUR} EUR a: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX. Usa tu código de reserva como referencia.',opt3_cost:'Coste: 0 EUR',opt3_return:'Devuelto entre 1 y 15 días tras el checkout ({checkout}). Debes indicar tus datos bancarios abajo.',opt3_warning:'Puede tardar varios días en procesarse. Si pasados 5 días aún aparece pendiente, contacta bookings@3villas.com.',
+    opt4_label:'Sin Waiver — Airbnb',opt4_proc:'No tienes que hacer nada. Ten en cuenta que si algo se rompe o daña durante tu estancia, se reclamará a través de Airbnb.',opt4_cost:'Coste: 0 EUR',
+    lbl_waiver_disabled:'El propietario de esta villa no permite el Depósito Waiver. Por favor elige otra opción.',
+    greeting:'Hola {name}, por favor selecciona la mejor opción para ti.',
+    locked_msg:'⚠️ No puedes cambiar la selección porque este pago ya ha sido procesado.',
+    exclusion_title:'Exclusión de responsabilidad por daños',
+    exclusion_body:"<p>Cubre los daños accidentales, involuntarios y menores que ocurren en el día a día de una estancia. Está pensada para que un pequeño despiste no arruine las vacaciones del cliente ni le cueste su depósito.</p><h4>¿Qué incluye?</h4><ul><li><strong>Roturas accidentales en el hogar:</strong> Platos, vasos o copas que se caen, tazas rotas, o cubiertos que se pierden.</li><li><strong>Incidentes con textiles:</strong> Manchas accidentales e imposibles de quitar en toallas, sábanas, sofás o alfombras (por ejemplo, derrame de vino, café o aceite).</li><li><strong>Desperfectos menores por uso:</strong> Una llave que se rompe dentro de la cerradura, la rotura accidental de un mando a distancia, o un golpe fortuito que daña un elemento decorativo.</li><li><strong>Averías por uso cotidiano:</strong> Si al cerrar una persiana o ventana de forma normal esta se atasca o rompe, o si se daña un electrodoméstico pequeño (como la tostadora o el hervidor) por un uso común.</li></ul><h4>¿Qué NO incluye? (Las exclusiones necesarias)</h4><p>Es vital aclarar que esto no es una “carta blanca” para destrozar la villa. (Aunque debemos mencionar que, en más de un año que llevamos ofreciendo este servicio, nunca hemos tenido que reclamar nada a nadie gracias al gran civismo y la buena fe de nuestros huéspedes. Creemos firmemente en esa buena fe.) No cubre:</p><ul><li><strong>Actos de vandalismo o daños intencionados:</strong> Romper algo a propósito o por comportamiento violento.</li><li><strong>Negligencia grave o imprudencia:</strong> Dejar las ventanas abiertas durante una tormenta provocando inundaciones, o dejarse las llaves puestas por dentro obligando a llamar a un cerrajero de urgencia por descuido.</li><li><strong>Pérdida de llaves o mandos de garaje:</strong> Normalmente se cobra aparte debido al coste de reprogramación.</li><li><strong>Robo o hurto:</strong> Si faltan objetos de la casa (televisores, decoración, toallas) al terminar la estancia.</li><li><strong>Incumplimiento de las normas de la casa:</strong> Daños causados por fumar dentro de la propiedad, por meter mascotas no autorizadas o por celebrar fiestas prohibidas.</li><li><strong>Suciedad extrema:</strong> No cubre las horas de limpieza extra si la casa se deja en condiciones deplorables.</li></ul>",
+    pay_notice:'Se le solicitará realizar el pago final durante el cuarto (y último) paso de su proceso de check-in online.',
+  },
+  fr:{page_title:'Dépôt de Garantie',sec_options:'Choisissez votre option',sec_bank:'Vos coordonnées bancaires',txt_intro:'Veuillez choisir la meilleure option pour vous concernant le dépôt de garantie.',txt_select_hint:'Sélectionnez une option pour voir plus d\'informations',txt_bank_hint:'Nécessaire pour vous rembourser le dépôt après le départ.',btn_save:'Enregistrer et continuer',help_title:'Besoin d\'aide ?',help_sub:'Si vous avez besoin d\'aide, n\'hésitez pas à nous contacter.',
+    opt0_label:'Pas encore décidé',opt1_label:'Exclusion de responsabilité pour dommages',opt1_proc:'Oubliez les dommages involontaires pendant votre séjour. Avec ce waiver, vous êtes couvert pour les accidents normaux. Vous n\'avez pas à payer le dépôt complet à l\'avance.',opt1_cost:'Coût: {waverEUR} EUR (prélevé avec les taxes touristiques)',opt1_return:'Non applicable — le waiver couvre les accidents normaux',
+    opt2_label:'Payer par Carte Bancaire',opt2_proc:'Le dépôt de {depEUR} EUR sera prélevé en même temps que les taxes touristiques. Important: enregistrez d\'abord votre choix, puis effectuez le paiement à l\'Étape 4.',opt2_cost:'Frais de transaction: {gastoEUR} EUR',opt2_return:'Remboursé entre 1 et 15 jours après le départ ({checkout})',
+    opt3_label:'Payer par Virement',opt3_proc:'Effectuez un virement de {depEUR} EUR: Titulaire: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Coût: 0 EUR',opt3_return:'Remboursé entre 1 et 15 jours après le départ ({checkout}). Indiquez vos coordonnées bancaires ci-dessous.',opt3_warning:'Le virement peut prendre plusieurs jours. Si après 5 jours il est encore en attente, contactez bookings@3villas.com.',
+    opt4_label:'Sans Waiver — Airbnb',opt4_proc:'Vous n\'avez rien à faire. Sachez que tout dommage sera réclamé via Airbnb.',opt4_cost:'Coût: 0 EUR',
+    lbl_waiver_disabled:'Le propriétaire de cette villa ne permet pas le Waiver. Veuillez choisir une autre option.',
+    greeting:'Bonjour {name}, veuillez choisir la meilleure option pour vous.',
+    locked_msg:'⚠️ Vous ne pouvez pas modifier votre sélection car ce paiement a déjà été traité.',
+    exclusion_title:'Exclusion de responsabilité pour dommages',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Le paiement final vous sera demandé lors de la quatrième étape de votre check-in en ligne.',
+  },
+  de:{page_title:'Sicherheitskaution',sec_options:'Option auswählen',sec_bank:'Ihre Bankdaten',txt_intro:'Bitte wählen Sie die für Sie beste Option für die Sicherheitskaution.',txt_select_hint:'Option auswählen und mehr Informationen sehen',txt_bank_hint:'Erforderlich, damit wir Ihnen nach dem Checkout die Kaution zurückerstatten können.',btn_save:'Speichern & Weiter',help_title:'Brauchen Sie Hilfe?',help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
+    opt0_label:'Noch nicht entschieden',opt1_label:'Haftungsausschluss für Schäden',opt1_proc:'Vergessen Sie versehentliche Schäden während Ihres Aufenthalts. Mit diesem Waiver sind Sie bei normalen Unfällen abgesichert. Sie müssen die Kaution nicht im Voraus zahlen.',opt1_cost:'Kosten: {waverEUR} EUR (wird mit der Tourismussteuer erhoben)',opt1_return:'Nicht anwendbar — der Waiver deckt normale Unfälle ab',
+    opt2_label:'Per Kreditkarte zahlen',opt2_proc:'Die Kaution von {depEUR} EUR wird gleichzeitig mit der Tourismussteuer belastet. Wichtig: Zuerst speichern, dann in Schritt 4 zahlen.',opt2_cost:'Transaktionskosten: {gastoEUR} EUR',opt2_return:'Rückgabe 1–15 Tage nach dem Checkout ({checkout})',
+    opt3_label:'Per Banküberweisung zahlen',opt3_proc:'Überweisen Sie {depEUR} EUR an: Kontoinhaber: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Kosten: 0 EUR',opt3_return:'Rückgabe 1–15 Tage nach dem Checkout ({checkout}). Bankdaten unten eingeben.',opt3_warning:'Die Überweisung kann mehrere Tage dauern. Bei Fragen nach 5 Tagen: bookings@3villas.com.',
+    opt4_label:'Kein Waiver — Airbnb',opt4_proc:'Sie müssen nichts tun. Beachten Sie: Schäden werden über Airbnb geltend gemacht.',opt4_cost:'Kosten: 0 EUR',
+    lbl_waiver_disabled:'Der Eigentümer erlaubt keinen Waiver. Bitte wählen Sie eine andere Option.',
+    greeting:'Hallo {name}, bitte wählen Sie die beste Option für Sie.',
+    locked_msg:'⚠️ Ihre Auswahl kann nicht geändert werden, da diese Zahlung bereits verarbeitet wurde.',
+    exclusion_title:'Haftungsausschluss für Schäden',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Die abschließende Zahlung wird im vierten Schritt Ihres Online-Check-ins angefordert.',
+  },
+  it:{page_title:'Deposito Cauzionale',sec_options:'Seleziona la tua opzione',sec_bank:'I tuoi dati bancari',txt_intro:'Si prega di selezionare la migliore opzione per voi riguardo al deposito cauzionale.',txt_select_hint:'Seleziona un\'opzione per vedere maggiori informazioni',txt_bank_hint:'Necessario per restituirvi il deposito dopo il checkout.',btn_save:'Salva e continua',help_title:'Hai bisogno di aiuto?',help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
+    opt0_label:'Non ancora deciso',opt1_label:'Esclusione di responsabilità per danni',opt1_proc:'Dimentica i danni involontari durante il soggiorno. Con questo waiver sei coperto per incidenti normali. Non devi pagare il deposito in anticipo.',opt1_cost:'Costo: {waverEUR} EUR (addebitato con le tasse turistiche)',opt1_return:'Non applicabile — il waiver copre gli incidenti normali',
+    opt2_label:'Paga con Carta di Credito',opt2_proc:'Il deposito di {depEUR} EUR sarà addebitato insieme alle tasse turistiche. Importante: salva prima la selezione, poi procedi al pagamento nel Passaggio 4.',opt2_cost:'Costo transazione: {gastoEUR} EUR',opt2_return:'Restituito tra 1 e 15 giorni dopo il checkout ({checkout})',
+    opt3_label:'Paga con Bonifico Bancario',opt3_proc:'Effettua un bonifico di {depEUR} EUR a: Intestatario: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Costo: 0 EUR',opt3_return:'Restituito tra 1 e 15 giorni dopo il checkout ({checkout}). Fornisci i tuoi dati bancari qui sotto.',opt3_warning:'Il bonifico può richiedere giorni. Se dopo 5 giorni è ancora in sospeso, contatta bookings@3villas.com.',
+    opt4_label:'Nessun Waiver — Airbnb',opt4_proc:'Non devi fare nulla. Qualsiasi danno sarà reclamato tramite Airbnb.',opt4_cost:'Costo: 0 EUR',
+    lbl_waiver_disabled:'Il proprietario non permette il Waiver. Seleziona un\'altra opzione.',
+    greeting:'Ciao {name}, seleziona la migliore opzione per te.',
+    locked_msg:'⚠️ Non puoi modificare la selezione perché questo pagamento è già stato elaborato.',
+    exclusion_title:'Esclusione di responsabilità per danni',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Le sarà richiesto di completare il pagamento finale durante il quarto passo del check-in online.',
+  },
+  nl:{page_title:'Borgsom',sec_options:'Kies uw optie',sec_bank:'Uw bankgegevens',txt_intro:'Kies de beste optie voor u wat betreft de borgsom.',txt_select_hint:'Selecteer een optie voor meer informatie',txt_bank_hint:'Vereist om uw borgsom na het uitchecken terug te betalen.',btn_save:'Opslaan & Doorgaan',help_title:'Hulp nodig?',help_sub:'Als u hulp nodig heeft, aarzel dan niet om contact op te nemen.',
+    opt0_label:'Nog niet beslist',opt1_label:'Aansprakelijkheidsbeperking voor schade',opt1_proc:'Vergeet onopzettelijke schade tijdens uw verblijf. Met deze waiver bent u gedekt voor normale ongelukken. U hoeft de borgsom niet van tevoren te betalen.',opt1_cost:'Kosten: {waverEUR} EUR (samen met toeristenbelasting)',opt1_return:'Niet van toepassing — waiver dekt normale ongelukken',
+    opt2_label:'Betalen met Creditcard',opt2_proc:'De borgsom van {depEUR} EUR wordt gelijktijdig met de toeristenbelasting in rekening gebracht. Belangrijk: sla eerst op, betaal dan in Stap 4.',opt2_cost:'Transactiekosten: {gastoEUR} EUR',opt2_return:'Terugbetaald 1–15 dagen na uitchecken ({checkout})',
+    opt3_label:'Betalen via Bankoverschrijving',opt3_proc:'Maak {depEUR} EUR over naar: Rekeninghouder: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Kosten: 0 EUR',opt3_return:'Terugbetaald 1–15 dagen na uitchecken ({checkout}). Vul uw bankgegevens hieronder in.',opt3_warning:'Overschrijving kan enkele dagen duren. Na 5 dagen nog in behandeling? Contact bookings@3villas.com.',
+    opt4_label:'Geen Waiver — Airbnb',opt4_proc:'U hoeft niets te doen. Schade zal via Airbnb worden verhaald.',opt4_cost:'Kosten: 0 EUR',
+    lbl_waiver_disabled:'De eigenaar staat geen Waiver toe. Kies een andere optie.',
+    greeting:'Hallo {name}, kies de beste optie voor u.',
+    locked_msg:'⚠️ U kunt uw keuze niet wijzigen omdat deze betaling al is verwerkt.',
+    exclusion_title:'Aansprakelijkheidsbeperking voor schade',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'U wordt gevraagd de definitieve betaling te doen tijdens de vierde stap van uw online check-in.',
+  },
+  pt:{page_title:'Depósito de Segurança',sec_options:'Selecione a sua opção',sec_bank:'Os seus dados bancários',txt_intro:'Por favor selecione a melhor opção para si quanto ao depósito de segurança.',txt_select_hint:'Selecione uma opção para ver mais informações',txt_bank_hint:'Necessário para devolvermos o depósito após o checkout.',btn_save:'Guardar e continuar',help_title:'Precisa de ajuda?',help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
+    opt0_label:'Ainda não decidido',opt1_label:'Exclusão de responsabilidade por danos',opt1_proc:'Esqueça os danos involuntários durante a sua estada. Com este waiver fica coberto para acidentes normais. Não precisa pagar o depósito antecipadamente.',opt1_cost:'Custo: {waverEUR} EUR (cobrado com as taxas turísticas)',opt1_return:'Não aplicável — o waiver cobre os acidentes normais',
+    opt2_label:'Pagar com Cartão de Crédito',opt2_proc:'O depósito de {depEUR} EUR será cobrado juntamente com as taxas turísticas. Importante: guarde primeiro a seleção, depois proceda ao pagamento no Passo 4.',opt2_cost:'Custo de transação: {gastoEUR} EUR',opt2_return:'Devolvido entre 1 e 15 dias após o checkout ({checkout})',
+    opt3_label:'Pagar por Transferência Bancária',opt3_proc:'Faça uma transferência de {depEUR} EUR para: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Custo: 0 EUR',opt3_return:'Devolvido entre 1 e 15 dias após o checkout ({checkout}). Indique os seus dados bancários abaixo.',opt3_warning:'A transferência pode demorar vários dias. Após 5 dias ainda pendente? Contacte bookings@3villas.com.',
+    opt4_label:'Sem Waiver — Airbnb',opt4_proc:'Não tem de fazer nada. Tenha em conta que quaisquer danos serão reclamados através do Airbnb.',opt4_cost:'Custo: 0 EUR',
+    lbl_waiver_disabled:'O proprietário não permite o Waiver. Por favor escolha outra opção.',
+    greeting:'Olá {name}, por favor selecione a melhor opção para si.',
+    locked_msg:'⚠️ Não pode alterar a sua seleção porque este pagamento já foi processado.',
+    exclusion_title:'Exclusão de responsabilidade por danos',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Ser-lhe-á solicitado o pagamento final durante o quarto passo do check-in online.',
+  },
+  ca:{page_title:'Dipòsit de Seguretat',sec_options:'Selecciona la teva opció',sec_bank:'Les teves dades bancàries',txt_intro:'Si us plau selecciona la millor opció per a tu pel que fa al dipòsit de seguretat.',txt_select_hint:'Selecciona una opció per veure\'n més informació',txt_bank_hint:'Necessari per retornar-te el dipòsit després del checkout.',btn_save:'Desar i continuar',help_title:'Necessites ajuda?',help_sub:'Si necessites ajuda, no dubtis en contactar-nos.',
+    opt0_label:'Encara no decidit',opt1_label:'Exclusió de responsabilitat per danys',opt1_proc:'Oblida\'t dels danys involuntaris durant l\'estada. Amb aquest waiver estàs cobert per accidents normals. No cal pagar el dipòsit per endavant.',opt1_cost:'Cost: {waverEUR} EUR (es cobra amb les taxes turístiques)',opt1_return:'No aplicable — el waiver cobreix els accidents normals',
+    opt2_label:'Pagar amb Targeta de Crèdit',opt2_proc:'El dipòsit de {depEUR} EUR es cobrarà alhora que les taxes turístiques. Important: desa la selecció primer, després fes el pagament al Pas 4.',opt2_cost:'Cost de transacció: {gastoEUR} EUR',opt2_return:'Retornat entre 1 i 15 dies després del checkout ({checkout})',
+    opt3_label:'Pagar per Transferència Bancària',opt3_proc:'Fes una transferència de {depEUR} EUR a: Titular: 3Villas Alquiler Vacacional SL — IBAN: ES3031400001910012804500 — SWIFT/BIC: CGUIESBAXXX.',opt3_cost:'Cost: 0 EUR',opt3_return:'Retornat entre 1 i 15 dies després del checkout ({checkout}). Indica les teves dades bancàries a continuació.',opt3_warning:'La transferència pot tardar uns dies. Si passat 5 dies encara apareix pendent, contacta bookings@3villas.com.',
+    opt4_label:'Sense Waiver — Airbnb',opt4_proc:'No has de fer res. Tingues en compte que qualsevol dany es reclamarà a través d\'Airbnb.',opt4_cost:'Cost: 0 EUR',
+    lbl_waiver_disabled:'El propietari d\'aquesta villa no permet el Waiver. Si us plau tria una altra opció.',
+    greeting:'Hola {name}, si us plau selecciona la millor opció per a tu.',
+    locked_msg:'⚠️ No pots canviar la selecció perquè aquest pagament ja ha estat processat.',
+    exclusion_title:'Exclusió de responsabilitat per danys',
+    exclusion_body:"<p>Covers accidental, unintentional and minor damages during everyday stay use. Designed so a small incident doesn't ruin your holiday or cost your deposit.</p><h4>What it includes</h4><ul><li><strong>Accidental breakages:</strong> dropped plates, glasses, broken mugs or lost cutlery.</li><li><strong>Textile incidents:</strong> impossible-to-remove stains on towels, sheets or sofas (wine, coffee, oil).</li><li><strong>Minor damage:</strong> broken key in lock, broken remote, accidental knock on decor.</li><li><strong>Everyday appliance damage:</strong> blind/window jamming during normal use, small appliance damaged through common use.</li></ul><h4>What it does NOT include</h4><ul><li><strong>Vandalism or intentional damage.</strong></li><li><strong>Gross negligence:</strong> windows open in storm, keys locked inside.</li><li><strong>Lost keys or garage remotes.</strong></li><li><strong>Theft of property items.</strong></li><li><strong>Breach of house rules:</strong> smoking, unauthorised pets, prohibited parties.</li><li><strong>Extreme dirt requiring extra cleaning.</strong></li></ul>",
+    pay_notice:'Se us demanarà el pagament final durant el quart pas del check-in en línia.',
+  },
+};
+
+</script>
+<script>
+/* ══ LANG TAXES ══ */
+var LANG_TAX={};
+LANG_TAX.en={
+  page_title:'Tourist Tax & Extras',
+  sec_items:'Pending payments',
+  lbl_checkin:'Check-in', lbl_checkout:'Check-out',
+  lbl_nights:'Nights', lbl_adults:'Adults',
+  lbl_total:'Total due',
+  all_paid_title:'All payments complete!',
+  all_paid_sub:'There are no pending charges for your booking.',
+  legal_info:'<strong>Tourist tax</strong> is mandatory under Balearic Islands law. The amount depends on the number of adults and nights of your stay.',
+  form_title:'Card details',
+  modal_secure:'Secured by Stripe',
+  ok_title:'Payment received!',
+  ok_sub:'Thank you. Your payment has been processed successfully. You will receive a confirmation email shortly.',
+  btn_back:'Back to check-in',
+  item_ecotasa:'Tourist Tax', item_waiver:'Security Deposit Waiver',
+  item_deposit:'Security Deposit', item_deposit_fee:'Security Deposit Transaction Fee',
+  status_paid:'Paid', greeting:'Hello',
+  tab_home:'Check-in',
+  tab_keys:'Keys',
+  help_title:'Need help?',
+  help_sub:'If you need any help, do not hesitate to contact us.',
+  dot_arrival:'Arrival',
+  dot_police:'Police',
+  dot_deposit:'Deposit',
+  dot_tax:'Tax',
+  steps_lbl:'Steps'
+};
+LANG_TAX.es={
+  page_title:'Tasa Tur\u00edstica y Extras',
+  sec_items:'Pagos pendientes',
+  lbl_checkin:'Check-in', lbl_checkout:'Check-out',
+  lbl_nights:'Noches', lbl_adults:'Adultos',
+  lbl_total:'Total pendiente',
+  all_paid_title:'\u00a1Todo pagado!',
+  all_paid_sub:'No hay cargos pendientes para tu reserva.',
+  legal_info:'<strong>La tasa tur\u00edstica</strong> es obligatoria seg\u00fan la Ley Balear. El importe depende del n\u00famero de adultos y noches de estancia.',
+  form_title:'Datos de la tarjeta',
+  modal_secure:'Protegido por Stripe',
+  ok_title:'\u00a1Pago recibido!',
+  ok_sub:'Gracias. Tu pago se ha procesado correctamente. Recibir\u00e1s un email de confirmaci\u00f3n en breve.',
+  btn_back:'Volver al check-in',
+  item_ecotasa:'Tasa Tur\u00edstica', item_waiver:'Waiver Dep\u00f3sito',
+  item_deposit:'Dep\u00f3sito de Seguridad', item_deposit_fee:'Gastos Tarjeta (Dep\u00f3sito)',
+  status_paid:'Pagado', greeting:'Hola',
+  tab_home:'Check-in',
+  tab_keys:'Llaves',
+  help_title:'¿Necesitas ayuda?',
+  help_sub:'Si necesitas ayuda, no dudes en contactarnos.',
+  dot_arrival:'Llegada',
+  dot_police:'Policía',
+  dot_deposit:'Depósito',
+  dot_tax:'Tasa',
+  steps_lbl:'Pasos'
+};
+LANG_TAX.fr={
+  page_title:'Taxe Touristique & Extras',
+  sec_items:'Paiements en attente',
+  lbl_checkin:'Arriv\u00e9e', lbl_checkout:'D\u00e9part',
+  lbl_nights:'Nuits', lbl_adults:'Adultes',
+  lbl_total:'Total d\u00fb',
+  all_paid_title:'Tous les paiements effectu\u00e9s\u00a0!',
+  all_paid_sub:"Il n\u2019y a pas de frais en attente pour votre r\u00e9servation.",
+  legal_info:"<strong>La taxe touristique</strong> est obligatoire selon la loi des \u00celes Bal\u00e9ares. Le montant d\u00e9pend du nombre d\u2019adultes et de nuits.",
+  form_title:'Coordonn\u00e9es de carte',
+  modal_secure:'S\u00e9curis\u00e9 par Stripe',
+  ok_title:'Paiement re\u00e7u\u00a0!',
+  ok_sub:'Merci. Votre paiement a \u00e9t\u00e9 trait\u00e9 avec succ\u00e8s. Vous recevrez un e-mail de confirmation.',
+  btn_back:'Retour au check-in',
+  item_ecotasa:'Taxe Touristique', item_waiver:'Waiver D\u00e9p\u00f4t',
+  item_deposit:'D\u00e9p\u00f4t de Garantie', item_deposit_fee:'Frais Carte (D\u00e9p\u00f4t)',
+  status_paid:'Pay\u00e9', greeting:'Bonjour',
+  tab_home:'Check-in',
+  tab_keys:'Clés',
+  dot_arrival:'Arrivée',
+  dot_police:'Police',
+  dot_deposit:'Dépôt',
+  dot_tax:'Taxe',
+  steps_lbl:'Étapes'
+};
+LANG_TAX.de={
+  page_title:'Kurtaxe & Extras',
+  sec_items:'Ausstehende Zahlungen',
+  lbl_checkin:'Ankunft', lbl_checkout:'Abreise',
+  lbl_nights:'N\u00e4chte', lbl_adults:'Erwachsene',
+  lbl_total:'F\u00e4lliger Betrag',
+  all_paid_title:'Alle Zahlungen abgeschlossen!',
+  all_paid_sub:'F\u00fcr Ihre Buchung sind keine ausstehenden Geb\u00fchren vorhanden.',
+  legal_info:'<strong>Die Kurtaxe</strong> ist gem\u00e4\u00df dem Balearengesetz obligatorisch. Der Betrag h\u00e4ngt von der Anzahl der Erwachsenen und N\u00e4chte ab.',
+  form_title:'Kartendaten',
+  modal_secure:'Gesichert durch Stripe',
+  ok_title:'Zahlung eingegangen!',
+  ok_sub:'Vielen Dank. Ihre Zahlung wurde erfolgreich bearbeitet. Sie erhalten eine Best\u00e4tigungs-E-Mail.',
+  btn_back:'Zur\u00fcck zum Check-in',
+  item_ecotasa:'Kurtaxe', item_waiver:'Waiver Kaution',
+  item_deposit:'Sicherheitskaution', item_deposit_fee:'Kartengeb\u00fchren (Kaution)',
+  status_paid:'Bezahlt', greeting:'Hallo',
+  tab_home:'Check-in',
+  tab_keys:'Schlüssel',
+  help_title:'Brauchen Sie Hilfe?',
+  help_sub:'Wenn Sie Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren.',
+  dot_arrival:'Ankunft',
+  dot_police:'Polizei',
+  dot_deposit:'Kaution',
+  dot_tax:'Steuer',
+  steps_lbl:'Schritte'
+};
+LANG_TAX.it={
+  page_title:'Tassa Turistica & Extra',
+  sec_items:'Pagamenti in attesa',
+  lbl_checkin:'Arrivo', lbl_checkout:'Partenza',
+  lbl_nights:'Notti', lbl_adults:'Adulti',
+  lbl_total:'Totale dovuto',
+  all_paid_title:'Tutti i pagamenti completati!',
+  all_paid_sub:'Non ci sono addebiti in sospeso per la tua prenotazione.',
+  legal_info:"<strong>La tassa turistica</strong> \u00e8 obbligatoria ai sensi della legge delle Baleari. L'importo dipende dal numero di adulti e notti.",
+  form_title:'Dati della carta',
+  modal_secure:'Protetto da Stripe',
+  ok_title:'Pagamento ricevuto!',
+  ok_sub:'Grazie. Il pagamento \u00e8 stato elaborato. Riceverai una email di conferma.',
+  btn_back:'Torna al check-in',
+  item_ecotasa:'Tassa Turistica', item_waiver:'Waiver Deposito',
+  item_deposit:'Deposito Cauzionale', item_deposit_fee:'Commissioni Carta (Deposito)',
+  status_paid:'Pagato', greeting:'Ciao',
+  tab_home:'Check-in',
+  tab_keys:'Chiavi',
+  help_title:'Hai bisogno di aiuto?',
+  help_sub:'Se hai bisogno di aiuto, non esitare a contattarci.',
+  dot_arrival:'Arrivo',
+  dot_police:'Polizia',
+  dot_deposit:'Deposito',
+  dot_tax:'Tassa',
+  steps_lbl:'Passi'
+};
+LANG_TAX.nl={
+  page_title:'Toeristenbelasting & Extras',
+  sec_items:'Openstaande betalingen',
+  lbl_checkin:'Aankomst', lbl_checkout:'Vertrek',
+  lbl_nights:'Nachten', lbl_adults:'Volwassenen',
+  lbl_total:'Verschuldigd bedrag',
+  all_paid_title:'Alle betalingen voltooid!',
+  all_paid_sub:'Er zijn geen openstaande kosten voor uw boeking.',
+  legal_info:'<strong>Toeristenbelasting</strong> is verplicht. Het bedrag hangt af van het aantal volwassenen en nachten.',
+  form_title:'Kaartgegevens',
+  modal_secure:'Beveiligd door Stripe',
+  ok_title:'Betaling ontvangen!',
+  ok_sub:'Dank u. Uw betaling is succesvol verwerkt. U ontvangt een bevestigingsmail.',
+  btn_back:'Terug naar check-in',
+  item_ecotasa:'Toeristenbelasting', item_waiver:'Waiver Borg',
+  item_deposit:'Borg', item_deposit_fee:'Kaartkosten (Borg)',
+  status_paid:'Betaald', greeting:'Hallo',
+  tab_home:'Check-in',
+  tab_keys:'Sleutels',
+  help_title:'Hulp nodig?',
+  help_sub:'Als u hulp nodig heeft, aarzel niet om contact met ons op te nemen.',
+  dot_arrival:'Aankomst',
+  dot_police:'Politie',
+  dot_deposit:'Borg',
+  dot_tax:'Belasting',
+  steps_lbl:'Stappen'
+};
+LANG_TAX.pt={
+  page_title:'Taxa Tur\u00edstica & Extras',
+  sec_items:'Pagamentos pendentes',
+  lbl_checkin:'Check-in', lbl_checkout:'Check-out',
+  lbl_nights:'Noites', lbl_adults:'Adultos',
+  lbl_total:'Total em d\u00edvida',
+  all_paid_title:'Todos os pagamentos conclu\u00eddos!',
+  all_paid_sub:'N\u00e3o h\u00e1 encargos pendentes para a sua reserva.',
+  legal_info:'<strong>A taxa tur\u00edstica</strong> \u00e9 obrigat\u00f3ria segundo a lei das Baleares.',
+  form_title:'Dados do cart\u00e3o',
+  modal_secure:'Protegido por Stripe',
+  ok_title:'Pagamento recebido!',
+  ok_sub:'Obrigado. O seu pagamento foi processado. Receber\u00e1 um email de confirma\u00e7\u00e3o.',
+  btn_back:'Voltar ao check-in',
+  item_ecotasa:'Taxa Tur\u00edstica', item_waiver:'Waiver Dep\u00f3sito',
+  item_deposit:'Dep\u00f3sito de Seguran\u00e7a', item_deposit_fee:'Comiss\u00f5es Cart\u00e3o',
+  status_paid:'Pago', greeting:'Ol\u00e1',
+  tab_home:'Check-in',
+  tab_keys:'Chaves',
+  help_title:'Precisa de ajuda?',
+  help_sub:'Se precisar de ajuda, não hesite em contactar-nos.',
+  dot_arrival:'Chegada',
+  dot_police:'Polícia',
+  dot_deposit:'Depósito',
+  dot_tax:'Taxa',
+  steps_lbl:'Passos'
+};
+LANG_TAX.ca={
+  page_title:'Taxa Tur\u00edstica & Extras',
+  sec_items:'Pagaments pendents',
+  lbl_checkin:'Check-in', lbl_checkout:'Check-out',
+  lbl_nights:'Nits', lbl_adults:'Adults',
+  lbl_total:'Total pendent',
+  all_paid_title:'Tots els pagaments completats!',
+  all_paid_sub:'No hi ha cap c\u00e0rrec pendent per a la vostra reserva.',
+  legal_info:"<strong>La taxa tur\u00edstica</strong> \u00e9s obligat\u00f2ria. L'import dep\u00e8n del nombre d'adults i nits.",
+  form_title:'Dades de la targeta',
+  modal_secure:'Protegit per Stripe',
+  ok_title:'Pagament rebut!',
+  ok_sub:"Gr\u00e0cies. El pagament s'ha processat correctament. Rebreu un email de confirmaci\u00f3.",
+  btn_back:'Tornar al check-in',
+  item_ecotasa:'Taxa Tur\u00edstica', item_waiver:'Waiver Dip\u00f2sit',
+  item_deposit:'Dip\u00f2sit de Seguretat', item_deposit_fee:'Comissions Targeta',
+  status_paid:'Pagat', greeting:'Hola',
+  tab_home:'Check-in',
+  tab_keys:'Claus',
+  dot_arrival:'Arribada',
+  dot_police:'Policia',
+  dot_deposit:'Dipòsit',
+  dot_tax:'Taxa',
+  steps_lbl:'Passos'
+};
+
+</script>
+<script>
+var _NAV_LABELS = {
+  en:['Arrival','Police','Deposit','Tax'],
+  es:['Llegada','Policía','Depósito','Tasas'],
+  fr:['Arrivée','Police','Dépôt','Taxes'],
+  de:['Ankunft','Polizei','Kaution','Steuer'],
+  it:['Arrivo','Polizia','Deposito','Tasse'],
+  nl:['Aankomst','Politie','Borg','Belasting'],
+  pt:['Chegada','Polícia','Depósito','Impostos'],
+  ca:['Arribada','Policia','Dipòsit','Taxes'],
+};
+
+function _updateProgressTrack(){
+  /* Usa los mismos IDs que arrival: hpd1, hpdl1, hpl1 */
+  var labels=_NAV_LABELS[_currentLang]||_NAV_LABELS.en;
+  for(var i=1;i<=4;i++){
+    var circle=$('hpd'+i), label=$('hpdl'+i), line=$('hpl'+i);
+    if(!circle) continue;
+    circle.className='pt-circle';
+    if(_stepDone[i])        circle.classList.add('done');
+    else if(i===_currentPaso) circle.classList.add('active');
+    else                    circle.classList.add('pend');
+    if(line){ line.className='pt-line'; if(_stepDone[i])line.classList.add('done'); }
+    if(label){ label.className='pt-label'; if(i===_currentPaso)label.classList.add('active'); label.textContent=labels[i-1]; }
+  }
+  var nav=$('hdrSteps'), lbl=$('hdrStepsLbl');
+  if(nav) nav.style.display='flex';
+  if(lbl) lbl.style.display='block';
+}
+
+
+
+
+/* ════════════════════════════════════════════════════════
+   ORQUESTADOR — checkin-pasos
+   Funciones compartidas + navegación entre los 4 steps
+════════════════════════════════════════════════════════ */
+var _currentLang = 'en';
+var _code = '';
+var _bookingData = null;
+var _chkCode = '';
+
+const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+
+function $(id){ return document.getElementById(id); }
+
+function tArr(k){ return (LANG_ARR[_currentLang]&&LANG_ARR[_currentLang][k])||(LANG_ARR.en[k])||k; }
+function tPol(k){ return (LANG_POL[_currentLang]||LANG_POL.en)[k]||k; }
+function tDep(k){ return (LANG_DEP[_currentLang]||LANG_DEP.en)[k]||k; }
+function tTax(k){ return (LANG_TAX[_currentLang]&&LANG_TAX[_currentLang][k])||(LANG_TAX.en[k])||k; }
+function t(k){ return tArr(k)||tPol(k)||k; }
+
+function fmt(s,vars){return s.replace(/\{(\w+)\}/g,function(_,k){return vars[k]!==undefined?vars[k]:'{'+k+'}';});}
+function isTruthy(v){return !!(v&&['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim()));}
+function fmtDate(v){
+  if(!v) return '';
+  var s=String(v).trim();
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[3]+'/'+m[2]+'/'+m[1];
+  return s;
+}
+function fmtEUR(v){var n=parseFloat(v);return isNaN(n)?'':n.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function showToast(msg){
+  var el=$('errToast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');},5000);
+}
+function showErr(msg){
+  /* Usado por deposit */
+  var e=$('formErr'); if(e){e.textContent=msg;e.style.display='block';e.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+
+var NAV_LANG = {
+  en:{s1:'Arrival',s2:'Police',s3:'Deposit',s4:'Taxes'},
+  es:{s1:'Llegada',s2:'Policía',s3:'Depósito',s4:'Tasas'},
+  fr:{s1:'Arrivée',s2:'Police',s3:'Dépôt',s4:'Taxes'},
+  de:{s1:'Ankunft',s2:'Polizei',s3:'Kaution',s4:'Steuern'},
+  it:{s1:'Arrivo',s2:'Polizia',s3:'Deposito',s4:'Tasse'},
+  nl:{s1:'Aankomst',s2:'Politie',s3:'Borg',s4:'Belasting'},
+  pt:{s1:'Chegada',s2:'Polícia',s3:'Depósito',s4:'Impostos'},
+  ca:{s1:'Arribada',s2:'Policia',s3:'Dipòsit',s4:'Taxes'},
+};
 
 function applyLang(lang){
-  if(!LANG[lang]) lang='en';
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  if(!sup.includes(lang)) lang='en';
+  _currentLang=lang;
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  document.documentElement.lang=lang;
+  var sel=$('langSel'); if(sel) sel.value=lang;
+  var nl=NAV_LANG[lang]||NAV_LANG.en;
+  for(var i=1;i<=4;i++){
+    var tab=$('ptab'+i);
+    if(tab){
+      var txt=nl['s'+i];
+      if(tab.classList.contains('done')) txt='✓ '+txt;
+      tab.textContent=txt;
+    }
+  }
+  applyLangArr(lang);
+  applyLangPol(lang);
+  applyLangDep(lang);
+  applyLangTax(lang);
+}
+
+function initLang(){
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  applyLang(lang);
+}
+
+var _currentPaso=1;
+var _stepDone={1:false,2:false,3:false,4:false};
+
+var _STEP_TITLES = {
+  1:{en:'Arrival Form',es:'Formulario de llegada',fr:"Formulaire d'arrivée",de:'Ankunftsformular',it:'Modulo di arrivo',nl:'Aankomstformulier',pt:'Formulário de chegada',ca:"Formulari d'arribada"},
+  2:{en:'Police Registration',es:'Registro policial',fr:'Enregistrement policier',de:'Polizeiregistrierung',it:'Registrazione poliziale',nl:'Politieregistratie',pt:'Registo policial',ca:'Registre policial'},
+  3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
+  4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'},
+};
+
+function pasoGo(n){
+  _currentPaso=n;
+  for(var i=1;i<=4;i++){
+    var p=$('paso'+i); if(p) p.classList.toggle('active',i===n);
+  }
+  _updateProgressTrack();
+  var pgTitle=document.querySelector('[data-i18n="page_title"]');
+  var titles={1:{en:'Arrival Form',es:'Formulario de llegada',fr:"Formulaire d'arrivée",de:'Ankunftsformular',it:'Modulo di arrivo',nl:'Aankomstformulier',pt:'Formulário de chegada',ca:"Formulari d'arribada"},
+    2:{en:'Police Registration',es:'Registro policial',fr:'Enregistrement policier',de:'Polizeiregistrierung',it:'Registrazione poliziale',nl:'Politieregistratie',pt:'Registo policial',ca:'Registre policial'},
+    3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
+    4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'}};
+  if(pgTitle&&titles[n]) pgTitle.textContent=(titles[n][_currentLang]||titles[n].en);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function pasoMarkDone(n){
+  _stepDone[n]=true;
+  try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
+  _updateProgressTrack();
+  for(var i=n+1;i<=4;i++){
+    if(!_stepDone[i]){ var ni=i; setTimeout(function(){pasoGo(ni);},1200); return; }
+  }
+  setTimeout(function(){window.location.href='checkin-online.html?reserva='+encodeURIComponent(_code);},1200);
+}
+
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  ifr.src='checkin-premium.html?reserva='+encodeURIComponent(_code);
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+window.addEventListener('message',function(e){
+  if(e&&e.data&&e.data.type==='checkin-premium-close') closeCheckinPremium();
+});
+
+function renderAll(r){
+  _bookingData=r;
+  window._bookingData=r;
+  _code=(typeof CheckinAuth!=='undefined'&&CheckinAuth.getCode?CheckinAuth.getCode():'')||r['TaBookings2021_FS_confirmation_code']||'';
+  _chkCode=_code;
+  window._chkCode=_code;
+
+  _stepDone[1]=isTruthy(r['TaBookings2021_Arrivalform_done']);
+  _stepDone[2]=isTruthy(r['TaBookings2021_Registro_policia_done']);
+  _stepDone[3]=isTruthy(r['TaBookings2021_Security_deposit_terminado']);
+  _stepDone[4]=isTruthy(r['TaBookings2021_Ecotasa_cobrada']);
+
+  $('stLoad').style.display='none';
+  $('content').style.display='block';
+  /* Links hdrTabs → checkin-online */
+  var _qs='?reserva='+encodeURIComponent(_code);
+  var _ti=$('hdrTabInfo'); if(_ti) _ti.href='checkin-online.html'+_qs;
+  var _tk=$('hdrTabKeys'); if(_tk) _tk.href='checkin-online.html'+_qs;
+  var _ht=$('hdrTabs'); if(_ht) _ht.style.display='flex';
+  var pgc=$('pgCode'); if(pgc) pgc.textContent='Booking #'+_code;
+
+  var isPrem=isTruthy(r['TaBookings2021_checkin_premium']||r['checkin_premium']);
+  var pr=$('premRow'); if(pr){if(isPrem) pr.classList.add('show'); else pr.classList.remove('show');}
+
+  initLang();
+
+  for(var i=1;i<=4;i++){
+    var tab=$('ptab'+i);
+    if(tab&&_stepDone[i]) tab.classList.add('done');
+  }
+
+  /* Inicializar selects de arrival */
+  fillHoursArr('fArrivalTime',  HOURS_ALL_ARR);
+  fillHoursArr('fCheckinTime',  HOURS_CHECKIN_ARR);
+  fillHoursArr('fDepartureTime',HOURS_ALL_ARR);
+  fillHoursArr('fCheckoutTime', HOURS_CHECKOUT_ARR);
+  fillCountriesArr();
+
+  renderArr(r);
+  renderPol(r);
+  renderDep(r);
+  renderTax(r);
+
+  var urlPaso=parseInt(new URLSearchParams(location.search).get('paso')||'0');
+  var startPaso=0;
+  if(urlPaso>=1&&urlPaso<=4){
+    startPaso=urlPaso;
+    if(_stepDone[startPaso]){
+      for(var i=urlPaso+1;i<=4;i++){if(!_stepDone[i]){startPaso=i;break;}}
+    }
+  }
+  if(!startPaso){
+    startPaso=4;
+    for(var i=1;i<=4;i++){if(!_stepDone[i]){startPaso=i;break;}}
+  }
+  pasoGo(startPaso);
+}
+
+
+
+</script>
+<script>
+/* ══ FUNCIONES ARRIVAL ══ */
+var _booking = null;
+/* ════════════════════════════════════════════════
+   checkin-arrival.html v1 — JS
+   ════════════════════════════════════════════════ */
+
+/* ── Horas disponibles (hardcoded — fuente: Ta_hora_del_dia y Ta_hora_checkin / checkout) ── */
+var HOURS_ALL_ARR     = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00',
+                       '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00',
+                       '22:00','23:00','00:00','01:00','02:00','03:00'];
+var HOURS_CHECKIN_ARR  = ['16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
+                        '20:00','20:30','21:00','21:30','22:00','23:00'];
+var HOURS_CHECKOUT_ARR = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00'];
+
+/* ── Países (fuente: Ta_paises — lista completa ordenada) ── */
+var COUNTRIES_ARR = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda',
+  'Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh',
+  'Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina',
+  'Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia',
+  'Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros',
+  'Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti',
+  'Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia',
+  'Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana',
+  'Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary',
+  'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan',
+  'Jordan','Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon',
+  'Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi',
+  'Malaysia','Maldives','Mali','Malta','Mauritania','Mauritius','Mexico','Moldova','Monaco',
+  'Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nepal','Netherlands',
+  'New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman',
+  'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines',
+  'Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia',
+  'Saint Vincent and the Grenadines','Samoa','San Marino','Saudi Arabia','Senegal','Serbia',
+  'Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
+  'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden',
+  'Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo',
+  'Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine',
+  'United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu',
+  'Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe','Other'];
+
+function fillSel(id, opts, addEmpty){
+  const s=$(id); if(!s) return;
+  s.innerHTML = addEmpty ? '<option value="">—</option>' : '';
+  opts.forEach(o=>{ const op=document.createElement('option'); op.value=o; op.textContent=o; s.appendChild(op); });
+}
+
+/* ════ ESTADO ════ */
+
+/* ════ I18N — mismo patrón que checkin-online v33 ════ */
+
+function tArr(k){return(LANG_ARR[_currentLang]&&LANG_ARR[_currentLang][k])||(LANG_ARR.en[k])||k;}
+
+function applyLangArr(lang){
+  if(!LANG_ARR[lang]) lang='en';
   _currentLang=lang;
   /* Nodos data-i18n (texto plano) */
   document.querySelectorAll('[data-i18n]').forEach(function(el){
-    el.textContent=t(el.getAttribute('data-i18n'));
+    el.textContent=tArr(el.getAttribute('data-i18n'));
   });
   /* Nodos data-i18n-html (HTML enriquecido: info-boxes) */
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){
-    el.innerHTML=t(el.getAttribute('data-i18n-html'));
+    el.innerHTML=tArr(el.getAttribute('data-i18n-html'));
   });
   /* Placeholders */
   document.querySelectorAll('[data-i18n-ph]').forEach(function(el){
-    el.placeholder=t(el.getAttribute('data-i18n-ph'));
+    el.placeholder=tArr(el.getAttribute('data-i18n-ph'));
   });
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   if(typeof CheckinAuth !== 'undefined' && CheckinAuth._refreshLang) CheckinAuth._refreshLang();
@@ -871,7 +2263,7 @@ function applyLang(lang){
   for(var _ci=1;_ci<=4;_ci++){var _lbl=$('hpdl'+_ci);if(_lbl)_lbl.textContent=_cl[_ci-1];}
 }
 
-function initLang(){
+function initLangArr(){
   var sup=['en','es','fr','de','it','nl','pt','ca'];
   var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
   var nav=(navigator.language||'en').split('-')[0].toLowerCase();
@@ -881,19 +2273,25 @@ function initLang(){
 }
 
 /* ════ POBLAR SELECTS ════ */
-function fillHours(id, opts){
+function fillHoursArr(id, opts){
   const s=$(id); if(!s) return;
   s.innerHTML='<option value="">—</option>';
   opts.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;s.appendChild(o);});
 }
-function fillCountries(){
+function fillCountriesArr(){
   const s=$('fCountry'); if(!s) return;
   s.innerHTML='<option value="">—</option>';
-  COUNTRIES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;s.appendChild(o);});
+  COUNTRIES_ARR.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;s.appendChild(o);});
 }
 
 /* ════ RENDER ════ */
-function render(r){
+function renderArr(r){
+  /* Inicializar selects (aquí porque HOURS_ALL_ARR ya está declarado) */
+  fillHoursArr('fArrivalTime',  HOURS_ALL_ARR);
+  fillHoursArr('fCheckinTime',  HOURS_CHECKIN_ARR);
+  fillHoursArr('fDepartureTime',HOURS_ALL_ARR);
+  fillHoursArr('fCheckoutTime', HOURS_CHECKOUT_ARR);
+  fillCountriesArr();
   const g=k=>r[k]||'';
   var guest=g('TaBookings2021_Fiscal_guest_name')||g('TaBookings2021_Guest_Full_Name')||'';
   var villa=g('TaVillas_Name_villa_para_inquilinos')||'';
@@ -901,7 +2299,7 @@ function render(r){
   /* Número de reserva bajo el título */
   var _pgc=$('pgCode'); if(_pgc) _pgc.textContent='Booking ID '+_code;
   $('langWrap').style.display='block';
-  initLang();
+  initLangArr();
 
   /* Pre-rellenar campos con datos existentes */
   const pre={
@@ -983,10 +2381,6 @@ function closeCheckinPremium(){
   if(ifr) ifr.src='about:blank';
   document.body.style.overflow='';
 }
-window.addEventListener('message', function(e){
-  if(e && e.data && e.data.type==='checkin-premium-close') closeCheckinPremium();
-});
-
 /* ════ SUBMIT ════ */
 var _toastTimer=null;
 function showToast(msg){
@@ -1006,12 +2400,12 @@ async function submitForm(){
   const required=['fAdults','fCheckinTime','fCheckoutTime','fFname','fLname','fDni','fAddress','fCity','fCountry'];
   const missing=required.filter(id=>!$(id)||!$(id).value.trim());
   if(missing.length){
-    showToast(t('err_required'));
+    showToast(tArr('err_required'));
     $(missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }
   if(!$('fGdpr').checked){
-    showToast(t('err_gdpr'));
+    showToast(tArr('err_gdpr'));
     return;
   }
 
@@ -1074,77 +2468,1109 @@ async function submitForm(){
     window.scrollTo({top:0,behavior:'smooth'});
     setTimeout(function(){
       var _qs='?reserva='+encodeURIComponent(_code);
-      try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
-      window.location.href='checkin-online.html'+_qs;
+      pasoMarkDone(1);
     }, 1500);
   }catch(err){
-    showToast(t('err_save')+' ('+err.message+')');
+    showToast(tArr('err_save')+' ('+err.message+')');
     btn.disabled=false;
-    btn.textContent=t('btn_submit');
+    btn.textContent=tArr('btn_submit');
+  }
+}
+</script>
+<script>
+/* ══ FUNCIONES POLICE ══ */
+var _lintPolicia = '';
+/* ════ i18n ════ */
+
+
+function tPol(k){ return (LANG_POL[_currentLang]||LANG_POL.en)[k]||k; }
+
+function applyLangPol(lang){
+  if(!LANG_POL[lang]) lang='en';
+  _currentLang=lang;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    if(el.id==='txtAuto') return; /* se actualiza manualmente según _lintPolicia */
+    el.textContent=tPol(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){
+    el.innerHTML=tPol(el.getAttribute('data-i18n-html'));
+  });
+  /* Actualizar txtAuto con la clave correcta según el tipo de villa */
+  var _autoEl=$('txtAuto');
+  if(_autoEl) _autoEl.textContent=_lintPolicia?tPol('txt_auto_comunidad'):tPol('txt_auto');
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  /* Traducir tabs y círculos */
+  var _tabLbls={en:['Info','Keys'],es:['Info','Llaves'],fr:['Info','Clés'],de:['Info','Schlüssel'],it:['Info','Chiavi'],nl:['Info','Sleutels'],pt:['Info','Chaves'],ca:['Info','Claus']};
+  var _cirLbls={en:['Arrival','Police','Deposit','Tax'],es:['Llegada','Policía','Depósito','Tasa'],fr:['Arrivée','Police','Dépôt','Taxe'],de:['Ankunft','Polizei','Kaution','Steuer'],it:['Arrivo','Polizia','Deposito','Tassa'],nl:['Aankomst','Politie','Borg','Belasting'],pt:['Chegada','Polícia','Depósito','Taxa'],ca:['Arribada','Policia','Dipòsit','Taxa']};
+  var _tl=_tabLbls[lang]||_tabLbls.en; var _cl=_cirLbls[lang]||_cirLbls.en;
+  var _ti=$('hdrTabInfoLbl'); if(_ti) _ti.textContent=_tl[0];
+  var _tk=$('hdrTabKeysLbl'); if(_tk) _tk.textContent=_tl[1];
+  for(var _ci=1;_ci<=4;_ci++){var _lbl=$('hpdl'+_ci);if(_lbl)_lbl.textContent=_cl[_ci-1];}
+  var _ls=$('langSel'); if(_ls) _ls.value=lang;
+}
+
+function initLangPol(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  $('langSel').value=lang;
+  applyLang(lang);
+}
+
+function isTruthy(v){ return !!(v&&['1','-1','true','yes'].includes(String(v).toLowerCase())); }
+
+function fmtDate(v){
+  if(!v) return '';
+  try{
+    var d=new Date(v);
+    return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  }catch(e){return String(v).slice(0,10);}
+}
+
+/* ════ RENDER ════ */
+function renderPol(r){
+  /* Leer _lintPolicia ANTES de initLang para que applyLang use el valor correcto */
+  _lintPolicia = (r['TaVillas_Lint_Policia_castellsol']||r['TaBookings2021_Lint_Policia_castellsol']||r['Lint_Policia_castellsol']||'').trim();
+
+  initLangPol();
+
+  /* Header */
+  var _lw=$('langWrap'); if(_lw) _lw.style.display='block';
+  var _ht=$('hdrTabs'); if(_ht) _ht.style.display='flex';
+  var _hs=$('hdrSteps'); if(_hs) _hs.style.display='flex';
+  var _sl=$('hdrStepsLbl'); if(_sl) _sl.style.display='block';
+
+  /* pgCode */
+  var _code=(typeof CheckinAuth!=='undefined'&&CheckinAuth.getCode?CheckinAuth.getCode():'')||r['TaBookings2021_FS_confirmation_code']||'';
+  var _pgc=$('pgCode'); if(_pgc) _pgc.textContent='Booking ID '+_code;
+
+  /* Estados y links */
+  var _s1=isTruthy(r['TaBookings2021_Arrivalform_done']);
+  var _s2=isTruthy(r['TaBookings2021_Registro_policia_done']);
+  var _s3=isTruthy(r['TaBookings2021_Security_deposit_terminado']);
+  var _s4=isTruthy(r['TaBookings2021_Ecotasa_cobrada']);
+  var _ce=encodeURIComponent(_code);
+  var _qs='?reserva='+_ce;
+
+  /* ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ── */
+  window._chkCode=_code;
+  var _isPrem=!!(r['TaBookings2021_checkin_premium']&&['1','-1','true','yes','sí','si'].includes(String(r['TaBookings2021_checkin_premium']).toLowerCase().trim()));
+  var _pr=$('premRow'); if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
+  var _pgs=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
+  var _st=[_s1,_s2,_s3,_s4];
+  for(var _i=1;_i<=4;_i++){
+    var _c=$('hpd'+_i); if(!_c) continue;
+    _c.href=_pgs[_i-1]+_qs;
+    _c.className='pt-circle '+(_i===2?(_s2?'done':'active'):(_st[_i-1]?'done':'pend'));
+    var _l=$('hpdl'+_i); if(_l) _l.className='pt-label '+(_i===2?(_s2?'done':'active'):(_st[_i-1]?'done':''));
+    if(_i<4){var _ln=$('hpl'+_i); if(_ln) _ln.className='pt-line'+(_st[_i-1]?' done':'');}
+  }
+  var _tai=$('hdrTabInfo'); if(_tai) _tai.href='checkin-online.html'+_qs;
+  var _tak=$('hdrTabKeys'); if(_tak){
+    _tak.href='checkin-online.html'+_qs;
+    if(_s1&&_s2&&_s3&&_s4) _tak.classList.add('done-tab');
+  }
+
+  /* Construir link de policía */
+  var _villaLink = r['TaVillas_Link_Registrodepolicia']||'20e22b77-0763-803a-3832-5e268a466527';
+  var _checkin   = r['TaBookings2021_Checkin']||'';
+  var _checkout  = r['TaBookings2021_Checkout']||'';
+  var _adults    = r['TaBookings2021_Adults']||'1';
+  var _children  = r['TaBookings2021_Children']||'0';
+  var _totalPax  = (parseInt(_adults)||1)+(parseInt(_children)||0);
+  var _nombre    = r['TaBookings2021_Fiscal_guest_name']||r['TaBookings2021_Guest_Full_Name']||'';
+  var _apellido  = r['TaBookings2021_Fiscal_guest_surename']||'';
+  var _phone     = (r['TaBookings2021_Guest_phonenumber']||'').replace(/\D/g,'');
+  var _fantasyId = r['TaVillas_fantasticstayid']||_code;
+
+  /* Formatear fechas para la API de policía: YYYYMMDD */
+  function fmtPol(v){
+    if(!v) return '';
+    var d=new Date(v);
+    if(isNaN(d)) return '';
+    var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+    return y+''+m+''+dd;
+  }
+  /* Contract date = today */
+  function todayPol(){
+    var d=new Date(); var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+    return y+''+m+''+dd;
+  }
+
+  var _polUrl;
+  if(_lintPolicia){
+    /* La villa tiene su propio link de policía — usarlo directamente sin parámetros */
+    _polUrl=_lintPolicia;
+  } else {
+    /* Construir el link con parámetros (comportamiento estándar) */
+    _polUrl='https://policheckin01.azurewebsites.net/api/v5/customer/ee6f5c47d6bd4c7e9a4b75a457e58a96/organization/'+
+    encodeURIComponent(_villaLink)+'/reservation/'+encodeURIComponent(_code)+
+    '?checkInDate='+fmtPol(_checkin)+
+    '&checkOutDate='+fmtPol(_checkout)+
+    '&contractDate='+todayPol()+
+    '&number='+_totalPax+
+    '&firstName='+encodeURIComponent(_nombre)+
+    '&lastName1='+encodeURIComponent(_apellido)+
+    '&phone='+encodeURIComponent(_phone);
+  }
+
+  var _mainLink=$('policeMainLink');
+  if(_mainLink) _mainLink.href=_polUrl;
+
+  /* Share buttons */
+  var _shareMsg='Police registration link for our villa:\n'+_polUrl;
+  var _waBtn=$('waShareBtn');
+  if(_waBtn) _waBtn.onclick=function(){
+    window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(_shareMsg),'_blank');
+  };
+  var _mailBtn=$('mailShareBtn');
+  if(_mailBtn) _mailBtn.onclick=function(){
+    window.location.href='mailto:?subject=Police Registration Link&body='+encodeURIComponent(_shareMsg);
+  };
+  var _copyBtn=$('copyShareBtn');
+  if(_copyBtn) _copyBtn.onclick=function(){
+    navigator.clipboard.writeText(_polUrl).then(function(){
+      var ok=$('copyOkMsg'); if(ok){ok.classList.add('show');setTimeout(function(){ok.classList.remove('show');},2000);}
+    });
+  };
+
+  /* Texto "auto completado" — applyLang lo actualiza según _lintPolicia */
+  var _autoEl=$('txtAuto');
+  if(_autoEl) _autoEl.textContent=_lintPolicia?tPol('txt_auto_comunidad'):tPol('txt_auto');
+
+  /* Responsabilidad — construido desde i18n con {name} y {date} */
+  var _resp=$('txtResponsibility');
+  if(_resp){
+    var _guestName=(_nombre+' '+_apellido).trim()||'Guest';
+    _resp.innerHTML=tPol('resp_txt')
+      .replace('{name}',_guestName)
+      .replace('{date}',fmtDate(_checkin));
+  }
+
+  /* Checkbox */
+  var _cb=$('cbDone');
+  if(_cb){
+    _cb.checked=isTruthy(r['TaBookings2021_Registro_policia_done']);
+    _cb.onchange=function(){
+      var _btn=$('btnSave'); if(_btn) _btn.disabled=!_cb.checked;
+    };
+    var _btn=$('btnSave'); if(_btn) _btn.disabled=!_cb.checked;
+  }
+
+  /* Si ya está marcado como done, mostrar confirmación */
+  if(isTruthy(r['TaBookings2021_Registro_policia_done'])){
+    var _chkRow=$('chkRow'); if(_chkRow) _chkRow.style.borderColor='var(--green)';
+  }
+
+  /* Mostrar contenido */
+  $('stLoad').style.display='none';
+  $('content').style.display='block';
+}
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+/* ════ GUARDAR ════ */
+var _isSaving=false;
+
+async function guardar(){
+  if(_isSaving) return;
+  var _cb=$('cbDone'); if(!_cb||!_cb.checked) return;
+  _isSaving=true;
+  var _btn=$('btnSave'); if(_btn){_btn.disabled=true; _btn.textContent='Saving...';}
+
+  try{
+    var _code=(_bookingData&&_bookingData['TaBookings2021_FS_confirmation_code'])||'';
+    if(!_code) throw new Error('Booking code not found');
+
+    // Obtener pin de la sesión de checkin
+    var _sess=null;
+    try{ var _s=sessionStorage.getItem('3v_checkin_auth'); if(_s) _sess=JSON.parse(_s); }catch(e){}
+    var _pin=_sess&&_sess.pin?_sess.pin:'';
+    if(!_pin) throw new Error('Session expired. Please go back and verify your code again.');
+
+    var res;
+    if(_pin){
+      res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingCode:_code, pin:_pin, fields:{Registro_policia_done:true}})});
+    } else if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()){
+      var where="FS_confirmation_code='"+_code+"'";
+      var url=Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
+      res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Registro_policia_done:true})});
+    } else {
+      throw new Error('No active session.');
+    }
+
+    if(!res.ok){ var _e=await res.json(); throw new Error(_e.Message||_e.error||'Error '+res.status); }
+    // Redirigir a checkin-online con el código de reserva
+    var _qs='?reserva='+encodeURIComponent(_code);
+    pasoMarkDone(2);
+
+  }catch(err){
+    alert('Error saving: '+err.message);
+    if(_btn){_btn.disabled=false; _btn.textContent=tPol('btn_save');}
+    _isSaving=false;
   }
 }
 
-/* ════ BOOT ════ */
-fillHours('fArrivalTime',  HOURS_ALL);
-fillHours('fCheckinTime',  HOURS_CHECKIN);
-fillHours('fDepartureTime',HOURS_ALL);
-fillHours('fCheckoutTime', HOURS_CHECKOUT);
-fillCountries();
+/* ════ INIT ════ */
+</script>
+<script>
+/* ══ FUNCIONES DEPOSIT ══ */
+var _selectedOpt = 0, _locked = false, _isSavingDep = false, _isSaving = false;
 
-if(typeof CheckinAuth==='undefined'){
-  $('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px">' +
-    '<div style="font-size:36px;margin-bottom:12px">\u26a0\ufe0f</div>' +
-    '<p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">Error: checkin-auth.js not found</p>' +
-    '<a href="mailto:bookings@3villas.com" style="font-size:12px;color:#C8102E;font-family:Montserrat,sans-serif">bookings@3villas.com</a></div>';
-}else{
-  CheckinAuth.init({
-    onVerified:function(booking){
-      try{sessionStorage.setItem('3v_booking',JSON.stringify(booking));}catch(e){}
-      _code=CheckinAuth.getCode();
-      _booking=booking;
-      render(booking);
+/* ════ i18n ════ */
+
+function tDep(k){return (LANG_DEP[_currentLang]||LANG_DEP.en)[k]||k;}
+function fmtDep(s,vars){return s.replace(/\{(\w+)\}/g,function(_,k){return vars[k]!==undefined?vars[k]:'{'+k+'}';});}
+
+function applyLangDep(lang){
+  if(!LANG_DEP[lang]) lang='en';
+  _currentLang=lang;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){el.textContent=tDep(el.getAttribute('data-i18n'));});
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){el.innerHTML=tDep(el.getAttribute('data-i18n-html'));});
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  var _tabLbls={en:['Info','Keys'],es:['Info','Llaves'],fr:['Info','Clés'],de:['Info','Schlüssel'],it:['Info','Chiavi'],nl:['Info','Sleutels'],pt:['Info','Chaves'],ca:['Info','Claus']};
+  var _cirLbls={en:['Arrival','Police','Deposit','Tax'],es:['Llegada','Policía','Depósito','Tasa'],fr:['Arrivée','Police','Dépôt','Taxe'],de:['Ankunft','Polizei','Kaution','Steuer'],it:['Arrivo','Polizia','Deposito','Tassa'],nl:['Aankomst','Politie','Borg','Belasting'],pt:['Chegada','Polícia','Depósito','Taxa'],ca:['Arribada','Policia','Dipòsit','Taxa']};
+  var _tl=_tabLbls[lang]||_tabLbls.en; var _cl=_cirLbls[lang]||_cirLbls.en;
+  var ti=$('hdrTabInfoLbl'); if(ti) ti.textContent=_tl[0];
+  var tk=$('hdrTabKeysLbl'); if(tk) tk.textContent=_tl[1];
+  for(var i=1;i<=4;i++){var l=$('hpdl'+i);if(l)l.textContent=_cl[i-1];}
+  var ls=$('langSel'); if(ls) ls.value=lang;
+  // Redibujar opciones con nuevas traducciones si ya tenemos datos
+  if(_bookingData) buildOptions(_bookingData);
+}
+
+function initLangDep(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  $('langSel').value=lang;
+  applyLang(lang);
+}
+
+function fmtDate(v){
+  if(!v) return '';
+  try{var d=new Date(v);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});}catch(e){return String(v).slice(0,10);}
+}
+function fmtEUR(v){var n=parseFloat(v);return isNaN(n)?'':n.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function isTruthy(v){return !!(v&&['1','-1','true','yes'].includes(String(v).toLowerCase()));}
+
+function buildOptions(r){
+  var depEUR    = fmtEUR(r['TaBookings2021_Security_deposit_EUR']||0);
+  var waverEUR  = fmtEUR(r['TaBookings2021_Deposit_waver_EUR']||0);
+  var gastoEUR  = fmtEUR(r['TaBookings2021_Gasto_tarjeta_deposito_seguridad']||0);
+  var checkout  = fmtDate(r['TaBookings2021_Checkout']);
+  var portal    = String(r['TaBookings2021_Portal_Name']||'').toLowerCase();
+  var isAirbnb  = portal.includes('airbnb');
+  var waverOk   = isTruthy(r['TaBookings2021_Se_permite_waver']);
+  var currentOpt= parseInt(r['TaBookings2021_Security_deposit_options']||0);
+
+  // Bloquear cambio si el waiver o los gastos de tarjeta ya están cobrados
+  var waverCobrado = isTruthy(r['TaBookings2021_Deposit_waver_cobrado']);
+  var gastoCobrado = isTruthy(r['TaBookings2021_Gasto_tarjeta_dep_seguri_cobrado']);
+  _locked = waverCobrado || gastoCobrado;
+
+  var vars = {depEUR:depEUR, waverEUR:waverEUR, gastoEUR:gastoEUR, checkout:checkout};
+
+  // Definir opciones disponibles según portal y Se_permite_waver
+  var opts = [];
+  opts.push({id:0, label:tDep('opt0_label'), price:'', proc:'', cost:'', ret:'', extra:null, disabled:false, nd:true});
+  if(isAirbnb){
+    // Airbnb: opción 1 (waiver si permitido) y opción 4 (no waiver)
+    if(waverOk){
+      opts.push({id:1, label:tDep('opt1_label'), price:waverEUR+' EUR', proc:fmtDep(tDep('opt1_proc'),vars), cost:fmtDep(tDep('opt1_cost'),vars), ret:tDep('opt1_return'), extra:null, disabled:false});
+    }else{
+      opts.push({id:1, label:tDep('opt1_label'), price:waverEUR+' EUR', proc:'', cost:'', ret:'', extra:tDep('lbl_waiver_disabled'), disabled:true});
+    }
+    opts.push({id:4, label:tDep('opt4_label'), price:'0 EUR', proc:tDep('opt4_proc'), cost:tDep('opt4_cost'), ret:'', extra:null, disabled:false});
+  }else{
+    // No Airbnb: opción 1 (waiver), 2 (tarjeta), 3 (transferencia)
+    if(waverOk){
+      opts.push({id:1, label:tDep('opt1_label'), price:waverEUR+' EUR', proc:fmtDep(tDep('opt1_proc'),vars), cost:fmtDep(tDep('opt1_cost'),vars), ret:tDep('opt1_return'), extra:null, disabled:false});
+    }else{
+      opts.push({id:1, label:tDep('opt1_label'), price:waverEUR+' EUR', proc:'', cost:'', ret:'', extra:tDep('lbl_waiver_disabled'), disabled:true});
+    }
+    opts.push({id:2, label:tDep('opt2_label'), price:depEUR+' EUR', proc:fmtDep(tDep('opt2_proc'),vars), cost:fmtDep(tDep('opt2_cost'),vars), ret:fmtDep(tDep('opt2_return'),vars), extra:null, disabled:false});
+    opts.push({id:3, label:tDep('opt3_label'), price:depEUR+' EUR', proc:fmtDep(tDep('opt3_proc'),vars), cost:tDep('opt3_cost'), ret:fmtDep(tDep('opt3_return'),vars), extra:fmtDep(tDep('opt3_warning'),vars), disabled:false});
+  }
+
+  var html='';
+  opts.forEach(function(o){
+    var isSel=(o.id===currentOpt)&&!o.disabled;
+    if(o.nd){
+      html+='<div class="opt-card'+(isSel?' selected':'')+'" id="optCard0" onclick="selectOpt(0)" style="border-color:var(--gray-3)'+(isSel?'':';opacity:.65')+'">';
+      html+='<div class="opt-head"><div class="opt-radio"></div><div class="opt-label" style="color:var(--gray-4);font-style:italic">'+o.label+'</div></div></div>';
+    } else {
+    html+='<div class="opt-card'+(isSel?' selected':'')+(o.disabled?' disabled-opt':'')+'" id="optCard'+o.id+'" onclick="selectOpt('+o.id+')">';
+    html+='<div class="opt-head"><div class="opt-radio"></div>';
+    html+='<div class="opt-label">'+o.label+(o.id===1?'<button class="info-btn" onclick="event.stopPropagation();showInfoPopup()"  style="pointer-events:auto">i</button>':'')+'</div>';
+    if(!o.disabled) html+='<div class="opt-price">'+o.price+'</div>';
+    html+='</div>';
+    if(o.disabled){
+      html+='<div class="opt-detail" style="display:block"><div class="hint-warn">'+o.extra+'</div></div>';
+    } else {
+      html+='<div class="opt-detail">';
+      if(o.proc){html+='<div class="opt-section"><div class="opt-section-title">Procedure</div><div class="opt-section-body">'+o.proc+'</div></div>';}
+      if(o.cost){html+='<div class="opt-section"><div class="opt-section-title">Cost</div><div class="opt-section-body">'+o.cost+'</div></div>';}
+      if(o.ret){ html+='<div class="opt-section"><div class="opt-section-title">When is it returned?</div><div class="opt-section-body">'+o.ret+'</div></div>';}
+      if(o.extra){html+='<div class="hint-warn" style="margin-top:8px">'+o.extra+'</div>';}
+      html+='</div>';
+    }
+    html+='</div>';
     }
   });
+
+  $('optCards').innerHTML=html;
+  if(currentOpt>0) _selectedOpt=currentOpt;
+
+  // Banner de bloqueo si ya se ha pagado
+  var bannerEl=$('lockedBanner');
+  if(bannerEl){
+    if(_locked){
+      bannerEl.textContent=tDep('locked_msg');
+      bannerEl.style.display='block';
+    } else {
+      bannerEl.style.display='none';
+    }
+  }
+
+  updateSubmitBtn();
+  updateBankFields();
+}
+
+function selectOpt(id){
+  updatePayNotice();
+  if(_locked){
+    var b=$('lockedBanner');
+    if(b){ b.style.animation='none'; b.offsetHeight; b.style.animation='shake .4s'; }
+    return;
+  }
+  _selectedOpt=id;
+  document.querySelectorAll('.opt-card').forEach(function(c){c.classList.remove('selected');});
+  var card=$('optCard'+id); if(card) card.classList.add('selected');
+  updateSubmitBtn();
+  updateBankFields();
+}
+
+function updateSubmitBtn(){
+  var btn=$('btnSave'); if(btn) btn.disabled=(_selectedOpt===0||_locked);
+}
+
+function updateBankFields(){
+  var sec=$('secBankDetails');
+  if(sec) sec.style.display=(_selectedOpt===3)?'':'none';
+}
+
+/* ════ RENDER ════ */
+function renderDep(r){
+  _bookingData=r;
+  initLangDep();
+
+  // Header
+  var lw=$('langWrap'); if(lw) lw.style.display='block';
+  var ht=$('hdrTabs'); if(ht) ht.style.display='flex';
+  var hs=$('hdrSteps'); if(hs) hs.style.display='flex';
+  var sl=$('hdrStepsLbl'); if(sl) sl.style.display='block';
+
+  // pgCode
+  var code=r['TaBookings2021_FS_confirmation_code']||'';
+  var pgc=$('pgCode'); if(pgc) pgc.textContent='Booking ID '+code;
+
+  // Greeting
+  var nombre=r['TaBookings2021_Fiscal_guest_name']||r['TaBookings2021_Guest_Full_Name']||'';
+  var gTxt=$('greetingTxt');
+  if(gTxt&&nombre) gTxt.textContent=tDep('greeting').replace('{name}',nombre);
+  updatePayNotice();
+
+  // Progress track + links
+  var s1=isTruthy(r['TaBookings2021_Arrivalform_done']);
+  var s2=isTruthy(r['TaBookings2021_Registro_policia_done']);
+  var s3=isTruthy(r['TaBookings2021_Security_deposit_terminado']);
+  var s4=isTruthy(r['TaBookings2021_Ecotasa_cobrada']);
+  var ce=encodeURIComponent(code);
+  var qs='?reserva='+ce;
+
+  // ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ──
+  window._chkCode=code;
+  var _isPrem=isTruthy(r['TaBookings2021_checkin_premium']||r['checkin_premium']);
+  var _premRow=$('premRow');
+  if(_premRow){ if(_isPrem) _premRow.classList.add('show'); else _premRow.classList.remove('show'); }
+
+  var pgs=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
+  var st=[s1,s2,s3,s4];
+  for(var i=1;i<=4;i++){
+    var c2=$('hpd'+i); if(!c2) continue;
+    c2.href=pgs[i-1]+qs;
+    c2.className='pt-circle '+(i===3?(s3?'done':'active'):(st[i-1]?'done':'pend'));
+    var lbl=$('hpdl'+i); if(lbl) lbl.className='pt-label '+(i===3?(s3?'done':'active'):(st[i-1]?'done':''));
+    if(i<4){var ln=$('hpl'+i); if(ln) ln.className='pt-line'+(st[i-1]?' done':'');}
+  }
+  var tai=$('hdrTabInfo'); if(tai) tai.href='checkin-online.html'+qs;
+  var tak=$('hdrTabKeys'); if(tak){
+    tak.href='checkin-online.html'+qs;
+    if(s1&&s2&&s3&&s4) tak.classList.add('done-tab');
+  }
+
+  // Prefill IBAN/BIC si existen
+  var fIban=$('fIban'); if(fIban) fIban.value=r['TaBookings2021_Numero_cuenta_bancaria_guest']||'';
+  var fBic=$('fBic');  if(fBic)  fBic.value=r['TaBookings2021_Numero_swift_bic_bancario_guest']||'';
+
+  // Construir opciones
+  buildOptions(r);
+
+  // Mostrar contenido
+  $('stLoad').style.display='none';
+  $('content').style.display='block';
+}
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
+}
+/* ════ GUARDAR ════ */
+async function guardar(){
+  if(_isSaving||!_selectedOpt) return;
+  _isSaving=true;
+  var btn=$('btnSave'); if(btn){btn.disabled=true; btn.textContent='Saving...';}
+  var err=$('formErr'); if(err) err.style.display='none';
+
+  var code=(_bookingData&&_bookingData['TaBookings2021_FS_confirmation_code'])||'';
+  if(!code){showErr('Booking code not found'); _isSaving=false; return;}
+
+  // Validar IBAN/BIC si opción 3
+  if(_selectedOpt===3){
+    var iban=($('fIban').value||'').trim();
+    var bic= ($('fBic').value||'').trim();
+    if(!iban||!bic){showErr('Please fill in your IBAN and BIC/SWIFT to proceed.'); _isSaving=false; if(btn) btn.disabled=false; btn.textContent=tDep('btn_save'); return;}
+  }
+
+  try{
+    var fields={Security_deposit_options:_selectedOpt};
+    if(_selectedOpt===3){
+      fields.Numero_cuenta_bancaria_guest=($('fIban').value||'').trim();
+      fields.Numero_swift_bic_bancario_guest=($('fBic').value||'').trim();
+    }
+
+    // Intentar con pin de sesión de checkin primero (huésped)
+    // Si no hay pin, intentar con Auth del intranet (admin/manager)
+    var res;
+    var sess=null;
+    try{var s=sessionStorage.getItem('3v_checkin_auth'); if(s) sess=JSON.parse(s);}catch(e){}
+    var pin=sess&&sess.pin?sess.pin:'';
+
+    if(pin){
+      // Huésped verificado: usar checkin-save con pin
+      res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingCode:code, pin:pin, fields:fields})});
+    } else if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()){
+      // Admin/manager del intranet: usar action=save con sesión Auth
+      var where="FS_confirmation_code='"+code+"'";
+      var url=Auth.url(WORKER+'?action=save&table=TaBookings2021&where='+encodeURIComponent(where)+'&method=PUT');
+      res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+    } else {
+      throw new Error('No active session. Please verify your identity first.');
+    }
+
+    if(!res.ok){var e=await res.json(); throw new Error(e.Message||e.error||'Error '+res.status);}
+
+    // Redirigir a checkin-online
+    var qs='?reserva='+encodeURIComponent(code);
+    pasoMarkDone(3);
+
+  }catch(err){
+    showErr('Error saving: '+err.message);
+    _isSaving=false;
+    if(btn){btn.disabled=false; btn.textContent=tDep('btn_save');}
+  }
+}
+
+function showErr(msg){
+  var e=$('formErr'); if(e){e.textContent=msg; e.style.display='block'; e.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+
+/* ════ INIT ════ */
+
+/* ════ POPUP INFO ════ */
+var _popupType=null;
+function showInfoPopup(){
+  $('popupTitle').textContent=tDep('exclusion_title');
+  $('popupBody').innerHTML=tDep('exclusion_body');
+  openPopupCentered();
+}
+function openPopupCentered(){
+  var overlay=$('infoPopup'), sheet=$('popupSheet');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  requestAnimationFrame(function(){
+    var sw=sheet.offsetWidth, sh=sheet.offsetHeight;
+    var vw=window.innerWidth, vh=window.innerHeight;
+    var top=Math.max(16, Math.round((vh-sh)/2));
+    var left=Math.round((vw-sw)/2);
+    sheet.style.left=left+'px';
+    sheet.style.top=top+'px';
+  });
+}
+function closePopup(){
+  $('infoPopup').classList.remove('open');
+  document.body.style.overflow='';
+}
+(function(){
+  var bar, sheet, dragging=false, ox=0, oy=0;
+  document.addEventListener('DOMContentLoaded', function(){
+    bar=$('popupDragBar'); sheet=$('popupSheet');
+    if(!bar||!sheet) return;
+    bar.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    bar.addEventListener('touchstart', function(e){startDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchmove', function(e){onDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchend', stopDrag);
+  });
+  function startDrag(e){ dragging=true; ox=e.clientX-sheet.getBoundingClientRect().left; oy=e.clientY-sheet.getBoundingClientRect().top; }
+  function onDrag(e){ if(!dragging) return; sheet.style.left=(e.clientX-ox)+'px'; sheet.style.top=(e.clientY-oy)+'px'; }
+  function stopDrag(){ dragging=false; }
+})();
+
+/* ════ TEXTO AVISO PAGO ════ */
+function updatePayNotice(){
+  var el=$('payNotice'); if(!el) return;
+  el.style.display=(_selectedOpt===1||_selectedOpt===2)?'block':'none';
+  el.textContent=tDep('pay_notice');
+}
+</script>
+<script>
+/* ══ FUNCIONES TAXES ══ */
+var _bookingTax = null, _total = 0;
+const CASPIO_APP_TAX = '353f7000e967b11dc2a34af68b4e';
+const CASPIO_ORIGIN = 'https://c1abn932.caspio.com';
+
+
+/* ════ I18N — mismo patrón que checkin-arrival ════ */
+
+function tTax(k){return(LANG_TAX[_currentLang]&&LANG_TAX[_currentLang][k])||(LANG_TAX.en[k])||k;}
+
+function applyLangTax(lang){
+  var langChanged = (_currentLang !== lang);
+  if(!LANG_TAX[lang]) lang='en';
+  _currentLang=lang;
+  /* Textos nativos data-i18n */
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var k=el.getAttribute('data-i18n');
+    var hasHTML=['legal_info','all_paid_sub'];
+    if(hasHTML.indexOf(k)>=0) el.innerHTML=tTax(k);
+    else el.textContent=tTax(k);
+  });
+  /* Redibujar líneas de pago si ya hay datos */
+  if(_bookingTax) renderItems(_bookingTax);
+  /* Guardar preferencia */
+  try{localStorage.setItem('3v_lang',lang);}catch(e){}
+  /* Overlay auth */
+  if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
+  /* Embed Caspio: al cambiar idioma traducir directamente si el embed está listo.
+     El observer permanente se encargará de re-renders futuros de Caspio. */
+  if(_embedLoaded && langChanged){
+    /* Reinyectar embed SOLO si de verdad cambió el idioma */
+    if(_embedObserver){ _embedObserver.disconnect(); _embedObserver = null; }
+    if(_pollInterval){ clearInterval(_pollInterval); _pollInterval = null; }
+    var wrap=$('caspioPay');
+    if(wrap) wrap.innerHTML='';
+    _embedLoaded=false;
+    injectCaspioEmbed();
+  }
+  /* Traducir labels de cabecera */
+  var _tlb={en:['Info','Keys'],es:['Info','Llaves'],fr:['Info','Clés'],de:['Info','Schlüssel'],it:['Info','Chiavi'],nl:['Info','Sleutels'],pt:['Info','Chaves'],ca:['Info','Claus']};
+  var _clb={en:['Arrival','Police','Deposit','Tax'],es:['Llegada','Policía','Depósito','Tasa'],fr:['Arrivée','Police','Dépôt','Taxe'],de:['Ankunft','Polizei','Kaution','Steuer'],it:['Arrivo','Polizia','Deposito','Tassa'],nl:['Aankomst','Politie','Borg','Belasting'],pt:['Chegada','Polícia','Depósito','Taxa'],ca:['Arribada','Policia','Dipòsit','Taxa']};
+  var _tl=_tlb[lang]||_tlb.en; var _cl=_clb[lang]||_clb.en;
+  var _tni=$('hdrTabInfoLbl'); if(_tni) _tni.textContent=_tl[0];
+  var _tnk=$('hdrTabKeysLbl'); if(_tnk) _tnk.textContent=_tl[1];
+  for(var _ci=1;_ci<=4;_ci++){var _lbl=$('hpdl'+_ci);if(_lbl)_lbl.textContent=_cl[_ci-1];}
+  var _ls=$('langSel'); if(_ls) _ls.value=lang;
+}
+function initLangTax(){
+  var sup=['en','es','fr','de','it','nl','pt','ca'];
+  var saved=null; try{saved=localStorage.getItem('3v_lang');}catch(e){}
+  var nav=(navigator.language||'en').split('-')[0].toLowerCase();
+  var lang=saved||(sup.includes(nav)?nav:'en');
+  $('langSel').value=lang;
+  applyLang(lang);
+}
+
+/* ════ LÓGICA IMPORTES (replica fórmulas Caspio del XML) ════ */
+function gTax(r,k){return r[k]!==undefined?r[k]:r['TaBookings2021_'+k];}
+function num(v){return parseFloat(v)||0;}
+function bool1(v){return parseInt(v)===1;}
+
+var ICONS={ecotasa:'🌴',u1:'⭐',u2:'⭐',u3:'⭐',deposit:'🛡️',deposit_fee:'💳',waiver:'🤝'};
+
+function calcItems(r){
+  var items=[], dep_opt=parseInt(gTax(r,'Security_deposit_options'))||0;
+
+  // Ecotasa
+  var eco=num(gTax(r,'Ecotasa_final')), eco_c=bool1(gTax(r,'Ecotasa_cobrada'));
+  items.push({key:'ecotasa',label:tTax('item_ecotasa'),ico:ICONS.ecotasa,
+    amount:eco,paid:eco_c,pending:!eco_c&&eco>0,
+    sub:eco?eco.toFixed(2)+' € · Tourist taxes':null});
+
+  // Upselling 1-3
+  [1,2,3].forEach(function(n){
+    var eur=num(gTax(r,'Upselling'+n+'_EUR')),cob=bool1(gTax(r,'Upselling'+n+'_cobrado'));
+    var txt=gTax(r,'Upselling'+n+'_text')||'Extra '+n;
+    if(eur>0) items.push({key:'u'+n,label:txt,ico:ICONS['u'+n],
+      amount:eur,paid:cob,pending:!cob&&eur>0,sub:eur.toFixed(2)+' €'});
+  });
+
+  // Depósito (opt=2 tarjeta)
+  var dep=num(gTax(r,'Security_deposit_EUR')),dep_c=bool1(gTax(r,'Security_deposit_cobrado'));
+  if(dep>0&&dep_opt===2) items.push({key:'deposit',label:tTax('item_deposit'),ico:ICONS.deposit,
+    amount:dep,paid:dep_c,pending:!dep_c&&dep_opt===2,sub:dep.toFixed(2)+' €'});
+
+  // Gastos tarjeta depósito (opt=2)
+  var fee=num(gTax(r,'Gasto_tarjeta_deposito_seguridad')),fee_c=bool1(gTax(r,'Gasto_tarjeta_dep_seguri_cobrado'));
+  if(fee>0&&dep_opt===2) items.push({key:'deposit_fee',label:tTax('item_deposit_fee'),ico:ICONS.deposit_fee,
+    amount:fee,paid:fee_c,pending:!fee_c&&dep_opt===2,sub:fee.toFixed(2)+' €'});
+
+  // Waiver (opt=1 + permitido)
+  var waiv=num(gTax(r,'Deposit_waver_EUR')),waiv_c=bool1(gTax(r,'Deposit_waver_cobrado'));
+  var waiv_ok=parseInt(gTax(r,'Se_permite_waver'))||0;
+  if(waiv>0&&dep_opt===1&&waiv_ok===1) items.push({key:'waiver',label:tTax('item_waiver'),ico:ICONS.waiver,
+    amount:waiv,paid:waiv_c,pending:!waiv_c&&dep_opt===1&&waiv_ok===1,sub:waiv.toFixed(2)+' €'});
+
+  return items;
+}
+
+function renderItems(r){
+  var items=calcItems(r), list=$('itemsList');
+  list.innerHTML=''; _total=0;
+  items.forEach(function(item){
+    if(item.pending) _total+=item.amount;
+    var d=document.createElement('div'); d.className='pay-line';
+    d.innerHTML=
+      '<div class="pl-ico '+(item.paid?'paid':'pend')+'">'+item.ico+'</div>'+
+      '<div class="pl-body">'+
+        '<div class="pl-name">'+item.label+'</div>'+
+        (item.sub?'<div class="pl-sub">'+item.sub+'</div>':'')+
+      '</div>'+
+      '<div class="pl-right">'+
+        (item.paid
+          ?'<span class="pl-badge-paid">'+tTax('status_paid')+'</span>'
+          :'<span class="pl-amt">'+item.amount.toFixed(2)+' €</span>'
+        )+
+      '</div>';
+    list.appendChild(d);
+  });
+  if(!items.length) list.innerHTML='<div style="padding:16px 0;text-align:center;color:var(--gray-4);font-size:13px">—</div>';
+
+  // Total y formulario
+  if(_total>0){
+    $('totalRow').style.display='flex';
+    $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
+    $('allPaid').style.display='none';
+    /* Solo inyectar si el embed no está ya cargado */
+    if(!_embedLoaded) injectCaspioEmbed();
+  } else {
+    $('totalRow').style.display='none';
+    $('allPaid').style.display='block';
+    $('payFormWrap').style.display='none';
+  }
+}
+
+/* ════ EMBED CASPIO /emb ════
+   Inyectar el script de Caspio con el code de reserva como parámetro.
+   El script /emb lee los parámetros cbParam del URL o los acepta vía cbParam* ════ */
+var _embedLoaded=false;
+function injectCaspioEmbed(){
+  if(_embedLoaded) return;
+  _embedLoaded=true;
+
+  $('payFormWrap').style.display='block';
+
+  var target=$('caspioPay');
+  target.innerHTML='';
+
+  /* Crear CaspioFormDiv con ID oficial DENTRO del target */
+  var formDiv=document.createElement('div');
+  formDiv.id='CaspioFormDiv_'+CASPIO_APP_TAX;
+  target.appendChild(formDiv);
+
+  /* Crear el script como hermano inmediato del formDiv (dentro del mismo target) */
+  var s=document.createElement('script');
+  s.type='text/javascript';
+  s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP_TAX+'/emb'
+    +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
+    +'&FS_confirmation_code='+encodeURIComponent(_code)
+    +'&cbResetParam=1';
+
+  s.onload=function(){
+    startEmbedTranslationPolling();
+  };
+
+  s.onerror=function(){
+    formDiv.innerHTML=
+      '<div style="text-align:center;padding:20px 0">'+
+      '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP_TAX+
+      '?FS_confirmation_code='+encodeURIComponent(_code)+
+      '" target="_blank" style="display:inline-block;padding:12px 24px;'+
+      'background:#C8102E;color:#fff;border-radius:10px;font-weight:800;'+
+      'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
+  };
+
+  /* Script inmediatamente después del formDiv — estructura que /emb espera */
+  target.appendChild(s);
+}
+
+/* ════ DETECTAR ÉXITO DEL PAGO ════
+   Caspio envía un postMessage cuando el formulario se envía con éxito.
+   También podemos escuchar mutaciones del DOM para detectar el mensaje de éxito. ════ */
+
+/* Observer DOM: Caspio muestra un mensaje de éxito en el DOM tras el pago */
+/* ════ TRADUCCIÓN DE TEXTOS DEL EMBED CASPIO ════
+   Caspio /emb inyecta HTML con textos en inglés hardcodeados.
+   Usamos un MutationObserver para detectar cuando el form aparece
+   en el DOM y reemplazamos los textos con nuestro sistema i18n. ════ */
+
+/* Mapa de textos Caspio → clave i18n (o texto directo por idioma) */
+/* ═══════════════════════════════════════════════
+   TRADUCCIÓN EMBED CASPIO v3
+   Mapa completo de textos EN -> clave i18n.
+   Usa TreeWalker para recorrer TODOS los nodos de
+   texto del embed, sin depender de clases CSS.
+   ═══════════════════════════════════════════════ */
+
+var CASPIO_MAP = {
+  'Credit Card':           'cc_number',
+  'Expiration Date':       'cc_expiry',
+  'Security Code':         'cc_cvv',
+  'Total':                 'lbl_total',
+  'Submit':                'btn_submit',
+  'Pay Now':               'btn_submit',
+  'Pay now':               'btn_submit',
+  'Reservation ID':        'lbl_booking_id',
+  'Reservation nr.':       'lbl_booking_id',
+  'Reservation Nr.':       'lbl_booking_id',
+  'Reservation number':    'lbl_booking_id',
+  'Reservation Number':    'lbl_booking_id',
+  'Adults':                'lbl_adults',
+  'Nights':                'lbl_nights',
+  'Checkin':               'lbl_checkin',
+  'Checkout':              'lbl_checkout',
+  'Check-in':              'lbl_checkin',
+  'Check-out':             'lbl_checkout',
+  'Guest Name':            'lbl_guest',
+  'Guest name':            'lbl_guest',
+  'Villa':                 'lbl_villa',
+};
+
+var CC_EXTRA = {
+  en:{cc_number:'Card number',    cc_expiry:'Expiration date', cc_cvv:'Security code',
+      btn_submit:'Pay now',       lbl_booking_id:'Booking ID', lbl_guest:'Guest', lbl_villa:'Property'},
+  es:{cc_number:'Número de tarjeta', cc_expiry:'Fecha de caducidad', cc_cvv:'Código de seguridad',
+      btn_submit:'Pagar ahora',   lbl_booking_id:'ID de reserva', lbl_guest:'Huésped', lbl_villa:'Propiedad'},
+  fr:{cc_number:'Numéro de carte', cc_expiry:'Date d’expiration', cc_cvv:'Code de sécurité',
+      btn_submit:'Payer maintenant', lbl_booking_id:'ID réservation', lbl_guest:'Client', lbl_villa:'Propriété'},
+  de:{cc_number:'Kartennummer',   cc_expiry:'Ablaufdatum',     cc_cvv:'Sicherheitscode',
+      btn_submit:'Jetzt bezahlen', lbl_booking_id:'Buchungs-ID', lbl_guest:'Gast', lbl_villa:'Unterkunft'},
+  it:{cc_number:'Numero di carta', cc_expiry:'Data di scadenza', cc_cvv:'Codice di sicurezza',
+      btn_submit:'Paga ora',      lbl_booking_id:'ID prenotazione', lbl_guest:'Ospite', lbl_villa:'Proprietà'},
+  nl:{cc_number:'Kaartnummer',    cc_expiry:'Vervaldatum',     cc_cvv:'Beveiligingscode',
+      btn_submit:'Nu betalen',    lbl_booking_id:'Boekings-ID', lbl_guest:'Gast', lbl_villa:'Accommodatie'},
+  pt:{cc_number:'Número do cartão', cc_expiry:'Data de validade', cc_cvv:'Código de segurança',
+      btn_submit:'Pagar agora',   lbl_booking_id:'ID reserva', lbl_guest:'Hóspede', lbl_villa:'Propriedade'},
+  ca:{cc_number:'Número de targeta', cc_expiry:'Data de caducitat', cc_cvv:'Codi de seguretat',
+      btn_submit:'Pagar ara',     lbl_booking_id:'ID reserva', lbl_guest:'Hoste', lbl_villa:'Propietat'},
+};
+Object.keys(CC_EXTRA).forEach(function(lang){
+  if(LANG_TAX[lang]) Object.assign(LANG_TAX[lang], CC_EXTRA[lang]);
+});
+
+function translateCaspioEmbed(){
+  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
+
+  /* TreeWalker: recorre TODOS los nodos de texto del embed */
+  var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while((node=walker.nextNode())){
+    var raw=node.nodeValue||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt) continue;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var translated=tTax(key);
+      if(translated&&translated!==key&&translated!==txt){
+        node.nodeValue=translated+(raw.includes('*')?' *':'');
+      }
+    }
+  }
+
+  /* Botones submit */
+  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
+    var lbl=tTax('btn_submit');
+    if(el.tagName==='INPUT') el.value=lbl;
+    else el.textContent=lbl;
+  });
+
+  /* Placeholders */
+  wrap.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
+    var ph=el.getAttribute('placeholder')||'';
+    var key=CASPIO_MAP[ph];
+    if(key){var tr=tTax(key);if(tr&&tr!==key)el.placeholder=tr;}
+  });
+
+  /* También buscar en elementos con innerText directo (tablas Caspio) */
+  wrap.querySelectorAll('td,th,span,div,p,label,legend,caption').forEach(function(el){
+    if(el.children.length>0) return; /* solo hoja */
+    var raw=el.textContent||'';
+    var txt=raw.trim().replace(/\s*\*\s*$/,'');
+    if(!txt||txt.length>60) return;
+    var key=CASPIO_MAP[txt];
+    if(key){
+      var tr=tTax(key);
+      if(tr&&tr!==key&&tr!==txt) el.textContent=tr+(raw.includes('*')?' *':'');
+    }
+  });
+
+  /* Marcar y segunda pasada por si Caspio renderiza async */
+  var prev=wrap.getAttribute('data-translated');
+  wrap.setAttribute('data-translated',_currentLang);
+  if(prev!==_currentLang){
+    setTimeout(function(){
+      if(wrap.getAttribute('data-translated')===_currentLang) translateCaspioEmbed();
+    },1500);
+  }
+}
+
+/* ══ OBSERVER PERMANENTE DEL EMBED ══
+   Un único MutationObserver que:
+   1. Traduce el texto cada vez que Caspio modifica el DOM
+   2. Detecta el éxito del pago
+   Se instala una sola vez cuando el embed se inyecta.
+   Como es permanente, captura CUALQUIER re-render de Caspio. ══ */
+
+var _embedObserver = null;
+var _translateTimer = null; /* debounce para no traducir en cada micro-mutación */
+
+function installEmbedObserver(){
+  if(_embedObserver) return; /* ya instalado */
+  var wrap = $('caspioPay');
+  if(!wrap || !window.MutationObserver) return;
+
+  _embedObserver = new MutationObserver(function(mutations){
+    var hasChanges = false;
+    var successDetected = false;
+
+    mutations.forEach(function(m){
+      /* ── Detectar éxito del pago ── */
+      m.addedNodes.forEach(function(node){
+        var txt = (node.textContent||'');
+        if(txt.includes('have been paid') || txt.includes('successfully paid') ||
+           txt.includes('ha sido pagado') || txt.includes('COBRADO') ||
+           txt.includes('Thank you')){
+          successDetected = true;
+        }
+      });
+      /* ── Detectar cambios en el DOM del form ── */
+      if(m.addedNodes.length || m.characterData) hasChanges = true;
+    });
+
+    if(successDetected){ setTimeout(showSuccess, 1200); return; }
+
+    /* Debounce: esperar 80ms tras el último cambio antes de traducir.
+       Caspio a veces hace varias mutaciones seguidas al renderizar. */
+    if(hasChanges){
+      clearTimeout(_translateTimer);
+      _translateTimer = setTimeout(function(){
+        translateCaspioEmbed();
+      }, 80);
+    }
+  });
+
+  _embedObserver.observe(wrap, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+}
+
+function watchForSuccess(){
+  /* El observer de watchForSuccess ahora está integrado en installEmbedObserver */
+}
+
+/* startEmbedTranslationPolling: arranca el observer permanente
+   y hace una primera traducción cuando el form aparece */
+var _pollInterval = null;
+function startEmbedTranslationPolling(){
+  if(_pollInterval) clearInterval(_pollInterval);
+
+  var attempts = 0;
+  _pollInterval = setInterval(function(){
+    attempts++;
+    var wrap = $('caspioPay');
+
+    if(!wrap || !wrap.children.length){
+      if(attempts >= 60) clearInterval(_pollInterval);
+      return;
+    }
+
+    /* El embed ya tiene contenido — instalar el observer permanente */
+    installEmbedObserver();
+
+    /* Primera traducción */
+    translateCaspioEmbed();
+
+    /* Parar el polling — el observer se encarga de todo lo demás */
+    clearInterval(_pollInterval);
+    _pollInterval = null;
+  }, 200);
+}
+
+function showSuccess(){ pasoMarkDone(4);
+  $('stSummary').style.display='none';
+  $('stSuccess').style.display='flex';
+  window.scrollTo({top:0,behavior:'smooth'});
+  /* Aplicar i18n a la pantalla de éxito */
+  document.querySelectorAll('#stSuccess [data-i18n]').forEach(function(el){
+    el.textContent=tTax(el.getAttribute('data-i18n'));
+  });
+}
+
+/* ════ RENDER ════ */
+var _renderDone=false;
+function renderTax(r){
+  if(_renderDone) return; /* evitar doble render */
+  _renderDone=true;
+  _bookingTax=r;
+  function fld(k){return gTax(r,k)||'';}
+  var guest=fld('Fiscal_guest_name')||fld('Guest_Full_Name')||fld('Guest_Name')||'';
+  var villa=fld('TaVillas_Name_villa_para_inquilinos')||fld('Name_villa_para_inquilinos')||fld('Property_Title')||'';
+  var nights=fld('Nights');
+
+  $('pgGreeting').textContent=guest;
+  $('pgVilla').textContent=villa+(nights?' · '+nights+' nights':'');
+  $('pgCode').textContent='Booking ID '+_code;
+  $('langWrap').style.display='block';
+
+  var ci=fld('Checkin'); if(ci) ci=ci.split('T')[0];
+  var co=fld('Checkout')||fld('Checkount'); if(co) co=co.split('T')[0];
+  $('bCheckin').textContent=ci||'—';
+  $('bCheckout').textContent=co||'—';
+  $('bNights').textContent=nights||'—';
+  var adults=fld('Guest_adults_nr_form')||fld('Adults')||'';
+  $('bAdults').textContent=adults||'—';
+
+  initLangTax();
+  renderItems(r);
+  watchForSuccess();
+  /* startEmbedTranslationPolling se lanza desde injectCaspioEmbed → s.onload */
+
+
+  (function(){
+    function truthy(v){if(!v&&v!==0)return false;
+      return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+    var s1=truthy(gTax(r,'Arrivalform_done')), s2=truthy(gTax(r,'Registro_policia_done')), s3=truthy(gTax(r,'Security_deposit_terminado')), s4=truthy(gTax(r,'Ecotasa_cobrada'));
+    [s1,s2,s3,s4].forEach(function(done,i){
+      var n=i+1;
+      var el=document.getElementById('hpd'+n); if(el) el.className='pt-circle '+(done?'done':'pend');
+      var ln=document.getElementById('hpl'+n); if(ln) ln.className='pt-line'+(done?' done':'');
+      var lb=document.getElementById('hpdl'+n); if(lb) lb.className='pt-label'+(done?' done':'');
+    });
+    var t5=$('hdrTabKeys');
+    if(t5) t5.className='hdr-tab keys'+((s1&&s2&&s3&&s4)?' done-tab':'');
+    var ht=document.getElementById('hdrTabs'); if(ht) ht.style.display='flex';
+    var hs=document.getElementById('hdrSteps'); if(hs) hs.style.display='flex';
+    var sl=document.getElementById('hdrStepsLbl'); if(sl) sl.style.display='block';
+    var lw=document.getElementById('langWrap'); if(lw) lw.style.display='block';
+  })();
+  $('stLoad').style.display='none';
+  $('stSummary').style.display='block';
+  /* Mostrar título y código */
+  var _tb=$('pgTitleBlock'); if(_tb) _tb.style.display='block';
+  var _pgc=$('pgCode'); if(_pgc&&typeof _code!=='undefined') _pgc.textContent='Booking ID '+_code;
+  /* Links de tabs y círculos con qs actual */
+  var _ce=encodeURIComponent(typeof _code!=='undefined'?_code:'');
+  var _qs='?reserva='+_ce;
+
+  /* ── Checkin Premium: botón en cabecera si TaBookings2021_checkin_premium=Yes ── */
+  window._chkCode=(typeof _code!=='undefined'?_code:'');
+  (function(){
+    function _truthy(v){if(!v&&v!==0)return false;return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+    var _isPrem=_truthy(gTax(r,'checkin_premium'));
+    var _pr=$('premRow');
+    if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
+  })();
+
+  ['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'].forEach(function(p,idx){
+    var el=$('hpd'+(idx+1)); if(el) el.href=p+_qs;
+  });
+  var _tai=$('hdrTabInfo'); if(_tai) _tai.href='checkin-online.html'+_qs;
+  var _tak=$('hdrTabKeys'); if(_tak) _tak.href='checkin-online.html'+_qs;
+  /* Círculo 4: active solo si Ecotasa_cobrada no está pagada; si ya está done, se respeta */
+  (function(){
+    function _tr(v){if(!v&&v!==0)return false;return['1','-1','true','yes','sí','si'].includes(String(v).toLowerCase().trim());}
+    if(!_tr(gTax(r,'Ecotasa_cobrada'))){
+      var _c4=$('hpd4'); if(_c4) _c4.className='pt-circle active';
+      var _l4=$('hpdl4'); if(_l4) _l4.className='pt-label active';
+    }
+  })();
+}
+
+/* ════ POPUP CHECKIN-PREMIUM (iframe centrado) ════ */
+function openCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(!ov||!ifr) return;
+  var qs=window._chkCode ? '?reserva='+encodeURIComponent(window._chkCode) : '';
+  ifr.src='checkin-premium.html'+qs;
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCheckinPremium(){
+  var ov=$('premOverlay'), ifr=$('premIframe');
+  if(ov) ov.classList.remove('open');
+  if(ifr) ifr.src='about:blank';
+  document.body.style.overflow='';
 }
 </script>
 
-<div class="form-err" id="formErr" style="margin:0 0 8px"></div>
-<div id="submitBar" style="max-width:540px;margin:0 auto;padding:4px 20px 0">
-  <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Guardar</button>
-</div>
+<script>
+/* ══ BOOT ══ */
+if(typeof CheckinAuth==='undefined'){
+  document.getElementById('stLoad').innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:36px;margin-bottom:12px">⚠️</div><p style="font-family:Montserrat,sans-serif;font-weight:800;color:#C8102E;font-size:14px">Error: checkin-auth.js not found</p></div>';
+}else{
+  var _cached=null;
+  try{
+    var _raw=sessionStorage.getItem('3v_booking_cache');
+    if(_raw){var _obj=JSON.parse(_raw);var _urlCode=new URLSearchParams(location.search).get('reserva')||'';
+      if(_obj&&_obj.booking&&(!_urlCode||_obj.code===_urlCode)) _cached=_obj.booking;}
+  }catch(e){}
+  if(_cached){ renderAll(_cached); }
+  else{ CheckinAuth.init({ onVerified:function(booking){ try{sessionStorage.setItem('3v_booking',JSON.stringify(booking));}catch(e){} renderAll(booking); } }); }
+}
+</script>
 
-<!-- ── FOOTER — idéntico a checkin-online v43 ── -->
-<div class="contact-footer">
-  <div class="cf-title" data-i18n="help_title">Need help?</div>
-  <div class="cf-sub" data-i18n="help_sub">If you need any help, do not hesitate to contact us.</div>
-  <div class="cf-btns">
-    <a class="btn-wa" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
-    <a class="btn-phone" href="tel:+34659933434"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.1 6.1l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+34 659 93 34 34</a>
-    <a class="btn-email" href="mailto:bookings@3villas.com">bookings@3villas.com</a>
-  </div>
-</div>
-<a id="waFloat" href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">
-  <svg width="26" height="26" viewBox="0 0 120 120" fill="none">
-    <path d="M60 10c-27.6 0-50 22.4-50 50 0 8.8 2.3 17.1 6.3 24.2L10 110l26.5-6.9c6.8 3.7 14.6 5.9 22.5 5.9 27.6 0 50-22.4 50-50S87.6 10 60 10z" fill="#fff"/>
-    <path d="M83.3 73.6c-.9-.4-5.1-2.5-5.9-2.8-.8-.3-1.4-.4-1.9.4s-2.2 2.8-2.7 3.3-.9.6-1.8.2c-4.8-1.9-8.7-5.3-11.3-9.3-.6-.9.1-1.4.4-1.9.4-.4.9-1 1.3-1.5s.5-.9.8-1.5c.3-.5.1-1-.1-1.4-.2-.4-1.8-4.4-2.5-6-.6-1.6-1.3-1.4-1.9-1.4h-1.7c-.6 0-1.5.2-2.3 1s-3 3-.3 7.3 3.5 9.1 9.3 13.2 7.6 2.1 8.5 1.5c.9-.6 3-2.7 3.8-4.2.8-1.6.8-3.1.6-3.4-.2-.3-.8-.5-1.5-.8z" fill="#25D366"/>
-  </svg>
-</a>
-  <div id="errToast"></div>
-<div id="premOverlay" onclick="if(event.target===this)closeCheckinPremium()">
-  <div class="prem-sheet">
-    <iframe class="prem-iframe" id="premIframe" title="Checkin Premium"></iframe>
-  </div>
-</div>
+<!-- HISTORIAL: v20 - Cabecera 100% copiada de checkin-arrival: mismos IDs hpd1/hpdl1/hpl1, mismos estilos, hdrTabs Info+Keys | v19-v1 -->
 </body>
 </html>
-<!-- checkin-arrival.html v1 — 28/05/2026
-     Campos exactos del XML Caspio:
-       Adults(req), ages, Children, children_babies_ages, Guest_info(cots/extras),
-       Arrival_Time_to_Menorca, Checkin_time(req), Departure_Time_to_Menorca, Checkout_time(req),
-       Segundo_email, Segundo_Telefono, Fiscal_guest_name(req), Fiscal_guest_surename(req),
-       Fiscal_guest_DNI_passport(req), Fiscal_guest_address(req), Fiscal_guest_city(req),
-       Fiscal_guest_Country(req), Arrivalform_done=1 al enviar.
-     Sistema i18n propio 8 idiomas (EN/ES/FR/DE/IT/NL/PT/CA).
-     Mismo diseño y tipografía Montserrat que checkin-online v33.
-     Guarda vía Worker PUT TaBookings2021. -->
-<!-- HISTORIAL: v50 - Preconnect a Google Fonts y Worker; invalidación caché booking tras guardado | v49 - Spinner unificado con logo 3villas; caché del booking en sessionStorage | v48 - Añadido favicon (corazón rojo 3villas) en el head | v47 - Botón "★ Premium" (dorado #B8860B, derecha bajo tabs) visible si TaBookings2021_checkin_premium=Yes, abre checkin-premium.html en popup iframe centrado; enlaces del header (círculos 1-4 y tabs) y redirección tras guardar pasan a ?reserva= | v46 - Fix adultos: precarga desde Guest_adults_nr_form con fallback Adults; parseInt() al guardar | v45 - btn_back → "Continuar con el check-in" en 8 idiomas; submitBar oculto en pantalla de éxito | v44 - Tras guardar: muestra éxito 1.5s y redirige a checkin-online | v43 - Fix campo: Guest_ages_form → Guest_adults_ages_form | v42 - Errores como toast flotante (bottom center, fijo) en lugar de formErr estático | v41 - Error de save movido junto al botón Guardar con scrollIntoView para que siempre sea visible | v40 - Fix guardar: auth.js añadido; lógica dual pin (huésped) / Auth.token() (admin) para action=save | v39 - Título "Arrival Form" centrado entre header y body (fuera del header), gris; número de reserva restaurado debajo; color título gris | v38 - Título de página en header en lugar de greeting/villa/code; espacio submitBar ajustado; tabs y círculos traducidos en applyLang() | v37 - help_title/help_sub i18n añadidos; botón guardar texto fijo sin sticky; submitBar movido antes del footer; margen botones footer | v36 - Cabecera idéntica a checkin-online v43: CSS compacto, tabs Info/Keys, progress track 4 círculos; footer con contact+waFloat | v35 - Spinner corazón 3Villas embebido en CSS inline | v34 - spinner.css y spinner-sm.css | v33 - versión anterior -->
