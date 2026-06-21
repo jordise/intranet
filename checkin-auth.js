@@ -1,4 +1,4 @@
-/* checkin-auth.js v14 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v15 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -400,8 +400,18 @@ const CheckinAuth = (function(){
        así que no podemos volver a llamar a verify-checkin-code con ese PIN. */
     const cached = getCachedBooking(code);
     if(cached) return cached;
-    /* No en caché → llamar al Worker (solo funciona si el PIN es el código alternativo) */
-    const j = await wPost('verify-checkin-code', { bookingCode: code, pin });
+    /* No en caché (p.ej. la página borró la caché tras guardar un paso): el PIN de
+       sesión puede ser un OTP ya consumido, que daría 401. El código alternativo
+       5+code+7 lo acepta el Worker siempre, así que se usa como reserva fiable.
+       Se intenta primero con el PIN recibido y, si falla, con el alternativo. */
+    const altPin = '5' + code + '7';
+    let j;
+    try {
+      j = await wPost('verify-checkin-code', { bookingCode: code, pin });
+    } catch(e) {
+      /* OTP consumido u otro fallo de auth → reintentar con el código alternativo */
+      j = await wPost('verify-checkin-code', { bookingCode: code, pin: altPin });
+    }
     if(!j.booking) throw new Error('no booking data');
     setCachedBooking(code, j.booking);
     return j.booking;
@@ -908,4 +918,4 @@ const CheckinAuth = (function(){
 
 })();
 
-/* HISTORIAL: v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
+/* HISTORIAL: v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
