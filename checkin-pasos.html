@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v28 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v38 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v28 — 3Villas</title>
+  <title>Check-in Pasos v38 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2088,10 +2088,11 @@ function pasoGo(n){
     3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
     4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'}};
   if(pgTitle&&titles[n]) pgTitle.textContent=(titles[n][_currentLang]||titles[n].en);
-  /* Al ir al paso 4 (taxes): re-renderizar para usar dep_opt actualizado */
+  /* Al ir al paso 4 (taxes): re-renderizar para usar dep_opt actualizado.
+     doInject=true → el panel ya es visible, Stripe puede montar bien los iframes. */
   if(n===4 && _bookingData){
     _renderDoneTax=false;
-    renderTax(_bookingData);
+    renderTax(_bookingData, true);
   }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -2358,11 +2359,9 @@ function renderArr(r){
   window._chkCode=_code;
   var _isPrem=!!(r['TaBookings2021_checkin_premium']&&['1','-1','true','yes','sí','si'].includes(String(r['TaBookings2021_checkin_premium']).toLowerCase().trim()));
   var _pr=$('premRow'); if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
-  var _pages=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
   var _states=[_s1,_s2,_s3,_s4];
   for(var _i=1;_i<=4;_i++){
     var _c=$('hpd'+_i); if(!_c) continue;
-    _c.href=_pages[_i-1]+_qs;
     _c.className='pt-circle '+(_i===1?(_s1?'done':'active'):(_states[_i-1]?'done':'pend'));
     var _l=$('hpdl'+_i); if(_l) _l.className='pt-label '+(_i===1?(_s1?'done':'active'):(_states[_i-1]?'done':''));
     if(_i<4){var _ln=$('hpl'+_i); if(_ln) _ln.className='pt-line'+(_states[_i-1]?' done':'');}
@@ -2568,11 +2567,9 @@ function renderPol(r){
   window._chkCode=_code;
   var _isPrem=!!(r['TaBookings2021_checkin_premium']&&['1','-1','true','yes','sí','si'].includes(String(r['TaBookings2021_checkin_premium']).toLowerCase().trim()));
   var _pr=$('premRow'); if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
-  var _pgs=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
   var _st=[_s1,_s2,_s3,_s4];
   for(var _i=1;_i<=4;_i++){
     var _c=$('hpd'+_i); if(!_c) continue;
-    _c.href=_pgs[_i-1]+_qs;
     _c.className='pt-circle '+(_i===2?(_s2?'done':'active'):(_st[_i-1]?'done':'pend'));
     var _l=$('hpdl'+_i); if(_l) _l.className='pt-label '+(_i===2?(_s2?'done':'active'):(_st[_i-1]?'done':''));
     if(_i<4){var _ln=$('hpl'+_i); if(_ln) _ln.className='pt-line'+(_st[_i-1]?' done':'');}
@@ -2923,11 +2920,9 @@ function renderDep(r){
   var _premRow=$('premRow');
   if(_premRow){ if(_isPrem) _premRow.classList.add('show'); else _premRow.classList.remove('show'); }
 
-  var pgs=['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'];
   var st=[s1,s2,s3,s4];
   for(var i=1;i<=4;i++){
     var c2=$('hpd'+i); if(!c2) continue;
-    c2.href=pgs[i-1]+qs;
     c2.className='pt-circle '+(i===3?(s3?'done':'active'):(st[i-1]?'done':'pend'));
     var lbl=$('hpdl'+i); if(lbl) lbl.className='pt-label '+(i===3?(s3?'done':'active'):(st[i-1]?'done':''));
     if(i<4){var ln=$('hpl'+i); if(ln) ln.className='pt-line'+(st[i-1]?' done':'');}
@@ -3119,7 +3114,11 @@ function applyLangTax(lang){
     var wrap=$('tax_caspioPay');
     if(wrap) wrap.innerHTML='';
     _embedLoaded=false;
-    injectCaspioEmbed();
+    /* Mismo margen fiable que en renderTax: el wrap acaba de vaciarse y Stripe
+       debe montar los iframes con el contenedor ya visible y estable. */
+    setTimeout(function(){
+      if(!_embedLoaded) injectCaspioEmbed();
+    },120);
   }
   /* Traducir labels de cabecera */
   var _tlb={en:['Info','Keys'],es:['Info','Llaves'],fr:['Info','Clés'],de:['Info','Schlüssel'],it:['Info','Chiavi'],nl:['Info','Sleutels'],pt:['Info','Chaves'],ca:['Info','Claus']};
@@ -3213,8 +3212,16 @@ function renderItems(r){
     $('tax_totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    /* Solo inyectar si el embed no está ya cargado */
-    if(!_embedLoaded) injectCaspioEmbed();
+    /* Solo inyectar si el embed no está ya cargado Y se pide explícitamente
+       (doInject=true, es decir, al entrar al paso 4 con el panel VISIBLE).
+       En la carga inicial el panel paso4 está oculto: si Stripe montara aquí sus
+       iframes, quedarían muertos y no se podría escribir. Por eso la carga inicial
+       NO inyecta; solo pinta los datos. La inyección la dispara pasoGo(4). */
+    if(doInject && !_embedLoaded){
+      setTimeout(function(){
+        if(!_embedLoaded) injectCaspioEmbed();
+      },120);
+    }
   } else {
     $('tax_totalRow').style.display='none';
     $('allPaid').style.display='block';
@@ -3482,7 +3489,7 @@ function showSuccess(){ pasoMarkDone(4);
 
 /* ════ RENDER ════ */
 var _renderDone=false;
-function renderTax(r){
+function renderTax(r, doInject){
   /* En checkin-pasos no bloqueamos re-render — el dep_opt puede haber cambiado */
   _bookingTax=r;
   function fld(k){return gTax(r,k)||'';}
@@ -3544,9 +3551,6 @@ function renderTax(r){
     if(_pr){ if(_isPrem) _pr.classList.add('show'); else _pr.classList.remove('show'); }
   })();
 
-  ['checkin-arrival.html','checkin-police.html','checkin-deposit.html','checkin-taxes.html'].forEach(function(p,idx){
-    var el=$('hpd'+(idx+1)); if(el) el.href=p+_qs;
-  });
   var _tai=$('hdrTabInfo'); if(_tai) _tai.href='checkin-online.html'+_qs;
   var _tak=$('hdrTabKeys'); if(_tak) _tak.href='checkin-online.html'+_qs;
   /* Círculo 4: active solo si Ecotasa_cobrada no está pagada; si ya está done, se respeta */
@@ -3601,6 +3605,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v38 - LIMPIEZA CRÍTICA: el archivo subido contenía DOS documentos HTML completos pegados (un v28 antiguo + un v37), unidos en </html><!DOCTYPE html>. El navegador ejecutaba ambos, causando doble inyección del embed y comportamiento errático. Se descarta el v28 duplicado y se conserva solo el documento v37 (el bueno) como base limpia. Embed verificado idéntico a checkin-taxes (CSS del formulario igual, sin márgenes ni width:calc), navegación de pasos interna por pasoGo (no sale a checkin-taxes), inyección controlada por doInject (solo con panel visible) y fix de escritura en tarjeta intactos | v37 - FIX el paso 4 sacaba fuera hacia checkin-taxes.html: 4 bloques JS reescribían el href de los círculos hpd1-hpd4 con páginas externas; el círculo 4 iba a checkin-taxes. Se elimina la reescritura del href (los círculos navegan por onclick=pasoGo) | v36 - CAUSA RAÍZ de no poder escribir en la tarjeta: renderTax se llamaba dos veces (carga inicial con panel oculto + pasoGo(4)); la primera inyectaba el embed con Stripe montando iframes muertos. Flag doInject: la carga inicial no inyecta, solo pasoGo(4) con panel visible | v35 - Embed como checkin-taxes: eliminados ajustes de ancho propios; solo se traduce y se muestra. setTimeout 120ms | v34 - (descartada) width:calc | v33 - (descartada) margin -16px | v32 - Inyección diferida con doble rAF | v31 - (descartada) margin -36px | v30 - REVIERTE CSS Stripe Elements de v29; elimina basura repomix que rompía el favicon | v29 - (descartada) CSS Stripe Elements que rompió la interacción | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3; renderTax se re-ejecuta al navegar al paso 4 | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
