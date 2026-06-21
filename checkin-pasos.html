@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v27 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v28 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v27 — 3Villas</title>
+  <title>Check-in Pasos v28 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -1953,6 +1953,7 @@ LANG_TAX.ca={
 </script>
 <script>
 
+
 var _NAV_LABELS = {
   en:['Arrival','Police','Deposit','Tax'],
   es:['Llegada','Policía','Depósito','Tasas'],
@@ -2087,6 +2088,11 @@ function pasoGo(n){
     3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
     4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'}};
   if(pgTitle&&titles[n]) pgTitle.textContent=(titles[n][_currentLang]||titles[n].en);
+  /* Al ir al paso 4 (taxes): re-renderizar para usar dep_opt actualizado */
+  if(n===4 && _bookingData){
+    _renderDoneTax=false;
+    renderTax(_bookingData);
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -2174,6 +2180,7 @@ function renderAll(r){
   }
   pasoGo(startPaso);
 }
+
 
 
 
@@ -3140,7 +3147,11 @@ function bool1(v){return parseInt(v)===1;}
 var ICONS={ecotasa:'🌴',u1:'⭐',u2:'⭐',u3:'⭐',deposit:'🛡️',deposit_fee:'💳',waiver:'🤝'};
 
 function calcItems(r){
-  var items=[], dep_opt=parseInt(gTax(r,'Security_deposit_options'))||0;
+  /* En checkin-pasos: _selectedOpt es la opción elegida en paso 3 durante esta sesión.
+     Si está definida (>0), tiene prioridad sobre el valor guardado en el booking. */
+  var dep_opt_saved=parseInt(gTax(r,'Security_deposit_options'))||0;
+  var dep_opt=(typeof _selectedOpt!=='undefined'&&_selectedOpt>0)?_selectedOpt:dep_opt_saved;
+  var items=[];
 
   // Ecotasa
   var eco=num(gTax(r,'Ecotasa_final')), eco_c=bool1(gTax(r,'Ecotasa_cobrada'));
@@ -3472,8 +3483,7 @@ function showSuccess(){ pasoMarkDone(4);
 /* ════ RENDER ════ */
 var _renderDone=false;
 function renderTax(r){
-  if(_renderDone) return; /* evitar doble render */
-  _renderDone=true;
+  /* En checkin-pasos no bloqueamos re-render — el dep_opt puede haber cambiado */
   _bookingTax=r;
   function fld(k){return gTax(r,k)||'';}
   var guest=fld('Fiscal_guest_name')||fld('Guest_Full_Name')||fld('Guest_Name')||'';
@@ -3573,7 +3583,7 @@ function closeCheckinPremium(){
   var h=location.href;
   var first=h.indexOf('?');
   if(first>=0 && h.indexOf('?',first+1)>=0){
-    var fixed=h.slice(0,first+1)+h.slice(first+1).replace(/\?/g,'&');
+    var fixed=h.slice(0,first+1)+h.slice(first+1).replace(/[?]/g,'&');
     history.replaceState(null,'',fixed);
   }
 })();
@@ -3591,6 +3601,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v27 - Fix URL malformada (?paso=N?reserva=) → normaliza a (?paso=N&reserva=) en el boot |  v26 - Fix deposit: updatePayNotice() se llama después de actualizar _selectedOpt; opciones 1 y 2 muestran aviso de pago en paso 4 | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
