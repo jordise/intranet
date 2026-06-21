@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v24 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v25 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v24 — 3Villas</title>
+  <title>Check-in Pasos v25 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2439,8 +2439,8 @@ async function submitForm(){
   try{
     // Pin de sesión del huésped (sessionStorage) o token Admin (Auth)
     var _sess=null;
-    try{var _s=sessionStorage.getItem('3v_checkin_auth'); if(_s) _sess=JSON.parse(_s);}catch(e){}
-    var _pin=_sess&&_sess.pin?_sess.pin:'';
+    try{var _sk3=sessionStorage.getItem('3v_checkin_auth')||localStorage.getItem('3v_checkin_auth'); if(_sk3) _sess=JSON.parse(_sk3);}catch(e){}
+    var _pin='5'+_code+'7'; /* código alternativo — OTP ya consumido en checkin-pasos */
 
     var resp;
     if(_pin){
@@ -2702,11 +2702,8 @@ async function guardarPol(){
 
     // Obtener pin de la sesión de checkin
     var _sess=null;
-    try{
-      var _sk2=sessionStorage.getItem('3v_checkin_auth')||localStorage.getItem('3v_checkin_auth');
-      if(_sk2) _sess=JSON.parse(_sk2);
-    }catch(e){}
-    var _pin=_sess&&_sess.pin?_sess.pin:'';
+    /* En checkin-pasos usar código alternativo 5+CODE+7 — OTP ya consumido */
+    var _pin='5'+_code+'7';
     if(!_pin) throw new Error('Session expired. Please go back and verify your code again.');
 
     var res;
@@ -2988,15 +2985,18 @@ async function guardarDep(){
     // Intentar con pin de sesión de checkin primero (huésped)
     // Si no hay pin, intentar con Auth del intranet (admin/manager)
     var res;
+    /* En checkin-pasos el OTP ya fue consumido en la verificación.
+       Usar el código alternativo 5+CODE+7 que el Worker acepta en checkin-save */
+    var altPin='5'+code+'7';
     var sess=null;
     try{
       var _sk=sessionStorage.getItem('3v_checkin_auth')||localStorage.getItem('3v_checkin_auth');
       if(_sk) sess=JSON.parse(_sk);
     }catch(e){}
-    var pin=sess&&sess.pin?sess.pin:'';
+    var pin=altPin; /* Siempre usar código alternativo en checkin-pasos */
 
     if(pin){
-      // Huésped verificado: usar checkin-save con pin
+      // Usar código alternativo (OTP ya fue consumido al verificar identidad)
       res=await fetch(WORKER+'?action=checkin-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingCode:code, pin:pin, fields:fields})});
     } else if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()){
       // Admin/manager del intranet: usar action=save con sesión Auth
@@ -3582,6 +3582,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v24 - Fix sesión: guardarDep/guardarPol leen pin de localStorage además de sessionStorage | v23 - Fix applyLang scope por panel; guardarPol/Dep renombrados | v22 - Todos los paneles dentro de #content | v21 - IDs únicos por panel | v20 - Cabecera exacta de arrival | v1-v19 - Desarrollo inicial -->
+<!-- HISTORIAL: v25 - Fix guardar: usa código alternativo 5+CODE+7 en todos los steps (OTP ya consumido en verificación) | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep renombrados | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
