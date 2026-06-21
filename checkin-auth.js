@@ -1,4 +1,4 @@
-/* checkin-auth.js v13 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v14 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -9,6 +9,19 @@
       → si no hay sesión → mostrar overlay de verificación con el code de la URL
    Flujo admin/manager:
       → si Auth está disponible y autenticado → bypass total, carga directa por el code de la URL (sin sesión huésped)
+
+   CAMBIOS v14 (sobre v13):
+   - Sesión: SESSION_TTL ampliado de 15 a 30 días (login recordado 1 mes).
+   - Email guardado en la sesión (setSession recibe el email usado en el login;
+     en modo código alternativo sin email queda vacío) para poder aplicar la
+     excepción @3villas.com en el bloqueo por reserva finalizada.
+   - Bloqueo "reserva finalizada": a partir de Checkout + 3 días (campo
+     TaBookings2021_Checkout de la vista), se bloquea el acceso por completo
+     en las 3 páginas (checkin-online, checkin-pasos, checkin-premium).
+     Excepción única: emails @3villas.com (entran siempre).
+     El parseo de la fecha de checkout es manual (nunca new Date(string)) para
+     evitar el desfase UTC. Overlay de bloqueo a pantalla completa con mensaje
+     "Esta reserva ha finalizado" en los 8 idiomas (clave expired_*).
 
    CAMBIOS v10 (sobre v9):
    - checkin-hint: lee hasEmail; si hasEmail=false muestra checkbox "No tengo email"
@@ -35,9 +48,11 @@ const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const SESSION_TTL = 15 * 24 * 60 * 60 * 1000; // 15 días
+  const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 días (login recordado 1 mes)
   const MAX_ATT     = 5;
   const CHECKIN_MAIN = 'checkin-online.html'; // página principal
+  const EXPIRE_DAYS  = 3; // días tras el Checkout a partir de los cuales se bloquea
+  const ADMIN_DOMAIN = '@3villas.com'; // dominio exento del bloqueo
 
   /* ─────────────────────────────────────────────
      i18n v5: textos del overlay en 8 idiomas
@@ -69,6 +84,8 @@ const CheckinAuth = (function(){
       sent:'We\u2019ve sent a 5-digit code to {email}. Check your inbox (and spam folder).',
       redirect_msg:'Please complete the check-in from the main page.',
       redirect_btn:'Go to Check-in',
+      expired_title:'This booking has ended',
+      expired_sub:'The check-in for this booking is no longer available. If you need help, please contact us.',
     },
     es:{
       title_email:'Check-in Online',
@@ -94,6 +111,8 @@ const CheckinAuth = (function(){
       sent:'Hemos enviado un c\u00f3digo de 5 d\u00edgitos a {email}. Revisa tu bandeja de entrada (y el spam).',
       redirect_msg:'Accede al check-in desde la p\u00e1gina principal.',
       redirect_btn:'Ir al Check-in',
+      expired_title:'Esta reserva ha finalizado',
+      expired_sub:'El check-in de esta reserva ya no est\u00e1 disponible. Si necesitas ayuda, cont\u00e1ctanos.',
     },
     fr:{
       title_email:'Check-in Online',
@@ -119,6 +138,8 @@ const CheckinAuth = (function(){
       sent:'Nous avons envoy\u00e9 un code \u00e0 5 chiffres \u00e0 {email}. V\u00e9rifiez votre bo\u00eete (et les spams).',
       redirect_msg:'Veuillez acc\u00e9der au check-in depuis la page principale.',
       redirect_btn:'Aller au Check-in',
+      expired_title:'Cette r\u00e9servation est termin\u00e9e',
+      expired_sub:'Le check-in de cette r\u00e9servation n\u2019est plus disponible. Besoin d\u2019aide ? Contactez-nous.',
     },
     de:{
       title_email:'Check-in Online',
@@ -146,6 +167,8 @@ const CheckinAuth = (function(){
       sent:'Wir haben einen 5-stelligen Code an {email} gesendet. Posteingang (und Spam) pr\u00fcfen.',
       redirect_msg:'Bitte nutzen Sie den Check-in \u00fcber die Hauptseite.',
       redirect_btn:'Zum Check-in',
+      expired_title:'Diese Buchung ist beendet',
+      expired_sub:'Der Check-in f\u00fcr diese Buchung ist nicht mehr verf\u00fcgbar. Bei Fragen kontaktieren Sie uns.',
     },
     it:{
       title_email:'Check-in Online',
@@ -173,6 +196,8 @@ const CheckinAuth = (function(){
       sent:'Abbiamo inviato un codice a 5 cifre a {email}. Controlla la posta in arrivo (e lo spam).',
       redirect_msg:'Accedi al check-in dalla pagina principale.',
       redirect_btn:'Vai al Check-in',
+      expired_title:'Questa prenotazione \u00e8 terminata',
+      expired_sub:'Il check-in di questa prenotazione non \u00e8 pi\u00f9 disponibile. Per assistenza, contattaci.',
     },
     nl:{
       title_email:'Check-in Online',
@@ -198,6 +223,8 @@ const CheckinAuth = (function(){
       sent:'We hebben een 5-cijferige code gestuurd naar {email}. Controleer uw inbox (en spam).',
       redirect_msg:'Gebruik de check-in via de hoofdpagina.',
       redirect_btn:'Naar Check-in',
+      expired_title:'Deze boeking is be\u00ebindigd',
+      expired_sub:'De check-in voor deze boeking is niet meer beschikbaar. Hulp nodig? Neem contact op.',
     },
     pt:{
       title_email:'Check-in Online',
@@ -223,6 +250,8 @@ const CheckinAuth = (function(){
       sent:'Enviamos um c\u00f3digo de 5 d\u00edgitos para {email}. Verifique a sua caixa de entrada (e spam).',
       redirect_msg:'Aceda ao check-in a partir da p\u00e1gina principal.',
       redirect_btn:'Ir ao Check-in',
+      expired_title:'Esta reserva terminou',
+      expired_sub:'O check-in desta reserva j\u00e1 n\u00e3o est\u00e1 dispon\u00edvel. Se precisar de ajuda, contacte-nos.',
     },
     ca:{
       title_email:'Check-in Online',
@@ -248,6 +277,8 @@ const CheckinAuth = (function(){
       sent:"Hem enviat un codi de 5 x\u00edfres a {email}. Revisa la safata d\u2019entrada (i l\u2019spam).",
       redirect_msg:"Accedeix al check-in des de la p\u00e0gina principal.",
       redirect_btn:'Anar al Check-in',
+      expired_title:'Aquesta reserva ha finalitzat',
+      expired_sub:"El check-in d\u2019aquesta reserva ja no est\u00e0 disponible. Si necessites ajuda, contacta\u2019ns.",
     },
   };
 
@@ -303,9 +334,9 @@ const CheckinAuth = (function(){
       return obj;
     } catch(e){ return null; }
   }
-  function setSession(code, pin){
+  function setSession(code, pin, email){
     localStorage.setItem(SESSION_KEY, JSON.stringify({
-      code, pin, expires: Date.now() + SESSION_TTL
+      code, pin, email: email || '', expires: Date.now() + SESSION_TTL
     }));
   }
 
@@ -386,6 +417,58 @@ const CheckinAuth = (function(){
     const rows = j.Result || j.result || j;
     if(!rows || !rows.length) throw new Error('booking not found');
     return rows[0];
+  }
+
+  /* ── Bloqueo "reserva finalizada" ──
+     Se bloquea el acceso a partir de Checkout + EXPIRE_DAYS días.
+     Excepción única: emails @3villas.com (entran siempre).
+     El parseo de la fecha es manual (nunca new Date(string)) para evitar
+     que la interpretación UTC adelante/atrase el día. */
+  function _parseCheckout(raw){
+    if(!raw) return null;
+    /* Quitar la parte de hora si la trae (formato ISO "YYYY-MM-DDThh:mm:ss") */
+    var s = String(raw).split('T')[0].trim();
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);          // YYYY-MM-DD
+    if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);         // MM/DD/YYYY (Caspio US)
+    if(m) return new Date(+m[3], +m[1]-1, +m[2]);
+    return null;
+  }
+
+  function _isExpired(booking, email){
+    /* @3villas.com nunca se bloquea */
+    if(email && email.toLowerCase().trim().endsWith(ADMIN_DOMAIN)) return false;
+    if(!booking) return false;
+    var raw = booking['TaBookings2021_Checkout'] || booking['TaBookings2021_Checkount'] || '';
+    var co  = _parseCheckout(raw);
+    if(!co) return false;                                   // sin fecha válida → no bloquear
+    /* Límite = checkout + EXPIRE_DAYS, a medianoche */
+    var limit = new Date(co.getFullYear(), co.getMonth(), co.getDate() + EXPIRE_DAYS);
+    /* Hoy a medianoche local */
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return today > limit;
+  }
+
+  function showExpired(){
+    var lang = _getLang();
+    var txt  = CA_LANG[lang] || CA_LANG.en;
+    var ov = document.getElementById('caOverlay');
+    if(ov) ov.remove();
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 20px;font-family:'Open Sans',sans-serif;text-align:center;background:#fff">
+        <div style="max-width:380px">
+          <img src="logo-negro.png" alt="3Villas" style="height:80px;margin:0 auto 24px;display:block"
+               onerror="this.style.display='none'">
+          <div style="font-size:44px;margin-bottom:16px">\u23F1\uFE0F</div>
+          <p style="font-family:Montserrat,sans-serif;font-size:18px;font-weight:900;color:#C8102E;margin-bottom:10px">${txt.expired_title}</p>
+          <p style="font-size:13px;color:#868e96;line-height:1.6;margin-bottom:22px">${txt.expired_sub}</p>
+          <div style="font-size:12px;color:#adb5bd;line-height:1.7">
+            <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank" style="color:#C8102E;text-decoration:none">WhatsApp</a>
+            &middot; <a href="mailto:bookings@3villas.com" style="color:#C8102E;text-decoration:none">bookings@3villas.com</a>
+          </div>
+        </div>
+      </div>`;
   }
 
   /* ── Redirigir a checkin-online si no hay sesión y no es admin ── */
@@ -639,8 +722,15 @@ const CheckinAuth = (function(){
     busy('caBtnPin', true, _t('verifying'));
     try {
       const j = await wPost('verify-checkin-code', { bookingCode:_code, pin });
+      /* Email usado en este login: el del OTP, o vacío en modo código alternativo */
+      const loginEmail = _noEmailMode ? '' : _email;
+      /* Bloqueo reserva finalizada (Checkout + EXPIRE_DAYS), salvo @3villas.com */
+      if(_isExpired(j.booking, loginEmail)){
+        showExpired();
+        return;
+      }
       step('Ok');
-      setSession(_code, pin);
+      setSession(_code, pin, loginEmail);
       /* Guardar booking en sessionStorage para que loadBookingData lo use sin llamar al Worker */
       try{ sessionStorage.setItem('3v_booking_cache', JSON.stringify({code:_code, booking:j.booking})); }catch(e){}
       setTimeout(() => {
@@ -731,7 +821,10 @@ const CheckinAuth = (function(){
           /* Sesión válida → cargar datos directamente SIN llamar al Worker de nuevo */
           const go = () => {
             loadBookingData(_code, sess.pin)
-              .then(booking => { if(_cb) _cb(booking); })
+              .then(booking => {
+                if(_isExpired(booking, sess.email)){ showExpired(); return; }
+                if(_cb) _cb(booking);
+              })
               .catch(() => {
                 /* Sesión caducada o inválida → pedir verificación de nuevo */
                 localStorage.removeItem(SESSION_KEY); try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
@@ -778,7 +871,10 @@ const CheckinAuth = (function(){
         /* Sesión válida para el code de la URL → cargar datos frescos del Worker */
         const go = () => {
           loadBookingData(_code, sess.pin)
-            .then(booking => { if(_cb) _cb(booking); })
+            .then(booking => {
+              if(_isExpired(booking, sess.email)){ showExpired(); return; }
+              if(_cb) _cb(booking);
+            })
             .catch(() => {
               /* Sesión caducada/ inválida → pedir verificación de nuevo */
               localStorage.removeItem(SESSION_KEY); try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
@@ -811,3 +907,5 @@ const CheckinAuth = (function(){
   };
 
 })();
+
+/* HISTORIAL: v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
