@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v35 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v36 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v35 — 3Villas</title>
+  <title>Check-in Pasos v36 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2088,10 +2088,11 @@ function pasoGo(n){
     3:{en:'Security Deposit',es:'Depósito de seguridad',fr:'Caution de sécurité',de:'Sicherheitskaution',it:'Deposito cauzionale',nl:'Borg',pt:'Depósito de segurança',ca:'Dipòsit de seguretat'},
     4:{en:'Tourist Tax',es:'Tasa turística',fr:'Taxe touristique',de:'Steuer',it:'Tassa turistica',nl:'Toeristenbelasting',pt:'Taxa turística',ca:'Taxa turística'}};
   if(pgTitle&&titles[n]) pgTitle.textContent=(titles[n][_currentLang]||titles[n].en);
-  /* Al ir al paso 4 (taxes): re-renderizar para usar dep_opt actualizado */
+  /* Al ir al paso 4 (taxes): re-renderizar para usar dep_opt actualizado.
+     doInject=true → el panel ya es visible, Stripe puede montar bien los iframes. */
   if(n===4 && _bookingData){
     _renderDoneTax=false;
-    renderTax(_bookingData);
+    renderTax(_bookingData, true);
   }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -3217,14 +3218,12 @@ function renderItems(r){
     $('tax_totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    /* Solo inyectar si el embed no está ya cargado.
-       En pasos el embed está doblemente oculto (panel paso4 + payFormWrap), así
-       que Stripe necesita que el contenedor esté TOTALMENTE visible y con
-       dimensiones antes de montar sus iframes, o los campos quedan muertos (no se
-       puede escribir). Un setTimeout con margen fiable garantiza que el panel ya
-       está pintado y estable cuando se inyecta el embed (como en taxes, donde el
-       contenedor está siempre visible). */
-    if(!_embedLoaded){
+    /* Solo inyectar si el embed no está ya cargado Y se pide explícitamente
+       (doInject=true, es decir, al entrar al paso 4 con el panel VISIBLE).
+       En la carga inicial el panel paso4 está oculto: si Stripe montara aquí sus
+       iframes, quedarían muertos y no se podría escribir. Por eso la carga inicial
+       NO inyecta; solo pinta los datos. La inyección la dispara pasoGo(4). */
+    if(doInject && !_embedLoaded){
       setTimeout(function(){
         if(!_embedLoaded) injectCaspioEmbed();
       },120);
@@ -3496,7 +3495,7 @@ function showSuccess(){ pasoMarkDone(4);
 
 /* ════ RENDER ════ */
 var _renderDone=false;
-function renderTax(r){
+function renderTax(r, doInject){
   /* En checkin-pasos no bloqueamos re-render — el dep_opt puede haber cambiado */
   _bookingTax=r;
   function fld(k){return gTax(r,k)||'';}
@@ -3615,6 +3614,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v35 - Embed tratado EXACTAMENTE como en checkin-taxes: se eliminan TODOS los ajustes de ancho que yo había añadido (width:calc, max-width, paddings y márgenes negativos de v31-v34) porque peleaban con Caspio/Stripe y rompían la escritura y la estética. El embed ya no lleva ningún CSS propio de contenedor, solo se traduce y se muestra (como taxes). Además, la inyección diferida pasa de doble requestAnimationFrame a setTimeout 120ms (en renderTax y en la reinyección por idioma) para dar margen fiable a que el panel del paso 4 esté totalmente visible antes de que Stripe monte sus iframes | v34 - (descartada) ancho con width:calc(100%+32px) que seguía rompiendo Caspio | v33 - (descartada) margin -16px | v32 - Inyección diferida Stripe con doble rAF | v31 - (descartada) margin -36px embed | v30 - REVIERTE el CSS de Stripe Elements de v29; elimina basura del repomix que rompía el favicon | v29 - (descartada) CSS Stripe Elements que rompió la interacción | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3; renderTax se re-ejecuta al navegar al paso 4 | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v36 - CAUSA RAÍZ resuelta de que no se pudiera escribir en la tarjeta: renderTax se llamaba DOS veces — una en la carga inicial (render, línea ~2168) con el panel paso4 OCULTO, que inyectaba el embed y Stripe montaba sus iframes muertos; y otra en pasoGo(4). Como _embedLoaded ya quedaba en true, la segunda no reinyectaba y los campos quedaban inservibles. Solución: renderTax recibe un flag doInject; la carga inicial NO inyecta (solo pinta datos), y la inyección la dispara solo pasoGo(4) con el panel ya visible (doInject=true). Cubre también la entrada directa por ?paso=4 (pasoGo se ejecuta al final de la carga). No se toca el CSS del embed (queda como taxes, v35) | v35 - Embed tratado EXACTAMENTE como en checkin-taxes: eliminados todos los ajustes de ancho propios (width:calc, paddings, márgenes) que peleaban con Caspio; el embed solo se traduce y se muestra. Inyección con setTimeout 120ms | v34 - (descartada) width:calc(100%+32px) | v33 - (descartada) margin -16px | v32 - Inyección diferida con doble rAF | v31 - (descartada) margin -36px | v30 - REVIERTE CSS Stripe Elements de v29; elimina basura repomix que rompía el favicon | v29 - (descartada) CSS Stripe Elements que rompió la interacción | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3; renderTax se re-ejecuta al navegar al paso 4 | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
