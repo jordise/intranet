@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v31 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v32 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v31 — 3Villas</title>
+  <title>Check-in Pasos v32 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -3135,7 +3135,13 @@ function applyLangTax(lang){
     var wrap=$('tax_caspioPay');
     if(wrap) wrap.innerHTML='';
     _embedLoaded=false;
-    injectCaspioEmbed();
+    /* Mismo diferido al repintado que en renderTax: el wrap acaba de vaciarse y
+       Stripe debe montar los iframes con el contenedor ya visible y mensurable. */
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        if(!_embedLoaded) injectCaspioEmbed();
+      });
+    });
   }
   /* Traducir labels de cabecera */
   var _tlb={en:['Info','Keys'],es:['Info','Llaves'],fr:['Info','Clés'],de:['Info','Schlüssel'],it:['Info','Chiavi'],nl:['Info','Sleutels'],pt:['Info','Chaves'],ca:['Info','Claus']};
@@ -3229,8 +3235,19 @@ function renderItems(r){
     $('tax_totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    /* Solo inyectar si el embed no está ya cargado */
-    if(!_embedLoaded) injectCaspioEmbed();
+    /* Solo inyectar si el embed no está ya cargado.
+       Se difiere al repintado: el panel del paso 4 acaba de pasar a visible
+       (display:block) en pasoGo, pero el navegador aún no ha recalculado el
+       layout. Si Stripe monta sus iframes con el contenedor sin dimensiones,
+       los campos quedan muertos (no se puede escribir). El doble rAF garantiza
+       que la inyección ocurre cuando el contenedor ya es visible y mensurable. */
+    if(!_embedLoaded){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          if(!_embedLoaded) injectCaspioEmbed();
+        });
+      });
+    }
   } else {
     $('tax_totalRow').style.display='none';
     $('allPaid').style.display='block';
@@ -3617,6 +3634,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v31 - Fix textos solapados en el embed del paso 4: el embed iba doblemente anidado (#content padding 20px + .page-wrap padding 16px) y quedaba ~60px más estrecho que en checkin-taxes, lo que hacía colapsar la tabla de Caspio a layout vertical y montar las etiquetas sobre los campos. Se saca el .pay-form-wrap de ese padding (margin negativo, reducido en <600px) para recuperar el ancho útil de taxes. No se toca el CSS del formulario Caspio ni la lógica del embed | v30 - REVIERTE el CSS de Stripe Elements de v29 (impedía escribir en los campos de tarjeta y los descentraba); el embed vuelve al comportamiento de v28 (campos centrados y editables). Además se elimina basura del repomix (File: ... y separadores ===) que se había colado al inicio y final del archivo y que rompía el favicon al forzar quirks mode | v29 - (descartada) intento de fix CSS Stripe Elements que rompió la interacción de los campos | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v32 - Fix campos de tarjeta de Stripe que no dejaban escribir en el paso 4: el embed se inyectaba en el mismo ciclo síncrono en que el panel paso4 pasaba a visible (display:block), por lo que Stripe montaba sus iframes con el contenedor aún sin dimensiones y los campos quedaban muertos. Se difiere la inyección con doble requestAnimationFrame (en renderTax y en la reinyección por cambio de idioma) para que Stripe monte los iframes con el contenedor ya visible y mensurable. No se toca el CSS del formulario ni la estructura | v31 - Fix textos solapados en el embed del paso 4: el embed iba doblemente anidado (#content padding 20px + .page-wrap padding 16px) y quedaba ~60px más estrecho que en checkin-taxes, lo que hacía colapsar la tabla de Caspio a layout vertical y montar las etiquetas sobre los campos. Se saca el .pay-form-wrap de ese padding (margin negativo, reducido en <600px) para recuperar el ancho útil de taxes. No se toca el CSS del formulario Caspio ni la lógica del embed | v30 - REVIERTE el CSS de Stripe Elements de v29 (impedía escribir en los campos de tarjeta y los descentraba); el embed vuelve al comportamiento de v28 (campos centrados y editables). Además se elimina basura del repomix (File: ... y separadores ===) que se había colado al inicio y final del archivo y que rompía el favicon al forzar quirks mode | v29 - (descartada) intento de fix CSS Stripe Elements que rompió la interacción de los campos | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
