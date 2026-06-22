@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v43 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v44 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v43 — 3Villas</title>
+  <title>Check-in Pasos v44 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2775,6 +2775,7 @@ async function guardarPol(){
     if(!res.ok){ var _e=await res.json(); throw new Error(_e.Message||_e.error||'Error '+res.status); }
     // Redirigir a checkin-online con el código de reserva
     var _qs='?reserva='+encodeURIComponent(_code);
+    _isSaving=false;
     pasoMarkDone(2);
 
   }catch(err){
@@ -3024,20 +3025,23 @@ function closeCheckinPremium(){
 async function guardarDep(){
   /* Se permite guardar cualquier opción seleccionable, incluida la 0 (pendiente
      de decidir). Solo se impide si ya hay un guardado en curso o si está bloqueado
-     porque algún concepto del depósito ya se pagó. */
-  if(_isSaving||_locked) return;
-  _isSaving=true;
+     porque algún concepto del depósito ya se pagó.
+     IMPORTANTE: usa _isSavingDep (variable PROPIA del paso 3), no _isSaving, que
+     la comparte guardarPol (paso 2) y quedaba en true tras guardar el paso 2,
+     bloqueando este botón silenciosamente. */
+  if(_isSavingDep||_locked) return;
+  _isSavingDep=true;
   var btn=$('dep_btnSave'); if(btn){btn.disabled=true; btn.textContent='Saving...';}
   var err=$('dep_formErr'); if(err) err.style.display='none';
 
   var code=(_bookingData&&_bookingData['TaBookings2021_FS_confirmation_code'])||'';
-  if(!code){showErr('Booking code not found'); _isSaving=false; return;}
+  if(!code){showErr('Booking code not found'); _isSavingDep=false; if(btn){btn.disabled=false; btn.textContent=tDep('btn_save');} return;}
 
   // Validar IBAN/BIC si opción 3
   if(_selectedOpt===3){
     var iban=($('dep_fIban').value||'').trim();
     var bic= ($('dep_fBic').value||'').trim();
-    if(!iban||!bic){showErr('Please fill in your IBAN and BIC/SWIFT to proceed.'); _isSaving=false; if(btn) btn.disabled=false; btn.textContent=tDep('btn_save'); return;}
+    if(!iban||!bic){showErr('Please fill in your IBAN and BIC/SWIFT to proceed.'); _isSavingDep=false; if(btn){btn.disabled=false; btn.textContent=tDep('btn_save');} return;}
   }
 
   try{
@@ -3091,7 +3095,7 @@ async function guardarDep(){
        pero el paso 3 NO se marca como completado ni se avanza — el cliente se ha
        dado tiempo para decidir. Para el resto de opciones, flujo normal. */
     if(_selectedOpt===0){
-      _isSaving=false;
+      _isSavingDep=false;
       if(btn){btn.disabled=false; btn.textContent=tDep('btn_save');}
       var okEl=$('dep_formErr');
       if(okEl){
@@ -3102,12 +3106,13 @@ async function guardarDep(){
       }
       try{sessionStorage.removeItem('3v_booking_cache');}catch(e){}
     } else {
+      _isSavingDep=false;
       pasoMarkDone(3);
     }
 
   }catch(err){
     showErr('Error saving: '+err.message);
-    _isSaving=false;
+    _isSavingDep=false;
     if(btn){btn.disabled=false; btn.textContent=tDep('btn_save');}
   }
 }
@@ -3710,6 +3715,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v43 - Fix selección del paso 3: (1) el bloqueo del cambio de opción solo se aplica si algún concepto del depósito YA está pagado/cobrado (Deposit_waver_cobrado, Security_deposit_cobrado o Gasto_tarjeta_dep_seguri_cobrado); mientras nada esté cobrado se puede cambiar a cualquier opción. Antes bloqueaba indebidamente. Cuando está bloqueado, el banner avisa de que no se puede cambiar porque ya se ha pagado. (2) Ahora se puede GUARDAR la opción 0 (pendiente de decidir) por si el cliente se lo repiensa y quiere darse tiempo: updateSubmitBtn activa el botón salvo bloqueo, guardarDep ya no rechaza _selectedOpt===0, y al guardar pendiente se confirma con mensaje (saved_pending, 8 idiomas) SIN marcar el paso hecho ni avanzar al paso 4. | v42 - Refresco de datos al entrar al paso 4: algunas selecciones del paso 3 llevaban al paso 4 sin releer la reserva, así que el embed usaba info antigua y el importe salía mal. Ahora pasoGo(4) llama SIEMPRE (venga de donde venga) a refreshBookingData(), que relee la reserva desde Caspio (verify-checkin-code con código alternativo 5+CODE+7, que devuelve el booking fresco) y actualiza _bookingData y la caché; además se fuerza la reinyección del embed (resetea _embedLoaded, limpia el wrap y desconecta observer/polling) para que el embed de Caspio recoja el importe actualizado al recargarse. Si el refresco falla, se conserva _bookingData actual como fallback. | v41 - Fix definitivo del importe del depósito que no llegaba al embed: el guardado del paso 3 (guardarDep) solo escribía Security_deposit_options, mientras que la DataPage original del paso 3 escribe TAMBIÉN Security_deposit_terminado (computed: 1 si airbnb+opción 4, 0 en el resto). Al no escribir ese campo, el registro no quedaba en el mismo estado que tras usar la DataPage y el embed no cobraba el depósito. Ahora guardarDep replica EXACTAMENTE lo que escribe la DataPage: Security_deposit_options + Security_deposit_terminado (misma lógica: lee Portal_Name, marca terminado=1 solo si airbnbOfficial y opción 4, si no 0), y los campos bancarios IBAN/BIC solo en opción 3. Se mantiene el recuadro de debug del v40 para verificar. | v40 - DEBUG TEMPORAL para diagnosticar por qué el embed no suma un concepto del depósito con tarjeta. Añade un recuadro (depDebugBox) en el paso 4 que muestra los valores REALES que el embed lee de la reserva: Security_deposit_options (guardado y en memoria), Security_deposit_EUR + Security_deposit_cobrado, y Gasto_tarjeta_deposito_seguridad + Gasto_tarjeta_dep_seguri_cobrado, indicando para cada línea si SE COBRA o NO según la fórmula del embed (cobrado<>1 AND importe>0 AND options=2). NO cambia ninguna lógica de cobro ni de guardado; es solo visualización para cazar qué campo descuadra. QUITAR tras diagnosticar. | v39 - Fix cantos redondeados del paso 4: las variables CSS --r-lg, --r-md, --r-sm (y --shadow-md, --shadow-lg) se usaban en los bloques del paso 4 (.pay-form-wrap, .pay-card, .booking-hero, .all-paid-card, .legal-box) pero NUNCA estaban definidas en :root, asi que border-radius:var(--r-lg) no aplicaba y esos bloques salian con esquinas rectas, a diferencia de los pasos 1-3 que usan valores directos (14px, 12px, 10px). Se añaden las variables al :root (--r-lg:14px, --r-md:10px, --r-sm:8px y las sombras) para que el paso 4 redondee igual que el resto. Unico cambio: el bloque :root. | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v44 - Fix botón Guardar del paso 3 que no reaccionaba al cambiar a opción 3 o 4: causa = conflicto de variable global. guardarDep (paso 3) y guardarPol (paso 2) compartían la MISMA variable _isSaving (declarada dos veces). guardarPol, en su camino de éxito, dejaba _isSaving=true sin resetear; al llegar al paso 3, guardarDep salía de inmediato por if(_isSaving||_locked) return y el botón no hacía nada. Solución: guardarDep usa ahora su variable PROPIA _isSavingDep (ya declarada) en sus 6 puntos, y se resetea en todos los caminos (validación, éxito opción 0, éxito 1-4, catch). Además guardarPol resetea _isSaving=false tras éxito para no dejar bloqueos colaterales. No se toca la lógica de guardado ni el embed. | v43 - Fix selección del paso 3: (1) el bloqueo del cambio de opción solo se aplica si algún concepto del depósito YA está pagado/cobrado (Deposit_waver_cobrado, Security_deposit_cobrado o Gasto_tarjeta_dep_seguri_cobrado); mientras nada esté cobrado se puede cambiar a cualquier opción. Antes bloqueaba indebidamente. Cuando está bloqueado, el banner avisa de que no se puede cambiar porque ya se ha pagado. (2) Ahora se puede GUARDAR la opción 0 (pendiente de decidir) por si el cliente se lo repiensa y quiere darse tiempo: updateSubmitBtn activa el botón salvo bloqueo, guardarDep ya no rechaza _selectedOpt===0, y al guardar pendiente se confirma con mensaje (saved_pending, 8 idiomas) SIN marcar el paso hecho ni avanzar al paso 4. | v42 - Refresco de datos al entrar al paso 4: algunas selecciones del paso 3 llevaban al paso 4 sin releer la reserva, así que el embed usaba info antigua y el importe salía mal. Ahora pasoGo(4) llama SIEMPRE (venga de donde venga) a refreshBookingData(), que relee la reserva desde Caspio (verify-checkin-code con código alternativo 5+CODE+7, que devuelve el booking fresco) y actualiza _bookingData y la caché; además se fuerza la reinyección del embed (resetea _embedLoaded, limpia el wrap y desconecta observer/polling) para que el embed de Caspio recoja el importe actualizado al recargarse. Si el refresco falla, se conserva _bookingData actual como fallback. | v41 - Fix definitivo del importe del depósito que no llegaba al embed: el guardado del paso 3 (guardarDep) solo escribía Security_deposit_options, mientras que la DataPage original del paso 3 escribe TAMBIÉN Security_deposit_terminado (computed: 1 si airbnb+opción 4, 0 en el resto). Al no escribir ese campo, el registro no quedaba en el mismo estado que tras usar la DataPage y el embed no cobraba el depósito. Ahora guardarDep replica EXACTAMENTE lo que escribe la DataPage: Security_deposit_options + Security_deposit_terminado (misma lógica: lee Portal_Name, marca terminado=1 solo si airbnbOfficial y opción 4, si no 0), y los campos bancarios IBAN/BIC solo en opción 3. Se mantiene el recuadro de debug del v40 para verificar. | v40 - DEBUG TEMPORAL para diagnosticar por qué el embed no suma un concepto del depósito con tarjeta. Añade un recuadro (depDebugBox) en el paso 4 que muestra los valores REALES que el embed lee de la reserva: Security_deposit_options (guardado y en memoria), Security_deposit_EUR + Security_deposit_cobrado, y Gasto_tarjeta_deposito_seguridad + Gasto_tarjeta_dep_seguri_cobrado, indicando para cada línea si SE COBRA o NO según la fórmula del embed (cobrado<>1 AND importe>0 AND options=2). NO cambia ninguna lógica de cobro ni de guardado; es solo visualización para cazar qué campo descuadra. QUITAR tras diagnosticar. | v39 - Fix cantos redondeados del paso 4: las variables CSS --r-lg, --r-md, --r-sm (y --shadow-md, --shadow-lg) se usaban en los bloques del paso 4 (.pay-form-wrap, .pay-card, .booking-hero, .all-paid-card, .legal-box) pero NUNCA estaban definidas en :root, asi que border-radius:var(--r-lg) no aplicaba y esos bloques salian con esquinas rectas, a diferencia de los pasos 1-3 que usan valores directos (14px, 12px, 10px). Se añaden las variables al :root (--r-lg:14px, --r-md:10px, --r-sm:8px y las sombras) para que el paso 4 redondee igual que el resto. Unico cambio: el bloque :root. | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
