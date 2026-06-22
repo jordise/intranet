@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v40 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v41 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#C8102E">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Check-in Pasos v40 — 3Villas</title>
+  <title>Check-in Pasos v41 — 3Villas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
@@ -2989,7 +2989,20 @@ async function guardarDep(){
   }
 
   try{
-    var fields={Security_deposit_options:_selectedOpt};
+    /* ── Replicar EXACTAMENTE lo que escribe la DataPage original del paso 3 ──
+       La DataPage, al guardar, actualiza DOS campos del registro:
+       • Security_deposit_options = la opción elegida (1 waiver, 2 tarjeta, 3 transfer, 4 airbnb-no-waiver)
+       • Security_deposit_terminado = 1 SOLO si es airbnb y eligió "no waiver" (opción 4);
+         en cualquier otro caso (incluida tarjeta, opción 2) = 0.
+       checkin-pasos solo escribía Security_deposit_options, dejando terminado en su
+       valor anterior (a menudo NULL). Como el embed de Caspio evalúa condiciones SQL
+       sobre estos campos (y NULL<>1 da UNKNOWN/falso), el depósito no se cobraba.
+       Al escribir terminado explícitamente (igual que la DataPage), el registro queda
+       en el mismo estado que tras usar la DataPage, y el embed cobra correctamente. */
+    var _portal=(_bookingData&&(gTax(_bookingData,'Portal_Name')||''))||'';
+    var _isAirbnb=(String(_portal).toLowerCase().indexOf('airbnbofficial')===0);
+    var _terminado=(_isAirbnb && _selectedOpt===4)?1:0;
+    var fields={Security_deposit_options:_selectedOpt, Security_deposit_terminado:_terminado};
     if(_selectedOpt===3){
       fields.Numero_cuenta_bancaria_guest=($('dep_fIban').value||'').trim();
       fields.Numero_swift_bic_bancario_guest=($('dep_fBic').value||'').trim();
@@ -3631,6 +3644,6 @@ if(typeof CheckinAuth==='undefined'){
 }
 </script>
 
-<!-- HISTORIAL: v40 - DEBUG TEMPORAL para diagnosticar por qué el embed no suma un concepto del depósito con tarjeta. Añade un recuadro (depDebugBox) en el paso 4 que muestra los valores REALES que el embed lee de la reserva: Security_deposit_options (guardado y en memoria), Security_deposit_EUR + Security_deposit_cobrado, y Gasto_tarjeta_deposito_seguridad + Gasto_tarjeta_dep_seguri_cobrado, indicando para cada línea si SE COBRA o NO según la fórmula del embed (cobrado<>1 AND importe>0 AND options=2). NO cambia ninguna lógica de cobro ni de guardado; es solo visualización para cazar qué campo descuadra. QUITAR tras diagnosticar. | v39 - Fix cantos redondeados del paso 4: las variables CSS --r-lg, --r-md, --r-sm (y --shadow-md, --shadow-lg) se usaban en los bloques del paso 4 (.pay-form-wrap, .pay-card, .booking-hero, .all-paid-card, .legal-box) pero NUNCA estaban definidas en :root, asi que border-radius:var(--r-lg) no aplicaba y esos bloques salian con esquinas rectas, a diferencia de los pasos 1-3 que usan valores directos (14px, 12px, 10px). Se añaden las variables al :root (--r-lg:14px, --r-md:10px, --r-sm:8px y las sombras) para que el paso 4 redondee igual que el resto. Unico cambio: el bloque :root. | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
+<!-- HISTORIAL: v41 - Fix definitivo del importe del depósito que no llegaba al embed: el guardado del paso 3 (guardarDep) solo escribía Security_deposit_options, mientras que la DataPage original del paso 3 escribe TAMBIÉN Security_deposit_terminado (computed: 1 si airbnb+opción 4, 0 en el resto). Al no escribir ese campo, el registro no quedaba en el mismo estado que tras usar la DataPage y el embed no cobraba el depósito. Ahora guardarDep replica EXACTAMENTE lo que escribe la DataPage: Security_deposit_options + Security_deposit_terminado (misma lógica: lee Portal_Name, marca terminado=1 solo si airbnbOfficial y opción 4, si no 0), y los campos bancarios IBAN/BIC solo en opción 3. Se mantiene el recuadro de debug del v40 para verificar. | v40 - DEBUG TEMPORAL para diagnosticar por qué el embed no suma un concepto del depósito con tarjeta. Añade un recuadro (depDebugBox) en el paso 4 que muestra los valores REALES que el embed lee de la reserva: Security_deposit_options (guardado y en memoria), Security_deposit_EUR + Security_deposit_cobrado, y Gasto_tarjeta_deposito_seguridad + Gasto_tarjeta_dep_seguri_cobrado, indicando para cada línea si SE COBRA o NO según la fórmula del embed (cobrado<>1 AND importe>0 AND options=2). NO cambia ninguna lógica de cobro ni de guardado; es solo visualización para cazar qué campo descuadra. QUITAR tras diagnosticar. | v39 - Fix cantos redondeados del paso 4: las variables CSS --r-lg, --r-md, --r-sm (y --shadow-md, --shadow-lg) se usaban en los bloques del paso 4 (.pay-form-wrap, .pay-card, .booking-hero, .all-paid-card, .legal-box) pero NUNCA estaban definidas en :root, asi que border-radius:var(--r-lg) no aplicaba y esos bloques salian con esquinas rectas, a diferencia de los pasos 1-3 que usan valores directos (14px, 12px, 10px). Se añaden las variables al :root (--r-lg:14px, --r-md:10px, --r-sm:8px y las sombras) para que el paso 4 redondee igual que el resto. Unico cambio: el bloque :root. | v28 - Fix taxes: calcItems usa _selectedOpt del paso 3 como override; renderTax se re-ejecuta al navegar al paso 4; pasoGo re-renderiza taxes | v27 - Fix URL malformada ?paso=N?reserva= | v26 - Fix deposit payNotice | v25 - Fix guardar código alternativo | v24 - Fix sesión localStorage | v23 - Fix applyLang scope + guardarPol/Dep | v22 - Paneles dentro de #content | v21 - IDs únicos | v20 - Cabecera exacta arrival -->
 </body>
 </html>
