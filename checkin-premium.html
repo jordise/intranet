@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v16 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v17 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://caspio-proxy.jordi-89b.workers.dev">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-  <title>Checkin Premium v16 — 3Villas</title>
+  <title>Checkin Premium v17 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ══ Variables ══ */
@@ -121,44 +121,6 @@
     .apc-ico{font-size:34px;margin-bottom:6px;display:block}
     .apc-title{font-size:15px;font-weight:900;color:var(--green);margin-bottom:4px}
     .apc-sub{font-size:11px;color:#166534;font-weight:500;line-height:1.5}
-
-    /* ══ Formulario de pago embebido (Caspio /emb) ══ */
-    .pay-form-wrap{background:var(--gray-0);border-radius:var(--r-md);
-      box-shadow:var(--shadow-sm);border:1px solid var(--gray-2);margin-top:12px;overflow:hidden}
-    .pfw-head{padding:12px 16px;border-bottom:1px solid var(--gray-2);
-      background:var(--gray-1);display:flex;align-items:center;gap:10px}
-    .pfw-head-title{font-size:12px;font-weight:900;color:var(--gray-5);flex:1}
-    .pfw-secure{font-size:10px;font-weight:700;color:var(--gray-4);display:flex;align-items:center;gap:4px}
-    .pfw-body{padding:16px}
-
-    /* ══ CSS override del formulario Caspio (idéntico a checkin-taxes) ══ */
-    .cbFormTable img[src*="caspio"],
-    .cbFormTable img[src*="logo3villas"],
-    .cbFormTable img[src*="Logo"],
-    .cbFormTable img[src*="stripe-icon"],
-    .cbFormTableCell img { display:none !important }
-    .cbFormTable tr:has(.cbFormula),
-    .cbFormTable tr:has(input[type=hidden]),
-    .cbFormTableCell:has(.cbFormula) { display:none !important }
-    .cbFormTable, .cbFormTableCell, .cbLabel,
-    .cbFormCaption, .cbFormInput, .cbFormInputHigh,
-    #Submit_0 { font-family: Montserrat, sans-serif !important; }
-    .cbLabel, .cbFormCaption {
-      font-size: 10px !important; font-weight: 800 !important;
-      text-transform: uppercase !important; letter-spacing: .5px !important;
-      color: var(--gray-4) !important; margin-bottom: 5px !important; display: block !important;
-    }
-    .cbFormInput, .cbFormInputHigh {
-      width: 100% !important; padding: 11px 14px !important;
-      border: 1.5px solid var(--gray-3) !important; border-radius: 10px !important;
-      font-size: 15px !important; font-family: Montserrat, sans-serif !important; font-weight: 600 !important;
-    }
-    .cbFormInput:focus, .cbFormInputHigh:focus { border-color: var(--red) !important; outline:none !important; }
-    #Submit_0, .cbSubmitButton {
-      width:100% !important; padding:13px !important; background:var(--gold) !important;
-      color:#fff !important; border:none !important; border-radius:10px !important;
-      font-size:14px !important; font-weight:900 !important; cursor:pointer !important; margin-top:6px !important;
-    }
 
     /* ══ Botones de acción ══ */
     .action-bar{margin-top:16px;display:flex;flex-direction:column;gap:10px}
@@ -304,18 +266,6 @@
             <div class="apc-sub" data-i18n="all_paid_sub">There are no pending charges for your Premium check-in.</div>
           </div>
 
-          <!-- Formulario de pago embebido Caspio -->
-          <div class="pay-form-wrap" id="payFormWrap" style="display:none">
-            <div class="pfw-head">
-              <div class="pfw-head-title" data-i18n="form_title">Card details</div>
-              <div class="pfw-secure">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span data-i18n="modal_secure">Secured by Stripe</span>
-              </div>
-            </div>
-            <div class="pfw-body"><div id="caspioPay"></div></div>
-          </div>
-
           <!-- Botón: marcar Premium SIN pagar -->
           <div class="action-bar">
             <button class="btn-prem" id="btnPrem" onclick="savePremium()" data-i18n="btn_prem_save">Confirm Premium</button>
@@ -377,7 +327,7 @@ const CASPIO_APP    = '353f7000e967b11dc2a34af68b4e';
 const CASPIO_ORIGIN = 'https://c1abn932.caspio.com';
 const $ = id => document.getElementById(id);
 
-let _code='', _booking=null, _total=0, _selected=null, _isSaving=false, _embedTotal=null;
+let _code='', _booking=null, _total=0, _selected=null, _isSaving=false;
 
 /* ════ I18N ════ */
 var LANG={};
@@ -646,14 +596,6 @@ function applyLang(lang){
   if(_popupType){ var ip=$('infoPopup'); if(ip&&ip.classList.contains('open')) showInfoPopup(_popupType); }
   try{localStorage.setItem('3v_lang',lang);}catch(e){}
   if(typeof CheckinAuth!=='undefined'&&CheckinAuth._refreshLang) CheckinAuth._refreshLang();
-  /* Reinyectar embed si cambió de idioma y estaba cargado */
-  if(_embedLoaded&&langChanged){
-    if(_embedObserver){_embedObserver.disconnect();_embedObserver=null;}
-    if(_pollInterval){clearInterval(_pollInterval);_pollInterval=null;}
-    var wrap=$('caspioPay'); if(wrap) wrap.innerHTML='';
-    _embedLoaded=false;
-    if(_selected==='prem'&&_total>0) injectCaspioEmbed();
-  }
   var ls=$('langSel'); if(ls) ls.value=lang;
 }
 function initLang(){
@@ -715,20 +657,9 @@ function renderItems(r){
     $('totalRow').style.display='flex';
     $('totalAmt').innerHTML=_total.toFixed(2)+' <span>€</span>';
     $('allPaid').style.display='none';
-    if(_selected==='prem'){
-      /* Si el embed ya estaba cargado con un importe distinto, reinyectar */
-      if(_embedLoaded&&_embedTotal!==_total){
-        if(_embedObserver){_embedObserver.disconnect();_embedObserver=null;}
-        if(_pollInterval){clearInterval(_pollInterval);_pollInterval=null;}
-        var wrap=$('caspioPay'); if(wrap) wrap.innerHTML='';
-        _embedLoaded=false;
-      }
-      if(!_embedLoaded) injectCaspioEmbed();
-    }
   } else {
     $('totalRow').style.display='none';
     $('allPaid').style.display='block';
-    $('payFormWrap').style.display='none';
   }
 }
 
@@ -739,180 +670,6 @@ function selectOpt(opt){
   $('cardStd').classList.toggle('selected', opt==='std');
   $('stdBar').style.display=(opt==='std')?'block':'none';
   if(opt==='prem'&&_booking) renderItems(_booking);
-}
-
-/* ════ EMBED CASPIO /emb (idéntico a checkin-taxes) ════ */
-var _embedLoaded=false;
-function injectCaspioEmbed(){
-  if(_embedLoaded) return;
-  _embedLoaded=true;
-  _embedTotal=_total;
-
-  /* Calcular el importe fresh desde _booking para garantizar que no sea 0 */
-  var _importeEmbed=_total;
-  if(_booking&&_importeEmbed===0){
-    var _waivF=num(g(_booking,'Deposit_waver_EUR'));
-    var _waivCF=bool1(g(_booking,'Deposit_waver_cobrado'));
-    var _ecoCF=bool1(g(_booking,'Ecotasa_cobrada'));
-    var _ecoF=num(g(_booking,'Ecotasa_final'));
-    if(!_waivCF&&(_waivF>0||_ecoCF)) _importeEmbed+=_waivF;
-    if(!_ecoCF&&_ecoF>0) _importeEmbed+=_ecoF;
-  }
-
-  /* Guardar Security_deposit_options=1 ANTES de inyectar el embed.
-     La fórmula de Caspio (Virtual18) solo incluye el waiver si este campo = 1.
-     Sin esto, cuando eco_c=true Caspio calcula total=0 aunque el waiver esté pendiente. */
-  saveFields({Security_deposit_options:1}).catch(function(){});
-  $('payFormWrap').style.display='block';
-  var target=$('caspioPay'); target.innerHTML='';
-  var formDiv=document.createElement('div');
-  formDiv.id='CaspioFormDiv_'+CASPIO_APP;
-  target.appendChild(formDiv);
-  var s=document.createElement('script');
-  s.type='text/javascript';
-  s.src='https://c1abn932.caspio.com/dp/'+CASPIO_APP+'/emb'
-    +'?TaBookings2021_FS_confirmation_code='+encodeURIComponent(_code)
-    +'&FS_confirmation_code='+encodeURIComponent(_code)
-    +'&cbParam_Importe='+encodeURIComponent(_importeEmbed.toFixed(2))
-    +'&cbResetParam=1';
-  s.onload=function(){ startEmbedTranslationPolling(); };
-  s.onerror=function(){
-    formDiv.innerHTML=
-      '<div style="text-align:center;padding:20px 0">'+
-      '<a href="https://c1abn932.caspio.com/dp/'+CASPIO_APP+
-      '?FS_confirmation_code='+encodeURIComponent(_code)+
-      '" target="_blank" style="display:inline-block;padding:12px 24px;'+
-      'background:#B8860B;color:#fff;border-radius:10px;font-weight:800;'+
-      'font-size:13px;text-decoration:none">Open payment form ↗</a></div>';
-  };
-  target.appendChild(s);
-}
-
-/* ════ DETECTAR ÉXITO DEL PAGO ════ */
-window.addEventListener('message',function(e){
-  if(!e.data) return;
-  var d=typeof e.data==='string'?e.data:JSON.stringify(e.data||'');
-  if(d.includes('cbSuccess')||d.includes('RecordInserted')||
-     d.includes('COBRADO')||d.includes('have been paid')||
-     d.includes('successfully paid')){
-    onPaymentSuccess();
-  }
-});
-
-/* ════ TRADUCCIÓN EMBED CASPIO (TreeWalker) ════ */
-var CASPIO_MAP={
-  'Credit Card':'cc_number','Expiration Date':'cc_expiry','Security Code':'cc_cvv',
-  'Total':'lbl_total','Submit':'btn_submit','Pay Now':'btn_submit','Pay now':'btn_submit',
-  'Reservation ID':'lbl_booking_id','Reservation nr.':'lbl_booking_id','Reservation Nr.':'lbl_booking_id',
-  'Reservation number':'lbl_booking_id','Reservation Number':'lbl_booking_id',
-  'Adults':'lbl_adults','Nights':'lbl_nights','Checkin':'lbl_checkin','Checkout':'lbl_checkout',
-  'Check-in':'lbl_checkin','Check-out':'lbl_checkout',
-  'Guest Name':'lbl_guest','Guest name':'lbl_guest','Villa':'lbl_villa'
-};
-function translateCaspioEmbed(){
-  var wrap=$('caspioPay'); if(!wrap||!wrap.children.length) return;
-  var walker=document.createTreeWalker(wrap,NodeFilter.SHOW_TEXT,null,false);
-  var node;
-  while((node=walker.nextNode())){
-    var raw=node.nodeValue||'';
-    var txt=raw.trim().replace(/\s*\*\s*$/,'');
-    if(!txt) continue;
-    var key=CASPIO_MAP[txt];
-    if(key){
-      var translated=t(key);
-      if(translated&&translated!==key&&translated!==txt){
-        node.nodeValue=translated+(raw.includes('*')?' *':'');
-      }
-    }
-  }
-  wrap.querySelectorAll('input[type=submit],button[type=submit],[id*=Submit]').forEach(function(el){
-    var lbl=t('btn_submit');
-    if(el.tagName==='INPUT') el.value=lbl; else el.textContent=lbl;
-  });
-  wrap.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
-    var ph=el.getAttribute('placeholder')||'';
-    var key=CASPIO_MAP[ph];
-    if(key){var tr=t(key);if(tr&&tr!==key)el.placeholder=tr;}
-  });
-  wrap.querySelectorAll('td,th,span,div,p,label,legend,caption').forEach(function(el){
-    if(el.children.length>0) return;
-    var raw=el.textContent||'';
-    var txt=raw.trim().replace(/\s*\*\s*$/,'');
-    if(!txt||txt.length>60) return;
-    var key=CASPIO_MAP[txt];
-    if(key){
-      var tr=t(key);
-      if(tr&&tr!==key&&tr!==txt) el.textContent=tr+(raw.includes('*')?' *':'');
-    }
-  });
-  var prev=wrap.getAttribute('data-translated');
-  wrap.setAttribute('data-translated',_currentLang);
-  if(prev!==_currentLang){
-    setTimeout(function(){
-      if(wrap.getAttribute('data-translated')===_currentLang) translateCaspioEmbed();
-    },1500);
-  }
-}
-
-/* ══ OBSERVER PERMANENTE DEL EMBED ══ */
-var _embedObserver=null, _translateTimer=null;
-function installEmbedObserver(){
-  if(_embedObserver) return;
-  var wrap=$('caspioPay');
-  if(!wrap||!window.MutationObserver) return;
-  _embedObserver=new MutationObserver(function(mutations){
-    var hasChanges=false, successDetected=false;
-    mutations.forEach(function(m){
-      m.addedNodes.forEach(function(node){
-        var txt=(node.textContent||'');
-        if(txt.includes('have been paid')||txt.includes('successfully paid')||
-           txt.includes('ha sido pagado')||txt.includes('COBRADO')||
-           txt.includes('Thank you')){
-          successDetected=true;
-        }
-      });
-      if(m.addedNodes.length||m.characterData) hasChanges=true;
-    });
-    if(successDetected){ setTimeout(onPaymentSuccess,1200); return; }
-    if(hasChanges){
-      clearTimeout(_translateTimer);
-      _translateTimer=setTimeout(function(){translateCaspioEmbed();},80);
-    }
-  });
-  _embedObserver.observe(wrap,{childList:true,subtree:true,characterData:true});
-}
-
-var _pollInterval=null;
-function startEmbedTranslationPolling(){
-  if(_pollInterval) clearInterval(_pollInterval);
-  var attempts=0;
-  _pollInterval=setInterval(function(){
-    attempts++;
-    var wrap=$('caspioPay');
-    if(!wrap||!wrap.children.length){
-      if(attempts>=60) clearInterval(_pollInterval);
-      return;
-    }
-    /* Inyectar importe directamente en el campo Importe de Caspio */
-    if(_embedTotal>0){
-      var imp=wrap.querySelector(
-        'input[id*="Importe"],input[id*="importe"],' +
-        'input[name*="Importe"],input[name*="importe"],' +
-        'input[id*="Total"],input[id*="total"]'
-      );
-      if(imp){
-        imp.removeAttribute('readonly');
-        imp.value=_embedTotal.toFixed(2);
-        ['input','change','blur','keyup'].forEach(function(ev){
-          imp.dispatchEvent(new Event(ev,{bubbles:true}));
-        });
-      }
-    }
-    installEmbedObserver();
-    translateCaspioEmbed();
-    clearInterval(_pollInterval);
-    _pollInterval=null;
-  },200);
 }
 
 /* ════ GUARDADO EN CASPIO (patrón dual huésped/admin igual que checkin-deposit) ════ */
@@ -944,9 +701,10 @@ async function savePremium(){
   var btn=$('btnPrem'); if(btn){btn.disabled=true; btn.textContent='…';}
   hideErr();
   try{
-    // Igual que seleccionar waiver en checkin-deposit: Security_deposit_options = 1
-    // + marcar la selección Premium en el campo Yes/No checkin_premium
-    await saveFields({ checkin_premium:'Yes', Security_deposit_options:1 });
+    // Igual que seleccionar waiver (opción 1) y guardar en el paso 3 de checkin-pasos:
+    // Security_deposit_options = 1 (waiver) + Security_deposit_terminado = 1 (paso 3 terminado)
+    // + marcar la selección Premium en el campo Yes/No checkin_premium.
+    await saveFields({ checkin_premium:'Yes', Security_deposit_options:1, Security_deposit_terminado:1 });
     goBack();
   }catch(err){
     showErr('Error: '+err.message);
@@ -967,30 +725,6 @@ async function saveStandard(){
     // No bloquear la vuelta por un fallo de guardado del flag
   }
   goBack();
-}
-
-/* ── Pago Premium completado: depósito y tasa terminados ── */
-async function onPaymentSuccess(){
-  try{
-    await saveFields({
-      checkin_premium:'Yes',
-      Security_deposit_options:1,
-      Security_deposit_terminado:'Yes',
-      Deposit_waver_cobrado:1,
-      Ecotasa_cobrada:1
-    });
-  }catch(e){ /* el embed Caspio ya ha registrado el pago; el flag se reintenta visualmente */ }
-  showSuccess();
-}
-
-function showSuccess(){
-  $('stLoad').style.display='none';
-  $('pop').style.display='none';
-  $('stSuccess').style.display='flex';
-  document.querySelectorAll('#stSuccess [data-i18n]').forEach(function(el){
-    el.textContent=t(el.getAttribute('data-i18n'));
-  });
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function showErr(msg){
@@ -1129,4 +863,4 @@ if(typeof CheckinAuth==='undefined'){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v16 - Dos arreglos para la integración como popup dentro de checkin-pasos: (1) render(r) ahora preselecciona la opción ya elegida leyendo el campo checkin_premium (Yes→tarjeta Premium marcada con selectOpt('prem'); No→Estándar con selectOpt('std'); vacío→sin preselección, comportamiento anterior). Antes el comparador abría sin marcar nada aunque el huésped ya hubiera elegido. (2) goBack() fallback (sin iframe) redirige ahora a checkin-pasos.html?paso=0&reserva=<code>&pf=1 (la portada es el paso 0 de checkin-pasos) en lugar de a checkin-online.html. El flujo normal sigue cerrando vía postMessage 'checkin-premium-close' al padre (checkin-pasos), que recarga manteniendo el paso. No se ha tocado la lógica de guardado, embed ni i18n. | v15 - Preconnect a Google Fonts y Worker | v14 - Spinner unificado con logo 3villas; caché del booking en sessionStorage | v13 - Añadido favicon (corazón rojo 3villas) en el head | v12 - Fix definitivo importe embed: la fórmula Caspio (Virtual18) solo incluye el waiver si Security_deposit_options=1; ahora se guarda ese campo en BD antes de inyectar el embed, así Caspio calcula el total correcto aunque eco_c=true | v11 - Fix definitivo importe embed: injectCaspioEmbed recalcula fresh desde _booking si _total=0 en el momento de la llamada; usa _importeEmbed (no _total) en cbParam_Importe y en la inyección directa del input | v10 - Fix importe embed: en startEmbedTranslationPolling, tras detectar el DOM de Caspio, inyecta _total directamente en input[id*="Importe"] vía .value + dispatchEvent(change+input); cbParam_Importe en URL se queda como fallback pero Caspio lo ignora — la inyección directa sobreescribe el campo calculado | v9 - Fix embed importe: si el embed ya estaba cargado con _total distinto al actual, se resetea y reinyecta con el importe correcto (_embedTotal tracking); evita que el embed quede fijado en 0.00 cuando la ecotasa ya estaba pagada al cargar la página | v8 - ES std_f1: "Retención de depósito con tarjeta" → "Pago de depósito con transferencia o tarjeta"; ES prem_f4: añadido "Una" delante de "Cuna y trona GRATIS"; Fix pending waiver: si eco_c=true y waiver no cobrado, pending=true aunque Deposit_waver_EUR=0 (para que el embed de Caspio se inyecte con el total correcto) | v7 - Embed Caspio: añadido cbParam_Importe=_total al src del script para que Caspio cobre ecotasa + waiver (total completo calculado por JS) y no solo la ecotasa desde BD | v6 - goBack() añade &pf=1 a la redirección de vuelta a checkin-online (fallback sin iframe) como señal "premium finished" para que online no reabra el popup automático; en el flujo iframe la señal sigue yendo por postMessage. Cubre todas las salidas (Estándar, Premium confirmado, pago completado, X) porque todas pasan por goBack() | v5 - Quitado el título intro "Opciones de Check-in" que aparecía encima del contenido (duplicaba el de la cabecera pop-bar-title); se mantiene el subtítulo. Claves intro_title quedan sin uso en los 8 idiomas | v4 - goBack() fallback (sin iframe) usa ?reserva= en vez de ?TaBookings2021_FS_confirmation_code= por coherencia (checkin-auth.js lee ambos) | v3 - Añadir <script src="auth.js"> antes de checkin-auth.js: sin él isAdmin() siempre daba false y como admin se entraba por la rama huésped, cargando el code de la sesión en vez del de la URL (importes de la reserva anterior); ahora como admin carga directo por el code de la URL | v2 - Título "Comparativa de Opciones de Check-in"→"Opciones de Check-in" (8 idiomas); "SIN DEPÓSITO DE SEGURIDAD" sin negrita; "Seguro de estancia incluido"→"Exclusión de responsabilidad por daños" con botón ℹ que abre pop-up arrastrable estilo manual-villa (texto qué incluye/qué no); añadido "Welcome pack" en 3ª posición Premium; líneas de pago "Waiver Depósito"→"Checkin Premium"; añadido "Sin welcome pack" en 3ª posición Estándar | v1 - Página pop-up comparativa Check-in Estándar vs Premium. Sin cabecera ni progress track. Premium muestra waiver (Deposit_waver_EUR) + ecotasa (Ecotasa_final) con embed Caspio /emb igual que checkin-taxes; al pagar marca Security_deposit_terminado, Deposit_waver_cobrado, Ecotasa_cobrada y checkin_premium=Yes; al confirmar Premium sin pagar guarda Security_deposit_options=1 + checkin_premium=Yes (igual que seleccionar waiver en checkin-deposit). Estándar guarda checkin_premium=No, cierra y vuelve a checkin-online. i18n 8 idiomas, guardado dual huésped(pin)/admin(Auth), cierre vía postMessage al padre si está embebido o redirección a checkin-online. -->
+<!-- HISTORIAL: v17 - Eliminado por completo el formulario de pago embebido (embed Caspio /emb + Stripe): quitados el HTML del formulario (payFormWrap/caspioPay), el CSS del embed (.pay-form-wrap, .pfw-*, overrides .cbForm*), y todo el JS asociado (injectCaspioEmbed, translateCaspioEmbed, installEmbedObserver, startEmbedTranslationPolling, _embedObserver, _pollInterval, _embedLoaded, _embedTotal, onPaymentSuccess, showSuccess). El comparador SIGUE mostrando las líneas de concepto (waiver/ecotasa) y el total con los mismos conceptos. Ahora al seleccionar Premium NO se paga aquí: savePremium guarda lo mismo que el waiver del paso 3 de checkin-pasos (checkin_premium='Yes', Security_deposit_options=1, Security_deposit_terminado=1) y cierra. Estándar sigue guardando checkin_premium='No'. No se ha tocado i18n, comparativa, ni el guardado dual huésped/admin. | v16 - Dos arreglos para la integración como popup dentro de checkin-pasos: (1) render(r) ahora preselecciona la opción ya elegida leyendo el campo checkin_premium (Yes→tarjeta Premium marcada con selectOpt('prem'); No→Estándar con selectOpt('std'); vacío→sin preselección, comportamiento anterior). Antes el comparador abría sin marcar nada aunque el huésped ya hubiera elegido. (2) goBack() fallback (sin iframe) redirige ahora a checkin-pasos.html?paso=0&reserva=<code>&pf=1 (la portada es el paso 0 de checkin-pasos) en lugar de a checkin-online.html. El flujo normal sigue cerrando vía postMessage 'checkin-premium-close' al padre (checkin-pasos), que recarga manteniendo el paso. No se ha tocado la lógica de guardado, embed ni i18n. | v15 - Preconnect a Google Fonts y Worker | v14 - Spinner unificado con logo 3villas; caché del booking en sessionStorage | v13 - Añadido favicon (corazón rojo 3villas) en el head | v12 - Fix definitivo importe embed: la fórmula Caspio (Virtual18) solo incluye el waiver si Security_deposit_options=1; ahora se guarda ese campo en BD antes de inyectar el embed, así Caspio calcula el total correcto aunque eco_c=true | v11 - Fix definitivo importe embed: injectCaspioEmbed recalcula fresh desde _booking si _total=0 en el momento de la llamada; usa _importeEmbed (no _total) en cbParam_Importe y en la inyección directa del input | v10 - Fix importe embed: en startEmbedTranslationPolling, tras detectar el DOM de Caspio, inyecta _total directamente en input[id*="Importe"] vía .value + dispatchEvent(change+input); cbParam_Importe en URL se queda como fallback pero Caspio lo ignora — la inyección directa sobreescribe el campo calculado | v9 - Fix embed importe: si el embed ya estaba cargado con _total distinto al actual, se resetea y reinyecta con el importe correcto (_embedTotal tracking); evita que el embed quede fijado en 0.00 cuando la ecotasa ya estaba pagada al cargar la página | v8 - ES std_f1: "Retención de depósito con tarjeta" → "Pago de depósito con transferencia o tarjeta"; ES prem_f4: añadido "Una" delante de "Cuna y trona GRATIS"; Fix pending waiver: si eco_c=true y waiver no cobrado, pending=true aunque Deposit_waver_EUR=0 (para que el embed de Caspio se inyecte con el total correcto) | v7 - Embed Caspio: añadido cbParam_Importe=_total al src del script para que Caspio cobre ecotasa + waiver (total completo calculado por JS) y no solo la ecotasa desde BD | v6 - goBack() añade &pf=1 a la redirección de vuelta a checkin-online (fallback sin iframe) como señal "premium finished" para que online no reabra el popup automático; en el flujo iframe la señal sigue yendo por postMessage. Cubre todas las salidas (Estándar, Premium confirmado, pago completado, X) porque todas pasan por goBack() | v5 - Quitado el título intro "Opciones de Check-in" que aparecía encima del contenido (duplicaba el de la cabecera pop-bar-title); se mantiene el subtítulo. Claves intro_title quedan sin uso en los 8 idiomas | v4 - goBack() fallback (sin iframe) usa ?reserva= en vez de ?TaBookings2021_FS_confirmation_code= por coherencia (checkin-auth.js lee ambos) | v3 - Añadir <script src="auth.js"> antes de checkin-auth.js: sin él isAdmin() siempre daba false y como admin se entraba por la rama huésped, cargando el code de la sesión en vez del de la URL (importes de la reserva anterior); ahora como admin carga directo por el code de la URL | v2 - Título "Comparativa de Opciones de Check-in"→"Opciones de Check-in" (8 idiomas); "SIN DEPÓSITO DE SEGURIDAD" sin negrita; "Seguro de estancia incluido"→"Exclusión de responsabilidad por daños" con botón ℹ que abre pop-up arrastrable estilo manual-villa (texto qué incluye/qué no); añadido "Welcome pack" en 3ª posición Premium; líneas de pago "Waiver Depósito"→"Checkin Premium"; añadido "Sin welcome pack" en 3ª posición Estándar | v1 - Página pop-up comparativa Check-in Estándar vs Premium. Sin cabecera ni progress track. Premium muestra waiver (Deposit_waver_EUR) + ecotasa (Ecotasa_final) con embed Caspio /emb igual que checkin-taxes; al pagar marca Security_deposit_terminado, Deposit_waver_cobrado, Ecotasa_cobrada y checkin_premium=Yes; al confirmar Premium sin pagar guarda Security_deposit_options=1 + checkin_premium=Yes (igual que seleccionar waiver en checkin-deposit). Estándar guarda checkin_premium=No, cierra y vuelve a checkin-online. i18n 8 idiomas, guardado dual huésped(pin)/admin(Auth), cierre vía postMessage al padre si está embebido o redirección a checkin-online. -->
