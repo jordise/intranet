@@ -1,4 +1,4 @@
-/* checkin-auth.js v16 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v17 — Autenticación huéspedes 3Villas
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -396,33 +396,34 @@ const CheckinAuth = (function(){
   }
 
   async function loadBookingData(code, pin){
-    /* Leer caché primero — tras verify() el OTP ya está consumido en Caspio,
-       así que no podemos volver a llamar a verify-checkin-code con ese PIN. */
+    /* Auto-refresh simple: intentamos SIEMPRE traer lo último de Caspio (esto solo
+       corre en el arranque/carga de página, no en la navegación entre pasos), así
+       los cambios hechos fuera —p. ej. el equipo edita un paso en la base de datos,
+       o se activó Premium— se reflejan. Credencial: token de check-in (principal),
+       luego el PIN de sesión, luego el código alternativo 5+code+7. Si todo falla,
+       caemos al caché para no romper la experiencia. No se borra la sesión aquí. */
+    const altPin = '5' + code + '7';
+    const tok = (function(){ try{ const s=getSession(code); return (s&&s.token)||''; }catch(e){ return ''; } })();
+    let j = null;
+    /* 1) token JWT (sirve en reservas con y sin email; Worker v43+) */
+    if(tok){ try{ j = await wPost('verify-checkin-code', { bookingCode: code, token: tok }); }catch(e){ j=null; } }
+    /* 2) PIN de sesión (OTP — puede estar consumido) */
+    if(!(j&&j.booking) && pin){ try{ j = await wPost('verify-checkin-code', { bookingCode: code, pin }); }catch(e){ j=null; } }
+    /* 3) código alternativo (solo lo acepta el Worker en reservas sin email) */
+    if(!(j&&j.booking)){ try{ j = await wPost('verify-checkin-code', { bookingCode: code, pin: altPin }); }catch(e){ j=null; } }
+
+    if(j && j.booking){
+      /* Si el Worker devolvió un nuevo checkin-token, refrescarlo en la sesión (72h) */
+      if(j.checkinToken){
+        try{ const _s = getSession(code); if(_s) setSession(_s.code, _s.pin, _s.email, j.checkinToken); }catch(e){}
+      }
+      setCachedBooking(code, j.booking);
+      return j.booking;
+    }
+    /* Todo falló → usar caché como respaldo (no rompemos la experiencia) */
     const cached = getCachedBooking(code);
     if(cached) return cached;
-    /* No en caché (p.ej. la página borró la caché tras guardar un paso): el PIN de
-       sesión puede ser un OTP ya consumido, que daría 401. El código alternativo
-       5+code+7 lo acepta el Worker siempre, así que se usa como reserva fiable.
-       Se intenta primero con el PIN recibido y, si falla, con el alternativo. */
-    const altPin = '5' + code + '7';
-    let j;
-    try {
-      j = await wPost('verify-checkin-code', { bookingCode: code, pin });
-    } catch(e) {
-      /* OTP consumido u otro fallo de auth → reintentar con el código alternativo */
-      j = await wPost('verify-checkin-code', { bookingCode: code, pin: altPin });
-    }
-    if(!j.booking) throw new Error('no booking data');
-    /* Si el Worker devolvió un nuevo checkin-token, refrescarlo en la sesión
-       (renueva su caducidad de 72h sin necesidad de re-verificar). */
-    if(j.checkinToken){
-      try{
-        const _s = getSession(code);
-        if(_s) setSession(_s.code, _s.pin, _s.email, j.checkinToken);
-      }catch(e){}
-    }
-    setCachedBooking(code, j.booking);
-    return j.booking;
+    throw new Error('no booking data');
   }
 
   /* Cargar booking data como admin (usando Auth token) */
@@ -927,4 +928,4 @@ const CheckinAuth = (function(){
 
 })();
 
-/* HISTORIAL: v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
+/* HISTORIAL: v17 - Auto-refresh simple y estable en loadBookingData: antes, si había caché, devolvía el caché y NO consultaba Caspio (los cambios hechos fuera no se veían). Ahora intenta SIEMPRE traer lo último de Caspio (solo corre en el arranque, no en la navegación entre pasos), con credencial en orden: token de check-in (JWT, sirve en reservas con y sin email vía Worker v43+), luego PIN de sesión, luego código alternativo 5+code+7; si todo falla, usa el caché como respaldo (no rompe la experiencia) y NO borra la sesión aquí. Esto arregla la lentitud y la expulsión al overlay de email que causaba el arranque alternativo de checkin-pasos v56 (que se saltaba init). | v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
