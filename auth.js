@@ -119,6 +119,9 @@ const Auth = (function () {
     'checkin-test-reserva'                  : ['admin', 'manager'],
     'hostaway-comprobar-fechas-reservas'    : ['admin', 'manager'],
     'hostaway-comprobar-multiunits'         : ['admin', 'manager'],
+    
+    // ── ADMIN ───────────────────────────────────────────────────
+    'control-waiver'                  : ['admin', 'manager'],
 
     // ── CONFIGURACIÓN ──────────────────────────────────────────
     'permisos'              : ['admin'],
