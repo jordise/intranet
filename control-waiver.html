@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v02 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v03 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v02 — 3Villas</title>
+  <title>Control Waiver v03 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -194,6 +194,12 @@
   <!-- Dashboard -->
   <div id="dash" style="display:none">
 
+    <!-- DIAGNÓSTICO TEMPORAL (quitar en próxima versión) -->
+    <div class="panel" id="diagPanel" style="border:2px dashed var(--orange);background:#fffaf2">
+      <div class="panel-h"><h3>🔧 Diagnóstico (temporal)</h3><span class="hint">pégame esto si algo sale a 0</span></div>
+      <pre id="diagBox" style="font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:monospace;color:var(--gray-5);max-height:380px;overflow:auto;background:#fff;border-radius:8px;padding:12px;border:1px solid var(--gray-2)"></pre>
+    </div>
+
     <!-- Selector de año -->
     <div class="year-bar">
       <span class="lbl">Año</span>
@@ -315,6 +321,58 @@
   function optIsTransfer(v){ return String(v||'').toLowerCase().indexOf('transfer')!==-1 || String(v||'').toLowerCase().indexOf('transferencia')!==-1; }
   function optIsWaiver(v){ var s=String(v||'').toLowerCase(); return s.indexOf('waiver')!==-1 || s.indexOf('waver')!==-1; }
 
+  /* ── DIAGNÓSTICO TEMPORAL ── */
+  function runDiag(){
+    var box=g('diagBox'); if(!box)return;
+    var out=[];
+    out.push('Total filas vista: '+rawRows.length);
+    if(!rawRows.length){ box.textContent=out.join('\n'); return; }
+
+    // claves de la primera fila
+    var k0=Object.keys(rawRows[0]);
+    out.push('Nº columnas: '+k0.length);
+
+    // ¿qué columnas relacionadas con pagos existen realmente?
+    var payKeys=k0.filter(function(k){return /pay|importe|deposit|waiver|waver|status|transac|stripe/i.test(k);});
+    out.push('\nColumnas tipo PAGO encontradas ('+payKeys.length+'):\n  '+payKeys.join('\n  '));
+
+    // primera fila que tenga algún Payment_ID (probando varios nombres)
+    function findPid(r){ for(var i=0;i<k0.length;i++){ if(/Payment_ID$/i.test(k0[i]) && r[k0[i]]) return k0[i]; } return null; }
+    var rowWithPay=null, pidKey=null;
+    for(var i=0;i<rawRows.length;i++){ var pk=findPid(rawRows[i]); if(pk){ rowWithPay=rawRows[i]; pidKey=pk; break; } }
+    out.push('\nColumna Payment_ID detectada: '+(pidKey||'NINGUNA'));
+
+    // valores distintos de cualquier columna que parezca "Status" de pago
+    var statusKeys=k0.filter(function(k){return /status/i.test(k);});
+    statusKeys.forEach(function(sk){
+      var vals={};
+      rawRows.forEach(function(r){ var v=(r[sk]===''||r[sk]==null)?'(vacío)':String(r[sk]); vals[v]=(vals[v]||0)+1; });
+      var top=Object.keys(vals).sort(function(a,b){return vals[b]-vals[a];}).slice(0,8)
+                .map(function(v){return '"'+v+'"×'+vals[v];}).join(', ');
+      out.push('\nValores de ['+sk+']:\n  '+top);
+    });
+
+    // cuántas filas tienen importe_deposit_waiver > 0 (probando nombre exacto y variantes)
+    var wKeys=k0.filter(function(k){return /importe_deposit_waiver|importe_deposit_waver/i.test(k);});
+    wKeys.forEach(function(wk){
+      var cnt=0, sum=0;
+      rawRows.forEach(function(r){ var n=num(r[wk]); if(n>0){cnt++;sum+=n;} });
+      out.push('\nFilas con ['+wk+']>0: '+cnt+'  (suma €'+Math.round(sum)+')');
+    });
+
+    // muestra de una fila con pago (solo columnas de pago) para ver valores
+    if(rowWithPay){
+      var sample={};
+      payKeys.concat(k0.filter(function(k){return /Checkin|Transactiaon_date|Fechadelregistro|Security_deposit_options|FS_confirmation_code/i.test(k);}))
+        .forEach(function(k){ sample[k]=rowWithPay[k]; });
+      out.push('\nEJEMPLO fila con pago (columnas relevantes):\n'+JSON.stringify(sample,null,2));
+    } else {
+      out.push('\n⚠️ Ninguna fila tiene Payment_ID con valor → la vista no trae los campos de Ta_payments, o vienen vacíos.');
+      out.push('\nEJEMPLO primera fila (todas las claves):\n'+JSON.stringify(k0));
+    }
+    box.textContent=out.join('\n');
+  }
+
   /* ── CARGA DE DATOS (paginada y defensiva) ── */
   function loadData(){
     g('stLoad').style.display='block'; g('stErr').style.display='none'; g('dash').style.display='none';
@@ -374,6 +432,7 @@
   }
 
   function build(){
+    runDiag();
     rawRows.forEach(function(row){
       /* ── Pago Stripe (si la fila tiene un pago con Status OK) ── */
       var payId = field(row,['Ta_payments_Payment_ID','Ta_payments_Transaction_ID']);
@@ -697,6 +756,6 @@
   })();
 </script>
 
-<!-- HISTORIAL: v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (antes los cargaba al final y Auth.require fallaba con "Auth is not defined"). Las vistas se leen con action=view&view=... (antes usaba action=data&table=..., que da 404 — eso es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior (ingresos waiver, adopción del waiver, depósitos por transferencia, gastos de tarjeta cobrados), veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido con tooltips, embudo de decisión del depósito (waiver/transferencia/tarjeta) y tabla resumen por año. Fuente de dinero = pagos Stripe con Status OK; reparto de depósito = Security_deposit_options. Carga paginada y defensiva. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
+<!-- HISTORIAL: v03 - Añadido panel de DIAGNÓSTICO temporal: vuelca nº de filas, columnas de pago detectadas, valores reales de Status, recuento de importes de waiver>0 y un ejemplo de fila con pago, para detectar por qué los totales salen a 0. (Se eliminará en cuanto se confirmen los nombres/valores reales.) | v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (antes los cargaba al final y Auth.require fallaba con "Auth is not defined"). Las vistas se leen con action=view&view=... (antes usaba action=data&table=..., que da 404 — eso es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior (ingresos waiver, adopción del waiver, depósitos por transferencia, gastos de tarjeta cobrados), veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido con tooltips, embudo de decisión del depósito (waiver/transferencia/tarjeta) y tabla resumen por año. Fuente de dinero = pagos Stripe con Status OK; reparto de depósito = Security_deposit_options. Carga paginada y defensiva. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
 </body>
 </html>
