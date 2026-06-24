@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v01 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v02 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v01 — 3Villas</title>
+  <title>Control Waiver v02 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -152,6 +152,9 @@
     .foot-note{font-size:11px;color:var(--gray-4);text-align:center;margin-top:6px;line-height:1.5}
     .src-tag{display:inline-block;background:var(--gray-2);color:var(--gray-4);font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px}
   </style>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
+  <script src="nav-component.js"></script>
 </head>
 <body>
 <input type="hidden" id="mgrName">
@@ -250,9 +253,6 @@
 
 <div class="tooltip" id="tooltip"></div>
 
-<script src="auth.js"></script>
-<script src="nav.js"></script>
-<script src="nav-component.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    CONTROL WAIVER — dashboard de pagos waiver / depósitos (Stripe)
@@ -324,7 +324,10 @@
 
     function fetchPage(){
       g('loadSub').textContent='Leyendo transacciones… ('+acc.length+' filas)';
-      var url=WORKER+'?action=data&table='+encodeURIComponent(VIEW)+'&pageSize='+PAGE+'&pageNumber='+page+'&limit='+PAGE;
+      /* Las VISTAS se leen con action=view&view=... (las TABLAS usan action=data&table=...).
+         Caspio pagina de 1000 en 1000; intentamos pageNumber de forma defensiva y
+         cortamos si el Worker lo ignora (página repetida) o llega una página incompleta. */
+      var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&pageSize='+PAGE+'&pageNumber='+page+'&limit='+PAGE;
       return fetch(Auth.url(url))
         .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
         .then(function(j){
@@ -694,6 +697,6 @@
   })();
 </script>
 
-<!-- HISTORIAL: v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior (ingresos waiver, adopción del waiver, depósitos por transferencia, gastos de tarjeta cobrados), veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido con tooltips, embudo de decisión del depósito (waiver/transferencia/tarjeta) y tabla resumen por año. Fuente de dinero = pagos Stripe con Status OK; reparto de depósito = Security_deposit_options. Carga paginada y defensiva (pageNumber/pageSize/limit con corte por página repetida o incompleta). Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
+<!-- HISTORIAL: v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (antes los cargaba al final y Auth.require fallaba con "Auth is not defined"). Las vistas se leen con action=view&view=... (antes usaba action=data&table=..., que da 404 — eso es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior (ingresos waiver, adopción del waiver, depósitos por transferencia, gastos de tarjeta cobrados), veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido con tooltips, embudo de decisión del depósito (waiver/transferencia/tarjeta) y tabla resumen por año. Fuente de dinero = pagos Stripe con Status OK; reparto de depósito = Security_deposit_options. Carga paginada y defensiva. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
 </body>
 </html>
