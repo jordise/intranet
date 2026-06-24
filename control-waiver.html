@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v03 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v04 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v03 — 3Villas</title>
+  <title>Control Waiver v04 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -194,12 +194,6 @@
   <!-- Dashboard -->
   <div id="dash" style="display:none">
 
-    <!-- DIAGNÓSTICO TEMPORAL (quitar en próxima versión) -->
-    <div class="panel" id="diagPanel" style="border:2px dashed var(--orange);background:#fffaf2">
-      <div class="panel-h"><h3>🔧 Diagnóstico (temporal)</h3><span class="hint">pégame esto si algo sale a 0</span></div>
-      <pre id="diagBox" style="font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:monospace;color:var(--gray-5);max-height:380px;overflow:auto;background:#fff;border-radius:8px;padding:12px;border:1px solid var(--gray-2)"></pre>
-    </div>
-
     <!-- Selector de año -->
     <div class="year-bar">
       <span class="lbl">Año</span>
@@ -237,7 +231,7 @@
         <h3>¿Qué eligen los huéspedes para el depósito?</h3>
         <span class="hint" id="funnelYear"></span>
       </div>
-      <div class="panel-desc">De las reservas con depósito gestionado, cómo se reparte la decisión. Más waiver = menos trabajo de devolución; más transferencia = más gestión manual.</div>
+      <div class="panel-desc">De todas las reservas del periodo (reales, sin canceladas), cómo se reparte la opción de depósito elegida. Más waiver = menos trabajo de devolución; más transferencia = más gestión manual.</div>
       <div class="funnel" id="funnel"></div>
     </div>
 
@@ -269,8 +263,13 @@
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
   var VIEW   = 'Vi_villas_bookings_MU_payments';
 
-  /* Estados de pago Stripe que cuentan como "cobrado". Defensivo: varias grafías. */
-  var OK_STATUSES = ['paid','succeeded','success','completed','complete','captured','ok','settled','approved'];
+  /* Un "cobro real" es toda fila que tiene Payment_ID en Ta_payments:
+     esos registros se crean cuando Stripe cobra de verdad (Mode Live / Payment_service Stripe).
+     No filtramos por el texto de Status: la existencia del pago es el cobro. */
+
+  /* Mapeo de Security_deposit_options (numérico, escrito por checkin-pasos):
+     1 = waiver · 2 = tarjeta · 3 = transferencia · 4 = airbnb (sin waiver) · 0 = sin elegir */
+  var DEPOSIT_OPT = {1:'waiver', 2:'tarjeta', 3:'transferencia', 4:'airbnb'};
 
   /* Estado global */
   var rawRows = [];      // filas de la vista (reserva × pago)
@@ -312,65 +311,28 @@
     return null;
   }
 
-  function statusOk(s){
-    if(s===true||s===1)return true;
-    var v=String(s||'').trim().toLowerCase();
-    if(!v)return false;
-    return OK_STATUSES.indexOf(v)!==-1;
+  /* Cobro real: la fila tiene Payment_ID. */
+  function hasPayment(row){ var p=field(row,['Ta_payments_Payment_ID']); return p!==undefined && p!==null && String(p).trim()!==''; }
+  /* Reserva real (no propietario) y no cancelada/fallida. */
+  function isRealBooking(row){
+    var f=String(field(row,['TaBookings2021_Status_name_formula'])||'').toLowerCase();
+    if(f.indexOf('propietario')!==-1) return false;
+    var bs=String(field(row,['TaBookings2021_BookingStatus'])||'').toLowerCase();
+    if(bs.indexOf('cancel')!==-1 || bs.indexOf('failed')!==-1) return false;
+    return true;
   }
-  function optIsTransfer(v){ return String(v||'').toLowerCase().indexOf('transfer')!==-1 || String(v||'').toLowerCase().indexOf('transferencia')!==-1; }
-  function optIsWaiver(v){ var s=String(v||'').toLowerCase(); return s.indexOf('waiver')!==-1 || s.indexOf('waver')!==-1; }
-
-  /* ── DIAGNÓSTICO TEMPORAL ── */
-  function runDiag(){
-    var box=g('diagBox'); if(!box)return;
-    var out=[];
-    out.push('Total filas vista: '+rawRows.length);
-    if(!rawRows.length){ box.textContent=out.join('\n'); return; }
-
-    // claves de la primera fila
-    var k0=Object.keys(rawRows[0]);
-    out.push('Nº columnas: '+k0.length);
-
-    // ¿qué columnas relacionadas con pagos existen realmente?
-    var payKeys=k0.filter(function(k){return /pay|importe|deposit|waiver|waver|status|transac|stripe/i.test(k);});
-    out.push('\nColumnas tipo PAGO encontradas ('+payKeys.length+'):\n  '+payKeys.join('\n  '));
-
-    // primera fila que tenga algún Payment_ID (probando varios nombres)
-    function findPid(r){ for(var i=0;i<k0.length;i++){ if(/Payment_ID$/i.test(k0[i]) && r[k0[i]]) return k0[i]; } return null; }
-    var rowWithPay=null, pidKey=null;
-    for(var i=0;i<rawRows.length;i++){ var pk=findPid(rawRows[i]); if(pk){ rowWithPay=rawRows[i]; pidKey=pk; break; } }
-    out.push('\nColumna Payment_ID detectada: '+(pidKey||'NINGUNA'));
-
-    // valores distintos de cualquier columna que parezca "Status" de pago
-    var statusKeys=k0.filter(function(k){return /status/i.test(k);});
-    statusKeys.forEach(function(sk){
-      var vals={};
-      rawRows.forEach(function(r){ var v=(r[sk]===''||r[sk]==null)?'(vacío)':String(r[sk]); vals[v]=(vals[v]||0)+1; });
-      var top=Object.keys(vals).sort(function(a,b){return vals[b]-vals[a];}).slice(0,8)
-                .map(function(v){return '"'+v+'"×'+vals[v];}).join(', ');
-      out.push('\nValores de ['+sk+']:\n  '+top);
-    });
-
-    // cuántas filas tienen importe_deposit_waiver > 0 (probando nombre exacto y variantes)
-    var wKeys=k0.filter(function(k){return /importe_deposit_waiver|importe_deposit_waver/i.test(k);});
-    wKeys.forEach(function(wk){
-      var cnt=0, sum=0;
-      rawRows.forEach(function(r){ var n=num(r[wk]); if(n>0){cnt++;sum+=n;} });
-      out.push('\nFilas con ['+wk+']>0: '+cnt+'  (suma €'+Math.round(sum)+')');
-    });
-
-    // muestra de una fila con pago (solo columnas de pago) para ver valores
-    if(rowWithPay){
-      var sample={};
-      payKeys.concat(k0.filter(function(k){return /Checkin|Transactiaon_date|Fechadelregistro|Security_deposit_options|FS_confirmation_code/i.test(k);}))
-        .forEach(function(k){ sample[k]=rowWithPay[k]; });
-      out.push('\nEJEMPLO fila con pago (columnas relevantes):\n'+JSON.stringify(sample,null,2));
-    } else {
-      out.push('\n⚠️ Ninguna fila tiene Payment_ID con valor → la vista no trae los campos de Ta_payments, o vienen vacíos.');
-      out.push('\nEJEMPLO primera fila (todas las claves):\n'+JSON.stringify(k0));
-    }
-    box.textContent=out.join('\n');
+  /* Opción de depósito -> clave de texto (acepta número o texto). */
+  function depositOpt(v){
+    if(v===null||v===undefined||v==='') return null;
+    var n=parseInt(v,10);
+    if(!isNaN(n) && DEPOSIT_OPT[n]) return DEPOSIT_OPT[n];
+    if(n===0) return null; // 0 = sin elegir
+    var s=String(v).toLowerCase();
+    if(s.indexOf('waiver')!==-1||s.indexOf('waver')!==-1) return 'waiver';
+    if(s.indexOf('transfer')!==-1) return 'transferencia';
+    if(s.indexOf('tarjeta')!==-1||s.indexOf('card')!==-1) return 'tarjeta';
+    if(s.indexOf('airbnb')!==-1) return 'airbnb';
+    return null;
   }
 
   /* ── CARGA DE DATOS (paginada y defensiva) ── */
@@ -423,8 +385,13 @@
   function ensureYear(y){
     if(!byYear[y]){
       byYear[y]={ year:y,
+        // dinero cobrado en Stripe (por concepto)
         waiverAmt:0, depositAmt:0, cardFeeAmt:0,
-        waiverCount:0, transferCount:0, cardCount:0, depositCount:0,
+        waiverPays:0, depositPays:0, cardPays:0,
+        // decisión de depósito por reserva
+        decideWaiver:0, decideTarjeta:0, decideTransfer:0, decideAirbnb:0, decideNone:0,
+        bookingsTotal:0,
+        transferCount:0,   // = decideTransfer (depósitos por transferencia)
         monthly:{} };
       for(var k in METRICS){ byYear[y].monthly[k]=[0,0,0,0,0,0,0,0,0,0,0,0]; }
     }
@@ -432,13 +399,10 @@
   }
 
   function build(){
-    runDiag();
     rawRows.forEach(function(row){
-      /* ── Pago Stripe (si la fila tiene un pago con Status OK) ── */
-      var payId = field(row,['Ta_payments_Payment_ID','Ta_payments_Transaction_ID']);
-      var status= field(row,['Ta_payments_Status']);
-      if(payId && statusOk(status)){
-        // fecha del pago (preferimos fecha de transacción; si no, fecha de registro; si no, checkin)
+      /* ── Cobro real en Stripe: la fila tiene Payment_ID ── */
+      if(hasPayment(row)){
+        // fecha del cobro: fecha de transacción Stripe; si no, registro; si no, checkin
         var ymd = field(row,['Ta_payments_Transactiaon_date','Ta_payments_Fechadelregistro','Ta_payments_Checkin','TaBookings2021_Checkin']);
         var ym = parseYM(ymd);
         if(ym){
@@ -446,25 +410,27 @@
           var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
           var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
           var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
-          if(wA>0){ Y.waiverAmt+=wA; Y.waiverCount++; Y.monthly.waiver[mi]+=wA; }
-          if(dA>0){ Y.depositAmt+=dA; Y.depositCount++; Y.monthly.deposit[mi]+=dA; }
-          if(cA>0){ Y.cardFeeAmt+=cA; Y.cardCount++; Y.monthly.card[mi]+=cA; }
+          if(wA>0){ Y.waiverAmt+=wA; Y.waiverPays++; Y.monthly.waiver[mi]+=wA; }
+          if(dA>0){ Y.depositAmt+=dA; Y.depositPays++; Y.monthly.deposit[mi]+=dA; }
+          if(cA>0){ Y.cardFeeAmt+=cA; Y.cardPays++; Y.monthly.card[mi]+=cA; }
         }
       }
 
-      /* ── Reparto de decisión del depósito (una vez por reserva) ── */
+      /* ── Decisión de depósito (una vez por reserva real no cancelada) ── */
       var code=bookingCode(row);
-      var opt = field(row,['TaBookings2021_Security_deposit_options']);
-      if(code && opt!==undefined && !bookingsSeen[code]){
+      if(code && !bookingsSeen[code] && isRealBooking(row)){
         bookingsSeen[code]=true;
-        // año de la reserva por checkin
-        var rym = parseYM(field(row,['TaBookings2021_Checkin','TaBookings2021_Checin_year']));
+        var rym = parseYM(field(row,['TaBookings2021_Checkin']));
         var ry = rym ? rym.y : (parseInt(field(row,['TaBookings2021_Checin_year']),10)||null);
         if(ry){
           var YY=ensureYear(ry), rmi = rym ? rym.m-1 : 0;
-          if(optIsWaiver(opt)){ YY.waiverDecide=(YY.waiverDecide||0)+1; }
-          else if(optIsTransfer(opt)){ YY.transferCount++; YY.monthly.transfer[rmi]++; YY.transferDecide=(YY.transferDecide||0)+1; }
-          else { YY.cardDecide=(YY.cardDecide||0)+1; }
+          YY.bookingsTotal++;
+          var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
+          if(opt==='waiver'){ YY.decideWaiver++; }
+          else if(opt==='transferencia'){ YY.decideTransfer++; YY.transferCount++; YY.monthly.transfer[rmi]++; }
+          else if(opt==='tarjeta'){ YY.decideTarjeta++; }
+          else if(opt==='airbnb'){ YY.decideAirbnb++; }
+          else { YY.decideNone++; }
         }
       }
     });
@@ -472,8 +438,8 @@
     years=Object.keys(byYear).map(Number).filter(function(y){return y>=2018 && y<=2100;}).sort(function(a,b){return a-b;});
     if(!years.length){
       g('stLoad').style.display='none'; g('stErr').style.display='block';
-      g('errMsg').textContent='No hay pagos para mostrar.';
-      g('errSub').textContent='No se han encontrado transacciones de Stripe en estado correcto.';
+      g('errMsg').textContent='No hay datos para mostrar.';
+      g('errSub').textContent='No se han encontrado cobros de Stripe ni reservas con depósito.';
       return;
     }
     curYear = years[years.length-1];
@@ -532,13 +498,13 @@
     var dAdopt = (wAdoptP===null)?null:delta(wAdopt,wAdoptP);
     var cards=[
       {cls:'k-waiver', emo:'🛡️', label:'Ingresos waiver', val:eur(C.waiverAmt||0),
-       sub:intf(C.waiverCount||0)+' waivers cobrados', d:delta(C.waiverAmt||0, P?P.waiverAmt:null), inv:false},
+       sub:intf(C.waiverPays||0)+' cobros de waiver', d:delta(C.waiverAmt||0, P?P.waiverAmt:null), inv:false},
       {cls:'k-adopt', emo:'🎯', label:'Adopción del waiver', val:(wAdopt!==null?wAdopt.toFixed(0)+'<small>%</small>':'—'),
-       sub:'de las reservas con depósito', d:dAdopt, inv:false},
+       sub:intf(C.decideWaiver||0)+' de '+intf(C.bookingsTotal||0)+' reservas', d:dAdopt, inv:false},
       {cls:'k-transfer', emo:'🏦', label:'Depósitos por transferencia', val:intf(C.transferCount||0),
        sub:'gestión manual de devolución', d:delta(C.transferCount||0, P?P.transferCount:null), inv:true},
       {cls:'k-card', emo:'💳', label:'Gastos de tarjeta cobrados', val:eur(C.cardFeeAmt||0),
-       sub:intf(C.cardCount||0)+' cobros', d:delta(C.cardFeeAmt||0, P?P.cardFeeAmt:null), inv:false}
+       sub:intf(C.cardPays||0)+' cobros', d:delta(C.cardFeeAmt||0, P?P.cardFeeAmt:null), inv:false}
     ];
     g('kpiGrid').innerHTML = cards.map(function(c){
       return '<div class="kpi '+c.cls+'">'+
@@ -550,12 +516,11 @@
     }).join('');
   }
 
-  /* Adopción = waiver / (waiver + transferencia + tarjeta) según decisión de la reserva */
+  /* Adopción = reservas con waiver / TODAS las reservas del periodo (reales, no canceladas). */
   function adoptionRate(Y){
-    var w=Y.waiverDecide||0, t=Y.transferDecide||0, c=Y.cardDecide||0;
-    var tot=w+t+c;
+    var tot=Y.bookingsTotal||0;
     if(!tot)return null;
-    return w/tot*100;
+    return (Y.decideWaiver||0)/tot*100;
   }
 
   function renderVerdict(C,P){
@@ -695,16 +660,20 @@
   }
 
   function renderFunnel(C){
-    var w=C.waiverDecide||0, t=C.transferDecide||0, c=C.cardDecide||0;
-    var tot=w+t+c;
-    function pct(n){ return tot? (n/tot*100):0; }
+    var w=C.decideWaiver||0, t=C.decideTransfer||0, c=C.decideTarjeta||0, a=C.decideAirbnb||0, n=C.decideNone||0;
+    var tot=C.bookingsTotal||0;
+    function pct(x){ return tot? (x/tot*100):0; }
     var items=[
       {cls:'fn-waiver', emo:'🛡️', name:'Waiver', n:w, money:C.waiverAmt||0, moneyLbl:'cobrado'},
-      {cls:'fn-transfer', emo:'🏦', name:'Transferencia', n:t, money:null, moneyLbl:'gestión manual'},
-      {cls:'fn-card2', emo:'💳', name:'Tarjeta / otro', n:c, money:C.cardFeeAmt||0, moneyLbl:'gastos cobrados'}
+      {cls:'fn-transfer', emo:'🏦', name:'Transferencia', n:t, money:null, moneyLbl:'gestión manual de devolución'},
+      {cls:'fn-card2', emo:'💳', name:'Tarjeta', n:c, money:C.cardFeeAmt||0, moneyLbl:'gastos de tarjeta cobrados'}
     ];
+    // Airbnb-sin-waiver y "sin elegir" se muestran solo si existen, como nota
+    var extra=[];
+    if(a>0) extra.push('Airbnb sin waiver: '+intf(a)+' ('+pct(a).toFixed(0)+'%)');
+    if(n>0) extra.push('Sin opción elegida: '+intf(n)+' ('+pct(n).toFixed(0)+'%)');
     if(!tot){
-      g('funnel').innerHTML='<div style="grid-column:1/-1;color:var(--gray-4);font-size:13px;text-align:center;padding:20px">No hay reservas con opción de depósito registrada en '+curYear+'.</div>';
+      g('funnel').innerHTML='<div style="grid-column:1/-1;color:var(--gray-4);font-size:13px;text-align:center;padding:20px">No hay reservas con depósito registradas en '+curYear+'.</div>';
       return;
     }
     g('funnel').innerHTML=items.map(function(it){
@@ -714,21 +683,22 @@
         '<div><div class="fn-foot">'+(it.money!==null?(eur(it.money)+' '+it.moneyLbl):it.moneyLbl)+'</div>'+
         '<div class="fn-bar"><span style="width:'+pct(it.n).toFixed(1)+'%"></span></div></div>'+
       '</div>';
-    }).join('');
+    }).join('') + (extra.length?'<div style="grid-column:1/-1;font-size:11px;color:var(--gray-4);margin-top:2px">'+extra.join(' · ')+'</div>':'');
   }
 
   function renderSummary(){
     var rows = years.slice().reverse();
     var head='<thead><tr>'+
-      '<th>Año</th><th>🛡️ Ingr. waiver</th><th>Waivers</th><th>🎯 Adopción</th>'+
+      '<th>Año</th><th>Reservas</th><th>🛡️ Ingr. waiver</th><th>Cobros waiver</th><th>🎯 Adopción</th>'+
       '<th>🏦 Transfer.</th><th>💳 Gastos tarj.</th><th>🔒 Depós. Stripe</th>'+
       '</tr></thead>';
     var body='<tbody>'+rows.map(function(y){
       var Y=byYear[y], a=adoptionRate(Y);
       return '<tr class="'+(y===curYear?'cur':'')+'">'+
         '<td class="lbl">'+y+'</td>'+
+        '<td>'+intf(Y.bookingsTotal||0)+'</td>'+
         '<td>'+eur(Y.waiverAmt||0)+'</td>'+
-        '<td>'+intf(Y.waiverCount||0)+'</td>'+
+        '<td>'+intf(Y.waiverPays||0)+'</td>'+
         '<td>'+(a!==null?a.toFixed(0)+'%':'—')+'</td>'+
         '<td>'+intf(Y.transferCount||0)+'</td>'+
         '<td>'+eur(Y.cardFeeAmt||0)+'</td>'+
@@ -740,9 +710,9 @@
 
   function renderFoot(){
     var totalRows=rawRows.length;
-    var paidRows=0;
-    rawRows.forEach(function(r){ if(field(r,['Ta_payments_Payment_ID']) && statusOk(field(r,['Ta_payments_Status']))) paidRows++; });
-    g('footNote').innerHTML='Analizadas '+intf(totalRows)+' filas de la vista · '+intf(paidRows)+' pagos en estado correcto · '+intf(Object.keys(bookingsSeen).length)+' reservas con opción de depósito.<br>Las cifras de dinero provienen exclusivamente de Stripe (pagos cobrados). El reparto de la decisión usa la opción elegida en cada reserva.';
+    var payRows=0;
+    rawRows.forEach(function(r){ if(hasPayment(r)) payRows++; });
+    g('footNote').innerHTML='Analizadas '+intf(totalRows)+' filas de la vista · '+intf(payRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Las cifras de dinero provienen de cobros reales en Stripe (cada fila de pagos). El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb).';
   }
 
   /* ── INIT ── */
@@ -756,6 +726,6 @@
   })();
 </script>
 
-<!-- HISTORIAL: v03 - Añadido panel de DIAGNÓSTICO temporal: vuelca nº de filas, columnas de pago detectadas, valores reales de Status, recuento de importes de waiver>0 y un ejemplo de fila con pago, para detectar por qué los totales salen a 0. (Se eliminará en cuanto se confirmen los nombres/valores reales.) | v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (antes los cargaba al final y Auth.require fallaba con "Auth is not defined"). Las vistas se leen con action=view&view=... (antes usaba action=data&table=..., que da 404 — eso es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior (ingresos waiver, adopción del waiver, depósitos por transferencia, gastos de tarjeta cobrados), veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido con tooltips, embudo de decisión del depósito (waiver/transferencia/tarjeta) y tabla resumen por año. Fuente de dinero = pagos Stripe con Status OK; reparto de depósito = Security_deposit_options. Carga paginada y defensiva. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
+<!-- HISTORIAL: v04 - Fix de los totales a 0 (3 causas reales detectadas con el diagnóstico): (1) Status de pago real es "COBRADO"/"ALREADY PAID", no los literales en inglés que se asumían; ahora un cobro real = toda fila con Payment_ID en Ta_payments (registros = cobros reales en Stripe), sin filtrar por texto de Status. (2) Security_deposit_options es NUMÉRICO (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb · 0 sin elegir); antes se comparaba como texto y nunca casaba. (3) Adopción del waiver ahora sobre TODAS las reservas del periodo; reparto del depósito excluye reservas canceladas/failed y de propietario. Embudo ampliado a las 4 opciones reales + sin elegir/airbnb; tabla con columna de reservas. Eliminado el panel de diagnóstico temporal de la v03. | v03 - Añadido panel de DIAGNÓSTICO temporal para inspeccionar columnas/valores reales de la vista. | v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (Auth is not defined). Vistas se leen con action=view&view=... (action=data&table= da 404, es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior, veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido, embudo de decisión del depósito y tabla resumen por año. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
 </body>
 </html>
