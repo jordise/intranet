@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v04 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v05 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v04 — 3Villas</title>
+  <title>Control Waiver v05 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -199,6 +199,7 @@
       <span class="lbl">Año</span>
       <div class="year-opts" id="yearOpts"></div>
       <span class="year-vs" id="yearVs"></span>
+      <button class="year-opt" id="btnReload" title="Vuelve a leer todo (ignora la caché de meses cerrados)" style="margin-left:auto;border:1.5px solid var(--gray-2)">↻ Recargar todo</button>
     </div>
 
     <!-- Veredicto -->
@@ -258,27 +259,33 @@
    CONTROL WAIVER — dashboard de pagos waiver / depósitos (Stripe)
    Fuente de "pago realizado": Ta_payments con Status OK (LEFT JOIN en la vista).
    Reparto de depósito: Security_deposit_options de la reserva.
+   Carga por MES (rango de check-in) desde 2024, con caché de meses cerrados.
    ════════════════════════════════════════════════════════════════════ */
 
   var WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
   var VIEW   = 'Vi_villas_bookings_MU_payments';
 
+  var START_YEAR = 2024;          // 2023 y anteriores no se cargan
+  var CACHE_PREFIX = 'cw_m_';     // sessionStorage: agregados por mes cerrado
+  var CACHE_VER = 'v05';          // si cambia la lógica, sube esto para invalidar caché
+
   /* Un "cobro real" es toda fila que tiene Payment_ID en Ta_payments:
      esos registros se crean cuando Stripe cobra de verdad (Mode Live / Payment_service Stripe).
-     No filtramos por el texto de Status: la existencia del pago es el cobro. */
+     No filtramos por el texto de Status: la existencia del pago es el cobro.
+     TODOS los cálculos se agrupan por FECHA DE CHECK-IN de la reserva. */
 
   /* Mapeo de Security_deposit_options (numérico, escrito por checkin-pasos):
      1 = waiver · 2 = tarjeta · 3 = transferencia · 4 = airbnb (sin waiver) · 0 = sin elegir */
   var DEPOSIT_OPT = {1:'waiver', 2:'tarjeta', 3:'transferencia', 4:'airbnb'};
 
   /* Estado global */
-  var rawRows = [];      // filas de la vista (reserva × pago)
   var byYear  = {};      // year -> agregados
   var bookingsSeen = {}; // para no contar dos veces el reparto de depósito por reserva
   var years   = [];
   var curYear = null;
   var prevYear= null;
   var curMetric = 'waiver';
+  var statsTotalRows = 0, statsPayRows = 0; // para el pie
 
   /* Métricas del gráfico: clave -> {label, color, emoji, fmt, agg} */
   var METRICS = {
@@ -295,21 +302,6 @@
   function eur(n){ return '€'+Math.round(n).toLocaleString('es-ES'); }
   function eurFull(n){ return (Math.round(n*100)/100).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
   function intf(n){ return Math.round(n).toLocaleString('es-ES'); }
-
-  /* Parseo manual de fecha (evita desfases de zona horaria). Devuelve {y,m} o null. */
-  function parseYM(s){
-    if(!s)return null;
-    var str=String(s).trim();
-    var m=str.match(/^(\d{4})[-\/](\d{1,2})/);            // 2025-07-...  ó 2025/07
-    if(m)return {y:+m[1], m:+m[2]};
-    m=str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);   // 07/24/2025 ó 24-07-2025
-    if(m){ var a=+m[1], b=+m[2], yy=+m[3];
-      // si el primer grupo >12 es día; si no, asumimos MM/DD (Caspio US)
-      if(a>12) return {y:yy, m:b};
-      return {y:yy, m:a};
-    }
-    return null;
-  }
 
   /* Cobro real: la fila tiene Payment_ID. */
   function hasPayment(row){ var p=field(row,['Ta_payments_Payment_ID']); return p!==undefined && p!==null && String(p).trim()!==''; }
@@ -335,45 +327,7 @@
     return null;
   }
 
-  /* ── CARGA DE DATOS (paginada y defensiva) ── */
-  function loadData(){
-    g('stLoad').style.display='block'; g('stErr').style.display='none'; g('dash').style.display='none';
-    rawRows=[]; byYear={}; bookingsSeen={};
-
-    var PAGE=1000, maxPages=12, page=1, acc=[], lastSig='';
-
-    function fetchPage(){
-      g('loadSub').textContent='Leyendo transacciones… ('+acc.length+' filas)';
-      /* Las VISTAS se leen con action=view&view=... (las TABLAS usan action=data&table=...).
-         Caspio pagina de 1000 en 1000; intentamos pageNumber de forma defensiva y
-         cortamos si el Worker lo ignora (página repetida) o llega una página incompleta. */
-      var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&pageSize='+PAGE+'&pageNumber='+page+'&limit='+PAGE;
-      return fetch(Auth.url(url))
-        .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
-        .then(function(j){
-          if(j && j.error) throw new Error(j.error);
-          var rows=(j&&(j.Result||j.result))||[];
-          if(!rows.length) return finish();
-          // firma para detectar si el Worker ignora pageNumber y repite la misma página
-          var sig=rows.length+'|'+JSON.stringify(rows[0]).slice(0,120);
-          if(sig===lastSig) return finish();   // misma página repetida -> parar
-          lastSig=sig;
-          acc=acc.concat(rows);
-          if(rows.length<PAGE || page>=maxPages) return finish();
-          page++;
-          return fetchPage();
-        });
-    }
-    function finish(){ rawRows=acc; build(); return true; }
-
-    fetchPage().catch(function(e){
-      console.error('[control-waiver] load:',e);
-      g('stLoad').style.display='none'; g('stErr').style.display='block';
-      g('errSub').textContent=String(e.message||e);
-    });
-  }
-
-  /* ── AGREGACIÓN ── */
+  /* ── AGREGACIÓN POR FILA (helpers de campo) ── */
   function field(row, names){
     for(var i=0;i<names.length;i++){ if(row[names[i]]!==undefined && row[names[i]]!==null && row[names[i]]!=='') return row[names[i]]; }
     return undefined;
@@ -382,71 +336,149 @@
     return String(field(row,['TaBookings2021_FS_confirmation_code','Ta_payments_HS_confirmation_code','FS_confirmation_code'])||'').trim();
   }
 
+  /* Agregado vacío de un MES (lo que cacheamos por mes cerrado). */
+  function emptyMonth(){
+    return { waiverAmt:0, depositAmt:0, cardFeeAmt:0,
+             waiverPays:0, depositPays:0, cardPays:0,
+             decideWaiver:0, decideTarjeta:0, decideTransfer:0, decideAirbnb:0, decideNone:0,
+             bookingsTotal:0, transferCount:0,
+             nRows:0, nPays:0 };
+  }
+
+  /* ── CARGA DE DATOS: por MES desde 2024, con caché de meses cerrados ── */
+  /* TODO se agrupa por fecha de CHECK-IN (un mes = reservas con check-in en ese mes). */
+  function loadData(){
+    g('stLoad').style.display='block'; g('stErr').style.display='none'; g('dash').style.display='none';
+    byYear={}; bookingsSeen={}; statsTotalRows=0; statsPayRows=0;
+
+    var now=new Date();
+    var curY=now.getFullYear(), curM=now.getMonth()+1; // 1..12
+    /* Lista de meses [{y,m}] desde START_YEAR-01 hasta el mes actual. */
+    var months=[];
+    for(var y=START_YEAR; y<=curY; y++){
+      var mEnd = (y===curY)? curM : 12;
+      for(var m=1; m<=mEnd; m++) months.push({y:y, m:m});
+    }
+
+    var monthAgg={}; // 'y-m' -> agregado de ese mes
+    var idx=0;
+
+    function isClosed(y,m){ return (y<curY) || (y===curY && m<curM); } // meses anteriores al actual = cerrados
+    function cacheKey(y,m){ return CACHE_PREFIX+CACHE_VER+'_'+y+'_'+(m<10?'0':'')+m; }
+
+    function nextMonth(){
+      if(idx>=months.length) return finishAll();
+      var mo=months[idx], key=mo.y+'-'+mo.m;
+      g('loadSub').textContent='Cargando '+MONTHS[mo.m-1]+' '+mo.y+' … ('+(idx+1)+'/'+months.length+')';
+
+      // 1) meses cerrados: intentar caché
+      if(isClosed(mo.y,mo.m)){
+        try{
+          var cached=sessionStorage.getItem(cacheKey(mo.y,mo.m));
+          if(cached){ monthAgg[key]=JSON.parse(cached); idx++; return nextMonth(); }
+        }catch(e){ /* caché no disponible -> seguimos a fetch */ }
+      }
+
+      // 2) fetch del mes por rango de check-in (un mes ~ <1000 filas, bajo el tope de Caspio)
+      var last=new Date(mo.y, mo.m, 0).getDate(); // último día del mes
+      var p2=(mo.m<10?'0':'')+mo.m, pl=(last<10?'0':'')+last;
+      var where="TaBookings2021_Checkin>='"+mo.y+"-"+p2+"-01T00:00:00' AND TaBookings2021_Checkin<='"+mo.y+"-"+p2+"-"+pl+"T23:59:59'";
+      var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&where='+encodeURIComponent(where)+'&limit=1000';
+      fetch(Auth.url(url))
+        .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
+        .then(function(j){
+          if(j && j.error) throw new Error(j.error);
+          var rows=(j&&(j.Result||j.result))||[];
+          var agg=aggregateRows(rows, mo.y, mo.m);
+          monthAgg[key]=agg;
+          // cachear solo meses cerrados
+          if(isClosed(mo.y,mo.m)){ try{ sessionStorage.setItem(cacheKey(mo.y,mo.m), JSON.stringify(agg)); }catch(e){} }
+          idx++; nextMonth();
+        })
+        .catch(function(e){
+          console.error('[control-waiver] mes',key,e);
+          g('stLoad').style.display='none'; g('stErr').style.display='block';
+          g('errMsg').textContent='Error cargando '+MONTHS[mo.m-1]+' '+mo.y;
+          g('errSub').textContent=String(e.message||e);
+        });
+    }
+
+    function finishAll(){
+      // combinar meses en años
+      byYear={};
+      Object.keys(monthAgg).forEach(function(key){
+        var parts=key.split('-'), y=+parts[0], m=+parts[1];
+        var Y=ensureYear(y), a=monthAgg[key], mi=m-1;
+        Y.waiverAmt+=a.waiverAmt; Y.depositAmt+=a.depositAmt; Y.cardFeeAmt+=a.cardFeeAmt;
+        Y.waiverPays+=a.waiverPays; Y.depositPays+=a.depositPays; Y.cardPays+=a.cardPays;
+        Y.decideWaiver+=a.decideWaiver; Y.decideTarjeta+=a.decideTarjeta; Y.decideTransfer+=a.decideTransfer;
+        Y.decideAirbnb+=a.decideAirbnb; Y.decideNone+=a.decideNone;
+        Y.bookingsTotal+=a.bookingsTotal; Y.transferCount+=a.transferCount;
+        Y.monthly.waiver[mi]+=a.waiverAmt; Y.monthly.deposit[mi]+=a.depositAmt;
+        Y.monthly.card[mi]+=a.cardFeeAmt; Y.monthly.transfer[mi]+=a.transferCount;
+        statsTotalRows+=a.nRows; statsPayRows+=a.nPays;
+      });
+
+      years=Object.keys(byYear).map(Number).filter(function(y){return y>=START_YEAR && y<=2100;}).sort(function(a,b){return a-b;});
+      if(!years.length){
+        g('stLoad').style.display='none'; g('stErr').style.display='block';
+        g('errMsg').textContent='No hay datos para mostrar.';
+        g('errSub').textContent='No se han encontrado reservas con check-in desde '+START_YEAR+'.';
+        return;
+      }
+      curYear = years[years.length-1];
+      prevYear= years.length>1 ? years[years.length-2] : null;
+      g('stLoad').style.display='none'; g('dash').style.display='block';
+      renderYearBar(); renderAll();
+    }
+
+    nextMonth();
+  }
+
   function ensureYear(y){
     if(!byYear[y]){
       byYear[y]={ year:y,
-        // dinero cobrado en Stripe (por concepto)
         waiverAmt:0, depositAmt:0, cardFeeAmt:0,
         waiverPays:0, depositPays:0, cardPays:0,
-        // decisión de depósito por reserva
         decideWaiver:0, decideTarjeta:0, decideTransfer:0, decideAirbnb:0, decideNone:0,
-        bookingsTotal:0,
-        transferCount:0,   // = decideTransfer (depósitos por transferencia)
+        bookingsTotal:0, transferCount:0,
         monthly:{} };
       for(var k in METRICS){ byYear[y].monthly[k]=[0,0,0,0,0,0,0,0,0,0,0,0]; }
     }
     return byYear[y];
   }
 
-  function build(){
-    rawRows.forEach(function(row){
-      /* ── Cobro real en Stripe: la fila tiene Payment_ID ── */
+  /* Agrega las filas de UN mes (ya filtradas por check-in en ese mes). */
+  function aggregateRows(rows, y, m){
+    var a=emptyMonth();
+    a.nRows=rows.length;
+    var seenLocal={};
+    rows.forEach(function(row){
+      /* ── Cobro real en Stripe: la fila tiene Payment_ID ──
+         Va al mes por la fecha de CHECK-IN de la reserva (el mes ya está acotado por el where). */
       if(hasPayment(row)){
-        // fecha del cobro: fecha de transacción Stripe; si no, registro; si no, checkin
-        var ymd = field(row,['Ta_payments_Transactiaon_date','Ta_payments_Fechadelregistro','Ta_payments_Checkin','TaBookings2021_Checkin']);
-        var ym = parseYM(ymd);
-        if(ym){
-          var Y=ensureYear(ym.y), mi=ym.m-1;
-          var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
-          var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
-          var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
-          if(wA>0){ Y.waiverAmt+=wA; Y.waiverPays++; Y.monthly.waiver[mi]+=wA; }
-          if(dA>0){ Y.depositAmt+=dA; Y.depositPays++; Y.monthly.deposit[mi]+=dA; }
-          if(cA>0){ Y.cardFeeAmt+=cA; Y.cardPays++; Y.monthly.card[mi]+=cA; }
-        }
+        a.nPays++;
+        var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
+        var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
+        var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
+        if(wA>0){ a.waiverAmt+=wA; a.waiverPays++; }
+        if(dA>0){ a.depositAmt+=dA; a.depositPays++; }
+        if(cA>0){ a.cardFeeAmt+=cA; a.cardPays++; }
       }
-
       /* ── Decisión de depósito (una vez por reserva real no cancelada) ── */
       var code=bookingCode(row);
-      if(code && !bookingsSeen[code] && isRealBooking(row)){
-        bookingsSeen[code]=true;
-        var rym = parseYM(field(row,['TaBookings2021_Checkin']));
-        var ry = rym ? rym.y : (parseInt(field(row,['TaBookings2021_Checin_year']),10)||null);
-        if(ry){
-          var YY=ensureYear(ry), rmi = rym ? rym.m-1 : 0;
-          YY.bookingsTotal++;
-          var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
-          if(opt==='waiver'){ YY.decideWaiver++; }
-          else if(opt==='transferencia'){ YY.decideTransfer++; YY.transferCount++; YY.monthly.transfer[rmi]++; }
-          else if(opt==='tarjeta'){ YY.decideTarjeta++; }
-          else if(opt==='airbnb'){ YY.decideAirbnb++; }
-          else { YY.decideNone++; }
-        }
+      if(code && !seenLocal[code] && !bookingsSeen[code] && isRealBooking(row)){
+        seenLocal[code]=true; bookingsSeen[code]=true;
+        a.bookingsTotal++;
+        var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
+        if(opt==='waiver'){ a.decideWaiver++; }
+        else if(opt==='transferencia'){ a.decideTransfer++; a.transferCount++; }
+        else if(opt==='tarjeta'){ a.decideTarjeta++; }
+        else if(opt==='airbnb'){ a.decideAirbnb++; }
+        else { a.decideNone++; }
       }
     });
-
-    years=Object.keys(byYear).map(Number).filter(function(y){return y>=2018 && y<=2100;}).sort(function(a,b){return a-b;});
-    if(!years.length){
-      g('stLoad').style.display='none'; g('stErr').style.display='block';
-      g('errMsg').textContent='No hay datos para mostrar.';
-      g('errSub').textContent='No se han encontrado cobros de Stripe ni reservas con depósito.';
-      return;
-    }
-    curYear = years[years.length-1];
-    prevYear= years.length>1 ? years[years.length-2] : null;
-
-    g('stLoad').style.display='none'; g('dash').style.display='block';
-    renderYearBar(); renderAll();
+    return a;
   }
 
   /* ── RENDER ── */
@@ -709,23 +741,29 @@
   }
 
   function renderFoot(){
-    var totalRows=rawRows.length;
-    var payRows=0;
-    rawRows.forEach(function(r){ if(hasPayment(r)) payRows++; });
-    g('footNote').innerHTML='Analizadas '+intf(totalRows)+' filas de la vista · '+intf(payRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Las cifras de dinero provienen de cobros reales en Stripe (cada fila de pagos). El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb).';
+    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.';
   }
 
   /* ── INIT ── */
+  function clearCache(){
+    try{
+      var rm=[];
+      for(var i=0;i<sessionStorage.length;i++){ var k=sessionStorage.key(i); if(k&&k.indexOf(CACHE_PREFIX)===0) rm.push(k); }
+      rm.forEach(function(k){ sessionStorage.removeItem(k); });
+    }catch(e){}
+  }
   (function init(){
     if(typeof Auth!=='undefined'){
       var nm=(Auth.name&&Auth.name())||'';
       if(g('hUserName')) g('hUserName').textContent=(nm||'').split(' ')[0];
       if(g('mgrName')) g('mgrName').value=nm;
     }
+    var rb=g('btnReload');
+    if(rb) rb.addEventListener('click',function(){ clearCache(); loadData(); });
     loadData();
   })();
 </script>
 
-<!-- HISTORIAL: v04 - Fix de los totales a 0 (3 causas reales detectadas con el diagnóstico): (1) Status de pago real es "COBRADO"/"ALREADY PAID", no los literales en inglés que se asumían; ahora un cobro real = toda fila con Payment_ID en Ta_payments (registros = cobros reales en Stripe), sin filtrar por texto de Status. (2) Security_deposit_options es NUMÉRICO (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb · 0 sin elegir); antes se comparaba como texto y nunca casaba. (3) Adopción del waiver ahora sobre TODAS las reservas del periodo; reparto del depósito excluye reservas canceladas/failed y de propietario. Embudo ampliado a las 4 opciones reales + sin elegir/airbnb; tabla con columna de reservas. Eliminado el panel de diagnóstico temporal de la v03. | v03 - Añadido panel de DIAGNÓSTICO temporal para inspeccionar columnas/valores reales de la vista. | v02 - Fix carga: scripts auth.js/nav.js/nav-component.js movidos al <head> (Auth is not defined). Vistas se leen con action=view&view=... (action=data&table= da 404, es solo para tablas). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments (LEFT JOIN a Ta_payments/Stripe). KPIs año vs año anterior, veredicto automático mejora/empeora, gráfico mensual interanual SVG autocontenido, embudo de decisión del depósito y tabla resumen por año. Cabecera wp-nav, favicon y spinner copiados de tareas/checkin-pasos. -->
+<!-- HISTORIAL: v05 - Carga completa del histórico superando el tope de 1000 filas de Caspio: ahora se pide MES A MES por rango de fecha de check-in (where Checkin>=AAAA-MM-01 AND Checkin<=fin-de-mes), desde 2024 (2023 y anteriores se ignoran). Cada mes <1000 filas. CACHÉ de meses cerrados en sessionStorage (un mes pasado no cambia: no hay movimientos ni cancelaciones), solo el mes en curso se recarga siempre → minimiza llamadas tras la primera carga. Botón "↻ Recargar todo" para forzar relectura ignorando caché. UNIFICADO: TODOS los cálculos (importes de pago y reparto de depósito) se agrupan por FECHA DE CHECK-IN (antes los importes iban por fecha de transacción Stripe). Eliminada parseYM (huérfana) y el acumulado en memoria de filas crudas (ahora se agrega por mes al vuelo). | v04 - Fix de los totales a 0 (3 causas reales detectadas con el diagnóstico): (1) cobro real = toda fila con Payment_ID en Ta_payments (registros = cobros reales en Stripe), sin filtrar por texto de Status ("COBRADO" no casaba con los literales en inglés asumidos). (2) Security_deposit_options es NUMÉRICO (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb · 0 sin elegir); antes se comparaba como texto. (3) Adopción sobre TODAS las reservas del periodo; reparto excluye canceladas/failed y propietario. Embudo a 4 opciones; tabla con columna de reservas. Eliminado panel de diagnóstico. | v03 - Panel de DIAGNÓSTICO temporal para inspeccionar columnas/valores reales. | v02 - Fix carga: scripts auth/nav al <head> (Auth is not defined). Vistas con action=view&view=... (action=data&table= da 404). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments. KPIs año vs año anterior, veredicto automático, gráfico mensual interanual SVG, embudo de decisión y tabla resumen. Cabecera wp-nav, favicon y spinner de tareas/checkin-pasos. -->
 </body>
 </html>
