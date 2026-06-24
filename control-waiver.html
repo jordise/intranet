@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v05 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v06 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v05 — 3Villas</title>
+  <title>Control Waiver v06 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -67,6 +67,16 @@
     .year-opt.on{background:#fff;color:var(--red);box-shadow:0 1px 3px rgba(0,0,0,.14)}
     .year-vs{font-size:12px;color:var(--gray-4)}
     .year-vs b{color:var(--gray-5)}
+    /* Toggle YTD */
+    .ytd-toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:4px 10px;border-radius:20px;border:1.5px solid var(--gray-2);background:#fff}
+    .ytd-toggle input{position:absolute;opacity:0;width:0;height:0}
+    .ytd-track{width:34px;height:18px;border-radius:20px;background:var(--gray-3);position:relative;transition:background .18s;flex-shrink:0}
+    .ytd-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s}
+    .ytd-toggle input:checked + .ytd-track{background:var(--green)}
+    .ytd-toggle input:checked + .ytd-track .ytd-thumb{transform:translateX(16px)}
+    .ytd-txt{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5)}
+    .ytd-txt small{font-weight:600;color:var(--gray-4)}
+    .ytd-toggle input:checked ~ .ytd-txt{color:var(--green)}
 
     /* ── Veredicto / titular ── */
     .verdict{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px 20px;margin-bottom:20px;border-left:6px solid var(--gray-3)}
@@ -198,6 +208,10 @@
     <div class="year-bar">
       <span class="lbl">Año</span>
       <div class="year-opts" id="yearOpts"></div>
+      <label class="ytd-toggle" id="ytdToggle" title="Compara solo del 1 de enero al día de hoy en cada año (comparación justa)">
+        <input type="checkbox" id="ytdChk"><span class="ytd-track"><span class="ytd-thumb"></span></span>
+        <span class="ytd-txt">YTD <small id="ytdRange"></small></span>
+      </label>
       <span class="year-vs" id="yearVs"></span>
       <button class="year-opt" id="btnReload" title="Vuelve a leer todo (ignora la caché de meses cerrados)" style="margin-left:auto;border:1.5px solid var(--gray-2)">↻ Recargar todo</button>
     </div>
@@ -286,6 +300,12 @@
   var prevYear= null;
   var curMetric = 'waiver';
   var statsTotalRows = 0, statsPayRows = 0; // para el pie
+  var ytdMode = false;       // comparativa Year-To-Date (1 ene → hoy)
+  var cutAgg = {};           // year -> agregado del "trozo" del mes de corte (día 1 → hoy)
+  var TODAY = new Date();
+  var CUR_Y = TODAY.getFullYear();
+  var CUR_M = TODAY.getMonth()+1;  // 1..12
+  var CUR_D = TODAY.getDate();
 
   /* Métricas del gráfico: clave -> {label, color, emoji, fmt, agg} */
   var METRICS = {
@@ -409,6 +429,7 @@
       Object.keys(monthAgg).forEach(function(key){
         var parts=key.split('-'), y=+parts[0], m=+parts[1];
         var Y=ensureYear(y), a=monthAgg[key], mi=m-1;
+        Y.mAgg[m]=a; // agregado completo del mes (para YTD)
         Y.waiverAmt+=a.waiverAmt; Y.depositAmt+=a.depositAmt; Y.cardFeeAmt+=a.cardFeeAmt;
         Y.waiverPays+=a.waiverPays; Y.depositPays+=a.depositPays; Y.cardPays+=a.cardPays;
         Y.decideWaiver+=a.decideWaiver; Y.decideTarjeta+=a.decideTarjeta; Y.decideTransfer+=a.decideTransfer;
@@ -435,6 +456,87 @@
     nextMonth();
   }
 
+  /* Carga el "trozo de corte" YTD: del día 1 al día de hoy del MES ACTUAL, para cada año.
+     Necesario para que YTD sea exacto a día (no a mes completo). Cacheado por año+mes+día. */
+  function ensureCutChunks(done){
+    var pend = years.filter(function(y){ return !cutAgg[y]; });
+    if(!pend.length){ done(); return; }
+    var i=0;
+    function nx(){
+      if(i>=pend.length){ done(); return; }
+      var y=pend[i];
+      var key='cw_cut_'+CACHE_VER+'_'+y+'_'+CUR_M+'_'+CUR_D;
+      // cachear: trozos de años pasados son estables; el del año en curso cambia de día (clave incluye día)
+      try{ var c=sessionStorage.getItem(key); if(c){ cutAgg[y]=JSON.parse(c); i++; return nx(); } }catch(e){}
+      var p2=(CUR_M<10?'0':'')+CUR_M, pd=(CUR_D<10?'0':'')+CUR_D;
+      var where="TaBookings2021_Checkin>='"+y+"-"+p2+"-01T00:00:00' AND TaBookings2021_Checkin<='"+y+"-"+p2+"-"+pd+"T23:59:59'";
+      var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&where='+encodeURIComponent(where)+'&limit=1000';
+      g('loadSub')&&(g('loadSub').textContent='Calculando YTD '+y+'…');
+      fetch(Auth.url(url))
+        .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
+        .then(function(j){
+          if(j&&j.error)throw new Error(j.error);
+          var rows=(j&&(j.Result||j.result))||[];
+          // OJO: dedup de reservas separado del global (no contaminar bookingsSeen)
+          var agg=aggregateCut(rows);
+          cutAgg[y]=agg;
+          try{ sessionStorage.setItem(key, JSON.stringify(agg)); }catch(e){}
+          i++; nx();
+        })
+        .catch(function(e){ console.error('[cut]',y,e); cutAgg[y]=emptyMonth(); i++; nx(); });
+    }
+    nx();
+  }
+  /* Igual que aggregateRows pero con dedup LOCAL (no toca bookingsSeen global). */
+  function aggregateCut(rows){
+    var a=emptyMonth(); a.nRows=rows.length; var seen={};
+    rows.forEach(function(row){
+      if(hasPayment(row)){
+        a.nPays++;
+        var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
+        var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
+        var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
+        if(wA>0){ a.waiverAmt+=wA; a.waiverPays++; }
+        if(dA>0){ a.depositAmt+=dA; a.depositPays++; }
+        if(cA>0){ a.cardFeeAmt+=cA; a.cardPays++; }
+      }
+      var code=bookingCode(row);
+      if(code && !seen[code] && isRealBooking(row)){
+        seen[code]=true; a.bookingsTotal++;
+        var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
+        if(opt==='waiver') a.decideWaiver++;
+        else if(opt==='transferencia'){ a.decideTransfer++; a.transferCount++; }
+        else if(opt==='tarjeta') a.decideTarjeta++;
+        else if(opt==='airbnb') a.decideAirbnb++;
+        else a.decideNone++;
+      }
+    });
+    return a;
+  }
+
+  /* Suma de agregados de meses (devuelve un objeto-stats con los mismos campos). */
+  function sumAggs(list){
+    var s=emptyMonth();
+    list.forEach(function(a){ if(!a)return;
+      s.waiverAmt+=a.waiverAmt; s.depositAmt+=a.depositAmt; s.cardFeeAmt+=a.cardFeeAmt;
+      s.waiverPays+=a.waiverPays; s.depositPays+=a.depositPays; s.cardPays+=a.cardPays;
+      s.decideWaiver+=a.decideWaiver; s.decideTarjeta+=a.decideTarjeta; s.decideTransfer+=a.decideTransfer;
+      s.decideAirbnb+=a.decideAirbnb; s.decideNone+=a.decideNone;
+      s.bookingsTotal+=a.bookingsTotal; s.transferCount+=a.transferCount;
+    });
+    return s;
+  }
+
+  /* Stats a usar para un año, según el modo. En YTD: meses 1..(CUR_M-1) completos + trozo de corte. */
+  function statsFor(y){
+    var Y=byYear[y]; if(!Y)return emptyMonth();
+    if(!ytdMode) return Y;
+    var list=[];
+    for(var m=1;m<CUR_M;m++){ if(Y.mAgg[m]) list.push(Y.mAgg[m]); }
+    if(cutAgg[y]) list.push(cutAgg[y]);
+    return sumAggs(list);
+  }
+
   function ensureYear(y){
     if(!byYear[y]){
       byYear[y]={ year:y,
@@ -442,6 +544,7 @@
         waiverPays:0, depositPays:0, cardPays:0,
         decideWaiver:0, decideTarjeta:0, decideTransfer:0, decideAirbnb:0, decideNone:0,
         bookingsTotal:0, transferCount:0,
+        mAgg:{},      // agregado completo por mes (1..12) para YTD
         monthly:{} };
       for(var k in METRICS){ byYear[y].monthly[k]=[0,0,0,0,0,0,0,0,0,0,0,0]; }
     }
@@ -512,9 +615,10 @@
   }
 
   function renderAll(){
-    var C=byYear[curYear]||{}, P=prevYear?byYear[prevYear]:null;
-    g('yearVs').innerHTML = prevYear ? ('comparando <b>'+curYear+'</b> con <b>'+prevYear+'</b>') : ('mostrando <b>'+curYear+'</b> (no hay año anterior para comparar)');
-    g('funnelYear').textContent = curYear;
+    var C=statsFor(curYear), P=prevYear?statsFor(prevYear):null;
+    var modeLbl = ytdMode ? (' · YTD 1 ene–'+CUR_D+' '+MONTHS[CUR_M-1]) : '';
+    g('yearVs').innerHTML = (prevYear ? ('comparando <b>'+curYear+'</b> con <b>'+prevYear+'</b>') : ('mostrando <b>'+curYear+'</b> (sin año anterior)')) + (ytdMode?'<b style="color:var(--green)">'+modeLbl+'</b>':'');
+    g('funnelYear').textContent = curYear + (ytdMode?modeLbl:'');
     renderKpis(C,P);
     renderVerdict(C,P);
     renderMetricTabs();
@@ -721,11 +825,11 @@
   function renderSummary(){
     var rows = years.slice().reverse();
     var head='<thead><tr>'+
-      '<th>Año</th><th>Reservas</th><th>🛡️ Ingr. waiver</th><th>Cobros waiver</th><th>🎯 Adopción</th>'+
+      '<th>Año'+(ytdMode?' (YTD)':'')+'</th><th>Reservas</th><th>🛡️ Ingr. waiver</th><th>Cobros waiver</th><th>🎯 Adopción</th>'+
       '<th>🏦 Transfer.</th><th>💳 Gastos tarj.</th><th>🔒 Depós. Stripe</th>'+
       '</tr></thead>';
     var body='<tbody>'+rows.map(function(y){
-      var Y=byYear[y], a=adoptionRate(Y);
+      var Y=statsFor(y), a=adoptionRate(Y);
       return '<tr class="'+(y===curYear?'cur':'')+'">'+
         '<td class="lbl">'+y+'</td>'+
         '<td>'+intf(Y.bookingsTotal||0)+'</td>'+
@@ -741,7 +845,7 @@
   }
 
   function renderFoot(){
-    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.';
+    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.'+(ytdMode?'<br><b style="color:var(--green)">Modo YTD activo:</b> cada año se recorta al 1 de enero–'+CUR_D+' '+MONTHS[CUR_M-1]+' para comparar el mismo periodo.':'');
   }
 
   /* ── INIT ── */
@@ -759,11 +863,27 @@
       if(g('mgrName')) g('mgrName').value=nm;
     }
     var rb=g('btnReload');
-    if(rb) rb.addEventListener('click',function(){ clearCache(); loadData(); });
+    if(rb) rb.addEventListener('click',function(){ clearCache(); cutAgg={}; loadData(); });
+    // etiqueta del rango YTD
+    if(g('ytdRange')) g('ytdRange').textContent='(1 ene–'+CUR_D+' '+MONTHS[CUR_M-1]+')';
+    var chk=g('ytdChk');
+    if(chk) chk.addEventListener('change',function(){
+      ytdMode=chk.checked;
+      if(ytdMode){
+        // necesitamos el trozo del mes en curso (1→hoy) por año
+        g('stLoad').style.display='block'; g('dash').style.display='none';
+        ensureCutChunks(function(){
+          g('stLoad').style.display='none'; g('dash').style.display='block';
+          renderAll();
+        });
+      } else {
+        renderAll();
+      }
+    });
     loadData();
   })();
 </script>
 
-<!-- HISTORIAL: v05 - Carga completa del histórico superando el tope de 1000 filas de Caspio: ahora se pide MES A MES por rango de fecha de check-in (where Checkin>=AAAA-MM-01 AND Checkin<=fin-de-mes), desde 2024 (2023 y anteriores se ignoran). Cada mes <1000 filas. CACHÉ de meses cerrados en sessionStorage (un mes pasado no cambia: no hay movimientos ni cancelaciones), solo el mes en curso se recarga siempre → minimiza llamadas tras la primera carga. Botón "↻ Recargar todo" para forzar relectura ignorando caché. UNIFICADO: TODOS los cálculos (importes de pago y reparto de depósito) se agrupan por FECHA DE CHECK-IN (antes los importes iban por fecha de transacción Stripe). Eliminada parseYM (huérfana) y el acumulado en memoria de filas crudas (ahora se agrega por mes al vuelo). | v04 - Fix de los totales a 0 (3 causas reales detectadas con el diagnóstico): (1) cobro real = toda fila con Payment_ID en Ta_payments (registros = cobros reales en Stripe), sin filtrar por texto de Status ("COBRADO" no casaba con los literales en inglés asumidos). (2) Security_deposit_options es NUMÉRICO (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb · 0 sin elegir); antes se comparaba como texto. (3) Adopción sobre TODAS las reservas del periodo; reparto excluye canceladas/failed y propietario. Embudo a 4 opciones; tabla con columna de reservas. Eliminado panel de diagnóstico. | v03 - Panel de DIAGNÓSTICO temporal para inspeccionar columnas/valores reales. | v02 - Fix carga: scripts auth/nav al <head> (Auth is not defined). Vistas con action=view&view=... (action=data&table= da 404). | v01 - Primera versión. Dashboard de control de waiver y depósitos a partir de la vista Vi_villas_bookings_MU_payments. KPIs año vs año anterior, veredicto automático, gráfico mensual interanual SVG, embudo de decisión y tabla resumen. Cabecera wp-nav, favicon y spinner de tareas/checkin-pasos. -->
+<!-- HISTORIAL: v06 - Añadido toggle YTD (Year-To-Date): compara cada año recortado al mismo periodo 1 enero → día de hoy, para ver de forma justa si mejoramos o empeoramos (antes el año en curso parcial se comparaba contra años cerrados completos). Preciso A DÍA: en YTD se suman los meses completos transcurridos + el trozo del mes en curso (día 1 → hoy) cargado por año con where Checkin<=hoy y cacheado (clave incluye día). Se guarda el agregado por mes (mAgg) para poder recortar. Afecta a KPIs, veredicto, tabla y embudo; el gráfico mensual no cambia. | v05 - Carga MES A MES por rango de check-in desde 2024 (supera el tope de 1000 de Caspio), con caché de meses cerrados en sessionStorage y botón Recargar todo. TODO se agrupa por fecha de check-in (fecha estable: los pagos se hacen antes o durante la estancia). | v04 - Fix totales a 0: cobro real = fila con Payment_ID; Security_deposit_options numérico (1 waiver·2 tarjeta·3 transferencia·4 airbnb); adopción sobre todas las reservas; excluye canceladas/propietario. | v03 - Diagnóstico temporal. | v02 - Scripts auth/nav al head; vistas con action=view. | v01 - Primera versión del dashboard. -->
 </body>
 </html>
