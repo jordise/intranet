@@ -81,6 +81,7 @@ const Auth = (function () {
 
     // ── TAREAS ─────────────────────────────────────────────────
     'tareas'                : ['admin', 'manager', 'staff', 'cleaner'],
+    'app-tareas'            : ['admin', 'manager', 'staff'],
     'nueva-tarea'           : ['admin', 'manager', 'staff'],
     'editar-tarea'          : ['admin', 'manager', 'staff'],
 
