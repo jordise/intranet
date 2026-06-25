@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v57 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v58 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -21,7 +21,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v57 — 3Villas</title>
+  <title>Editar Tarea v58 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-dark:#157039;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);--shadow-lg:0 8px 32px rgba(0,0,0,.16);--r:14px}
@@ -138,7 +138,7 @@
     /* ── Lista de tareas editable (Descripción / Solución) ── */
     .tl-wrap{flex:1;display:flex;flex-direction:column;gap:7px}
     .tl-list{display:flex;flex-direction:column;gap:5px;min-height:8px}
-    .tl-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:9px;transition:background .15s,border-color .15s}
+    .tl-item{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:9px;transition:background .15s,border-color .15s}
     .tl-item.dragging{opacity:.45;background:var(--gray-2)}
     .tl-item .tl-grip{color:var(--gray-3);cursor:grab;font-size:13px;line-height:1;flex-shrink:0;user-select:none;touch-action:none}
     .tl-item .tl-grip:active{cursor:grabbing}
@@ -148,7 +148,7 @@
     .tl-item .tl-text:empty::before{content:attr(data-ph);color:var(--gray-3)}
     .tl-item.done{background:var(--green-light);border-color:rgba(30,158,78,.25)}
     .tl-item.done .tl-text{text-decoration:line-through;color:var(--gray-4)}
-    .tl-item .tl-del{flex-shrink:0;background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;border-radius:5px;transition:color .12s,background .12s}
+    .tl-item .tl-del{flex-shrink:0;margin-left:auto;background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;border-radius:5px;transition:color .12s,background .12s}
     .tl-item .tl-del:hover{color:var(--red);background:var(--red-light)}
     .tl-add{display:flex;gap:6px}
     .tl-add input{flex:1;border:1.5px solid var(--gray-2);border-radius:9px;padding:8px 11px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;transition:border-color .15s,box-shadow .15s}
@@ -985,8 +985,18 @@ function onDone(){
     return lines.join('\n');
   }
 
+  /* Coloca la fila "Añadir" justo encima de la primera tarea terminada;
+     si no hay terminadas, queda al final de la lista */
+  function placeAdd(fId) {
+    var L = _lists[fId]; if (!L || !L.add) return;
+    var firstDone = L.list.querySelector('.tl-item.done');
+    if (firstDone) L.list.insertBefore(L.add, firstDone);
+    else L.list.appendChild(L.add);
+  }
+
   function sync(fId) {
     var L = _lists[fId]; if (!L) return;
+    placeAdd(fId);
     L.ta.value = serialize(L.list);
   }
 
@@ -1042,11 +1052,13 @@ function onDone(){
     return item;
   }
 
-  /* Añade un ítem y, opcionalmente, enfoca su texto */
+  /* Añade un ítem y, opcionalmente, enfoca su texto.
+     Un ítem desmarcado se inserta como último pendiente (antes de la fila add). */
   function addItem(fId, text, done, afterEl) {
     var L = _lists[fId]; if (!L) return;
     var item = makeItem(fId, text, done);
     if (afterEl && afterEl.parentNode === L.list) L.list.insertBefore(item, afterEl.nextSibling);
+    else if (L.add && L.add.parentNode === L.list) L.list.insertBefore(item, L.add);
     else L.list.appendChild(item);
     sync(fId);
     var sp = item.querySelector('.tl-text'); if (sp) sp.focus();
@@ -1079,14 +1091,14 @@ function onDone(){
     btn.type = 'button'; btn.textContent = '+ Añadir';
 
     wrap.appendChild(list);
-    wrap.appendChild(add);
+    list.appendChild(add);
     add.appendChild(inp);
     add.appendChild(btn);
 
-    _lists[fId] = { list: list, ta: ta };
+    _lists[fId] = { list: list, ta: ta, add: add };
 
-    /* Carga inicial desde el texto guardado */
-    parse(ta.value).forEach(function(it) { list.appendChild(makeItem(fId, it.text, it.done)); });
+    /* Carga inicial desde el texto guardado (ítems antes de la fila add) */
+    parse(ta.value).forEach(function(it) { list.insertBefore(makeItem(fId, it.text, it.done), add); });
     sync(fId);
 
     function commit() {
@@ -1102,7 +1114,7 @@ function onDone(){
       e.preventDefault();
       var dragging = list.querySelector('.tl-item.dragging'); if (!dragging) return;
       var after = getDragAfter(list, e.clientY);
-      if (after == null) list.appendChild(dragging);
+      if (after == null) { if (add.parentNode === list) list.insertBefore(dragging, add); else list.appendChild(dragging); }
       else list.insertBefore(dragging, after);
     });
 
@@ -1125,4 +1137,4 @@ function onDone(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v57 - Descripción y Solución: editor Quill sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Micro adaptado: dicta un ítem nuevo desmarcado. Eliminado Quill (CDN, CSS .ql-*, botones .re-*) | v56 - Lightbox fotos: botón cerrar ✕ visible en esquina superior derecha | v55 - Vi_Tasks_and_Villas incluye TaMultiunits: 1 sola llamada al cargar (vs 4 anteriores); multiunits completos en background para cambio de villa | v54 - Carga en 2 fases: Vi_Tasks_and_Villas sustituye loadTask+loadVillas+loadUsers (1 fetch vs 3); formulario visible inmediatamente; buscadores cargan en background | v53 - Fix botón borrar foto siempre visible (móvil); carga más rápida: loadTask sin 2ª fetch villa (usa allVillas), caché sessionStorage 5min para users y villas | v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->
+<!-- HISTORIAL: v58 - Listas Descripción/Solución: reducido el espacio grip↔checkbox↔texto (gap 6px) para más ancho de edición; botón × anclado a la derecha. La fila "Añadir" se coloca encima de la primera tarea terminada (si las hay) y al final si no hay terminadas; ítem nuevo desmarcado entra como último pendiente | v57 - Descripción y Solución: editor Quill sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Micro adaptado: dicta un ítem nuevo desmarcado. Eliminado Quill (CDN, CSS .ql-*, botones .re-*) | v56 - Lightbox fotos: botón cerrar ✕ visible en esquina superior derecha | v55 - Vi_Tasks_and_Villas incluye TaMultiunits: 1 sola llamada al cargar (vs 4 anteriores); multiunits completos en background para cambio de villa | v54 - Carga en 2 fases: Vi_Tasks_and_Villas sustituye loadTask+loadVillas+loadUsers (1 fetch vs 3); formulario visible inmediatamente; buscadores cargan en background | v53 - Fix botón borrar foto siempre visible (móvil); carga más rápida: loadTask sin 2ª fetch villa (usa allVillas), caché sessionStorage 5min para users y villas | v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->
