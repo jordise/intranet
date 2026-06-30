@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v6 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v7 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v6 — 3Villas</title>
+  <title>Ocupación v7 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -632,12 +632,22 @@ function renderCalendar(bookings, desde, hasta, totalDays){
 
   if(!villas.length){$('emptyMsg').style.display='';$('calScroll').style.display='none';return;}
 
-  /* Estadísticas */
+  /* Estadísticas (siempre sobre TODAS las villas, sin aplicar el filtro de ocupación) */
   var cLibre=0,cOcup=0,cEntra=0,cSale=0;
   villas.forEach(function(v){
     var s=villaStatus(v.bookings,desde,hasta);
     if(s==='libre')cLibre++;else if(s==='ocupada')cOcup++;else if(s==='entra')cEntra++;else cSale++;
   });
+
+  /* Filtro Ocupación (Todas / Disponibles / Ocupadas): afecta solo a lo que se PINTA.
+     disp = villa libre en el periodo; ocup = con reserva (ocupada/entra/sale). */
+  if(fOcupFilter!=='all'){
+    villas=villas.filter(function(v){
+      var s=villaStatus(v.bookings,desde,hasta);
+      return fOcupFilter==='disp' ? s==='libre' : s!=='libre';
+    });
+    if(!villas.length){$('emptyMsg').style.display='';$('calScroll').style.display='none';return;}
+  }
   var _tot=masterVillas.size||villas.length;
   $('sTot').textContent=_tot;
   $('sLibre').textContent=cLibre;$('sOcup').textContent=cOcup;$('sEntra').textContent=cEntra;$('sSale').textContent=cSale;
@@ -692,6 +702,7 @@ function renderCalendar(bookings, desde, hasta, totalDays){
     buildTimeline(row.querySelector('.vrow-tl'), v.bookings, desde, totalDays, today);
   });
 
+  $('emptyMsg').style.display='none';
   $('calScroll').style.display='';
 }
 
@@ -864,4 +875,4 @@ window.scheduleSearch=scheduleSearch;
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
