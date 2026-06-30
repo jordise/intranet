@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v01 | Historial completo al final de este archivo -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual 3Villas v01 — 3Villas</title>
+<link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
+<style>
+:root{
+  --red:#e2231a; --red-d:#b91b13; --ink:#1a1d22; --ink-2:#3a3f47;
+  --muted:#6b7280; --line:#e6e8ec; --line-2:#d4d7dd;
+  --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfbfc;
+  --accent:#0f62fe; --accent-l:#e8f0ff; --warn:#b45309; --warn-l:#fff7ed;
+  --ok:#15803d; --ok-l:#ecfdf3; --sens:#7c2d12; --sens-l:#fdf2ec;
+  --r-sm:6px; --r-md:10px; --r-lg:14px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.06);
+  --shadow-md:0 4px 16px rgba(16,24,40,.10);
+  --shadow-lg:0 12px 40px rgba(16,24,40,.16);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --side-w:340px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;
+  height:60px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.3px;color:var(--ink);white-space:nowrap}
+.brand .logo{color:var(--red);font-size:22px;font-weight:900}
+.brand .sub{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+.topbar .grow{flex:1}
+.search-wrap{position:relative;flex:1;max-width:520px}
+.search-wrap input{width:100%;height:40px;border:1px solid var(--line-2);border-radius:999px;
+  padding:0 40px 0 42px;font-size:14px;font-family:inherit;background:var(--panel-2);transition:.15s}
+.search-wrap input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-l)}
+.search-wrap .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search-wrap .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;
+  color:var(--muted);cursor:pointer;font-size:18px;padding:4px;line-height:1;display:none}
+.search-wrap .clr.show{display:block}
+.roleTag{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.roleTag.edit{background:var(--ok-l);color:var(--ok)}
+.roleTag.view{background:var(--accent-l);color:var(--accent)}
+.btn-burger{display:none;border:1px solid var(--line-2);background:#fff;border-radius:var(--r-sm);
+  width:38px;height:38px;font-size:18px;cursor:pointer}
+
+/* ── LAYOUT ── */
+.layout{display:flex;align-items:flex-start;max-width:1340px;margin:0 auto}
+.side{position:sticky;top:60px;width:var(--side-w);height:calc(100vh - 60px);overflow-y:auto;
+  padding:16px 10px 40px;border-right:1px solid var(--line);background:var(--panel)}
+.side h2{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+  margin:6px 12px 10px;font-weight:700}
+.main{flex:1;min-width:0;padding:26px 32px 80px}
+
+/* ── ÁRBOL NAV ── */
+.tree{list-style:none;margin:0;padding:0}
+.tree .node{margin:1px 0}
+.tree .row{display:flex;align-items:center;gap:4px;border-radius:var(--r-sm);cursor:pointer;
+  padding:5px 8px;color:var(--ink-2);font-size:13.5px;transition:.1s}
+.tree .row:hover{background:var(--panel-2)}
+.tree .row.active{background:var(--accent-l);color:var(--accent);font-weight:600}
+.tree .row .tw{width:16px;height:16px;flex:none;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:10px;transition:transform .15s}
+.tree .row .tw.empty{visibility:hidden}
+.tree .node.collapsed>.kids{display:none}
+.tree .node.collapsed>.row .tw{transform:rotate(-90deg)}
+.tree .row .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree .row .badge{font-size:9px;flex:none}
+.tree .kids{list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line)}
+.tree .lvl0>.row{font-weight:700;color:var(--ink);font-size:14px;margin-top:6px}
+
+/* ── CONTENIDO ── */
+.crumbs{font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.crumbs span.sep{opacity:.5}
+.doc{max-width:820px}
+.doc h1{font-size:27px;font-weight:800;letter-spacing:-.5px;margin:0 0 4px}
+.doc .doc-sub{font-size:15px;color:var(--muted);margin:0 0 18px}
+.doc .meta{font-size:11.5px;color:var(--muted);margin-bottom:22px;display:flex;gap:14px;flex-wrap:wrap}
+.section-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:0;margin:0 0 16px;box-shadow:var(--shadow-sm);overflow:hidden}
+.sc-head{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;border-bottom:1px solid transparent}
+.sc-head:hover{background:var(--panel-2)}
+.section-card.open .sc-head{border-bottom-color:var(--line)}
+.sc-head .tw{color:var(--muted);font-size:12px;transition:transform .15s;flex:none}
+.section-card.collapsed .sc-head .tw{transform:rotate(-90deg)}
+.section-card.collapsed .sc-body{display:none}
+.sc-head .h{flex:1;font-weight:700;font-size:16px;color:var(--ink)}
+.sc-head .h small{display:block;font-weight:500;font-size:12.5px;color:var(--muted);margin-top:2px}
+.sc-body{padding:6px 18px 16px}
+
+.item{padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:none}
+.item .it-head{display:flex;align-items:flex-start;gap:8px}
+.item .it-title{font-weight:600;font-size:14.5px;color:var(--ink);flex:1}
+.item .it-body{font-size:14px;color:var(--ink-2);margin-top:4px}
+.item .it-body p{margin:0 0 6px}
+.item.lvl2{margin-left:14px;padding-left:14px;border-left:2px solid var(--line)}
+.item.lvl3{margin-left:28px;padding-left:14px;border-left:2px solid var(--line-2)}
+.item .it-actions{display:flex;gap:4px;opacity:0;transition:.12s;flex:none}
+.item:hover .it-actions{opacity:1}
+.iconbtn{border:1px solid var(--line-2);background:#fff;border-radius:var(--r-sm);cursor:pointer;
+  width:28px;height:28px;font-size:13px;color:var(--ink-2);display:flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:var(--panel-2);border-color:var(--accent);color:var(--accent)}
+
+/* nodo sensible */
+.sensitive{background:var(--sens-l);border:1px dashed var(--sens);border-radius:var(--r-md);padding:10px 12px;margin-top:6px}
+.sensitive .reveal{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sens);font-weight:600;cursor:pointer}
+.sensitive.shown .reveal{margin-bottom:8px}
+.sensitive .secret{display:none;font-size:14px;color:var(--ink-2)}
+.sensitive.shown .secret{display:block}
+.sens-pill{font-size:10px;font-weight:700;color:var(--sens);background:#fff;border:1px solid var(--sens);
+  border-radius:999px;padding:1px 7px}
+
+mark{background:#fde68a;color:inherit;border-radius:2px;padding:0 1px}
+
+/* editor inline */
+.editor{margin-top:8px}
+.editor input.t,.editor input.s,.editor textarea{width:100%;font-family:inherit;font-size:14px;
+  border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:6px}
+.editor input.t{font-weight:600}
+.editor textarea{min-height:90px;resize:vertical;line-height:1.5}
+.editor:focus-within input,.editor:focus-within textarea{}
+.editor .ed-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.editor .ed-bar label{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.btn{border:none;border-radius:var(--r-sm);padding:8px 14px;font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#0a4fd6}
+.btn-ghost{background:#fff;border:1px solid var(--line-2);color:var(--ink-2)}
+.btn-ghost:hover{background:var(--panel-2)}
+.btn:disabled{opacity:.55;cursor:default}
+.add-row{margin-top:10px}
+.add-btn{border:1px dashed var(--line-2);background:var(--panel-2);color:var(--muted);
+  border-radius:var(--r-sm);padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;width:100%;text-align:left}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
+
+/* search results panel */
+.results{max-width:820px}
+.res-item{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:12px 16px;margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow-sm)}
+.res-item:hover{border-color:var(--accent);box-shadow:var(--shadow-md)}
+.res-item .rt{font-weight:600;font-size:14.5px;margin-bottom:2px}
+.res-item .rp{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+.res-item .rc{font-size:13px;color:var(--ink-2)}
+.res-count{font-size:13px;color:var(--muted);margin-bottom:14px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:500;
+  box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:.25s;z-index:90;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--red-d)}
+#toast.ok{background:var(--ok)}
+
+/* spinner */
+#loader{position:fixed;inset:0;background:rgba(246,247,249,.92);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;z-index:100}
+#loader img{width:54px;height:54px;animation:beat 1s ease-in-out infinite}
+#loader .lt{font-size:13px;color:var(--muted);font-weight:500}
+@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.hidden{display:none!important}
+
+/* empty / import */
+.empty-state{max-width:560px;margin:40px auto;text-align:center;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-lg);padding:40px 32px;box-shadow:var(--shadow-sm)}
+.empty-state h2{margin:0 0 8px;font-size:20px}
+.empty-state p{color:var(--muted);margin:0 0 20px}
+
+/* scrollbar */
+.side::-webkit-scrollbar{width:8px}
+.side::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+
+/* responsive */
+.scrim{display:none}
+@media(max-width:860px){
+  .btn-burger{display:block}
+  .brand .sub{display:none}
+  .side{position:fixed;left:0;top:60px;z-index:50;box-shadow:var(--shadow-lg);transform:translateX(-100%);transition:transform .22s}
+  .side.open{transform:translateX(0)}
+  .scrim{display:block;position:fixed;inset:60px 0 0;background:rgba(0,0,0,.35);z-index:45;opacity:0;pointer-events:none;transition:.2s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .main{padding:18px 16px 70px}
+  .doc h1{font-size:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn-burger" id="burger" aria-label="Menú">☰</button>
+  <div class="brand"><span class="logo">&lt;3villas</span><span class="sub">Manual Principal</span></div>
+  <div class="search-wrap">
+    <span class="ico">🔍</span>
+    <input id="search" type="text" placeholder="Buscar en el manual…" autocomplete="off" spellcheck="false">
+    <button class="clr" id="searchClr" aria-label="Limpiar">×</button>
+  </div>
+  <div class="grow"></div>
+  <span class="roleTag" id="roleTag"></span>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="layout">
+  <aside class="side" id="side">
+    <h2>Índice</h2>
+    <ul class="tree" id="tree"></ul>
+  </aside>
+  <main class="main" id="main">
+    <div id="content"></div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<div id="loader">
+  <img src="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png" alt="Cargando">
+  <div class="lt">Cargando manual…</div>
+</div>
+
+<script src="auth.js"></script>
+<script>if(typeof Auth!=='undefined')Auth.require('manual');</script>
+
+<script>
+window.MANUAL_SEED = [
+  { t:"1. Inicio", k:[
+    { t:"Mind map", c:'<a href="#" data-link>3villas mindmap</a> — Pantalla inicial con todas las herramientas que usamos.' },
+    { t:"Soporte y ayuda", c:'<a href="#" data-link>Soporte y ayuda</a>' }
+  ]},
+  { t:"2. Reuniones", k:[
+    { t:"Reuniones Intranet" },
+    { t:"Grupo 3villas", k:[
+      { t:"Reunión de Grupo 3villas", c:'Reunión.' },
+      { t:"Presentación KPIs", c:'NOVIEMBRE 25 — KPIs mensual.' },
+      { t:"Hoja para llenar los KPIs" },
+      { t:"Histórico presentaciones pasadas", c:'Junta Directiva — KPI\u2019s Monthly follow Up.' },
+      { t:"Rellenar datos mensualmente", c:'Responsable: Pedro.' }
+    ]},
+    { t:"3Villas", k:[
+      { t:"Reuniones socios 3villas", c:'Reunión 3villas Socios.' },
+      { t:"Reuniones dirección 3Villas", c:'Reunión 3villas Dirección. <br>OBSOLETO: Reuniones dirección. <br>OBSOLETO: Reuniones Marketing.' },
+      { t:"Reuniones equipo comunicación" },
+      { t:"Reuniones equipo villa manager" }
+    ]},
+    { t:"Fincas Alfa", k:[
+      { t:"Reunión Dirección", c:'Reunión Fincas Alfa Dirección.' },
+      { t:"Reuniones equipo comercial" }
+    ]},
+    { t:"iartesana", k:[
+      { t:"Reunión de socios", c:'Reunión Socios iartesana.' }
+    ]},
+    { t:"Renova3", k:[
+      { t:"Reunión de socios", c:'Reunión Socios Renova3.' }
+    ]},
+    { t:"Reuniones Socios 3Villas" }
+  ]},
+  { t:"3. Herramientas útiles y pequeños trucos", k:[
+    { t:"Pequeños trucos para todos" }
+  ]},
+  { t:"4. Grupo empresarial", k:[
+    { t:"Accionariado", c:'Accionariado Grupo 3 Villas.' },
+    { t:"Datos fiscales de las empresas", c:'INFORMACION FISCAL GRUPO 3VILLAS.' },
+    { t:"Dashboard y análisis de empresas", k:[
+      { t:"3villas", k:[
+        { t:"Dashboard en construcción", c:'Manual: cuadro de mandos. <br>Dashboard: looker studio.' },
+        { t:"Previsión financiera y tesorería", c:'2024: PREVISION RESULTADO FINANCIERO 2024 3VILLAS (ver. 21/10/2023). <br>2023: PREVISION RESULTADO FINANCIERO 2023 (Tesorería ver hoja Main dashboard; previsión financiera ver hoja correspondiente). <br>BETA PREVISION 2026 (en elaboración). <br>Nueva versión (2) 2026 — PREVISION RESULTADO.' }
+      ]},
+      { t:"Fincas Alfa", k:[
+        { t:"Comisiones Ventas", c:'Comisiones comerciales Fincas Alfa SL 2023. <br>Comisiones comerciales Fincas Alfa SL 2024.' }
+      ]}
+    ]}
+  ]},
+  { t:"5. Compañía", k:[
+    { t:"Valores", c:'Valores.' },
+    { t:"Visión y Misión" },
+    { t:"Objetivos" },
+    { t:"Cuadro de Mando" },
+    { t:"Organigrama" }
+  ]},
+  { t:"6. Administración y finanzas", s:"Manual Administración", k:[
+    { t:"6.1 Cuadro de Mandos", k:[
+      { t:"Datos", c:'Cuadro de Mandos de Finanzas (Borrador).' },
+      { t:"Presentación", c:'Presentación cuadro de mandos finanzas (BP).' }
+    ]},
+    { t:"6.2 Test crear contrato", c:'Facturación 202011-I (facturación propietario 1).' },
+    { t:"6.3 Información", c:'Informacion IVA no residentes que alquilan casas 2023.' },
+    { t:"6.4 Información Fiscal", c:'Policheckin — PENDIENTE ORGANIZAR.' },
+    { t:"b. Información Fiscal y escrituras", k:[
+      { t:"INFORMACION FISCAL GRUPO 3VILLAS" },
+      { t:"Escrituras", c:'PENDIENTE: listado de todas las escrituras con los links a las escrituras y dónde están físicamente las originales.' }
+    ]},
+    { t:"c. Impuestos", k:[
+      { t:"Ecotasas" },
+      { t:"MODELO 179", c:'Declaración informativa anual de la cesión de uso de viviendas con fines turísticos.' }
+    ]},
+    { t:"d. Proveedores", k:[
+      { t:"Limpieza" },
+      { t:"Propietario", c:'Pagos a Propietarios.' },
+      { t:"Proveedores", c:'Acuerdos proveedores.' }
+    ]},
+    { t:"e. Facturación", k:[
+      { t:"Facturación Reservas", c:'CONTABILIDAD RESERVAS. <br>Depósitos Inquilinos. <br>Informes reservas.' }
+    ]},
+    { t:"f. VILLAS / Propietarios", k:[
+      { t:"Alta / Baja de villa para alquiler vacacional", c:'CASAS / PROPIETARIOS. <br>Check List nueva casa. <br>Check List Baja Villa Alquiler.' }
+    ]},
+    { t:"g. Licencia Turística, ecotasas y registro de Policía", k:[
+      { t:"Licencias turísticas", c:'Pendiente.' },
+      { t:"Ecotasas", c:'Ecotasas.' },
+      { t:"Registro de Policía", c:'PENDIENTE ORGANIZAR — Policheckin.' }
+    ]},
+    { t:"h. Contabilidad", k:[
+      { t:"Contabilizar pagos de comisiones a particulares para la captación" },
+      { t:"Contabilizar anticipos de reservas" }
+    ]},
+    { t:"i. Bancos", k:[
+      { t:"Pool Bancario", c:'Grupo: Pool Bancario Grupo (pendiente sincronizar). <br>3Villas: Pool Bancario 3Villas. <br>Finca Alfa: Pool Bancario Fincas Alfa. <br>Supersonik: Pool Bancario Supersonik. <br>Vigila y Actúa: Pool Bancario Vigila y Actua. <br>Renova3: Pool Bancario Renova3.' },
+      { t:"Listado bancos y tarjetas de crédito", c:'PENDIENTE. En el listado, identificar quién tiene cada tarjeta.' }
+    ]},
+    { t:"j. Inmovilizado", k:[
+      { t:"Vehículos", c:'Coches y furgonetas: Listado de Vehículos Grupo 3Villas. <br>Embarcaciones: Embarcaciones.' },
+      { t:"Inmuebles", c:'Listado PENDIENTE (el único con opción de compra). <br>Escrituras (de momento no hay). <br>Contratos con opción de compra: PENDIENTE — link a carpeta con el contrato.' }
+    ]},
+    { t:"k. Locales alquilados", k:[
+      { t:"Listado", c:'PENDIENTE (vencimiento, precio, seguro).' },
+      { t:"3Villas", c:'Contratos de alquiler: PENDIENTE.' }
+    ]},
+    { t:"l. Teléfonos y cuentas", k:[
+      { t:"Teléfono y cuentas grupo 3villas" }
+    ]},
+    { t:"m. Tarjetas gasolina", k:[
+      { t:"Listado de Tarjetas Activas", c:'PENDIENTE — link.' }
+    ]},
+    { t:"n. Seguros", k:[
+      { t:"Vencimientos Seguros", c:'PENDIENTE — link.' }
+    ]}
+  ]},
+  { t:"7. Alquiler Vacacional", k:[
+    { t:"Roles y responsabilidades" },
+    { t:"Cuadro de Mando" },
+    { t:"Objetivos" },
+    { t:"Comunicación", k:[
+      { t:"Horarios equipo comunicación y villa managers", c:'Horario Equipos Comunicación y Villamanagers.' },
+      { t:"Teléfono", c:'Teléfono de Reservas.' },
+      { t:"Web", c:'www.3villas.com — Buscar una villa en la web, añadir una propiedad nueva, quitar una propiedad de la web, cambiar el markup de la web, cambiar las villas promocionadas, actualizaciones automáticas, actualizaciones manuales, modificar fotos y/o textos, arreglar fotos que salgan mal, actualizar el calendario, cupones y códigos de descuento web.' },
+      { t:"Solicitudes de reserva", c:'Cualquier solicitud de reserva o modificación de calendario que llegue a cualquier miembro del grupo 3Villas debe redirigirse a <strong>bookings@3villas.com</strong> o, en su defecto, al WhatsApp de reservas.' }
+    ]},
+    { t:"Manual intranet", k:[
+      { t:"Manual usuario Intranet", c:'Equipo reservas.' }
+    ]},
+    { t:"Villa Managers", k:[
+      { t:"Villa Managers Protocol", c:'Protocolo Villamanagers.' }
+    ]}
+  ]},
+  { t:"8. Marketing", k:[
+    { t:"Cuadro de mando", c:'Cuadro de Mandos de Marketing.', k:[
+      { t:"De dónde vienen los datos", c:'SEO: documento compartido con Santy (Datos SEO para Cuadro de Mandos de Marketing). <br>Redes sociales: documento compartido con Humberto (Datos Redes sociales para Cuadro de Mandos de Marketing).' }
+    ]},
+    { t:"Presupuesto", c:'Presupuesto Marketing.' },
+    { t:"Manual de Marca", k:[
+      { t:"3Villas", c:'Guía Marca 3Villas. <br>Manual Corporativo 3villas 2024. <br>Manual Corporativo 3villas con valores. <br>Logos 3villas: Imagen corporativa.' },
+      { t:"Voramar", c:'Guía Marca Voramar.' }
+    ]},
+    { t:"Plantillas genéricas 3Villas", k:[
+      { t:"Manual plantillas 3villas", c:'PENDIENTE.' },
+      { t:"Ir a plantillas", c:'plantillas.' }
+    ]},
+    { t:"Web", k:[
+      { t:"Actualizaciones y mantenimiento web", c:'Actualizaciones Web.' }
+    ]},
+    { t:"Marketing de afiliados", k:[
+      { t:"Implantación y seguimiento", c:'Marketing.' }
+    ]},
+    { t:"Redes Sociales", k:[
+      { t:"Youtube", c:'Canales de youtube de 3villas — Canal de youtube de 3villas.' },
+      { t:"Facebook, Instagram" }
+    ]},
+    { t:"Acreedores Marketing", k:[
+      { t:"Listado de acreedores" },
+      { t:"Procesos de selección acreedor marketing", c:'Proceso de selección de proveedores.' }
+    ]},
+    { t:"Plataforma Marketing", c:'Envío de email marketing, cursos de formación, landing pages, agentes de voz, CRM, comunidad.', x:true, k:[
+      { t:"Acceso GoHighLevel", x:true, c:'Login: <a href="https://app.gohighlevel.com/?logout=true" data-link>app.gohighlevel.com</a>. <br>Usuario: David@3villas.com <br>Pass: D1v3d@2025' }
+    ]},
+    { t:"Retoque de imágenes", x:true, c:'Acceso: krea.ai <br>Usuario: tic@vigilayactua.es <br>Pass: T3c-/2025/@' },
+    { t:"Adobe — almacenamiento", x:true, c:'53 aplicaciones. <br>Acceso: <a href="https://account.adobe.com/?lang=es" data-link>account.adobe.com</a>. <br>Usuario: Gerard@3villas.com <br>Pass: G2r1rd-/2025/' }
+  ]},
+  { t:"9. Comercial Fincas Alfa", k:[
+    { t:"Accesos", k:[
+      { t:"Egorealestate", c:'Cada usuario entra con su email de empresa.' },
+      { t:"Datacasa", c:'Dos usuarios. <br>Usuario Ciutadella: info@3villas.com <br>Usuario Mahón: jordi@3villas.com', x:true },
+      { t:"Reuniones" },
+      { t:"Web inmobiliaria 3villas" },
+      { t:"Email" },
+      { t:"Seguros", c:'Aplicación de seguros: <a href="https://e-mediador.fiatc.es/webapps/menu/index.html" data-link>e-mediador.fiatc.es</a>.' }
+    ]},
+    { t:"Cuadro de Mandos" },
+    { t:"Objetivos y análisis", k:[
+      { t:"Objetivos", c:'Pendiente definir.' },
+      { t:"Plan estratégico", c:'A nivel comercial: Plan estratégico 2024 comercial. <br>A nivel Marketing: Plan estratégico 2024 Marketing.' },
+      { t:"Producción equipo comercial" }
+    ]},
+    { t:"Roles y funciones", k:[
+      { t:"Roles y funciones del equipo comercial" }
+    ]},
+    { t:"Comisiones", k:[
+      { t:"Comisiones captación propiedades vacacionales" },
+      { t:"Comisiones inmobiliaria" }
+    ]},
+    { t:"Colaboradores", c:'Cómo crear un contrato de colaboración. <br>Listado de colaboradores: PENDIENTE. <br>Contratos de colaboración (500 Contratos de colaboración). <br>Comisiones colaboradores.' },
+    { t:"g. Procesos Comercialización Alquiler Vacacional", k:[
+      { t:"Información sobre Propiedades de alquiler vacacional", c:'Mapa Cime: acceso al mapa de cime. <br>Comprobar Licencias en el Consell/CiMe. <br>Listado de airbnb: Cómo usar el listado de contactos de airbnb.' },
+      { t:"Lo que se vende", c:'Tipos de contrato. <br>Prioridades captación propiedades alquiler vacacional (Proceso y prioridades captación).' },
+      { t:"Cómo se vende: procesos de venta y captación", c:'Proceso captación propiedades alquiler vacacional. <br>Listado de airbnb. <br>Seguimiento de la actividad y números.' }
+    ]},
+    { t:"h. Procesos Comercialización Inmobiliaria", k:[
+      { t:"Captaciones", c:'Manual de uso de Ego Real Estate — PROCESOS EGO REAL ESTATE.' },
+      { t:"Ventas", c:'Contratos de Arras (600 Contratos de Arras).' }
+    ]}
+  ]},
+  { t:"10. R&D. Investigación y desarrollo", k:[
+    { t:"Manual" },
+    { t:"Otros Negocios", c:'Negocios Holidaylux.' }
+  ]},
+  { t:"11. IT", k:[
+    { t:"Herramientas que usamos", k:[
+      { t:"Acceso Remoto a ordenadores", c:'Acceso Remoto.' },
+      { t:"Mapa de herramientas usuarios", c:'3villas mindmap.' },
+      { t:"Mapa del software", c:'CANVAS: <a href="https://www.canva.com/design/DAFLTWudXSU/view" data-link>canva.com</a>.' }
+    ]},
+    { t:"Manuales IT", k:[
+      { t:"Manual web", c:'Manual web.' },
+      { t:"Manual Camarero10", c:'Manual IT camarero10.' },
+      { t:"Manual Intranet / 3vi", c:'Caspio — manual programación intranet.' },
+      { t:"Google My Business", c:'Perfiles desde jseguibadia.' },
+      { t:"Cámaras y Alarmas", c:'Manual IT Cámaras y Alarmas.' }
+    ]},
+    { t:"Nuevos usuarios", k:[
+      { t:"Crear accesos", c:'G-suite y frontapp: Crear accesos nuevos usuarios. <br>Intranet.' },
+      { t:"Instrucciones nuevos usuarios", c:'Comercial, villamanager, comunicación — Instrucciones nuevos usuarios.' }
+    ]}
+  ]},
+  { t:"12. VIGILA Y ACTÚA", k:[
+    { t:"Ventas", c:'Producción ventas vigila.' },
+    { t:"Herramientas y proveedores que usamos", c:'Herramientas VyA.' },
+    { t:"Operativa y control de horas", c:'Control de horas: HORAS DAVID Y GERARD.' },
+    { t:"Manuales IT", c:'Pensando en crear video tutoriales.' },
+    { t:"Nuevos usuarios", c:'Crear accesos.' },
+    { t:"Reuniones socios", c:'Borrador reunión: Reuniones socios VyA.' },
+    { t:"Liquidaciones", c:'Documentación: Liquidaciones entre 3v y Vya — liquidaciones bco.' },
+    { t:"Solicitud de trabajos", c:'Hoja solicitud de trabajos: Petición de trabajos para IARTESANA.' }
+  ]},
+  { t:"13. Mantenimientos y reformas - Renova 3", k:[
+    { t:"Intranet", c:'Acceso Tareas intranet: MIS TAREAS. <br>Manual usuario Intranet.' },
+    { t:"Administración", c:'Presupuesto, Pedidos, Albaranes y facturas — cambiar por chip.' },
+    { t:"Proveedores", c:'Acuerdos y contratos. <br>Presupuestos recibidos: Presupuestos proveedores varios.' },
+    { t:"Clientes", k:[
+      { t:"Jardinería", c:'Listado clientes (listado intranet pendiente explicar Jordi). <br>Contratos Renova3.' },
+      { t:"Piscinas", c:'Listado clientes (listado intranet pendiente explicar Jordi). <br>Contratos Renova3.' },
+      { t:"Reformas y obras", c:'Listado y cómo lo gestionamos: PENDIENTE (temporalmente como Jaume pueda).' },
+      { t:"Reparaciones Rápidas", c:'Listado y cómo lo gestionamos: PENDIENTE (temporalmente como Jaume pueda).' }
+    ]}
+  ]}
+];
+</script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   Manual Principal 3Villas — lógica
+   Tabla Caspio: TaManual (vía Worker caspio-proxy)
+   Campos: TaManualID(PK) ParentId Orden Nivel Titulo Subtitulo
+           Contenido Sensible Modificado Creado ActualizadoPor
+   ════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+var WORKER='https://caspio-proxy.jordi-89b.workers.dev';
+
+/* ── PERMISOS ── */
+var CAN_EDIT=false, USER_ROLE='', USER_NAME='';
+try{
+  USER_ROLE=(typeof Auth!=='undefined'&&Auth.role)?Auth.role():'';
+  USER_NAME=(typeof Auth!=='undefined'&&Auth.name)?Auth.name():'';
+}catch(e){}
+CAN_EDIT=(USER_ROLE==='admin'||USER_ROLE==='manager');
+
+/* ── ESTADO ── */
+var NODES=[];          /* array plano de registros de Caspio */
+var BY_ID={};          /* id -> nodo */
+var CHILDREN={};       /* parentId -> [nodos ordenados] */
+var ROOTS=[];          /* nodos nivel 0 */
+var activeId=null;
+var collapsed={};      /* id -> true si plegado en árbol */
+
+/* ── HELPERS DOM ── */
+function $(id){return document.getElementById(id);}
+function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function showLoader(b){$('loader').classList.toggle('hidden',!b);}
+var _tt;
+function toast(msg,kind){var t=$('toast');t.textContent=msg;t.className=(kind||'')+' show';clearTimeout(_tt);_tt=setTimeout(function(){t.className=t.className.replace('show','');},2600);}
+
+/* ── API ── */
+function authUrl(u){return (typeof Auth!=='undefined'&&Auth.url)?Auth.url(u):u;}
+function apiLoad(){
+  return fetch(authUrl(WORKER+'?action=data&table=TaManual&limit=1000'))
+    .then(function(r){return r.json();})
+    .then(function(j){return j.Result||j.result||[];});
+}
+function apiInsert(rec){
+  return fetch(authUrl(WORKER+'?action=save&table=TaManual'),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)})
+    .then(function(r){return r.json();});
+}
+function apiUpdate(id,rec){
+  /* El action=update del Worker solo soporta TaVillas/TaUsers/TaTasks.
+     Para TaManual se usa action=save con method=PUT y where sobre la PK. */
+  var where='TaManualID='+encodeURIComponent(id);
+  return fetch(authUrl(WORKER+'?action=save&table=TaManual&method=PUT&where='+where),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)})
+    .then(function(r){return r.json();});
+}
+function nowStamp(){
+  var d=new Date(),p=function(n){return(n<10?'0':'')+n;};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+/* ── ÁRBOL EN MEMORIA ── */
+function rebuildIndex(){
+  BY_ID={};CHILDREN={};ROOTS=[];
+  NODES.forEach(function(n){
+    n._id=n.TaManualID; BY_ID[n._id]=n;
+    var p=parseInt(n.ParentId||0,10)||0;
+    (CHILDREN[p]=CHILDREN[p]||[]).push(n);
+  });
+  Object.keys(CHILDREN).forEach(function(k){
+    CHILDREN[k].sort(function(a,b){return (parseInt(a.Orden||0,10))-(parseInt(b.Orden||0,10));});
+  });
+  ROOTS=CHILDREN[0]||[];
+}
+function childrenOf(id){return CHILDREN[id]||[];}
+function pathOf(id){
+  var arr=[],n=BY_ID[id],guard=0;
+  while(n&&guard++<20){arr.unshift(n);var p=parseInt(n.ParentId||0,10)||0;n=p?BY_ID[p]:null;}
+  return arr;
+}
+/* sección raíz (nivel 0) que contiene un nodo */
+function rootOf(id){var p=pathOf(id);return p.length?p[0]:null;}
+
+/* ════════ RENDER: ÁRBOL LATERAL ════════ */
+function renderTree(){
+  var ul=$('tree');ul.innerHTML='';
+  ROOTS.forEach(function(n){ul.appendChild(treeNode(n,0));});
+}
+function treeNode(n,lvl){
+  var kids=childrenOf(n._id);
+  var li=el('li','node lvl'+lvl);li.dataset.id=n._id;
+  if(collapsed[n._id])li.classList.add('collapsed');
+  var row=el('div','row');row.dataset.id=n._id;
+  var tw=el('span','tw'+(kids.length?'':' empty'),kids.length?'▾':'');
+  if(kids.length){tw.onclick=function(ev){ev.stopPropagation();collapsed[n._id]=!collapsed[n._id];li.classList.toggle('collapsed');};}
+  var lbl=el('span','lbl',esc(n.Titulo||'(sin título)'));
+  row.appendChild(tw);row.appendChild(lbl);
+  if(isTruthy(n.Sensible))row.appendChild(el('span','badge','🔒'));
+  if(n._id===activeId)row.classList.add('active');
+  row.onclick=function(){selectRoot(rootOf(n._id)._id, n._id);closeSideMobile();};
+  li.appendChild(row);
+  if(kids.length){
+    var k=el('ul','kids');
+    kids.forEach(function(c){k.appendChild(treeNode(c,lvl+1));});
+    li.appendChild(k);
+  }
+  return li;
+}
+function markActiveTree(){
+  var rows=$('tree').querySelectorAll('.row');
+  rows.forEach(function(r){r.classList.toggle('active', r.dataset.id==String(activeId));});
+}
+
+function isTruthy(v){return v===true||v===-1||v==='-1'||v==='true'||v==='Yes'||v==='yes'||v==='1'||v===1;}
+
+/* ════════ RENDER: CONTENIDO DE UNA SECCIÓN ════════ */
+/* Muestra la sección raíz completa; activeId resalta/scroll a un nodo concreto */
+function selectRoot(rootId, focusId){
+  activeId=focusId||rootId;
+  $('search').value='';$('searchClr').classList.remove('show');
+  var root=BY_ID[rootId];if(!root)return;
+  var c=$('content');c.innerHTML='';
+  c.appendChild(buildCrumbs(rootId));
+  var doc=el('div','doc');
+  var h=el('h1',null,esc(root.Titulo));doc.appendChild(h);
+  if(root.Subtitulo)doc.appendChild(el('p','doc-sub',esc(root.Subtitulo)));
+  var meta=el('div','meta');
+  if(root.Modificado)meta.appendChild(el('span',null,'Modificado: '+esc(String(root.Modificado).replace('T',' ').slice(0,16))));
+  if(root.ActualizadoPor)meta.appendChild(el('span',null,'Por: '+esc(root.ActualizadoPor)));
+  doc.appendChild(meta);
+  c.appendChild(doc);
+  /* hijos directos = tarjetas de apartado */
+  childrenOf(rootId).forEach(function(child){
+    doc.appendChild(buildSectionCard(child));
+  });
+  if(CAN_EDIT)doc.appendChild(buildAddRow(rootId,1,'+ Añadir apartado'));
+  markActiveTree();
+  if(focusId&&focusId!==rootId){
+    setTimeout(function(){var t=document.querySelector('[data-card="'+focusId+'"],[data-item="'+focusId+'"]');
+      if(t){t.scrollIntoView({behavior:'smooth',block:'center'});t.style.transition='background .8s';t.style.background='var(--accent-l)';
+      setTimeout(function(){t.style.background='';},900);}},60);
+  }else{window.scrollTo(0,0);}
+}
+function buildCrumbs(id){
+  var c=el('div','crumbs');
+  c.appendChild(el('span',null,'Manual'));
+  c.appendChild(el('span','sep','/'));
+  c.appendChild(el('span',null,esc(BY_ID[id].Titulo)));
+  return c;
+}
+
+/* tarjeta de apartado (nivel 1) con sus sub-items */
+function buildSectionCard(node){
+  var card=el('div','section-card open');card.dataset.card=node._id;
+  var head=el('div','sc-head');
+  head.appendChild(el('span','tw','▾'));
+  var hbox=el('div','h');hbox.innerHTML=esc(node.Titulo)+(node.Subtitulo?'<small>'+esc(node.Subtitulo)+'</small>':'');
+  head.appendChild(hbox);
+  if(CAN_EDIT){
+    var act=el('div','it-actions');act.style.opacity='1';
+    act.appendChild(iconBtn('✏️','Editar',function(ev){ev.stopPropagation();openEditor(node,hbox.parentNode.parentNode,'card');}));
+    head.appendChild(act);
+  }
+  head.onclick=function(){card.classList.toggle('collapsed');};
+  card.appendChild(head);
+  var body=el('div','sc-body');
+  /* contenido propio del apartado */
+  if(node.Contenido)body.appendChild(renderBody(node));
+  else if(isTruthy(node.Sensible))body.appendChild(renderBody(node));
+  /* sub-items */
+  childrenOf(node._id).forEach(function(sub){body.appendChild(buildItem(sub,2));});
+  if(CAN_EDIT)body.appendChild(buildAddRow(node._id,2,'+ Añadir sub-apartado'));
+  card.appendChild(body);
+  return card;
+}
+
+/* item de nivel 2/3 */
+function buildItem(node,lvl){
+  var it=el('div','item lvl'+lvl);it.dataset.item=node._id;
+  var head=el('div','it-head');
+  var ti=el('div','it-title',esc(node.Titulo)+(isTruthy(node.Sensible)?' <span class="sens-pill">🔒 sensible</span>':''));
+  head.appendChild(ti);
+  if(CAN_EDIT){
+    var act=el('div','it-actions');
+    act.appendChild(iconBtn('✏️','Editar',function(){openEditor(node,it,'item');}));
+    head.appendChild(act);
+  }
+  it.appendChild(head);
+  if(node.Contenido||isTruthy(node.Sensible))it.appendChild(renderBody(node));
+  /* nivel 3 (sub-sub) */
+  childrenOf(node._id).forEach(function(sub){it.appendChild(buildItem(sub,3));});
+  if(CAN_EDIT&&lvl<3)it.appendChild(buildAddRow(node._id,lvl+1,'+ Añadir punto'));
+  return it;
+}
+
+/* cuerpo (con soporte de bloque sensible) */
+function renderBody(node){
+  if(isTruthy(node.Sensible)){
+    var box=el('div','sensitive');
+    var rv=el('div','reveal','🔒 Información sensible — <u>mostrar</u>');
+    rv.onclick=function(){box.classList.toggle('shown');rv.innerHTML=box.classList.contains('shown')?'🔓 Ocultar':'🔒 Información sensible — <u>mostrar</u>';};
+    var sec=el('div','secret',node.Contenido||'');
+    box.appendChild(rv);box.appendChild(sec);
+    return box;
+  }
+  return el('div','it-body',node.Contenido||'');
+}
+
+function iconBtn(txt,title,fn,extra){
+  var b=el('button','iconbtn'+(extra?' '+extra:''),txt);b.title=title;b.onclick=fn;return b;
+}
+function buildAddRow(parentId,nivel,label){
+  var wrap=el('div','add-row');
+  var b=el('button','add-btn',label);
+  b.onclick=function(){openNewEditor(parentId,nivel,wrap);};
+  wrap.appendChild(b);
+  return wrap;
+}
+
+/* ════════ EDICIÓN ════════ */
+function openEditor(node,container,kind){
+  if(!CAN_EDIT)return;
+  if(container.querySelector('.editor'))return;
+  var ed=el('div','editor');
+  ed.innerHTML=''
+    +'<input class="t" type="text" value="'+esc(node.Titulo||'')+'" placeholder="Título">'
+    +'<input class="s" type="text" value="'+esc(node.Subtitulo||'')+'" placeholder="Subtítulo (opcional)">'
+    +'<textarea placeholder="Contenido (admite HTML básico: &lt;br&gt;, &lt;a&gt;, &lt;strong&gt;)">'+esc(node.Contenido||'')+'</textarea>';
+  var bar=el('div','ed-bar');
+  var lab=el('label',null,'<input type="checkbox" '+(isTruthy(node.Sensible)?'checked':'')+'> 🔒 Sensible (credenciales)');
+  var save=el('button','btn btn-primary','Guardar');
+  var cancel=el('button','btn btn-ghost','Cancelar');
+  bar.appendChild(save);bar.appendChild(cancel);bar.appendChild(lab);
+  ed.appendChild(bar);
+  /* ocultar visualización mientras edita */
+  var hide=[];
+  if(kind==='card'){hide=Array.prototype.slice.call(container.querySelectorAll(':scope > .sc-body'));}
+  container.appendChild(ed);
+  cancel.onclick=function(){ed.remove();};
+  save.onclick=function(){
+    var t=ed.querySelector('.t').value.trim();
+    if(!t){toast('El título no puede estar vacío','err');return;}
+    save.disabled=true;cancel.disabled=true;save.textContent='Guardando…';
+    var rec={Titulo:t,Subtitulo:ed.querySelector('.s').value.trim(),
+      Contenido:ed.querySelector('textarea').value,
+      Sensible:lab.querySelector('input').checked,
+      Modificado:nowStamp(),ActualizadoPor:USER_NAME||USER_ROLE||''};
+    apiUpdate(node._id,rec).then(function(res){
+      if(res&&(res.error||res.Message)&&!res.RecordsAffected)throw new Error(res.error||res.Message);
+      Object.keys(rec).forEach(function(k){node[k]=rec[k];});
+      toast('Guardado','ok');
+      refreshCurrent();
+    }).catch(function(e){console.error(e);toast('Error al guardar: '+e.message,'err');save.disabled=false;cancel.disabled=false;save.textContent='Guardar';});
+  };
+}
+function openNewEditor(parentId,nivel,anchor){
+  if(!CAN_EDIT)return;
+  if(anchor.querySelector('.editor'))return;
+  var ed=el('div','editor');
+  ed.innerHTML=''
+    +'<input class="t" type="text" value="" placeholder="Título del nuevo apartado">'
+    +'<input class="s" type="text" value="" placeholder="Subtítulo (opcional)">'
+    +'<textarea placeholder="Contenido (opcional, admite HTML básico)"></textarea>';
+  var bar=el('div','ed-bar');
+  var lab=el('label',null,'<input type="checkbox"> 🔒 Sensible');
+  var save=el('button','btn btn-primary','Crear');
+  var cancel=el('button','btn btn-ghost','Cancelar');
+  bar.appendChild(save);bar.appendChild(cancel);bar.appendChild(lab);
+  ed.appendChild(bar);
+  anchor.insertBefore(ed,anchor.firstChild);
+  ed.querySelector('.t').focus();
+  cancel.onclick=function(){ed.remove();};
+  save.onclick=function(){
+    var t=ed.querySelector('.t').value.trim();
+    if(!t){toast('El título no puede estar vacío','err');return;}
+    save.disabled=true;cancel.disabled=true;save.textContent='Creando…';
+    var sib=childrenOf(parentId);
+    var maxOrd=sib.reduce(function(m,n){return Math.max(m,parseInt(n.Orden||0,10)||0);},0);
+    var rec={ParentId:parentId,Orden:maxOrd+10,Nivel:nivel,
+      Titulo:t,Subtitulo:ed.querySelector('.s').value.trim(),
+      Contenido:ed.querySelector('textarea').value,
+      Sensible:lab.querySelector('input').checked,
+      Modificado:nowStamp(),ActualizadoPor:USER_NAME||USER_ROLE||''};
+    apiInsert(rec).then(function(){return apiLoad();}).then(function(rows){
+      NODES=rows;rebuildIndex();renderTree();refreshCurrent();
+      toast('Apartado creado','ok');
+    }).catch(function(e){console.error(e);toast('Error al crear: '+e.message,'err');save.disabled=false;cancel.disabled=false;save.textContent='Crear';});
+  };
+}
+function refreshCurrent(){
+  var r=rootOf(activeId);
+  if(r)selectRoot(r._id, activeId);
+}
+
+/* ════════ BÚSQUEDA ════════ */
+var searchTimer;
+function onSearch(){
+  var q=$('search').value.trim();
+  $('searchClr').classList.toggle('show',!!q);
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(function(){q?runSearch(q):refreshCurrent();},120);
+}
+function stripHtml(h){var d=el('div',null,h||'');return d.textContent||'';}
+function runSearch(q){
+  var ql=q.toLowerCase();
+  var hits=NODES.filter(function(n){
+    var hay=(n.Titulo||'')+' '+(n.Subtitulo||'')+' '+stripHtml(n.Contenido);
+    if(isTruthy(n.Sensible)&&!CAN_EDIT){/* staff: no busca dentro de contenido sensible */ hay=(n.Titulo||'');}
+    return hay.toLowerCase().indexOf(ql)>=0;
+  });
+  var c=$('content');c.innerHTML='';
+  var wrap=el('div','results');
+  wrap.appendChild(el('div','res-count',hits.length+' resultado'+(hits.length===1?'':'s')+' para "'+esc(q)+'"'));
+  if(!hits.length)wrap.appendChild(el('div','res-count','Sin coincidencias. Prueba con otras palabras.'));
+  hits.slice(0,80).forEach(function(n){
+    var path=pathOf(n._id).map(function(x){return esc(x.Titulo);}).join(' › ');
+    var snip=stripHtml(n.Contenido);
+    var item=el('div','res-item');
+    item.innerHTML='<div class="rt">'+hl(esc(n.Titulo||''),q)+(isTruthy(n.Sensible)?' 🔒':'')+'</div>'
+      +'<div class="rp">'+path+'</div>'
+      +(snip?'<div class="rc">'+hl(esc(snip.slice(0,160)),q)+(snip.length>160?'…':'')+'</div>':'');
+    item.onclick=function(){var r=rootOf(n._id);selectRoot(r._id,n._id);};
+    wrap.appendChild(item);
+  });
+  c.appendChild(wrap);
+  markActiveTree();
+  window.scrollTo(0,0);
+}
+function hl(text,q){
+  try{var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+    return text.replace(re,'<mark>$1</mark>');}catch(e){return text;}
+}
+
+/* ════════ IMPORTADOR (semilla) ════════ */
+function showEmpty(){
+  var c=$('content');c.innerHTML='';
+  var box=el('div','empty-state');
+  if(CAN_EDIT){
+    box.innerHTML='<h2>El manual está vacío</h2><p>Importa el contenido inicial del manual (extraído del documento). Esto crea todos los apartados en la base de datos. Solo hay que hacerlo una vez.</p>';
+    var b=el('button','btn btn-primary','Importar contenido inicial');
+    b.onclick=importSeed;box.appendChild(b);
+  }else{
+    box.innerHTML='<h2>El manual está vacío</h2><p>Aún no hay contenido. Un administrador o manager debe importarlo.</p>';
+  }
+  c.appendChild(box);
+}
+function flattenSeed(seed){
+  var out=[];var order={};
+  (function walk(arr,parentTmp,nivel){
+    arr.forEach(function(node){
+      order[parentTmp]=(order[parentTmp]||0)+10;
+      var tmpId='T'+(out.length+1);
+      out.push({tmpId:tmpId,parentTmp:parentTmp,orden:order[parentTmp],nivel:nivel,
+        Titulo:node.t||'',Subtitulo:node.s||'',Contenido:node.c||'',Sensible:!!node.x});
+      if(node.k&&node.k.length)walk(node.k,tmpId,nivel+1);
+    });
+  })(seed,'0',0);
+  return out;
+}
+function importSeed(){
+  if(!CAN_EDIT)return;
+  showLoader(true);var lt=$('loader').querySelector('.lt');lt.textContent='Importando manual…';
+  var flat=flattenSeed(window.MANUAL_SEED||[]);
+  /* Cada fila lleva un token único en ActualizadoPor para poder correlacionar
+     tras releer, sin depender del ID que devuelva el insert del Worker. */
+  var BATCH='imp'+Date.now();
+  flat.forEach(function(row,i){row.token=BATCH+'#'+i;});
+  /* PASO 1: insertar todos los nodos planos (ParentId=0 de momento) */
+  var done=0;
+  flat.reduce(function(p,row){
+    return p.then(function(){
+      lt.textContent='Importando… '+(++done)+'/'+flat.length;
+      var rec={ParentId:0,Orden:row.orden,Nivel:row.nivel,
+        Titulo:row.Titulo,Subtitulo:row.Subtitulo,Contenido:row.Contenido,Sensible:row.Sensible,
+        Modificado:nowStamp(),ActualizadoPor:row.token};
+      return apiInsert(rec);
+    });
+  },Promise.resolve())
+  .then(function(){lt.textContent='Enlazando apartados…';return apiLoad();})
+  .then(function(rows){
+    /* mapear token -> id real */
+    var byToken={};
+    rows.forEach(function(r){if(r.ActualizadoPor&&r.ActualizadoPor.indexOf(BATCH)===0)byToken[r.ActualizadoPor]=r.TaManualID;});
+    /* PASO 2: actualizar ParentId real + limpiar token de ActualizadoPor */
+    var updates=flat.filter(function(row){return row.parentTmp!=='0';});
+    var di=0,total=updates.length;
+    return updates.reduce(function(p,row){
+      return p.then(function(){
+        lt.textContent='Enlazando… '+(++di)+'/'+total;
+        var myId=byToken[row.token];
+        var parentRow=flat[parseInt(row.parentTmp.slice(1),10)-1];
+        var parentId=parentRow?byToken[parentRow.token]:0;
+        if(!myId)return;
+        return apiUpdate(myId,{ParentId:parentId||0,ActualizadoPor:USER_NAME||'import'});
+      });
+    },Promise.resolve()).then(function(){
+      /* limpiar también el token de las raíces (parentTmp==='0') */
+      var roots=flat.filter(function(r){return r.parentTmp==='0';});
+      return roots.reduce(function(p,row){return p.then(function(){
+        var id=byToken[row.token];if(!id)return;
+        return apiUpdate(id,{ActualizadoPor:USER_NAME||'import'});
+      });},Promise.resolve());
+    });
+  })
+  .then(function(){return apiLoad();})
+  .then(function(rows){
+    NODES=rows;rebuildIndex();renderTree();
+    var r=ROOTS[0];if(r)selectRoot(r._id);
+    showLoader(false);toast('Manual importado ('+rows.length+' apartados)','ok');
+  })
+  .catch(function(e){console.error(e);showLoader(false);toast('Error al importar: '+e.message,'err');});
+}
+
+/* ════════ UI MÓVIL ════════ */
+function closeSideMobile(){$('side').classList.remove('open');$('scrim').classList.remove('show');}
+function setupMobile(){
+  $('burger').onclick=function(){$('side').classList.toggle('open');$('scrim').classList.toggle('show');};
+  $('scrim').onclick=closeSideMobile;
+}
+
+/* ════════ INIT ════════ */
+function init(){
+  /* role tag */
+  var rt=$('roleTag');
+  if(CAN_EDIT){rt.className='roleTag edit';rt.textContent='✏️ Edición ('+USER_ROLE+')';}
+  else{rt.className='roleTag view';rt.textContent='👁️ Solo lectura';}
+  $('search').addEventListener('input',onSearch);
+  $('searchClr').onclick=function(){$('search').value='';$('searchClr').classList.remove('show');refreshCurrent();};
+  setupMobile();
+  showLoader(true);
+  apiLoad().then(function(rows){
+    NODES=rows||[];rebuildIndex();
+    if(!NODES.length){showLoader(false);renderTree();showEmpty();return;}
+    renderTree();
+    var first=ROOTS[0];if(first)selectRoot(first._id);
+    showLoader(false);
+  }).catch(function(e){
+    console.error(e);showLoader(false);
+    toast('No se pudo cargar el manual: '+e.message,'err');
+    $('content').innerHTML='<div class="empty-state"><h2>Error de conexión</h2><p>No se pudo cargar el manual desde la base de datos. Revisa la conexión e inténtalo de nuevo.</p></div>';
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+
+})();
+
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v01 - Primera versión de manual.html. Manual Principal 3Villas en HTML, leído/guardado en Caspio (tabla TaManual vía Worker caspio-proxy). Funciones: árbol de índice plegable en panel lateral, buscador instantáneo con resaltado y ruta de migas, vista de sección con tarjetas de apartado y sub-items hasta 3 niveles. Permisos por auth.js (Auth.require('manual')): admin y manager editan (crear/editar/eliminar apartados, marcar sensibles, guardado por nodo a Caspio); staff y demás roles permitidos solo lectura, sin acceso al contenido de bloques sensibles en la búsqueda. Bloques sensibles (credenciales) ocultos tras botón "mostrar". Contenido inicial volcado del PDF como semilla embebida (window.MANUAL_SEED, 13 secciones / 182 nodos); botón "Importar contenido inicial" (solo admin/manager) que inserta la semilla en TaManual y reconstruye la jerarquía correlacionando por token para no depender del ID devuelto por el insert. Favicon y spinner del corazón 3Villas embebidos. Responsive con panel lateral deslizante en móvil. Guardado/edición compatibles con el Worker caspio-proxy v43: lectura action=data&table=TaManual; alta action=save (POST); edición action=save con method=PUT y where=TaManualID (el action=update del Worker solo soporta TaVillas/TaUsers/TaTasks). El Worker no expone borrado genérico de tablas, por lo que NO se incluye eliminar apartado (botón omitido); si más adelante se añade action=delete al Worker, se reactivará. -->
