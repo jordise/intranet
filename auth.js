@@ -74,7 +74,7 @@ const Auth = (function () {
   const PERMISSIONS = {
 
     // ── MANUAL EQUIPO ──────────────────────────────────────
-   'manual' : ['admin', 'manager', 'staff'],
+   'manual-equipo-3villas' : ['admin', 'manager', 'staff'],
     
     // ── ENTRADAS Y SALIDAS ──────────────────────────────────────
     'entradas'              : ['admin', 'manager', 'staff', 'cleaner', 'sales'],
