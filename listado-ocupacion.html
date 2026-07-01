@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v10 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v10 — 3Villas</title>
+  <title>Ocupación v11 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -581,9 +581,9 @@ async function loadMultiunits(){
 }
 
 async function loadMasterVillas(){
-  /* Cargar todas las villas con al menos 1 reserva este año */
+  /* Cargar todas las villas con al menos 1 reserva VÁLIDA (new/modified) este año */
   var year=new Date().getFullYear();
-  var where="TaBookings2021_Checkin>='"+year+"-01-01T00:00:00' AND TaBookings2021_Checkin<='"+year+"-12-31T23:59:59' AND TaBookings2021_BookingStatus<>'cancelled'";
+  var where="TaBookings2021_Checkin>='"+year+"-01-01T00:00:00' AND TaBookings2021_Checkin<='"+year+"-12-31T23:59:59' AND TaBookings2021_BookingStatus IN ('new','modified')";
   var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(where)+'&limit=500';
   try{
     var res=await fetch(Auth.url(url));var json=await res.json();
@@ -611,7 +611,7 @@ function doSearch(){
   var totalDays=daysBetween(desde,hasta)+1;
   if(totalDays>90){toast('⚠️ Máximo 90 días en el calendario. Reduce el rango.');hasta=dateStr(new Date(toDate(desde).getTime()+(89)*864e5));totalDays=90;if($('fHasta'))$('fHasta').value=hasta;}
 
-  var parts=["TaBookings2021_BookingStatus<>'cancelled'"];
+  var parts=["TaBookings2021_BookingStatus IN ('new','modified')"];
   /* Solapamiento: check-in <= hasta AND check-out >= desde */
   parts.push("TaBookings2021_Checkin<='"+hasta+"T23:59:59'");
   parts.push("TaBookings2021_Checkout>='"+desde+"T00:00:00'");
@@ -642,28 +642,39 @@ function doSearch(){
 
 /* ════ RENDER CALENDARIO ════ */
 function renderCalendar(bookings, desde, hasta, totalDays){
-  /* Agrupar por villa */
+  /* Agrupar por villa, y por MULTIUNIT dentro de villas multiunit (una fila por unidad).
+     Clave: villaId si no hay multiunit; villaId#multiId si la reserva tiene PMSmultiunitID. */
   var byVilla={};
   bookings.forEach(function(r){
     var vid=String(r[F.villaId]||'').trim();
     if(!vid)return;
-    if(!byVilla[vid]){byVilla[vid]={id:vid,name:r[F.villaName]||'Villa',manager:String(r[F.villaManager]||'').trim(),bookings:[]};}
-    byVilla[vid].bookings.push(r);
+    var muId=String(r[F.multiunitId]||'').trim();
+    var key=muId?(vid+'#'+muId):vid;
+    if(!byVilla[key]){
+      var muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
+      byVilla[key]={id:vid,muId:muId,name:r[F.villaName]||'Villa',muName:muName,
+        manager:String(r[F.villaManager]||'').trim(),bookings:[]};
+    }
+    byVilla[key].bookings.push(r);
   });
 
-  /* Para villas del master que no aparecen en el periodo (LIBRE) */
+  /* Para villas del master que no aparecen en el periodo (LIBRE).
+     Nota: las villas multiunit solo se muestran como unidades cuando tienen reserva;
+     una unidad sin reservas en el periodo se refleja como parte de la villa base libre. */
   masterVillas.forEach(function(v,vid){
-    if(!byVilla[vid]){
-      /* Verificar filtros de manager y villa */
+    if(!byVilla[vid] && !Object.keys(byVilla).some(function(k){return k.split('#')[0]===vid;})){
       renderChips();
-  var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
+      var villaFilt=(($('fVilla')||{}).value||'').trim().toLowerCase();
       if(villaFilt&&!v.name.toLowerCase().includes(villaFilt))return;
       if(selectedManagers.size>0&&!selectedManagers.has(v.manager))return;
-      byVilla[vid]={id:vid,name:v.name,manager:v.manager,bookings:[]};
+      byVilla[vid]={id:vid,muId:'',name:v.name,muName:'',manager:v.manager,bookings:[]};
     }
   });
 
-  var villas=Object.values(byVilla).sort(function(a,b){return a.name.localeCompare(b.name,'es');});
+  var villas=Object.values(byVilla).sort(function(a,b){
+    var an=a.name+(a.muName?' '+a.muName:''), bn=b.name+(b.muName?' '+b.muName:'');
+    return an.localeCompare(bn,'es');
+  });
 
   if(!villas.length){$('emptyMsg').style.display='';$('calScroll').style.display='none';return;}
 
@@ -714,23 +725,22 @@ function renderCalendar(bookings, desde, hasta, totalDays){
   headHtml+='</div>';
   head.innerHTML=headHtml;
 
-  /* ── Construir filas de villas ── */
+  /* ── Construir filas de villas / unidades ── */
   villas.forEach(function(v){
     var s=villaStatus(v.bookings,desde,hasta);
     var badgeClass={libre:'vb-libre',ocupada:'vb-ocupada',entra:'vb-entra',sale:'vb-sale'}[s]||'vb-libre';
     var badgeTxt={libre:'LIBRE',ocupada:'OCUPADA',entra:'⬇ ENTRA',sale:'⬆ SALE'}[s]||'LIBRE';
-    var muName=v.bookings.length&&String(v.bookings[0][F.multiunitId]||'').trim()
-      ?(multiunitsMap.get('name_'+v.bookings[0][F.multiunitId])||''):'';
-    var displayName=v.name+(muName?'<br><span style="font-size:9px;color:var(--gray-4);font-weight:600">'+muName+'</span>':'');
+    var displayName=v.name+(v.muName?'<br><span style="font-size:9px;color:var(--gray-4);font-weight:600">'+esc(v.muName)+'</span>':'');
+    var rowId=v.id+(v.muId?'_'+v.muId:'');
 
     var row=document.createElement('div');
     row.className='vrow';
     row.innerHTML=
-      '<div class="vrow-info" title="'+esc(v.name)+'">'
+      '<div class="vrow-info" title="'+esc(v.name+(v.muName?' / '+v.muName:''))+'">'
         +'<div class="vrow-name">'+displayName+'</div>'
         +'<div class="vrow-badge '+badgeClass+'">'+badgeTxt+'</div>'
       +'</div>'
-      +'<div class="vrow-tl" id="tl_'+v.id+'"></div>';
+      +'<div class="vrow-tl" id="tl_'+rowId+'"></div>';
     body.appendChild(row);
 
     /* Renderizar timeline */
@@ -962,4 +972,4 @@ window.shiftWeek=shiftWeek;
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v11 - Dos cambios en la carga de datos. (1) Multiunits: las villas multiunit ahora se muestran como UNA FILA POR UNIDAD (se agrupa por villaId#PMSmultiunitID en vez de solo villaId), con el nombre de la unidad de TaMultiunits bajo el de la villa; las villas sin multiunit siguen como una sola fila. El id del timeline es único por unidad para evitar colisiones. (2) Estado de reserva: tanto loadMasterVillas (universo de villas del año) como doSearch (bookings del periodo) filtran ahora por BookingStatus IN ('new','modified') en lugar de <>'cancelled', para considerar solo reservas válidas. | v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
