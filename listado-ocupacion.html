@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v8 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v9 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v8 — 3Villas</title>
+  <title>Ocupación v9 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -133,14 +133,11 @@
     .day-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--gray-2);pointer-events:none}
     .day-grid-today{background:rgba(200,16,46,.15)}
     /* ── Celdas de estado por día (mitad izquierda / derecha) ── */
-    /* Colores: salida = rojo fuerte; ocupado = rojo MUY claro; libre = verde claro; entrada = azul */
+    /* Fondo con dos estados: ocupado (rojo muy claro) / libre (verde claro) */
     .daycell{position:absolute;top:0;bottom:0;display:flex;pointer-events:none;z-index:0}
     .daycell .half{flex:1;min-width:0}
-    .dc-salida{background:var(--red)}                 /* rojo fuerte */
-    .dc-entrada{background:var(--blue)}               /* azul */
-    .dc-ocupado{background:#fbdfe4}                   /* rojo mucho más claro que salida */
+    .dc-ocupado{background:#fbdfe4}                   /* rojo muy claro */
     .dc-libre{background:#e6f7ee}                     /* verde claro */
-    .daycell .half.dc-salida,.daycell .half.dc-entrada{opacity:.9}
     /* Barra de reserva */
     .bk-bar{
       position:absolute;top:6px;height:38px;
@@ -150,10 +147,11 @@
       z-index:2;
     }
     .bk-bar:hover{filter:brightness(.93);transform:scaleY(1.05)}
-    .bk-bar.st-ocupada{background:#f8d7da;border-left:3px solid var(--red)}
-    .bk-bar.st-entra{background:#dbeafe;border-left:3px solid var(--blue)}
-    .bk-bar.st-sale{background:#fff3cd;border-left:3px solid var(--orange)}
-    .bk-bar.st-intra{background:#f0e7ff;border-left:3px solid var(--purple)}/* ocupa solo dentro del periodo */
+    /* Barra de reserva: fondo neutro; los bordes azul/rojo marcan entrada/salida
+       solo cuando el evento es visible en el rango. */
+    .bk-bar.bk-plain{background:#eef1f4;border:1px solid #dfe3e8}
+    .bk-bar.bk-in{border-left:3px solid var(--blue)}
+    .bk-bar.bk-out{border-right:3px solid var(--red)}
     .bk-bar-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gray-5)}
     .bk-bar-dates{font-size:8px;color:var(--gray-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     /* "libre" strip */
@@ -756,23 +754,26 @@ function buildTimeline(container, bookings, desde, totalDays, today){
     });
   }
 
-  /* Celdas de color por día (fondo). Cada día se divide en dos mitades:
-     - Izquierda: si hay salida ese día → rojo salida; si no, según día anterior (ocupado→rojo claro / libre→verde).
-     - Derecha:   si hay entrada ese día → azul; si no, según día siguiente (ocupado→rojo claro / libre→verde). */
+  /* Celdas de color de fondo por día, solo dos estados: ocupado / libre.
+     Cada día se parte en dos mitades (mañana / tarde):
+     - Izquierda (mañana): ocupada si hay reserva la noche anterior (llega a este día)
+       o si hay salida ese día (la salida ocupa hasta mediodía).
+     - Derecha (tarde): ocupada si hay reserva esa noche
+       o si hay entrada ese día (la entrada ocupa desde mediodía). */
   for(var d=0;d<totalDays;d++){
     var dayD=new Date(D.getTime()+d*864e5);
     var dayKey=dateStr(dayD);
     var prevD=new Date(dayD.getTime()-864e5);
-    var nextD=new Date(dayD.getTime()+864e5);
 
-    var leftClass = isCheckout(dayKey) ? 'dc-salida' : (isOccupied(prevD) ? 'dc-ocupado' : 'dc-libre');
-    var rightClass= isCheckin(dayKey)  ? 'dc-entrada': (isOccupied(nextD) ? 'dc-ocupado' : 'dc-libre');
+    var leftOcc  = isOccupied(prevD) || isCheckout(dayKey);
+    var rightOcc = isOccupied(dayD)  || isCheckin(dayKey);
 
     var cell=document.createElement('div');
     cell.className='daycell';
     cell.style.left=(d/totalDays*100)+'%';
     cell.style.width=(1/totalDays*100)+'%';
-    cell.innerHTML='<div class="half '+leftClass+'"></div><div class="half '+rightClass+'"></div>';
+    cell.innerHTML='<div class="half '+(leftOcc?'dc-ocupado':'dc-libre')+'"></div>'
+                  +'<div class="half '+(rightOcc?'dc-ocupado':'dc-libre')+'"></div>';
     container.appendChild(cell);
   }
 
@@ -800,20 +801,37 @@ function buildTimeline(container, bookings, desde, totalDays, today){
     var s=bookingStatus(ciStr,coStr,desde2,hasta2);
     if(s==='libre')return;
 
-    /* Calcular posición: en el eje del tiempo visible */
     var ci=toDate(ciStr),co=toDate(coStr);
-    var visStart=Math.max(0,(ci-D)/864e5);
-    var visEnd=Math.min(totalDays,(co-D)/864e5);
+    /* Posición en días sobre el eje visible */
+    var ciDay=(ci-D)/864e5;   /* día (índice) del check-in respecto a "desde" */
+    var coDay=(co-D)/864e5;    /* día (índice) del check-out respecto a "desde" */
+
+    /* ¿El check-in / check-out caen DENTRO del rango visible? */
+    var ciVisible = ciDay>=0 && ciDay<=totalDays;
+    var coVisible = coDay>=0 && coDay<=totalDays;
+
+    /* Inicio del box: si la entrada es visible empieza a MEDIO día (mitad derecha
+       del día de entrada); si viene de antes, pegado al borde izquierdo. */
+    var startDay = ciVisible ? (ciDay+0.5) : 0;
+    /* Fin del box: si la salida es visible termina a MEDIO día (mitad izquierda del
+       día de salida); si sale después, hasta el borde derecho. */
+    var endDay   = coVisible ? (coDay-0.5) : totalDays;
+
+    var visStart=Math.max(0,startDay);
+    var visEnd=Math.min(totalDays,endDay);
     if(visEnd<=visStart)return;
+
     var leftPct=visStart/totalDays*100;
     var widthPct=(visEnd-visStart)/totalDays*100;
 
-    var barClass={ocupada:'st-ocupada',entra:'st-entra',sale:'st-sale',intra:'st-intra'}[s]||'st-ocupada';
+    /* Bordes: azul a la izquierda solo si la entrada es visible; rojo a la derecha
+       solo si la salida es visible. Sin borde en el extremo que sale del rango. */
+    var edgeClass=(ciVisible?' bk-in':'')+(coVisible?' bk-out':'');
 
     var guest=guestDisplayName(r);
     var nights=r[F.nights]||daysBetween(ciStr,coStr);
     var bar=document.createElement('div');
-    bar.className='bk-bar '+barClass;
+    bar.className='bk-bar bk-plain'+edgeClass;
     bar.style.left=leftPct+'%';
     bar.style.width='calc('+widthPct+'% - 2px)';
     bar.title=guest+' · '+fmtD(ciStr)+' → '+fmtD(coStr);
@@ -939,4 +957,4 @@ window.shiftWeek=shiftWeek;
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
