@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v7 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v8 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v7 — 3Villas</title>
+  <title>Ocupación v8 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -68,6 +68,9 @@
     .btn-mas.on .arr{transform:rotate(180deg)}
     .btn-clear{background:none;border:none;color:var(--gray-4);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;transition:color .15s;flex-shrink:0}
     .btn-clear:hover{color:var(--red)}
+    .wk-btn{width:36px;height:36px;border:1.5px solid var(--gray-3);background:#fff;border-radius:7px;
+      font-size:18px;font-weight:900;color:var(--gray-5);cursor:pointer;line-height:1;transition:all .15s;font-family:inherit}
+    .wk-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
     #masFiltros{overflow:hidden;max-height:0;transition:max-height .3s ease}
     #masFiltros.open{max-height:400px}
     .mas-inner{border-top:1px solid var(--gray-2);padding:12px 0 6px}
@@ -129,6 +132,15 @@
     /* Líneas de días en el fondo */
     .day-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--gray-2);pointer-events:none}
     .day-grid-today{background:rgba(200,16,46,.15)}
+    /* ── Celdas de estado por día (mitad izquierda / derecha) ── */
+    /* Colores: salida = rojo fuerte; ocupado = rojo MUY claro; libre = verde claro; entrada = azul */
+    .daycell{position:absolute;top:0;bottom:0;display:flex;pointer-events:none;z-index:0}
+    .daycell .half{flex:1;min-width:0}
+    .dc-salida{background:var(--red)}                 /* rojo fuerte */
+    .dc-entrada{background:var(--blue)}               /* azul */
+    .dc-ocupado{background:#fbdfe4}                   /* rojo mucho más claro que salida */
+    .dc-libre{background:#e6f7ee}                     /* verde claro */
+    .daycell .half.dc-salida,.daycell .half.dc-entrada{opacity:.9}
     /* Barra de reserva */
     .bk-bar{
       position:absolute;top:6px;height:38px;
@@ -145,7 +157,6 @@
     .bk-bar-label{font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gray-5)}
     .bk-bar-dates{font-size:8px;color:var(--gray-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     /* "libre" strip */
-    .libre-strip{position:absolute;top:50%;transform:translateY(-50%);height:2px;background:var(--gray-2);border-radius:1px;pointer-events:none;z-index:1}
 
     /* ══ PANEL DETALLE (slide-in) ══ */
     #detailPanel{position:fixed;inset:0;z-index:800;display:none;flex-direction:column}
@@ -281,6 +292,13 @@
              onmouseover="this.style.background='var(--red-dark)'"
              onmouseout="this.style.background='var(--red)'">📦 WelcomePacks</a>
         </div>
+        <div class="f-group narrow" style="flex:0 0 auto">
+          <label class="f-label">Semana</label>
+          <div style="display:flex;gap:4px">
+            <button type="button" class="wk-btn" onclick="shiftWeek(-1)" title="Semana anterior">‹</button>
+            <button type="button" class="wk-btn" onclick="shiftWeek(1)" title="Semana siguiente">›</button>
+          </div>
+        </div>
         <div class="f-group narrow">
           <label class="f-label">Desde</label>
           <input type="date" id="fDesde" class="f-input" onchange="doSearch()">
@@ -351,6 +369,20 @@ function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeou
 function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
 function setOcupFilter(mode){fOcupFilter=mode;['tOcAll','tOcDisp','tOcOcup'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tOcAll'?mode==='all':id==='tOcDisp'?mode==='disp':mode==='ocup');});scheduleSearch();}
 function toggleMas(){$('btnMas').classList.toggle('on');$('masFiltros').classList.toggle('open');}
+/* Desplaza la ventana visible en bloques de 7 días (‹ semana anterior / semana siguiente ›).
+   Mantiene el ancho actual del rango; si no hay rango válido, usa una semana desde hoy. */
+function shiftWeek(dir){
+  var dEl=$('fDesde'),hEl=$('fHasta');if(!dEl||!hEl)return;
+  var desde=dEl.value||todayStr();
+  var hasta=hEl.value||dateStr(new Date(toDate(desde).getTime()+6*864e5));
+  var span=Math.max(0,Math.round((toDate(hasta)-toDate(desde))/864e5)); /* días de ancho (0 = 1 día) */
+  var step=7*dir;
+  var newDesde=new Date(toDate(desde).getTime()+step*864e5);
+  var newHasta=new Date(newDesde.getTime()+span*864e5);
+  dEl.value=dateStr(newDesde);
+  hEl.value=dateStr(newHasta);
+  doSearch();
+}
 function renderChips(){
   var chips=[];
   if(selectedManagers.size>0){var names=[...selectedManagers].map(function(id){return allUsersMap.get(id)||id;}).join(', ');chips.push({label:'Manager: '+names,clear:function(){clearManagers();}});}
@@ -368,7 +400,7 @@ function renderChips(){
 function clearAll(){
   clearManagers();
   if($('fDesde'))$('fDesde').value=todayStr();
-  if($('fHasta'))$('fHasta').value=todayStr();
+  if($('fHasta'))$('fHasta').value=dateStr(new Date(toDate(todayStr()).getTime()+6*864e5));
   /* Ajustar top del filterpanel según header */
   function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
   window.addEventListener('resize',fixFilterTop);fixFilterTop();
@@ -710,7 +742,41 @@ function renderCalendar(bookings, desde, hasta, totalDays){
 function buildTimeline(container, bookings, desde, totalDays, today){
   var D=toDate(desde);
 
-  /* Líneas de días de fondo */
+  /* Helpers de estado por día sobre este conjunto de bookings.
+     dayKey = fecha 'YYYY-MM-DD' del día evaluado. */
+  function isCheckin(dayKey){return bookings.some(function(b){return (b[F.checkIn]||'').split('T')[0]===dayKey;});}
+  function isCheckout(dayKey){return bookings.some(function(b){return (b[F.checkOut]||'').split('T')[0]===dayKey;});}
+  /* ocupado la NOCHE del día: existe reserva con checkIn <= día < checkOut */
+  function isOccupied(dayDate){
+    var t=dayDate.getTime();
+    return bookings.some(function(b){
+      var ci=toDate((b[F.checkIn]||'').split('T')[0]), co=toDate((b[F.checkOut]||'').split('T')[0]);
+      if(!ci||!co)return false;
+      return ci.getTime()<=t && t<co.getTime();
+    });
+  }
+
+  /* Celdas de color por día (fondo). Cada día se divide en dos mitades:
+     - Izquierda: si hay salida ese día → rojo salida; si no, según día anterior (ocupado→rojo claro / libre→verde).
+     - Derecha:   si hay entrada ese día → azul; si no, según día siguiente (ocupado→rojo claro / libre→verde). */
+  for(var d=0;d<totalDays;d++){
+    var dayD=new Date(D.getTime()+d*864e5);
+    var dayKey=dateStr(dayD);
+    var prevD=new Date(dayD.getTime()-864e5);
+    var nextD=new Date(dayD.getTime()+864e5);
+
+    var leftClass = isCheckout(dayKey) ? 'dc-salida' : (isOccupied(prevD) ? 'dc-ocupado' : 'dc-libre');
+    var rightClass= isCheckin(dayKey)  ? 'dc-entrada': (isOccupied(nextD) ? 'dc-ocupado' : 'dc-libre');
+
+    var cell=document.createElement('div');
+    cell.className='daycell';
+    cell.style.left=(d/totalDays*100)+'%';
+    cell.style.width=(1/totalDays*100)+'%';
+    cell.innerHTML='<div class="half '+leftClass+'"></div><div class="half '+rightClass+'"></div>';
+    container.appendChild(cell);
+  }
+
+  /* Líneas de días de fondo (encima de las celdas de color, debajo de las barras) */
   for(var d=0;d<totalDays;d++){
     var dayD=new Date(D.getTime()+d*864e5);
     var isToday=dateStr(dayD)===today;
@@ -720,11 +786,8 @@ function buildTimeline(container, bookings, desde, totalDays, today){
     container.appendChild(line);
   }
 
-  /* Si no hay bookings → strip libre */
+  /* Si no hay bookings, las celdas de color ya muestran el estado (todo libre) */
   if(!bookings.length){
-    var ls=document.createElement('div');
-    ls.className='libre-strip';ls.style.left='2%';ls.style.width='96%';
-    container.appendChild(ls);
     return;
   }
 
@@ -850,7 +913,7 @@ document.addEventListener('DOMContentLoaded',async function(){
   window.addEventListener('resize',fixFilterTop);
 
   if($('fDesde'))$('fDesde').value=todayStr();
-  if($('fHasta'))$('fHasta').value=todayStr();
+  if($('fHasta'))$('fHasta').value=dateStr(new Date(toDate(todayStr()).getTime()+6*864e5));
   /* Ajustar top del filterpanel según header */
   function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
   window.addEventListener('resize',fixFilterTop);fixFilterTop();
@@ -870,9 +933,10 @@ window.setOcupFilter=setOcupFilter;
 window.setWPFilter=setWPFilter;
 window.clearAll=clearAll;
 window.scheduleSearch=scheduleSearch;
+window.shiftWeek=shiftWeek;
 
 })();
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
