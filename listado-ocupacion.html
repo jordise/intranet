@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v12 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v11 — 3Villas</title>
+  <title>Ocupación v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -438,6 +438,10 @@ var F={
   googleMaps:'TaVillas_Googlemaps_link',
   keybox:'TaVillas_Keybox_code',
   multiunitId:'TaBookings2021_PMSmultiunitID',
+  multiunitId2:'TaBookings2021_PMSmultiunitID2',
+  multiunitId3:'TaBookings2021_PMSmultiunitID3',
+  multiunitId4:'TaBookings2021_PMSmultiunitID4',
+  multiunitId5:'TaBookings2021_PMSmultiunitID5',
   bookingStatus:'TaBookings2021_BookingStatus',
   portal:'TaBookings2021_Portal_Name',
   hostawayLink:'TaBookings2021_Reservationlink',
@@ -537,6 +541,12 @@ function bookingStatus(ciStr, coStr, desdeStr, hastaStr){
 }
 
 var STATUS_PRIORITY={libre:0,sale:1,entra:2,ocupada:3};
+/* IDs de multiunit (1 a 5) no vacíos de una reserva. Vacío = villa sin multiunit. */
+function muIdsOf(r){
+  return [r[F.multiunitId],r[F.multiunitId2],r[F.multiunitId3],r[F.multiunitId4],r[F.multiunitId5]]
+    .map(function(x){return String(x||'').trim();})
+    .filter(Boolean);
+}
 function villaStatus(bookings, desdeStr, hastaStr){
   var best='libre';
   bookings.forEach(function(b){
@@ -643,19 +653,30 @@ function doSearch(){
 /* ════ RENDER CALENDARIO ════ */
 function renderCalendar(bookings, desde, hasta, totalDays){
   /* Agrupar por villa, y por MULTIUNIT dentro de villas multiunit (una fila por unidad).
-     Clave: villaId si no hay multiunit; villaId#multiId si la reserva tiene PMSmultiunitID. */
+     Una reserva puede ocupar hasta 5 unidades (PMSmultiunitID..PMSmultiunitID5): en ese
+     caso aparece en la fila de CADA unidad. Sin multiunit → una fila por villaId. */
   var byVilla={};
   bookings.forEach(function(r){
     var vid=String(r[F.villaId]||'').trim();
     if(!vid)return;
-    var muId=String(r[F.multiunitId]||'').trim();
-    var key=muId?(vid+'#'+muId):vid;
-    if(!byVilla[key]){
-      var muName=muId?(multiunitsMap.get('name_'+muId)||''):'';
-      byVilla[key]={id:vid,muId:muId,name:r[F.villaName]||'Villa',muName:muName,
-        manager:String(r[F.villaManager]||'').trim(),bookings:[]};
+    var muIds=muIdsOf(r);
+    if(muIds.length){
+      muIds.forEach(function(muId){
+        var key=vid+'#'+muId;
+        if(!byVilla[key]){
+          byVilla[key]={id:vid,muId:muId,name:r[F.villaName]||'Villa',
+            muName:(multiunitsMap.get('name_'+muId)||''),
+            manager:String(r[F.villaManager]||'').trim(),bookings:[]};
+        }
+        byVilla[key].bookings.push(r);
+      });
+    }else{
+      if(!byVilla[vid]){
+        byVilla[vid]={id:vid,muId:'',name:r[F.villaName]||'Villa',muName:'',
+          manager:String(r[F.villaManager]||'').trim(),bookings:[]};
+      }
+      byVilla[vid].bookings.push(r);
     }
-    byVilla[key].bookings.push(r);
   });
 
   /* Para villas del master que no aparecen en el periodo (LIBRE).
@@ -972,4 +993,4 @@ window.shiftWeek=shiftWeek;
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v11 - Dos cambios en la carga de datos. (1) Multiunits: las villas multiunit ahora se muestran como UNA FILA POR UNIDAD (se agrupa por villaId#PMSmultiunitID en vez de solo villaId), con el nombre de la unidad de TaMultiunits bajo el de la villa; las villas sin multiunit siguen como una sola fila. El id del timeline es único por unidad para evitar colisiones. (2) Estado de reserva: tanto loadMasterVillas (universo de villas del año) como doSearch (bookings del periodo) filtran ahora por BookingStatus IN ('new','modified') en lugar de <>'cancelled', para considerar solo reservas válidas. | v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v12 - Multiunit ampliado a las 5 unidades por reserva. Una reserva puede ocupar hasta 5 unidades (PMSmultiunitID, PMSmultiunitID2..5); ahora aparece como fila en CADA una de sus unidades, no solo en la primera. Nuevo helper muIdsOf(r) que recoge los IDs no vacíos de los 5 campos; la agrupación mete la reserva en la fila villaId#muId de cada unidad. Añadidos multiunitId2..5 al mapa de campos F. | v11 - Dos cambios en la carga de datos. (1) Multiunits: las villas multiunit ahora se muestran como UNA FILA POR UNIDAD (se agrupa por villaId#PMSmultiunitID en vez de solo villaId), con el nombre de la unidad de TaMultiunits bajo el de la villa; las villas sin multiunit siguen como una sola fila. El id del timeline es único por unidad para evitar colisiones. (2) Estado de reserva: tanto loadMasterVillas (universo de villas del año) como doSearch (bookings del periodo) filtran ahora por BookingStatus IN ('new','modified') en lugar de <>'cancelled', para considerar solo reservas válidas. | v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
