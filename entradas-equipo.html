@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v97 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v98 | Historial completo al final -->
 <head>
    <base href="/intranet/">
   <meta charset="UTF-8">
@@ -36,7 +36,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Equipo v97 — 3Villas</title>
+  <title>Entradas Equipo v98 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
@@ -414,6 +414,8 @@
     .lv-ent{background:#e8f0fe;color:#1565c0}.lv-sal{background:var(--red-light);color:var(--red)}
     .lv-code{font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-4)}
     .lv-villa{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);flex:1;min-width:100px;text-decoration:none}
+    .lv-dates{font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:var(--gray-4);white-space:nowrap;display:flex;align-items:center;gap:3px}
+    .lv-npill{background:var(--gray-2);color:var(--gray-5);font-weight:800;font-size:9px;padding:1px 5px;border-radius:8px}
     .lv-guest{font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-5)}
     .lv-phone{font-size:12px;color:#1967d2;text-decoration:none}
     .lv-btns{display:flex;gap:4px;flex-wrap:wrap;padding:0 12px 8px}
@@ -834,6 +836,9 @@ function applyUserPrefs(prefs){
   if(tgIds.length)window.__extraTasksUsers=tgIds;
 
   setDarkMode(prefs.todas_modo_noche===-1||prefs.todas_modo_noche===true||String(prefs.todas_modo_noche)==='-1'); /* v70 */
+  /* v98 FIX: applyUserPrefs sobrescribe selectedManagers (línea arriba) pero loadManagers()
+     ya había pintado el botón/panel con el estado anterior — refrescar UI aquí */
+  renderManagerList();updateManagerBtn();
   console.log('[UserPrefs] keys Caspio:',Object.keys(prefs||{}).filter(k=>k.toLowerCase().includes('fecha')));
   console.log('[UserPrefs] aplicadas →',{tipoFilter,fWelcomePack,fCierre,toggleMode,
     managers:[...selectedManagers],desdeOff,hastaOff,vista:prefs.entradas_vista,filtros:prefs.entradas_mostrar_filtros,tg:tgIds});
@@ -1086,7 +1091,6 @@ function renderCards(records,_extVillaIds,_muVillaMap){
       .then(()=>{updateVillaTasksInDOM();})
       .catch(e=>console.warn('Villa tasks:',e.message)); /* v42 */
   }
-  loadPendingTasks([...selectedManagers]).catch(e=>console.warn('Pending tasks:',e.message));
 }
 
 function openTaskPopup(url){  /* v46: navegación normal */
@@ -1204,13 +1208,6 @@ function updateVillaTasksInDOM(){
 }
 
 // ════════════════ PENDING TASKS (panel) ════════════════
-async function loadPendingTasks(managerIds){
-  const ids=[...new Set([...(currentUserId?[currentUserId]:[]),...(managerIds||[])])];
-  if(!ids.length)return;
-  const orParts=ids.map(id=>`UserID_asigned_alfanum='${id}'`).join(' OR ');
-  const where=`(${orParts})`;
-  try{const url=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(where)}&limit=500`);const res=await fetch(url);const json=await res.json();}catch(e){}
-}
 function togglePendTasks(){const body=$('ptBody');const arr=$('ptArr');if(!body)return;const isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);if(arr)arr.classList.toggle('open',!isOpen);}
 async function loadPendingTasksPanel(){
   const myIds=window.__myUserAllIds||(currentUserId?[currentUserId]:[]);
@@ -1625,10 +1622,14 @@ function doRenderList(rows){
     var urlNC='checkin-pasos.html?reserva='+encodeURIComponent(code);
     var urlVilla=villaId?('villa.html?villa_id='+encodeURIComponent(villaId)):'';
     var nl=g(r,'cleaningNotes'),ni=g(r,'notasIrene');
+    var lvCi=g(r,'checkIn'),lvCo=g(r,'checkOut');
+    var lvN=parseInt(g(r,'nights'))||nightsN(lvCi,lvCo);
+    var lvDatesHtml=(lvCi||lvCo)?'<span class="lv-dates">'+fmtDate(lvCi)+(lvN?' <span class="lv-npill">'+lvN+'n</span> ':' — ')+fmtDate(lvCo)+'</span>':'';
     html+='<div class="lv-row"><div class="lv-top">';
     html+='<span class="lv-tipo '+(isSal?'lv-sal':'lv-ent')+'">'+(isSal?'↑ Sal':'↓ Ent')+'</span>';
     if(code)html+='<span class="lv-code">#'+code+'</span>';
     html+=(urlVilla?'<a class="lv-villa" href="'+urlVilla+'">'+vl+'</a>':'<span class="lv-villa">'+vl+'</span>');
+    html+=lvDatesHtml;
     if(gn)html+='<span class="lv-guest">'+gn+'</span>';
     if(aph)html+='<a class="lv-phone" href="tel:'+aph+'">📞 '+aph+'</a>';
     html+='</div>';
@@ -1765,4 +1766,4 @@ function renderWeekly(){
 
 </body>
 </html>
-<!-- HISTORIAL: v97 - Vista listado: añadido botón "🆕 Nuevo checkin" entre el botón Checkin y el de Villa en cada reserva, que apunta a checkin-pasos.html?reserva=CODE (abre en pestaña nueva). Nueva clase de color .lv-pp (morado) para diferenciarlo. | v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas (de ~9500 calls TaTasks/día a ~180/día, ×50 reducción) | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior | v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas por villa (de ~9500 calls TaTasks/día a ~180/día) -->
+<!-- HISTORIAL: v98 - (1) Vista listado: añadida fecha entrada + noches + fecha salida junto al nombre de villa, mismo formato que vista fichas (.lv-dates/.lv-npill nuevas). (2) FIX: applyUserPrefs() sobrescribía selectedManagers desde las preferencias del usuario pero no refrescaba el botón/panel de managers (loadManagers ya lo había pintado antes) — el filtro quedaba aplicado en los datos pero la UI mostraba el estado anterior hasta interactuar; añadido renderManagerList()+updateManagerBtn() al final de applyUserPrefs(). (3) Velocidad: eliminada función loadPendingTasks() y su llamada en renderCards — hacía un fetch completo a TaTasks (hasta 500 filas) en cada búsqueda y cada toggle de manager sin usar el resultado para nada; era código muerto duplicando trabajo de loadPendingTasksPanel(). | v97 - Vista listado: añadido botón "🆕 Nuevo checkin" entre el botón Checkin y el de Villa en cada reserva, que apunta a checkin-pasos.html?reserva=CODE (abre en pestaña nueva). Nueva clase de color .lv-pp (morado) para diferenciarlo. | v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas (de ~9500 calls TaTasks/día a ~180/día, ×50 reducción) | v96 - Fix buildWhere: else-if(hasta) para solo fecha hasta; Fix modo listado: renderCards muestra listView; Fix vista semanal con filtro texto: buildWhere y renderCards omiten fechas en modo cal si hay código/villa/inquilino para mostrar la reserva en su semana real | v95 - getMuNames() lee PMSmultiunitID...5 y muestra todos separados por & en fichas/listado/semanal; Fix "Sin resultados" con scroll (limpiar listView en doSearch y renderCards); Fix fecha hasta vacía = sin límite superior en buildWhere y renderCards | v93 - Fix: img.spinner sobrescribe img{height:26px} global con dimensiones explícitas | v92 - Spinner: div→img con src base64 (evita broken image en Safari/iOS) | v91 - Fix: .state-box sin display !important — no pisaba display:none del JS | v90 - Fix: renderCards y catch ocultan stInit+stErr correctamente | v89 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v88 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v87 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v86 - versión anterior | v96b - FIX CRÍTICO: loadVillaPendingTasks — 1 sola llamada OR en lugar de N paralelas por villa (de ~9500 calls TaTasks/día a ~180/día) -->
