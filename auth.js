@@ -127,6 +127,9 @@ const Auth = (function () {
     // ── ADMIN ───────────────────────────────────────────────────
     'control-waiver'                  : ['admin', 'manager'],
 
+    // ── REUNIONEs ────────────────────────────────────────────────
+    'reuniones'        : ['admin', 'manager','sales'],
+
     // ── CONFIGURACIÓN ──────────────────────────────────────────
     'permisos'              : ['admin'],
 
