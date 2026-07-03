@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v80 | Historial completo al final  --->
+<!-- VERSIÓN ACTUAL: v81 | Historial completo al final  -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -21,7 +21,7 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tareas v80 — 3Villas</title>
+  <title>Tareas v81 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -689,6 +689,12 @@ function toggleDesc(btn){
     g('fReserva').addEventListener('change',  function(){ schedule(300); });
     g('fTaskId').addEventListener('input',    function(){ schedule(300); });
     g('fTaskId').addEventListener('change',   function(){ schedule(300); });
+    /* v81 FIX villa: listener change adicional vía addEventListener (más fiable que oninput/onchange en HTML
+       con datalist dentro de overflow:hidden en iOS/Safari) — usa schedule(0) para disparo inmediato */
+    if(g('fVilla')){
+      g('fVilla').addEventListener('change', function(){ schedule(0); });
+      g('fVilla').addEventListener('input',  function(){ schedule(300); });
+    }
     /* v12: oninput en HTML, no listener aquí */
     g('fTasktype').addEventListener('change', function(){ schedule(); });
     g('fBookingType').addEventListener('change', function(){ schedule(); });
@@ -785,8 +791,10 @@ function toggleDesc(btn){
         var rows=json.Result||json.result||[];
         var dl=g('villasList');
         rows.forEach(function(v){
-          var id=String(v.villaid||'');
-          var name=v.Name_villa_para_inquilinos||v.Name||id;
+          /* v80 FIX: Caspio puede devolver el campo con distinta capitalización */
+          var id=String(v.villaid||v.VillaId||v.VillaID||v.villa_id||v.ID||v.id||'');
+          var name=v.Name_villa_para_inquilinos||v.Name_Villa_para_inquilinos||v.Name||v.name||id;
+          if(!id)return; /* ignorar filas sin ID */
           villaNameMap[id]=name;
           allVillas.push({id:id,name:name});
           if(dl){ var opt=document.createElement('option'); opt.value=name; dl.appendChild(opt); }
@@ -924,11 +932,11 @@ function toggleDesc(btn){
 
     /* v12: actualizar filtro multiunit al cambiar villa */
   function onVillaChange(){
-    schedule(500);
+    schedule(300);
     var vText=val('fVilla').trim().toLowerCase();
     var mg=g('multiunitFilterGroup'),ms=g('fMultiunit');
     if(!vText){if(mg)mg.style.display='none';if(ms)ms.value='';return;}
-    /* buscar villa que coincida exactamente */
+    /* buscar villa que coincida exactamente para mostrar selector de multiunit */
     var matchVid=null;
     Object.keys(villaNameMap).forEach(function(vid){if(villaNameMap[vid].toLowerCase()===vText)matchVid=vid;});
     if(!matchVid){if(mg)mg.style.display='none';return;}
@@ -1515,4 +1523,4 @@ function toggleDesc(btn){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v80 - FIX filtros no refrescaban: (1) Campo villa (fVilla con datalist): añadido onchange="onVillaChange()" además de oninput — en muchos navegadores/móvil seleccionar del datalist dispara change pero no input, por lo que el filtro nunca se ejecutaba. (2) Campos fBuscar, fReserva, fTaskId: añadido listener change además de input por el mismo motivo. Los select (fTasktype, fBookingType, fMultiunit) ya tenían change y estaban correctos. |  v79 - Retrofit: favicon estándar añadido (ruta absoluta); spinners <div class="spinner"> (CSS background base64) sustituidos por <img class="spinner"> con base64 embebido estándar; CSS .spinner{background:url(...)} eliminado (huérfano). |  v78 - Descripción inline: editor Quill por fila sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar; fila "Añadir" encima de las terminadas). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Checkbox con flex:none. Guardado a Caspio sin cambios (PUT Taskdescription). Eliminado Quill (CDN, CSS .ql-*/.desc-ql-wrap, botones .re-btn-inline, _qFmtRow) | v77 - Fix: renderTable oculta stInit+stErr, CSS state-box sin min-height forzado | v76 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v75 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v74 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v73 - versión anterior -->
+<!-- HISTORIAL: v81 - FIX filtro villa no refrescaba: (1) loadVillas más robusto — acepta villaid/VillaId/VillaID/villa_id/ID para no devolver id vacío si Caspio cambia capitalización del campo; filas sin ID se ignoran. (2) Listener change adicional vía addEventListener para fVilla con schedule(0) inmediato, más fiable que oninput/onchange en HTML con datalist dentro de overflow:hidden (iOS/Safari). (3) onVillaChange: delay reducido a 300ms (igual que otros filtros); los return prematuros solo afectan al selector de multiunit, schedule siempre corre primero. |  v80 - FIX filtros no refrescaban: (1) Campo villa (fVilla con datalist): añadido onchange="onVillaChange()" además de oninput — en muchos navegadores/móvil seleccionar del datalist dispara change pero no input, por lo que el filtro nunca se ejecutaba. (2) Campos fBuscar, fReserva, fTaskId: añadido listener change además de input por el mismo motivo. Los select (fTasktype, fBookingType, fMultiunit) ya tenían change y estaban correctos. |  v79 - Retrofit: favicon estándar añadido (ruta absoluta); spinners <div class="spinner"> (CSS background base64) sustituidos por <img class="spinner"> con base64 embebido estándar; CSS .spinner{background:url(...)} eliminado (huérfano). |  v78 - Descripción inline: editor Quill por fila sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar; fila "Añadir" encima de las terminadas). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Checkbox con flex:none. Guardado a Caspio sin cambios (PUT Taskdescription). Eliminado Quill (CDN, CSS .ql-*/.desc-ql-wrap, botones .re-btn-inline, _qFmtRow) | v77 - Fix: renderTable oculta stInit+stErr, CSS state-box sin min-height forzado | v76 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v75 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v74 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v73 - versión anterior -->
