@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v06 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v07 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- ══ v06: base explícita → todos los recursos relativos resuelven SIEMPRE contra /intranet/ ══ -->
   <base href="https://www.3villas.com/intranet/">
+  <!-- ══ v07: RETROFIT — favicon estándar embebido, faltaba en este archivo ══ -->
+  <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#C8102E">
   <meta name="mobile-web-app-capable" content="yes">
@@ -23,7 +25,7 @@
       .catch(function(){});
   }
   </script>
-  <title>Menú — 3Villas v06</title>
+  <title>Menú v07 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -153,6 +155,32 @@
     .user-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
 
     /* ── Menú lateral — diseño oscuro nav-component ── */
+
+    /* ══ v07: BOTÓN INFO + POPUP (mismo patrón que checkin-pasos.html) ══ */
+    .info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:11px;font-weight:900;cursor:pointer;margin-left:6px;vertical-align:middle;line-height:1;padding:0;flex-shrink:0}
+    .info-btn:hover{background:#1557b0}
+    #infoPopup{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.35)}
+    #infoPopup.open{display:block}
+    .popup-sheet{position:fixed;background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);width:min(480px,94vw);max-height:80vh;display:flex;flex-direction:column;cursor:default}
+    .popup-drag-bar{display:flex;align-items:center;padding:14px 16px 10px;cursor:grab;border-bottom:1px solid var(--gray-2);border-radius:14px 14px 0 0;background:var(--gray-1)}
+    .popup-drag-bar:active{cursor:grabbing}
+    .popup-handle{width:36px;height:4px;background:var(--gray-3);border-radius:2px;margin:0 auto;pointer-events:none}
+    .popup-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-4);padding:0 4px;line-height:1}
+    .popup-title{font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);flex:1;margin:0 12px}
+    .popup-content{overflow-y:auto;padding:16px 20px 24px;border-radius:0 0 14px 14px}
+    .popup-body{font-size:14px;color:var(--gray-5);line-height:1.7}
+    .popup-body h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);margin:16px 0 6px}
+    .popup-body ol,.popup-body ul{padding-left:18px;margin:6px 0}
+    .popup-body ol li,.popup-body ul li{margin-bottom:10px}
+    .popup-body p{margin-bottom:8px}
+    .popup-body b{color:var(--red)}
+    .popup-content,.popup-body,.popup-body *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+    .link-copy-box{display:flex;align-items:center;gap:8px;background:var(--gray-1);border:1.5px solid var(--gray-2);border-radius:10px;padding:8px 10px;margin:8px 0}
+    .link-copy-box code{flex:1;font-size:12px;color:var(--gray-5);word-break:break-all}
+    .copy-link-btn{flex-shrink:0;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+    .copy-link-btn:hover{background:#1557b0}
+    .copy-link-btn.ok{background:var(--green)}
+    .warn-box{background:var(--orange-light);border:1.5px solid var(--orange);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:13px;color:var(--gray-5)}
   </style>
   <script src="auth.js"></script>
   <script src="nav.js"></script>
@@ -201,7 +229,7 @@
     <a class="menu-btn mb-green" href="tareas.html">
       <div class="mb-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
       <div class="mb-info">
-        <div class="mb-title">Tareas</div>
+        <div class="mb-title">Tareas<button class="info-btn" onclick="event.preventDefault();event.stopPropagation();showTareasInfoPopup();" aria-label="Cómo crear un acceso directo a Tareas" title="Acceso directo a Tareas">i</button></div>
         <div class="mb-sub">Gestión de tareas pendientes</div>
       </div>
       <div class="mb-arrow">›</div>
@@ -275,6 +303,92 @@ document.addEventListener('DOMContentLoaded', function(){
   </a>
 </nav>
 
+<!-- ══ v07: POPUP INFO — Acceso directo a Tareas ══ -->
+<div id="infoPopup" onclick="if(event.target===this)closePopup()">
+  <div class="popup-sheet" id="popupSheet">
+    <div class="popup-drag-bar" id="popupDragBar">
+      <div class="popup-handle"></div>
+      <div class="popup-title" id="popupTitle">Acceso directo a Tareas (Android)</div>
+      <button class="popup-close" onclick="closePopup()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="popup-content">
+      <div class="popup-body" id="popupBody">
+        <p>Sigue estos pasos para tener un icono de <b>Tareas</b> directo en tu pantalla de inicio, independiente del icono de 3Villas:</p>
+
+        <div class="link-copy-box">
+          <code id="tareasLinkText">https://www.3villas.com/intranet/tareas-app/tareas-app.html</code>
+          <button class="copy-link-btn" id="copyLinkBtn" onclick="copyTareasLink(event)">Copiar link</button>
+        </div>
+
+        <div class="warn-box">
+          ⚠️ <b>Importante:</b> no toques el link directamente si te lo mandas por WhatsApp o notas — se abrirá dentro de la app de 3Villas. Tienes que <b>copiarlo</b> con el botón de arriba y <b>pegarlo tú mismo</b> en Chrome, como se explica en el paso 2.
+        </div>
+
+        <ol>
+          <li>Pulsa <b>"Copiar link"</b> arriba para copiar la dirección de la página de Tareas.</li>
+          <li>Abre la app <b>Chrome</b> (el navegador, no la app de 3Villas). Toca la barra de direcciones de arriba, <b>pega</b> el link copiado y pulsa Ir/Intro.</li>
+          <li>Espera a que cargue la página de Tareas dentro de Chrome.</li>
+          <li>Toca el menú de <b>tres puntos ⋮</b> (arriba a la derecha de Chrome).</li>
+          <li>Selecciona <b>"Añadir a pantalla"</b> (o "Añadir a pantalla de inicio", según el modelo).</li>
+          <li>Cuando te pregunte cómo añadirlo, elige <b>"Crear acceso directo"</b> — NO elijas "Instalar app".</li>
+          <li>Te dejará escribir un nombre: cámbialo a <b>"Tareas"</b> y confirma.</li>
+          <li>Ya tienes el icono de Tareas en tu pantalla de inicio, independiente del de 3Villas.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ v07: POPUP INFO — mismo patrón que checkin-pasos.html ══ */
+function showTareasInfoPopup(){ openPopupCentered(); }
+function openPopupCentered(){
+  var overlay=document.getElementById('infoPopup'), sheet=document.getElementById('popupSheet');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  requestAnimationFrame(function(){
+    var sw=sheet.offsetWidth, sh=sheet.offsetHeight;
+    var vw=window.innerWidth, vh=window.innerHeight;
+    var top=Math.max(16, Math.round((vh-sh)/2));
+    var left=Math.round((vw-sw)/2);
+    sheet.style.left=left+'px';
+    sheet.style.top=top+'px';
+  });
+}
+function closePopup(){
+  document.getElementById('infoPopup').classList.remove('open');
+  document.body.style.overflow='';
+}
+function copyTareasLink(ev){
+  if(ev){ ev.stopPropagation(); }
+  var text=document.getElementById('tareasLinkText').textContent;
+  var btn=document.getElementById('copyLinkBtn');
+  function done(){ var o=btn.textContent; btn.textContent='¡Copiado!'; btn.classList.add('ok'); setTimeout(function(){btn.textContent=o;btn.classList.remove('ok');},1600); }
+  function fallbackCopy(t){ try{ var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }catch(e){} }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  }catch(e){ fallbackCopy(text); done(); }
+}
+(function(){
+  var bar, sheet, dragging=false, ox=0, oy=0;
+  document.addEventListener('DOMContentLoaded', function(){
+    bar=document.getElementById('popupDragBar'); sheet=document.getElementById('popupSheet');
+    if(!bar||!sheet) return;
+    bar.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    bar.addEventListener('touchstart', function(e){startDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchmove', function(e){onDrag(e.touches[0]);},{passive:true});
+    document.addEventListener('touchend', stopDrag);
+  });
+  function startDrag(e){ dragging=true; ox=e.clientX-sheet.getBoundingClientRect().left; oy=e.clientY-sheet.getBoundingClientRect().top; }
+  function onDrag(e){ if(!dragging) return; sheet.style.left=(e.clientX-ox)+'px'; sheet.style.top=(e.clientY-oy)+'px'; }
+  function stopDrag(){ dragging=false; }
+})();
+</script>
+
 </body>
 </html>
 
@@ -282,7 +396,24 @@ document.addEventListener('DOMContentLoaded', function(){
 ═══════════════════════════════════════════════════════════════════════
  HISTORIAL DE VERSIONES — index.html
 ═══════════════════════════════════════════════════════════════════════
- v06 (actual)
+ v07 (actual)
+   · Se añade botón de info (i) junto al título "Tareas" en la tarjeta de
+     menú principal, que abre un popup (mismo patrón visual y de código
+     que checkin-pasos.html: sheet centrado, barra arrastrable, cierre con
+     X o clic fuera) con los pasos confirmados para crear un acceso directo
+     independiente a Tareas en Android:
+       1) Copiar el link de tareas-app.html (botón "Copiar link" incluido).
+       2) Pegarlo manualmente en Chrome (se avisa expresamente de que
+          tocar el link directamente lo abre dentro de la app de 3Villas).
+       3) Menú ⋮ → "Añadir a pantalla" → "Crear acceso directo" (no
+          "Instalar app") → renombrar a "Tareas".
+   · RETROFIT: se añade el favicon estándar embebido
+     (<link rel="icon"> con icon-corazon-rojo-fondo-transparente.png),
+     que faltaba en este archivo.
+   · Se corrige el formato del <title> al estándar "Nombre vXX — 3Villas"
+     (antes era "Menú — 3Villas v06", orden incorrecto).
+   · Sin cambios en el resto de la estructura, estilos ni navegación.
+ v06
    · FIX CRÍTICO de redirección a /es/3villas-manuals → 404:
      - Se ELIMINA el registro del Service Worker '/3villas-manuals/sw.js'.
        Ese SW pertenece al sitio Next.js principal y secuestraba la
