@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v01 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v02 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta name="theme-color" content="#C8102E">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
-<title>Crear Villa v01 — 3Villas</title>
+<title>Crear Villa v02 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -31,7 +31,8 @@ body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gra
 .field{margin-bottom:14px}
 .lbl{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--gray-5);margin-bottom:5px;display:flex;align-items:center;gap:4px}
 .req{color:var(--red);font-weight:900}
-input[type=text],input[type=number],select,textarea{width:100%;border:1.5px solid var(--gray-2);border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;transition:border-color .15s;background:#fff}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;border:1.5px solid var(--gray-2);border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;transition:border-color .15s;background:#fff}
+textarea{resize:vertical;min-height:60px}
 input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
 input.err,select.err{border-color:var(--red);background:var(--red-light)}
 .hint{font-size:11px;color:var(--gray-4);margin-top:3px}
@@ -85,14 +86,17 @@ input.err,select.err{border-color:var(--red);background:var(--red-light)}
 /* ══ CARGA DE DATOS ══ */
 const WORKER='https://caspio-proxy.jordi-89b.workers.dev';
 
-/* Tablas lookup necesarias para los campos del checklist (Intranet+Drive) */
+/* Tablas lookup necesarias para los campos del formulario */
 const LOOKUP_DEFS=[
-  {key:'signed',   table:'TaSigned',        idF:'Signed_ID', nameF:'SignedName'},
-  {key:'villaStatus',table:'TaViXVillasStatus',idF:'StatusID', nameF:'StatusName'},
-  {key:'pool',     table:'TaViXSwimingpool', idF:'TableID',   nameF:'TableName'},
-  {key:'zone',     table:'TaViXZonas',       idF:'StatusID',  nameF:'StatusName'},
-  {key:'dealType', table:'TaDealType',       idF:'DealType_ID',nameF:'Deal_Type_Name'},
-  {key:'activa',   table:'TaActiva',         idF:'Dealactiva_ID',nameF:'Activa_name'},
+  {key:'signed',    table:'TaSigned',           idF:'Signed_ID',   nameF:'SignedName'},
+  {key:'villaStatus',table:'TaViXVillasStatus', idF:'StatusID',    nameF:'StatusName'},
+  {key:'pool',      table:'TaViXSwimingpool',   idF:'TableID',     nameF:'TableName'},
+  {key:'zone',      table:'TaViXZonas',         idF:'StatusID',    nameF:'StatusName'},
+  {key:'dealType',  table:'TaDealType',         idF:'DealType_ID', nameF:'Deal_Type_Name'},
+  {key:'activa',    table:'TaActiva',           idF:'Dealactiva_ID',nameF:'Activa_name'},
+  {key:'ownerType', table:'TaOwnerType',        idF:'OwnerTypeID', nameF:'Owner_Type_Name'},
+  {key:'statusHomestaging',table:'TaStatusHomestaging',idF:'StatusID',nameF:'StatusName'},
+  {key:'aircon',    table:'TaViXAircon',        idF:'TableID',     nameF:'TableName'},
 ];
 const LOOKUPS={};
 let contacts=[], users=[];
@@ -140,7 +144,35 @@ function buildForm(){
     <div class="sec-title">Datos básicos</div>
     <div class="field"><div class="lbl">${req('Nombre interno (equipo)')}</div>
       <input type="text" id="f_Name" placeholder="Ej: VILLA MARIA">
-      <div class="hint">Nombre en mayúsculas para uso interno del equipo</div>
+      <div class="hint">Nombre de la villa en MAYÚSCULAS para uso interno del equipo. Ejemplo: VILLA MARIA.</div>
+    </div>
+    <div class="field"><div class="lbl">${req('Nombre para clientes')}</div>
+      <input type="text" id="f_Name_villa_para_inquilinos" placeholder="Nombre comercial">
+      <div class="hint">Nombre comercial que verán los inquilinos.</div>
+    </div>
+    <div class="field"><div class="lbl">Tipo de propietario</div>${selectHTML('f_Owner_Type',LOOKUPS.ownerType,'— Seleccionar —')}</div>
+    <div class="field"><div class="lbl">Responsable</div>${selectHTML('f_Person_from_the_team',users,'— Seleccionar —')}</div>
+
+    <div class="sec-title">📣 Comercial / Marketing</div>
+    <div class="field"><div class="lbl">Comercial info</div>
+      <textarea id="f_Comercial_info" rows="3"></textarea>
+      <div class="hint">Cuanta más información mejor. Si es una propiedad potencial que todavía no está firmada, no hace falta crear el contacto: pon aquí el nombre del propietario y su teléfono.</div>
+    </div>
+    <div class="field"><div class="lbl">Información general del equipo</div>
+      <textarea id="f_Coronavirusinfo" rows="2"></textarea>
+      <div class="hint">Este texto se ve casi arriba del todo al entrar a ver la villa en la intranet.</div>
+    </div>
+    <div class="field"><div class="lbl">Googlemaps Link</div>
+      <input type="text" id="f_Googlemaps_link" placeholder="https://maps.google.com/...">
+      <div class="hint">Copiar aquí el link de la localización de Google Maps.</div>
+    </div>
+    <div class="field"><div class="lbl">Link Owner Listing (solo Leads)</div>
+      <input type="text" id="f_Link_owner_listing_or_sales" placeholder="https://...">
+      <div class="hint">Copiar aquí el link actual de Booking, Homeaway, o el que tenga el cliente.</div>
+    </div>
+    <div class="field"><div class="lbl">Próxima acción comercial</div>
+      <input type="date" id="f_Date_next_comercial_action">
+      <div class="hint">Solo necesario si se está creando un Lead.</div>
     </div>
 
     <div class="sec-title">📁 Drive</div>
@@ -151,20 +183,30 @@ function buildForm(){
 
     <div class="sec-title">🏠 Intranet</div>
     <div class="field"><div class="lbl">${req('Firmado (Signed)')}</div>${selectHTML('f_SIGNED',LOOKUPS.signed,'— Seleccionar —')}</div>
-    <div class="field"><div class="lbl">${req('Nombre para clientes')}</div><input type="text" id="f_Name_villa_para_inquilinos" placeholder="Nombre comercial que verán los inquilinos"></div>
-    <div class="field"><div class="lbl">${req('Status / Estado')}</div>${selectHTML('f_Status',LOOKUPS.villaStatus,'— Seleccionar —')}</div>
+    <div class="field"><div class="lbl">${req('Status / Estado')}</div>${selectHTML('f_Status',LOOKUPS.villaStatus,'— Seleccionar —')}
+      <div class="hint">Por defecto se suele crear como LEAD, a no ser que se tenga claro otro estado.</div>
+    </div>
     <div class="field"><div class="lbl">${req('Contacto (propietario)')}</div>${selectHTML('f_Owner',contacts,'— Seleccionar contacto —')}
-      <div class="hint">Si el contacto no existe todavía, créalo primero en la intranet</div>
+      <div class="hint">Si es un lead o todavía no está firmada, no hace falta crear el propietario: pon su nombre y teléfono en "Comercial info".</div>
+    </div>
+    <div class="field"><div class="lbl">Contacto de 400€</div>${selectHTML('f_FourhandredEUR_Contact',contacts,'— Seleccionar —')}
+      <div class="hint">Solo ponerlo si hay que comisionar a alguien. Si el contacto no está creado y todavía no se ha firmado, indícalo en "Comercial info".</div>
     </div>
     <div class="field"><div class="lbl">${req('Piscina')}</div>${selectHTML('f_Swiming_pool',LOOKUPS.pool,'— Seleccionar —')}</div>
     <div class="field"><div class="lbl">${req('Limpieza (equipo)')}</div>${selectHTML('f_Cleanning_team',contacts,'— Seleccionar —')}</div>
     <div class="field"><div class="lbl">${req('Código Hostaway')}</div><input type="number" id="f_Hostawayid" placeholder="Ej: 92737"></div>
     <div class="field"><div class="lbl">${req('Zona')}</div>${selectHTML('f_Zone',LOOKUPS.zone,'— Seleccionar —')}</div>
     <div class="field"><div class="lbl">${req('Keyholder (Villa Manager)')}</div>${selectHTML('f_KeyHolder_person',users,'— Seleccionar —')}</div>
-    <div class="field"><div class="lbl">${req('Deal Type')}</div>${selectHTML('f_Deal_Type',LOOKUPS.dealType,'— Seleccionar —')}</div>
+    <div class="field"><div class="lbl">${req('Deal Type')}</div>${selectHTML('f_Deal_Type',LOOKUPS.dealType,'— Seleccionar —')}
+      <div class="hint">Indicar si ya se sabe; si no, dejar sin seleccionar.</div>
+    </div>
     <div class="field"><div class="lbl">${req('Referencia Catastral')}</div><input type="text" id="f_Referencia_Catastral"></div>
     <div class="field"><div class="lbl">${req('Dirección')}</div><input type="text" id="f_Address"></div>
     <div class="field"><div class="lbl">${req('Licencia (Nr. License)')}</div><input type="text" id="f_License"></div>
+    <div class="field"><div class="lbl">Número de Registro (RUA)</div>
+      <input type="text" id="f_nro_rua" placeholder="Ej: R-000000">
+      <div class="hint">Número de registro único de la vivienda (RUA).</div>
+    </div>
     <div class="field"><div class="lbl">${req('Jardinero')}</div>${selectHTML('f_Garden_team',contacts,'— Seleccionar —')}</div>
     <div class="field"><div class="lbl">${req('Piscinero')}</div>${selectHTML('f_Pool_team',contacts,'— Seleccionar —')}</div>
     <div class="field"><div class="lbl">${req('Activa')}</div>${selectHTML('f_Activa',LOOKUPS.activa,'— Seleccionar —')}</div>
@@ -174,17 +216,41 @@ function buildForm(){
       <div class="field"><div class="lbl">Año inicio contrato</div><input type="number" id="f_Iniciocontrato" placeholder="Ej: 2026"></div>
       <div class="field"><div class="lbl">Año fin contrato</div><input type="number" id="f_Fincontrato" placeholder="Ej: 2029"></div>
     </div>
+
+    <div class="sec-title">🏗️ Vivienda y Legal</div>
+    <div class="field"><div class="lbl">Pax Legally (plazas legales)</div><input type="number" id="f_Pax_legal"></div>
+    <div class="field"><div class="lbl">Comentarios licencia / ecotasa / placas</div><textarea id="f_License_Ecotasa_Plates_comments" rows="2"></textarea></div>
+    <div class="field"><div class="lbl">Número de habitaciones</div><input type="text" id="f_Rooms_number"></div>
+    <div class="row2">
+      <div class="field"><div class="lbl">Baños en suite</div><input type="text" id="f_Ensuite_BATHROOMS"></div>
+      <div class="field"><div class="lbl">Baños compartidos</div><input type="text" id="f_Shared_BATHROOMS"></div>
+    </div>
+    <div class="field"><div class="lbl">Aircon</div>${selectHTML('f_Aircon',LOOKUPS.aircon,'— Seleccionar —')}</div>
+    <div class="field"><div class="lbl">Explicación aircon</div><input type="text" id="f_Explanation_aircon"></div>
+
+    <div class="sec-title">🏷️ Homestaging</div>
+    <div class="field"><div class="lbl">Status Homestaging</div>${selectHTML('f_Status_Homestaging',LOOKUPS.statusHomestaging,'— Seleccionar —')}</div>
+    <div class="field"><div class="lbl">Comentarios Homestaging</div><textarea id="f_Homestaging_Comments" rows="2"></textarea></div>
   `;
 }
 
 /* ══ GUARDADO ══ */
-/* Campos obligatorios: los de Drive + Intranet del checklist. Iniciocontrato/Fincontrato quedan opcionales. */
+/* Campos obligatorios: los de Drive + Intranet del checklist original. El resto (datos básicos,
+   comercial/marketing, contrato, vivienda/legal, homestaging) quedan opcionales. */
 const REQUIRED_FIELDS=[
   'Name','Drive','SIGNED','Name_villa_para_inquilinos','Status','Owner','Swiming_pool',
   'Cleanning_team','Hostawayid','Zone','KeyHolder_person','Deal_Type',
   'Referencia_Catastral','Address','License','Garden_team','Pool_team','Activa'
 ];
-const INT_FIELDS=['SIGNED','Status','Owner','Swiming_pool','Cleanning_team','Hostawayid','Zone','Deal_Type','Garden_team','Pool_team','Activa','Iniciocontrato','Fincontrato'];
+const OPTIONAL_FIELDS=[
+  'Owner_Type','Person_from_the_team','Comercial_info','Coronavirusinfo','Googlemaps_link',
+  'Link_owner_listing_or_sales','Date_next_comercial_action','FourhandredEUR_Contact','nro_rua',
+  'Iniciocontrato','Fincontrato','Pax_legal','License_Ecotasa_Plates_comments','Rooms_number',
+  'Ensuite_BATHROOMS','Shared_BATHROOMS','Aircon','Explanation_aircon','Status_Homestaging','Homestaging_Comments'
+];
+const INT_FIELDS=['SIGNED','Status','Owner','Swiming_pool','Cleanning_team','Hostawayid','Zone','Deal_Type',
+  'Garden_team','Pool_team','Activa','Iniciocontrato','Fincontrato','Owner_Type','FourhandredEUR_Contact',
+  'Pax_legal','Aircon','Status_Homestaging'];
 
 function toast(msg,type){ const el=g('toast'); el.textContent=msg; el.className='show '+(type||''); clearTimeout(window._toastT); window._toastT=setTimeout(()=>{ el.className=''; },4000); }
 
@@ -200,7 +266,7 @@ async function guardar(){
   });
   if(hasErr){ toast('Faltan campos obligatorios (marcados en rojo)','error'); return; }
 
-  const allFields=[...REQUIRED_FIELDS,'Iniciocontrato','Fincontrato'];
+  const allFields=[...REQUIRED_FIELDS,...OPTIONAL_FIELDS];
   allFields.forEach(f=>{
     const el=g('f_'+f); if(!el)return;
     const val=(el.value||'').trim();
@@ -236,6 +302,6 @@ async function guardar(){
 init();
 </script>
 
-<!-- HISTORIAL: v01 - Primera versión. Página nueva para crear un registro en TaVillas desde cero, basada en la checklist de creación de villas del usuario (categorías Drive + Intranet). Alcance acordado con el usuario: solo los campos que aparecen en la checklist (Drive: enlace Drive; Intranet: Signed/firmado, Nombre para clientes, Status, Contacto/Owner, Piscina, Limpieza, Código Hostaway, Zona, Keyholder, Deal Type, Referencia Catastral, Dirección, Licencia, Jardinero, Piscinero, Activa), en el mismo orden que la checklist, más Año inicio/fin contrato añadidos a petición expresa del usuario aunque no estaban en la checklist original. Se añade también el campo "Nombre interno" (Name) como campo base obligatorio no listado explícitamente en la checklist, ya que es el identificador imprescindible para crear cualquier villa (asunción señalada al usuario). Todos los campos de las categorías Drive+Intranet son obligatorios (validación en cliente, resaltado en rojo); Año inicio/fin contrato quedan opcionales. Usa el campo Hostawayid (no Fantasticstayid) para el código Hostaway, conforme a la decisión ya tomada por el usuario. Guardado vía Worker: action=save&table=TaVillas&method=POST (patrón confirmado en otras páginas del repo para creación de registros nuevos). Tras guardar, si la respuesta del Worker devuelve el villaid del nuevo registro, redirige automáticamente a editar-villa.html?villaid=X para completar el resto de la ficha; si no, permite crear otra villa. Favicon y spinner estándar (idénticos a editar-villa.html v18). Permiso usado: Auth.require('editar-villas') (mismo permiso que editar-villa.html, ya que crear una villa es una acción de edición/administración; a confirmar con el usuario si prefiere un permiso distinto, ej. 'crear-villa'). -->
+<!-- HISTORIAL: v02 - Añadidos los campos que también existían en la datapage antigua de Caspio "TaVillas Add Villa" y que faltaban en la v01, con sus comentarios/hints originales, integrados de forma lógica junto a los campos ya existentes (sin duplicar ninguno): Datos básicos (Owner_Type, Person_from_the_team/Responsable), Comercial/Marketing (Comercial_info, Coronavirusinfo, Googlemaps_link, Link_owner_listing_or_sales, Date_next_comercial_action), dentro de Intranet (FourhandredEUR_Contact junto a Owner, nro_rua —Número de Registro RUA— junto a License; se asume que "número de Riat" se refería a este campo RUA, a confirmar con el usuario), Vivienda y Legal (Pax_legal, License_Ecotasa_Plates_comments, Rooms_number, Ensuite_BATHROOMS, Shared_BATHROOMS, Aircon, Explanation_aircon) y Homestaging (Status_Homestaging, Homestaging_Comments). Se actualizan también los hints de Name, Name_villa_para_inquilinos, Status, Owner y Deal_Type con los comentarios exactos de la datapage antigua, que no estaban en la v01. Se añaden 3 tablas lookup nuevas a LOOKUP_DEFS: ownerType (TaOwnerType), statusHomestaging (TaStatusHomestaging), aircon (TaViXAircon). Se separa REQUIRED_FIELDS (obligatorios, sin cambios respecto a v01) de un nuevo array OPTIONAL_FIELDS con todos los campos nuevos, para que se envíen al guardar sin exigir que estén rellenos. Todos los campos nuevos son opcionales (ninguno pertenece a las categorías Drive/Intranet obligatorias del checklist original). | v01 - Primera versión. Página nueva para crear un registro en TaVillas desde cero, basada en la checklist de creación de villas del usuario (categorías Drive + Intranet). Alcance acordado con el usuario: solo los campos que aparecen en la checklist (Drive: enlace Drive; Intranet: Signed/firmado, Nombre para clientes, Status, Contacto/Owner, Piscina, Limpieza, Código Hostaway, Zona, Keyholder, Deal Type, Referencia Catastral, Dirección, Licencia, Jardinero, Piscinero, Activa), en el mismo orden que la checklist, más Año inicio/fin contrato añadidos a petición expresa del usuario aunque no estaban en la checklist original. Se añade también el campo "Nombre interno" (Name) como campo base obligatorio no listado explícitamente en la checklist, ya que es el identificador imprescindible para crear cualquier villa (asunción señalada al usuario). Todos los campos de las categorías Drive+Intranet son obligatorios (validación en cliente, resaltado en rojo); Año inicio/fin contrato quedan opcionales. Usa el campo Hostawayid (no Fantasticstayid) para el código Hostaway, conforme a la decisión ya tomada por el usuario. Guardado vía Worker: action=save&table=TaVillas&method=POST (patrón confirmado en otras páginas del repo para creación de registros nuevos). Tras guardar, si la respuesta del Worker devuelve el villaid del nuevo registro, redirige automáticamente a editar-villa.html?villaid=X para completar el resto de la ficha; si no, permite crear otra villa. Favicon y spinner estándar (idénticos a editar-villa.html v18). Permiso usado: Auth.require('editar-villas') (mismo permiso que editar-villa.html, ya que crear una villa es una acción de edición/administración; a confirmar con el usuario si prefiere un permiso distinto, ej. 'crear-villa'). -->
 </body>
 </html>
