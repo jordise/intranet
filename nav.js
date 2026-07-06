@@ -26,14 +26,11 @@ var _menuAdmin = [
       { label: 'Reporte ventas semanal', url: 'reports-ventas.html', icon: '📄' }
     ]
   },
-  {
-    label: 'Manuales', icon: '📖',
+    {
+    label: 'Administración', icon: '📖',
     children: [
-      { label: 'Generar manual',       url: 'generar.html',                     icon: '📄' },
-      { label: 'Manual lavadora',      url: 'manual-lavadora.html',             icon: '🫧' },
-      { label: 'Manual técnico',       url: 'manual-tecnico.html',              icon: '🔧' },
-      { label: 'Manual usuario',       url: 'manual-usuario.html',              icon: '👤' },
-      { label: 'Lavadora Villa María', url: 'manual_lavadora_villa_maria.html', icon: '🏠' }
+      { label: 'Nueva Villa',       url: 'crear-villa.html',                     icon: '🏠' },
+      { label: 'Control Waiver',      url: 'control-waiver.html',             icon: '🔧' }
     ]
   },
   {
