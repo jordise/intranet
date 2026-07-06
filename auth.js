@@ -126,6 +126,7 @@ const Auth = (function () {
     
     // ── ADMIN ───────────────────────────────────────────────────
     'control-waiver'                  : ['admin', 'manager'],
+    'crear-villa'                     : ['admin', 'manager'],   
 
     // ── REUNIONES ────────────────────────────────────────────────
     'reuniones'        : ['admin', 'manager','sales'],
