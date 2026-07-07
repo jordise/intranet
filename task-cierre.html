@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v6 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -11,8 +11,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Tarea Cierre v08 — 3Villas</title>
+  <!-- v11: eliminado el registro del Service Worker /3villas-manuals/sw.js (mismo fix que task-wp v18).
+       Era un resto de los manuales: auth.js lo DESINSTALA activamente porque intercepta
+       peticiones incorrectamente, y esta línea lo volvía a registrar en cada carga.
+       Un SW roto puede retener las respuestas de los fetch (el guardado se completa en
+       la red pero el JS de la página nunca recibe la señal → "Guardando..." eterno). -->
+  <title>Tarea Cierre v11 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -360,6 +364,10 @@ const cfg=TASK_CONFIG[taskType]||TASK_CONFIG['10'];
 
 /* ── Estado fotos ── */
 const photos={main:{file:null,base64:null},ai1:{file:null,base64:null},ai2:{file:null,base64:null},ai3:{file:null,base64:null},ai4:{file:null,base64:null},ai5:{file:null,base64:null}};
+/* v09: Blob URLs por slot (vista previa instantánea, sin base64) */
+const photoObjectUrls={main:null,ai1:null,ai2:null,ai3:null,ai4:null,ai5:null};
+/* v09: si la vista Vi_Tasks_Booking_Villa expone el ID de TaTasks, se guarda aquí para evitar la consulta duplicada de existencia en guardar() */
+let taskRecordId;
 
 const SLOT_MAP={
   main:{cam:'cameraInput',file:'fileInput',prev:'photoPreview',slot:'photoSlot',rem:'photoRemove'},
@@ -447,11 +455,15 @@ function openGallery(slot){saveState();const m=SLOT_MAP[slot];if(!m)return;const
 
 function handlePhoto(input,slot){
   const rawFile=input.files[0];if(!rawFile)return;
-  compressImage(rawFile,1200,0.80).then(function(file){
-  photos[slot]={file,base64:null};
-  const reader=new FileReader();
-  reader.onload=e=>{photos[slot].base64=e.target.result;showPhotoPreview(slot,e.target.result);if(slot==='main'){markDone();saveState();}};
-  reader.readAsDataURL(file);
+  compressImage(rawFile,1100,0.75).then(function(file){
+  photos[slot]={file,base64:true}; /* v09: base64 ya no guarda el contenido, solo marca "hay foto nueva" */
+  if(photoObjectUrls[slot]){URL.revokeObjectURL(photoObjectUrls[slot]);}
+  photoObjectUrls[slot]=URL.createObjectURL(file);
+  showPhotoPreview(slot,photoObjectUrls[slot]);
+  if(slot==='main'){markDone();}
+  saveState();
+  /* v09: pre-subida real en segundo plano (antes definida pero nunca llamada) */
+  _startBgUpload(slot,file);
   }); /* end compressImage */
 }
 
@@ -465,6 +477,7 @@ function showPhotoPreview(slot,src){
 
 function removePhoto(e,slot){
   e.stopPropagation();photos[slot]={file:null,base64:null};
+  if(photoObjectUrls[slot]){URL.revokeObjectURL(photoObjectUrls[slot]);photoObjectUrls[slot]=null;}
   const m=SLOT_MAP[slot];if(!m)return;
   const img=g(m.prev),rem=g(m.rem),slotEl=g(m.slot),cam=g(m.cam),fil=g(m.file);
   if(img){img.src='';img.style.display='none';}
@@ -507,45 +520,64 @@ async function guardar(fromOk){
       Solutiondescription:gv('txtNotas').trim(),
       Taskname:cfg.badge||'Cierre'};
 
-    /* Subir foto principal: si hay archivo nuevo, subir; si hay previa cargada, preservar URL */
+    /* Subir foto principal: si hay archivo nuevo, subir; si hay previa cargada, preservar URL
+       v09: fix — uploadPhoto() devuelve directamente la URL (string), no un objeto {url} */
     if(photos.main.file&&photos.main.base64){
-      try{const up=await uploadPhoto(photos.main.file,idReserva,taskType,'1');if(up&&up.url)data['Picture_cloudfare1']=up.url;}
-      catch(e){console.warn('Upload foto principal:',e);toast('⚠️ Error subiendo foto cocina','error');}
+      const mainUrl=await uploadPhoto(photos.main.file,idReserva,taskType,'1','main');
+      if(mainUrl)data['Picture_cloudfare1']=mainUrl;
+      else toast('⚠️ No se pudo subir la foto de cocina tras reintentar','error');
     } else {
       /* Preservar URL existente si la foto ya estaba guardada */
       const prevImg=g('photoPreview');
       if(prevImg&&prevImg.style.display==='block'&&prevImg.src&&prevImg.src.startsWith('http'))
         data['Picture_cloudfare1']=prevImg.src;
     }
-    /* Subir fotos incidencias → Picture_cloudfare_after1..5 */
-    for(const[slot,idx]of[['ai1',1],['ai2',2],['ai3',3],['ai4',4],['ai5',5]]){
-      if(photos[slot].file&&photos[slot].base64){
-        try{const up=await uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx);if(up&&up.url)data['Picture_cloudfare_after'+idx]=up.url;}
-        catch(e){console.warn('Upload foto inc'+idx+':',e);toast('⚠️ Error subiendo foto '+(idx),'error');}
-      } else {
+    /* Subir fotos incidencias → Picture_cloudfare_after1..5 — v09: en paralelo, no secuencial */
+    const incToUpload=[['ai1',1],['ai2',2],['ai3',3],['ai4',4],['ai5',5]].filter(([slot])=>photos[slot].file&&photos[slot].base64);
+    if(incToUpload.length){
+      const incResults=await Promise.all(incToUpload.map(([slot,idx])=>
+        uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx,slot).then(url=>({idx,url}))
+      ));
+      let incFail=0;
+      incResults.forEach(({idx,url})=>{if(url)data['Picture_cloudfare_after'+idx]=url;else incFail++;});
+      if(incFail)toast('⚠️ '+incFail+' foto(s) de incidencia no se pudieron subir tras reintentar','error');
+    }
+    [['ai1',1],['ai2',2],['ai3',3],['ai4',4],['ai5',5]].forEach(([slot,idx])=>{
+      if(!(photos[slot].file&&photos[slot].base64)){
         const prevImg=g('aiPreview'+idx);
         if(prevImg&&prevImg.style.display==='block'&&prevImg.src&&prevImg.src.startsWith('http'))
           data['Picture_cloudfare_after'+idx]=prevImg.src;
       }
-    }
+    });
 
-    /* Comprobar si existe la tarea y guardar */
+    /* Comprobar si existe la tarea y guardar.
+       v09: si taskRecordId ya se conoce por la carga inicial (Vi_Tasks_Booking_Villa), se evita la consulta duplicada.
+       Si la vista no expone ese campo, cae al comportamiento anterior sin riesgo.
+       v10: con timeout de 25s en las tres llamadas (comprobación + guardado) — sin esto, guardar()
+       podía quedarse colgado en "Guardando..." indefinidamente aunque el dato ya se hubiera guardado
+       en el servidor. Sin reintento automático: repetir un POST a ciegas podría duplicar el registro
+       si el primer intento sí llegó al servidor pero la respuesta no volvió al cliente. */
     const wh=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-    const chkRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`));
-    const chkJson=await chkRes.json();
-    const existingRows=(chkJson.Result||chkJson.result||[]);
-    const exists=existingRows.length>0;
+    let exists,taskIdForUpdate;
+    if(taskRecordId!==undefined){
+      exists=true;taskIdForUpdate=taskRecordId;
+    }else{
+      const chkRes=await fetchWithTimeout(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`),{},25000,'La comprobación de la tarea');
+      const chkJson=await chkRes.json();
+      const existingRows=(chkJson.Result||chkJson.result||[]);
+      exists=existingRows.length>0;
+      taskIdForUpdate=exists?(existingRows[0].taskid||existingRows[0].TaskID||existingRows[0].idtask||''):'';
+    }
     let res;
     if(exists){
       /* PUT: actualizar registro existente */
-      const taskId=existingRows[0].taskid||existingRows[0].TaskID||existingRows[0].idtask||'';
-      const putUrl=taskId
-        ? Auth.url(`${WORKER}?action=update&table=TaTasks&id=${encodeURIComponent(taskId)}`)
+      const putUrl=taskIdForUpdate
+        ? Auth.url(`${WORKER}?action=update&table=TaTasks&id=${encodeURIComponent(taskIdForUpdate)}`)
         : Auth.url(`${WORKER}?action=save&table=TaTasks&where=${encodeURIComponent(wh)}&method=PUT`);
-      res=await fetch(putUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      res=await fetchWithTimeout(putUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},25000,'El guardado de la tarea');
     } else {
       /* POST: crear nuevo registro */
-      res=await fetch(Auth.url(`${WORKER}?action=save&table=TaTasks&method=POST`),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      res=await fetchWithTimeout(Auth.url(`${WORKER}?action=save&table=TaTasks&method=POST`),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},25000,'El guardado de la tarea');
     }
     if(!res.ok){const errTxt=await res.text();throw new Error('HTTP '+res.status+': '+errTxt.slice(0,120));}
     clearState();
@@ -558,18 +590,71 @@ async function guardar(fromOk){
   }
 }
 
-async function uploadPhoto(file,idRes,tType,suffix){
-  /* Usar URL pre-subida si ya está lista */
-  const slot=suffix==='1'?'main':('ai'+(parseInt(suffix)-1||1));
-  const up=_getSlotUpload(slot);
-  if(up.status==='done'&&up.url)return Promise.resolve(up.url);
-  if(up.status==='uploading'&&up.promise)return up.promise;
-  /* fallback */
+/* v10: timeout genérico para fetch — evita que guardar() se quede colgado indefinidamente.
+   v11: blindado con Promise.race — el temporizador gana SIEMPRE, incluso si la promesa
+   del fetch nunca se resuelve (p.ej. interceptada por un Service Worker defectuoso).
+   Antes dependía de que el AbortError se propagara de vuelta, y eso puede no ocurrir.
+   Sin reintento automático aquí (a diferencia de las fotos): reintentar un POST a ciegas
+   podría crear un registro duplicado si el primer intento sí llegó al servidor. */
+async function fetchWithTimeout(url,options,timeoutMs,label){
+  timeoutMs=timeoutMs||25000;
+  const controller=new AbortController();
+  let timeoutId;
+  const timeoutPromise=new Promise((_,reject)=>{
+    timeoutId=setTimeout(()=>{
+      controller.abort();
+      reject(new Error((label||'La operación')+' ha tardado demasiado (posible problema de conexión)'));
+    },timeoutMs);
+  });
+  try{
+    return await Promise.race([
+      fetch(url,Object.assign({},options,{signal:controller.signal})),
+      timeoutPromise
+    ]);
+  }catch(e){
+    if(e.name==='AbortError')throw new Error((label||'La operación')+' ha tardado demasiado (posible problema de conexión)');
+    throw e;
+  }finally{
+    clearTimeout(timeoutId);
+  }
+}
+const UPLOAD_TIMEOUT_MS=25000;
+const SLOT_SUFFIX={main:'1',ai1:'after1',ai2:'after2',ai3:'after3',ai4:'after4',ai5:'after5'};
+function _uploadOnceSlot(file,idRes,tType,suffix){
   const fd=new FormData();fd.append('file',file,file.name||'foto_'+suffix+'.jpg');
   fd.append('idreserva',idRes);fd.append('tasktype',tType);fd.append('suffix',suffix);
   fd.append('year',new Date().getFullYear());
-  return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
-    .then(r=>r.json()).then(j=>j.url||j.publicUrl||'').catch(()=>'');
+  /* v11: reutiliza fetchWithTimeout (blindado con Promise.race) en vez de AbortController suelto */
+  return fetchWithTimeout(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd},UPLOAD_TIMEOUT_MS,'La subida de la foto')
+    .then(r=>r.json())
+    .then(j=>j.url||j.publicUrl||'');
+}
+/* v09: timeout 25s + 1 reintento automático — nunca cuelga guardar() indefinidamente */
+async function _uploadWithRetry(file,idRes,tType,suffix){
+  try{
+    const url=await _uploadOnceSlot(file,idRes,tType,suffix);
+    if(url)return url;
+    throw new Error('Respuesta sin URL');
+  }catch(e1){
+    console.warn('Subida de foto ('+suffix+') falló, reintentando:',e1.message);
+    try{
+      const url2=await _uploadOnceSlot(file,idRes,tType,suffix);
+      if(url2)return url2;
+      throw new Error('Respuesta sin URL en reintento');
+    }catch(e2){
+      console.error('Subida de foto ('+suffix+') falló tras reintento:',e2.message);
+      return '';
+    }
+  }
+}
+async function uploadPhoto(file,idRes,tType,suffix,slot){
+  /* v09: fix — el slot ahora se recibe explícito (antes se derivaba mal de suffix con parseInt,
+     lo que mezclaba el estado de subida de todas las fotos de incidencia bajo 'ai1') */
+  const up=_getSlotUpload(slot);
+  if(up.status==='done'&&up.url)return up.url;
+  if(up.status==='uploading'&&up.promise)return up.promise;
+  /* fallback: si no hay pre-subida en curso, subir ahora (con timeout + reintento) */
+  return _uploadWithRetry(file,idRes,tType,suffix);
 }
 
 
@@ -579,6 +664,10 @@ async function loadTask(){
   const where=`TaTasks_Idreserva='${idReserva}' AND TaTasks_Tasktype_booking=${parseInt(taskType)}`;
   const res=await fetch(Auth.url(`${WORKER}?action=view&view=Vi_Tasks_Booking_Villa&where=${encodeURIComponent(where)}&limit=1`));
   const json=await res.json();const r=(json.Result||json.result||[])[0];window.__taskDebug=r;if(!r)return;
+  /* v09: si la vista trae el ID de TaTasks, se guarda para evitar la consulta duplicada en guardar().
+     Si no viene (nombre distinto), taskRecordId queda undefined y guardar() usa el método anterior — sin riesgo. */
+  const _tid=r['TaTasks_taskid']??r['TaTasks_Taskid']??r['TaTasks_TaskID'];
+  taskRecordId=(_tid!==undefined&&_tid!==null&&_tid!=='')?_tid:undefined;
   /* Reserva + villa */
   const hv=document.getElementById('hVilla'),hr=document.getElementById('hRes');
   if(hv)hv.textContent=r['TaVillas_Name_villa_para_inquilinos']||`Reserva ${idReserva}`;
@@ -633,7 +722,7 @@ function openLB(src){if(!src)return;var o=document.getElementById('lbOverlay'),i
 function closeLB(){var o=document.getElementById('lbOverlay');if(o)o.classList.remove('open');document.body.style.overflow='';}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();});
 function compressImage(file,maxPx,quality){
-  maxPx=maxPx||1200;quality=quality||0.80;
+  maxPx=maxPx||1100;quality=quality||0.75;
   return new Promise(function(resolve){
     if(file.size<300*1024){resolve(file);return;}
     var img=new Image(),url=URL.createObjectURL(file);
@@ -652,22 +741,23 @@ function compressImage(file,maxPx,quality){
   });
 }
 
-/* v_new: upload state por slot para pre-subida background */
+/* v09: upload state por slot para pre-subida background — activada de verdad desde handlePhoto().
+   Reutiliza el mismo formato de envío (idreserva/tasktype/suffix/year) que ya funcionaba en el
+   fallback de uploadPhoto(), en vez del formato (file/filename) que nunca llegó a probarse en
+   producción porque esta función no se llamaba desde ningún sitio hasta ahora. */
 const _slotUpload={};
 function _getSlotUpload(slot){return _slotUpload[slot]||(_slotUpload[slot]={status:'idle',url:'',promise:null});}
 function _startBgUpload(slot,file){
   const up=_getSlotUpload(slot);
-  up.status='uploading';up.url='';up.promise=null;
-  const year=new Date().getFullYear();
-  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
-  const fname='fotos-tareas/'+year+'_'+slot+'_'+idReserva+'.'+ext;
-  const fd=new FormData();fd.append('file',file,fname);fd.append('filename',fname);
-  up.promise=fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
-    .then(r=>r.json()).then(j=>{const url=j.url||j.publicUrl||'';up.status=url?'done':'error';up.url=url;return url;})
-    .catch(()=>{up.status='error';return '';});
+  up.status='uploading';up.url='';
+  const suffix=SLOT_SUFFIX[slot]||slot;
+  up.promise=_uploadWithRetry(file,idReserva,taskType,suffix).then(function(url){
+    up.status=url?'done':'error';up.url=url||'';return url;
+  });
+  return up.promise;
 }
 </script>
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v08 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v07 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v06 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v05 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
+<!-- HISTORIAL: v11 - Mismos tres fixes que task-wp v18 contra el "Guardando..." eterno: (1) eliminado el registro del Service Worker /3villas-manuals/sw.js que se re-registraba en cada carga pese a que auth.js lo desinstala activamente por interceptar peticiones incorrectamente — un SW roto puede retener las respuestas de los fetch de guardado sin entregarlas nunca al JS de la página; (2) fetchWithTimeout blindado con Promise.race: el temporizador gana siempre aunque la promesa del fetch nunca se resuelva (antes dependía de que el AbortError se propagara, cosa que un SW defectuoso puede impedir); (3) _uploadOnceSlot (subida de fotos) reutiliza fetchWithTimeout blindado en vez de AbortController suelto | v10 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor (mismo bug detectado y corregido en task-wp v15) — la comprobación de existencia y el guardado final de TaTasks (PUT/POST) no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (evita registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v09 - Fix bug crítico: uploadPhoto() devolvía un string (URL) pero se comprobaba como objeto {url}, por lo que ninguna foto (principal ni las 5 de incidencias) llegaba a guardarse en TaTasks pese a subirse correctamente; fix bug latente: el mapeo de slot desde suffix con parseInt('afterN') fallaba y mezclaba el estado de subida de todas las fotos de incidencia bajo 'ai1' (uploadPhoto ahora recibe el slot explícito); activada de verdad la pre-subida en segundo plano (_startBgUpload existía pero nunca se llamaba desde ningún sitio); añadido timeout de 25s + 1 reintento automático a las subidas (evita bloqueos indefinidos tipo "se queda guardando"); vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); fotos de incidencias (ai1-ai5) se suben en paralelo con Promise.all en vez de secuencialmente; compresión reducida de 1200px/0.80 a 1100px/0.75; taskRecordId de la carga inicial evita la consulta duplicada de existencia si la vista lo expone (fallback seguro si no); corregido desfase de versión en comentario cabecera (v6→v09) | v08 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v07 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v06 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v05 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
