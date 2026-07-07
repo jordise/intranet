@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v9 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v14 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePack v12 — 3Villas</title>
+  <title>WelcomePack v14 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -201,7 +201,7 @@ const taskType=params.get('Tasktype_booking')||'20';
 const code=params.get('code')||'';
 const TASK_CONFIG={'10':{label:'🧹 Limpieza',badge:'🧹 Limpieza',color:'#1565c0'},'20':{label:'📦 WelcomePack',badge:'📦 WelcomePack',color:'#e07b00'},'30':{label:'🔒 Cierre',badge:'🔒 Cierre',color:'#5e35b1'}};
 const cfg=TASK_CONFIG[taskType]||TASK_CONFIG['20'];
-let selectedPhoto=null,photoBase64=null;
+let selectedPhoto=null,currentPhotoObjectUrl=null,taskRecordId=undefined;
 
 const STATE_KEY='wp_state_'+idReserva+'_'+taskType;
 const MAX_STATE_AGE_MS=5*60*1000;
@@ -245,6 +245,10 @@ async function loadTask(){
   const res=await fetch(url);const json=await res.json();
   const r=(json.Result||json.result||[])[0];window.__taskDebug=r;
   if(!r)return;
+  /* v14: si la vista trae el ID de TaTasks, lo guardamos para saber si ya existe sin repetir la consulta en guardar().
+     Si el campo no viene en la vista (nombre distinto), queda undefined y guardar() usa el método anterior — sin riesgo. */
+  const _tid=r['TaTasks_taskid']??r['TaTasks_Taskid']??r['TaTasks_TaskID'];
+  taskRecordId=(_tid!==undefined&&_tid!==null&&_tid!=='')?_tid:undefined;
   /* Datos reserva */
   const villaName=r['TaVillas_Name_villa_para_inquilinos']||r['TaBookings2021_FS_confirmation_code']||`Reserva ${idReserva}`;
   document.getElementById('hVilla').textContent=villaName;
@@ -270,7 +274,7 @@ function openGallery(){saveState();document.getElementById('fileInput').value=''
 function handlePhotoAreaClick(){if(!selectedPhoto)openGallery();}
 
 function compressImage(file,maxPx,quality){
-  maxPx=maxPx||1200;quality=quality||0.80;
+  maxPx=maxPx||1100;quality=quality||0.75;
   return new Promise(function(resolve){
     if(file.size<300*1024){resolve(file);return;}
     var img=new Image(),url=URL.createObjectURL(file);
@@ -292,30 +296,52 @@ function compressImage(file,maxPx,quality){
 let _wpUpload={status:'idle',url:'',promise:null};
 function handlePhoto(input){
   const file=input.files[0];if(!file)return;
-  compressImage(file,1200,0.80).then(function(compressed){
+  compressImage(file,1100,0.75).then(function(compressed){
     selectedPhoto=compressed;
     _wpUpload={status:'uploading',url:'',promise:null};
-    const reader=new FileReader();
-    reader.onload=e=>{
-      photoBase64=e.target.result;
-      showPhotoPreview(photoBase64);
-      markWPDone();saveState();
-      /* Pre-subida en background */
-      _wpUpload.promise=_doUploadWP(compressed).then(function(url){
-        _wpUpload.status=url?'done':'error';
-        _wpUpload.url=url||'';
-      });
-    };
-    reader.readAsDataURL(compressed);
+    /* v14: Blob URL en vez de base64 — vista previa instantánea, sin esperar a FileReader */
+    if(currentPhotoObjectUrl){URL.revokeObjectURL(currentPhotoObjectUrl);}
+    currentPhotoObjectUrl=URL.createObjectURL(compressed);
+    showPhotoPreview(currentPhotoObjectUrl);
+    markWPDone();saveState();
+    /* Pre-subida en background — arranca ya, en paralelo a la vista previa */
+    _wpUpload.promise=_doUploadWP(compressed).then(function(url){
+      _wpUpload.status=url?'done':'error';
+      _wpUpload.url=url||'';
+    });
   });
 }
-function _doUploadWP(file){
+const WP_UPLOAD_TIMEOUT_MS=25000;
+function _uploadOnceWP(file){
   const fd=new FormData();
   const year=(new Date().getFullYear());
   const fname='fotos-tareas/'+year+'_wp_'+idReserva+'.jpg';
   fd.append('file',file,fname);fd.append('filename',fname);
-  return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
-    .then(r=>r.json()).then(j=>j.url||j.publicUrl||'').catch(()=>'');
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),WP_UPLOAD_TIMEOUT_MS);
+  return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd,signal:controller.signal})
+    .then(r=>r.json())
+    .then(j=>j.url||j.publicUrl||'')
+    .finally(()=>clearTimeout(timeoutId));
+}
+/* v13: timeout 25s + 1 reintento automático; nunca cuelga guardar() indefinidamente */
+async function _doUploadWP(file){
+  try{
+    const url=await _uploadOnceWP(file);
+    if(url)return url;
+    throw new Error('Respuesta sin URL');
+  }catch(e1){
+    console.warn('Subida de foto falló, reintentando:',e1.message);
+    try{
+      const url2=await _uploadOnceWP(file);
+      if(url2)return url2;
+      throw new Error('Respuesta sin URL en reintento');
+    }catch(e2){
+      console.error('Subida de foto falló tras reintento:',e2.message);
+      toast('⚠️ No se pudo subir la foto (conexión lenta). La tarea se guardará y podrás reintentar la foto más tarde.','error');
+      return '';
+    }
+  }
 }
 
 function onSwDoneChange(){
@@ -333,7 +359,8 @@ function showPhotoPreview(src){
   slot.classList.remove('empty');slot.classList.add('has-img');
 }
 function removePhoto(e){
-  e.stopPropagation();selectedPhoto=null;photoBase64=null;
+  e.stopPropagation();selectedPhoto=null;
+  if(currentPhotoObjectUrl){URL.revokeObjectURL(currentPhotoObjectUrl);currentPhotoObjectUrl=null;}
   const slot=document.getElementById('photoSlot'),img=document.getElementById('photoPreview'),btn=document.getElementById('photoRemove');
   img.src='';img.style.display='none';btn.style.display='none';
   slot.classList.remove('has-img');slot.classList.add('empty');
@@ -369,16 +396,29 @@ async function guardar(fromTodoOk){
   lbl.textContent='Guardando...';sp.style.display='block';
   try{
     const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:sw('swDone'),Limpieza_filtrolavaplatos:sw('swAgua'),Limpieza_salyabrillan_lavaplatos:sw('swWifi')?'Y':'',Taskdescription:document.getElementById('txtComentarios').value.trim(),Taskname:'WelcomePack'};
-    if(selectedPhoto&&photoBase64){try{const uploadRes=await uploadPhoto(selectedPhoto,idReserva,taskType);if(uploadRes&&uploadRes.url){data['Picture_cloudfare1']=uploadRes.url;}}catch(eUp){console.warn('Photo upload skipped:',eUp.message);}}
+    if(selectedPhoto){try{const uploadUrl=await uploadPhoto(selectedPhoto,idReserva,taskType);if(uploadUrl){data['Picture_cloudfare1']=uploadUrl;}}catch(eUp){console.warn('Photo upload skipped:',eUp.message);}}
     const whereCheck=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
-    const checkUrl=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(whereCheck)}&limit=1`);
-    const checkRes=await fetch(checkUrl);const checkJson=await checkRes.json();
-    const exists=(checkJson.Result||checkJson.result||[]).length>0;
+    let exists;
+    if(taskRecordId!==undefined){
+      /* v14: ya sabemos por la carga inicial (Vi_Tasks_Booking_Villa) si el registro existe — sin fetch extra */
+      exists=true;
+    }else{
+      /* Fallback: la vista no traía el ID de TaTasks, se comprueba como antes */
+      const checkUrl=Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(whereCheck)}&limit=1`);
+      const checkRes=await fetch(checkUrl);const checkJson=await checkRes.json();
+      exists=(checkJson.Result||checkJson.result||[]).length>0;
+    }
     const saveQs=exists?`action=save&table=TaTasks&where=${encodeURIComponent(whereCheck)}&method=PUT`:`action=save&table=TaTasks&method=POST`;
     const saveUrl=Auth.url(`${WORKER}?${saveQs}`);
-    const saveRes=await fetch(saveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    /* v14: TaTasks y TaBookings2021 son tablas independientes — se guardan en paralelo */
+    const wpDone=sw('swDone');
+    const bkWhere=`FS_confirmation_code='${idReserva}'`;
+    const bkSaveUrl=Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);
+    const [saveRes]=await Promise.all([
+      fetch(saveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),
+      fetch(bkSaveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Welcomepackentregado:wpDone})}).catch(eBk=>{console.warn('No se pudo actualizar TaBookings2021:',eBk.message);return null;})
+    ]);
     if(!saveRes.ok){const err=await saveRes.text();throw new Error(err);}
-    try{const wpDone=sw('swDone');const bkWhere=`FS_confirmation_code='${idReserva}'`;const bkSaveUrl=Auth.url(`${WORKER}?action=save&table=TaBookings2021&where=${encodeURIComponent(bkWhere)}&method=PUT`);await fetch(bkSaveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Welcomepackentregado:wpDone})});}catch(eBk){console.warn('No se pudo actualizar TaBookings2021:',eBk.message);}
     clearState();
     toast('✓ Guardado correctamente','success');
     btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
@@ -409,4 +449,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();})
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
+<!-- HISTORIAL: v14 - Optimizaciones de velocidad de guardado/subida de foto: (1) vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); (2) evita la consulta duplicada de existencia de TaTasks en guardar() reutilizando el ID ya cargado por Vi_Tasks_Booking_Villa si está disponible (fallback seguro a la consulta anterior si el campo no viene en la vista); (3) TaTasks y TaBookings2021 se guardan en paralelo con Promise.all en vez de secuencialmente; (4) compresión de foto reducida de 1200px/0.80 a 1100px/0.75 para subidas más rápidas | v13 - Fix bloqueo "se queda guardando" al subir foto: timeout 25s + 1 reintento automático en _doUploadWP (AbortController), nunca cuelga indefinidamente; aviso al usuario si falla tras reintento; fix uploadRes.url (uploadPhoto devuelve string, no objeto) para que la foto se guarde correctamente; corregido desfase de versión en comentario cabecera (v9→v13) | v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
