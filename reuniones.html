@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v8 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="/intranet/">
-  <title>Reuniones v7 — 3Villas</title>
+  <title>Reuniones v8 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -133,6 +133,7 @@
 
   /* ── MODAL / FICHA ── */
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,22,34,.55);z-index:9500;align-items:center;justify-content:center;padding:14px}
+  #dafoModalOverlay{z-index:9800}
   .modal-overlay.open{display:flex}
   .modal-box{background:#fff;border-radius:var(--r-lg);width:90vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-md);overflow:hidden}
   .modal-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1.5px solid var(--gray-2);flex-shrink:0}
@@ -197,6 +198,56 @@
   .modal-footer .btn-secondary:hover{border-color:var(--gray-4);color:var(--gray-5)}
   .modal-saving{font-size:11px;color:var(--gray-3);font-family:Montserrat,sans-serif;font-weight:700;margin-right:auto}
 
+  /* ── DAFO: botón de apertura (header ficha) ── */
+  .btn-dafo-open{flex-shrink:0;background:linear-gradient(135deg,#6a3fd6,#8a5cf0);color:#fff;border:none;border-radius:var(--r-sm);padding:0 16px;height:100%;min-height:44px;font-size:12px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer;white-space:nowrap;transition:opacity .15s,transform .1s;box-shadow:0 2px 8px rgba(106,63,214,.35)}
+  .btn-dafo-open:hover{opacity:.9}
+  .btn-dafo-open:active{transform:scale(.96)}
+
+  /* ── DAFO: modal / tablero ── */
+  .dafo-box{max-width:1300px}
+  .dafo-header-title{flex:1;font-family:Montserrat,sans-serif;font-size:15px;font-weight:800;color:var(--gray-5);display:flex;align-items:baseline;gap:8px}
+  .dafo-header-title span{font-size:12px;font-weight:600;color:var(--gray-4)}
+  .dafo-axis-row{display:grid;grid-template-columns:34px 1fr 1fr;padding:6px 16px 0}
+  .dafo-axis-label{text-align:center;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--gray-3)}
+  .dafo-body{flex:1;display:flex;overflow:hidden;padding:0 16px 16px}
+  .dafo-axis-col{width:34px;flex-shrink:0;display:flex;flex-direction:column}
+  .dafo-axis-vert{flex:1;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg)}
+  .dafo-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;background:var(--gray-2);border-radius:var(--r-md);overflow:hidden;border:1.5px solid var(--gray-2)}
+  .dafo-quadrant{background:#fff;display:flex;flex-direction:column;overflow:hidden;position:relative;min-height:180px}
+  .dafo-quad-header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;font-family:Montserrat,sans-serif;font-weight:800;font-size:12px;flex-shrink:0;gap:8px}
+  .dafo-count{display:inline-block;background:rgba(0,0,0,.08);border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px}
+  .dafo-add-btn{flex-shrink:0;background:rgba(255,255,255,.6);border:1.5px solid rgba(0,0,0,.12);border-radius:20px;padding:3px 10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;cursor:pointer;color:inherit;transition:all .12s}
+  .dafo-add-btn:hover{background:#fff}
+  .dafo-canvas{flex:1;position:relative;overflow:auto;background-image:radial-gradient(circle,rgba(0,0,0,.05) 1px,transparent 1px);background-size:18px 18px}
+  .dafo-canvas-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-3);pointer-events:none}
+
+  .dafo-q-fortaleza .dafo-quad-header{background:var(--green-light);color:var(--green-dark)}
+  .dafo-q-debilidad .dafo-quad-header{background:var(--red-light);color:var(--red)}
+  .dafo-q-oportunidad .dafo-quad-header{background:var(--blue-light);color:var(--blue)}
+  .dafo-q-amenaza .dafo-quad-header{background:var(--yellow-light);color:#b07000}
+
+  /* ── DAFO: notas flotantes tipo post-it ── */
+  .dafo-note{position:absolute;min-width:130px;max-width:210px;background:#fffef2;border:1.5px solid var(--gray-2);border-left-width:4px;border-radius:8px;padding:6px 8px;box-shadow:var(--shadow-sm);font-size:12px;transition:box-shadow .15s}
+  .dafo-note.dragging{cursor:grabbing;box-shadow:var(--shadow-md);z-index:80;opacity:.96;transition:none}
+  .dafo-q-fortaleza .dafo-note{border-left-color:var(--green)}
+  .dafo-q-debilidad .dafo-note{border-left-color:var(--red)}
+  .dafo-q-oportunidad .dafo-note{border-left-color:var(--blue)}
+  .dafo-q-amenaza .dafo-note{border-left-color:var(--yellow)}
+  .dafo-note.done{opacity:.5;background:var(--gray-1)}
+  .dafo-note.done .dafo-note-text{text-decoration:line-through;color:var(--gray-4)}
+  .dafo-note-row{display:flex;align-items:flex-start;gap:5px}
+  .dafo-note-grip{flex-shrink:0;color:var(--gray-3);cursor:grab;font-size:12px;line-height:1.5;user-select:none;touch-action:none;padding-top:1px}
+  .dafo-note-grip:active{cursor:grabbing}
+  .dafo-note input[type=checkbox]{flex-shrink:0;margin-top:3px;width:14px;height:14px;cursor:pointer;accent-color:var(--red)}
+  .dafo-note-text{flex:1;min-width:0;outline:none;word-break:break-word;line-height:1.4;color:var(--gray-5);padding:1px 2px;border-radius:3px}
+  .dafo-note-text:focus{background:#fff;box-shadow:0 0 0 2px rgba(200,16,46,.1)}
+  .dafo-note-text:empty::before{content:attr(data-ph);color:var(--gray-3)}
+  .dafo-note-del{position:absolute;top:1px;right:2px;background:none;border:none;color:var(--gray-3);cursor:pointer;font-size:12px;line-height:1;padding:2px 5px;border-radius:4px;opacity:0;transition:opacity .12s,color .12s}
+  .dafo-note:hover .dafo-note-del{opacity:1}
+  .dafo-note-del:hover{color:var(--red);background:var(--red-light)}
+  .dafo-hint{font-size:10px;color:var(--gray-3);font-family:Montserrat,sans-serif;font-weight:700;margin-right:auto}
+  @media(max-width:700px){.dafo-axis-row,.dafo-axis-col{display:none}.dafo-grid{grid-template-columns:1fr}.dafo-quadrant{min-height:220px}.dafo-hint{display:none}}
+
   /* ── TOAST ── */
   #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
   .toast-msg{background:var(--gray-5);color:#fff;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:9px 16px;border-radius:20px;box-shadow:var(--shadow-md);opacity:0;transform:translateY(8px);animation:toast-in .25s ease forwards, toast-out .25s ease 2.4s forwards}
@@ -225,7 +276,8 @@ var F={
   id:'MeetinglineID',title:'MeetingTitle',status:'MeetingStatus',imp:'MeetingImportancy',urg:'MeetingUrgency',
   desc:'MeetingDescription',analisys:'MeetingAnalisys',concl:'MeetingConclusion',
   link1:'Meetinglink1',link2:'Meetinglink2',company:'MeetingCompany',user:'Meetinglineuser',
-  autodate:'Meetingautodate',date:'Meetingdate'
+  autodate:'Meetingautodate',date:'Meetingdate',
+  dafoFortaleza:'dafo_fortaleza',dafoDebilidad:'dafo_debilidad',dafoOportunidad:'dafo_oportunidad',dafoAmenaza:'dafo_amenaza'
 };
 var STATUS_CLOSED=9,STATUS_DEFAULT_PENDING=1;
 
@@ -825,6 +877,7 @@ function closeMeetingModal(){
   document.body.style.overflow='';
   currentModalId=null;
   isNewMeeting=false;
+  closeDafoModal();
 }
 
 /* ── GUARDADO (popup) ── */
@@ -880,6 +933,174 @@ function saveMeetingModal(){
       renderMeetings();
     })
     .catch(function(e){console.error('[reuniones] guardar:',e);if(saving)saving.style.display='none';toast('⚠️ Error al guardar','err');});
+}
+
+/* ══════════════════════════════════════════════════════════
+   DAFO — tablero 2x2 con notas flotantes arrastrables
+   Cada campo dafo_* guarda un array JSON: [{id,x,y,done,text}, …]
+   x/y son porcentajes (0-100) respecto al cuadrante correspondiente.
+   ══════════════════════════════════════════════════════════ */
+var DAFO_KEYS=['fortaleza','debilidad','oportunidad','amenaza'];
+var DAFO_FIELD={fortaleza:F.dafoFortaleza,debilidad:F.dafoDebilidad,oportunidad:F.dafoOportunidad,amenaza:F.dafoAmenaza};
+var dafoData={fortaleza:[],debilidad:[],oportunidad:[],amenaza:[]};
+var currentDafoMid=null;
+
+function parseDafoField(text){
+  try{
+    var arr=JSON.parse(text||'[]');
+    if(!Array.isArray(arr))return[];
+    return arr.map(function(it){
+      return{id:it.id||dafoNewId(),x:Number(it.x)||0,y:Number(it.y)||0,done:!!it.done,text:String(it.text||'')};
+    }).filter(function(it){return it.text.trim()!=='';});
+  }catch(e){return[];}
+}
+function serializeDafoField(arr){
+  return JSON.stringify((arr||[]).map(function(it){
+    return{id:it.id,x:Math.round(it.x*10)/10,y:Math.round(it.y*10)/10,done:!!it.done,text:it.text};
+  }));
+}
+function dafoNewId(){return'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function nextDafoPos(key){
+  var n=dafoData[key].length;
+  var col=n%3,row=Math.floor(n/3)%3;
+  return{x:6+col*30,y:8+row*26};
+}
+
+function openDafoModal(){
+  if(isNewMeeting||!currentModalId){toast('⚠️ Guarda la reunión antes de abrir el DAFO','err');return;}
+  var m=findMeeting(currentModalId);if(!m)return;
+  currentDafoMid=currentModalId;
+  g('dafoMeetingTitle').textContent='— '+(m[F.title]||'(sin título)');
+  DAFO_KEYS.forEach(function(key){
+    dafoData[key]=parseDafoField(m[DAFO_FIELD[key]]);
+    renderDafoQuadrant(key);
+  });
+  g('dafoModalOverlay').classList.add('open');
+}
+function closeDafoModal(){
+  g('dafoModalOverlay').classList.remove('open');
+}
+
+function renderDafoQuadrant(key){
+  var canvas=g('dafoCanvas_'+key);if(!canvas)return;
+  var items=dafoData[key];
+  var countEl=g('dafoCount_'+key);if(countEl)countEl.textContent=items.length;
+  canvas.innerHTML='';
+  if(!items.length){
+    var empty=document.createElement('div');
+    empty.className='dafo-canvas-empty';
+    empty.textContent='Sin elementos — pulsa + Añadir o doble clic aquí';
+    canvas.appendChild(empty);
+    return;
+  }
+  items.forEach(function(item){canvas.appendChild(makeDafoNoteEl(key,item));});
+}
+
+function makeDafoNoteEl(key,item){
+  var el=document.createElement('div');
+  el.className='dafo-note'+(item.done?' done':'');
+  el.style.left=item.x+'%';
+  el.style.top=item.y+'%';
+  el.dataset.id=item.id;
+
+  var row=document.createElement('div');row.className='dafo-note-row';
+  var grip=document.createElement('span');grip.className='dafo-note-grip';grip.textContent='\u283F';grip.title='Arrastrar';
+  var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!item.done;
+  var txt=document.createElement('span');txt.className='dafo-note-text';txt.contentEditable='true';txt.setAttribute('data-ph','Escribe…');txt.textContent=item.text||'';
+  var del=document.createElement('button');del.type='button';del.className='dafo-note-del';del.textContent='×';del.title='Eliminar';
+
+  cb.addEventListener('change',function(){item.done=cb.checked;el.classList.toggle('done',item.done);});
+  txt.addEventListener('input',function(){item.text=(txt.textContent||'').trim();});
+  txt.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();txt.blur();}});
+  txt.addEventListener('blur',function(){
+    item.text=(txt.textContent||'').trim();
+    if(!item.text)removeDafoNote(key,item.id);
+  });
+  del.addEventListener('click',function(e){e.stopPropagation();removeDafoNote(key,item.id);});
+
+  row.appendChild(grip);row.appendChild(cb);row.appendChild(txt);
+  el.appendChild(row);el.appendChild(del);
+
+  wireDafoDrag(grip,el,item);
+  return el;
+}
+function removeDafoNote(key,id){
+  dafoData[key]=dafoData[key].filter(function(it){return it.id!==id;});
+  renderDafoQuadrant(key);
+}
+function wireDafoDrag(grip,noteEl,item){
+  grip.addEventListener('pointerdown',function(e){
+    e.preventDefault();
+    var canvas=noteEl.parentElement;if(!canvas)return;
+    var noteRect=noteEl.getBoundingClientRect();
+    var offX=e.clientX-noteRect.left,offY=e.clientY-noteRect.top;
+    noteEl.classList.add('dragging');
+    try{grip.setPointerCapture(e.pointerId);}catch(err){}
+
+    function onMove(ev){
+      var cRect=canvas.getBoundingClientRect();
+      var nx=ev.clientX-cRect.left-offX;
+      var ny=ev.clientY-cRect.top-offY+canvas.scrollTop;
+      var maxX=Math.max(canvas.clientWidth-noteRect.width,0);
+      var maxY=Math.max(canvas.clientHeight-noteRect.height,0);
+      nx=Math.max(0,Math.min(nx,maxX));
+      ny=Math.max(0,Math.min(ny,maxY));
+      var pctX=canvas.clientWidth?(nx/canvas.clientWidth*100):0;
+      var pctY=canvas.clientHeight?(ny/canvas.clientHeight*100):0;
+      noteEl.style.left=pctX+'%';
+      noteEl.style.top=pctY+'%';
+      item.x=pctX;item.y=pctY;
+    }
+    function onUp(ev){
+      noteEl.classList.remove('dragging');
+      try{grip.releasePointerCapture(ev.pointerId);}catch(err){}
+      grip.removeEventListener('pointermove',onMove);
+      grip.removeEventListener('pointerup',onUp);
+      grip.removeEventListener('pointercancel',onUp);
+    }
+    grip.addEventListener('pointermove',onMove);
+    grip.addEventListener('pointerup',onUp);
+    grip.addEventListener('pointercancel',onUp);
+  });
+}
+
+function addDafoNote(key,xPct,yPct){
+  var pos=(xPct!=null&&yPct!=null)?{x:xPct,y:yPct}:nextDafoPos(key);
+  var item={id:dafoNewId(),x:pos.x,y:pos.y,done:false,text:''};
+  dafoData[key].push(item);
+  renderDafoQuadrant(key);
+  setTimeout(function(){
+    var canvas=g('dafoCanvas_'+key);if(!canvas)return;
+    var el=canvas.querySelector('.dafo-note[data-id="'+item.id+'"]');
+    var t=el&&el.querySelector('.dafo-note-text');
+    if(t)t.focus();
+  },30);
+}
+function dafoCanvasDblClick(e,key){
+  if(e.target.closest('.dafo-note'))return;
+  var canvas=g('dafoCanvas_'+key);if(!canvas)return;
+  var rect=canvas.getBoundingClientRect();
+  var x=(e.clientX-rect.left)/(canvas.clientWidth||1)*100;
+  var y=(e.clientY-rect.top+canvas.scrollTop)/(canvas.clientHeight||1)*100;
+  x=Math.max(0,Math.min(x,88));
+  y=Math.max(0,Math.min(y,88));
+  addDafoNote(key,x,y);
+}
+
+function saveDafo(){
+  if(!currentDafoMid)return;
+  var record={};
+  DAFO_KEYS.forEach(function(key){record[DAFO_FIELD[key]]=serializeDafoField(dafoData[key]);});
+  var saving=g('dafoSaving');if(saving){saving.style.display='inline';saving.textContent='Guardando…';}
+  var url=Auth.url(_W+'?action=save&table=TaMeetings&method=PUT&where='+encodeURIComponent(F.id+'='+currentDafoMid));
+  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+      var m=findMeeting(currentDafoMid);
+      if(m){Object.keys(record).forEach(function(k){m[k]=record[k];});}
+      if(saving)saving.style.display='none';
+      toast('✓ DAFO guardado');
+    })
+    .catch(function(e){console.error('[reuniones] guardar DAFO:',e);if(saving)saving.style.display='none';toast('⚠️ Error al guardar el DAFO','err');});
 }
 
 /* ── INIT ── */
@@ -967,6 +1188,7 @@ window.addEventListener('DOMContentLoaded',function(){
   <div class="modal-box">
     <div class="modal-header">
       <input type="text" id="mTitle" class="modal-title-input" placeholder="Título de la reunión…">
+      <button class="btn-dafo-open" onclick="openDafoModal()" title="Análisis DAFO">🎯 DAFO</button>
       <button class="modal-close" onclick="closeMeetingModal()" title="Cerrar">✕</button>
     </div>
     <div class="modal-body" id="modalBody">
@@ -1062,6 +1284,63 @@ window.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 
+<!-- ── MODAL / DAFO ── -->
+<div class="modal-overlay" id="dafoModalOverlay" onclick="if(event.target===this)closeDafoModal()">
+  <div class="modal-box dafo-box">
+    <div class="modal-header">
+      <div class="dafo-header-title">🎯 Análisis DAFO <span id="dafoMeetingTitle"></span></div>
+      <button class="modal-close" onclick="closeDafoModal()" title="Cerrar">✕</button>
+    </div>
+    <div class="dafo-axis-row">
+      <span class="dafo-axis-spacer"></span>
+      <span class="dafo-axis-label">POSITIVO</span>
+      <span class="dafo-axis-label">NEGATIVO</span>
+    </div>
+    <div class="dafo-body">
+      <div class="dafo-axis-col">
+        <span class="dafo-axis-label dafo-axis-vert">INTERNO</span>
+        <span class="dafo-axis-label dafo-axis-vert">EXTERNO</span>
+      </div>
+      <div class="dafo-grid">
+        <div class="dafo-quadrant dafo-q-fortaleza">
+          <div class="dafo-quad-header">
+            <span>💪 Fortalezas <span class="dafo-count" id="dafoCount_fortaleza">0</span></span>
+            <button class="dafo-add-btn" onclick="addDafoNote('fortaleza')">+ Añadir</button>
+          </div>
+          <div class="dafo-canvas" id="dafoCanvas_fortaleza" data-key="fortaleza" ondblclick="dafoCanvasDblClick(event,'fortaleza')"></div>
+        </div>
+        <div class="dafo-quadrant dafo-q-debilidad">
+          <div class="dafo-quad-header">
+            <span>⚠️ Debilidades <span class="dafo-count" id="dafoCount_debilidad">0</span></span>
+            <button class="dafo-add-btn" onclick="addDafoNote('debilidad')">+ Añadir</button>
+          </div>
+          <div class="dafo-canvas" id="dafoCanvas_debilidad" data-key="debilidad" ondblclick="dafoCanvasDblClick(event,'debilidad')"></div>
+        </div>
+        <div class="dafo-quadrant dafo-q-oportunidad">
+          <div class="dafo-quad-header">
+            <span>🚀 Oportunidades <span class="dafo-count" id="dafoCount_oportunidad">0</span></span>
+            <button class="dafo-add-btn" onclick="addDafoNote('oportunidad')">+ Añadir</button>
+          </div>
+          <div class="dafo-canvas" id="dafoCanvas_oportunidad" data-key="oportunidad" ondblclick="dafoCanvasDblClick(event,'oportunidad')"></div>
+        </div>
+        <div class="dafo-quadrant dafo-q-amenaza">
+          <div class="dafo-quad-header">
+            <span>🔥 Amenazas <span class="dafo-count" id="dafoCount_amenaza">0</span></span>
+            <button class="dafo-add-btn" onclick="addDafoNote('amenaza')">+ Añadir</button>
+          </div>
+          <div class="dafo-canvas" id="dafoCanvas_amenaza" data-key="amenaza" ondblclick="dafoCanvasDblClick(event,'amenaza')"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="dafo-hint">💡 Arrastra por el asa ⠿ para mover, doble clic en el tablero para añadir</span>
+      <span class="modal-saving" id="dafoSaving" style="display:none">Guardando…</span>
+      <button class="btn-secondary" onclick="closeDafoModal()">Cerrar</button>
+      <button class="btn-primary" onclick="saveDafo()">💾 Guardar DAFO</button>
+    </div>
+  </div>
+</div>
+
 </body>
-<!-- HISTORIAL: v7 - FIX filtro de Empresa: al seleccionar la empresa con ID literal 0 no aparecía ninguna reunión (sí con "Todos"). Causa: `m[F.company]||''` — como 0 es un valor "falsy" en JavaScript, se convertía en cadena vacía y nunca coincidía con el filtro '0'. Añadido helper `meetingCompanyId()` que distingue correctamente "sin empresa" (undefined/null/'') de una empresa real con ID 0, usado tanto en el filtro como en el agrupado del listado normal (antes el agrupado también podía mezclar por casualidad "sin empresa" con la empresa real 0 bajo la misma cabecera; ahora "sin empresa" tiene su propio grupo "Sin empresa"). |  v6 - Nuevo botón "+ Nueva reunión" en la cabecera: abre la misma ficha (popup) que editar una reunión existente pero completamente vacía (estado Pendiente, importancia/urgencia sin valor, Descripción/Análisis/Conclusión vacíos, empresa preseleccionada según el filtro de empresa activo si lo hay, usuario sin seleccionar, "Fecha creación" muestra "Se generará al guardar"). Al pulsar Guardar en modo creación, hace `action=save&table=TaMeetings&method=POST` (crea el registro nuevo) en vez de PUT, y tras crear recarga el listado completo para incorporar el nuevo registro con su MeetinglineID real (Caspio no garantiza devolver el ID en la respuesta del proxy, así que se opta por el recargado, más lento pero seguro, en vez de asumir un formato de respuesta). Refactor: la construcción del objeto a guardar se extrae a `buildMeetingRecordFromModal()`, reutilizada tanto en creación como en edición. |  v5 - Toggle rápido de estado en el listado: al pulsar para cerrar una reunión pide confirmación ("¿Seguro que quieres cerrar esta reunión?"); reabrir no pide confirmación. FIX crítico: tanto el toggle rápido de estado en el listado como el guardado del popup usaban `action=update&table=TaMeetings`, acción que Caspio solo soporta para TaVillas/TaUsers/TaTasks — por eso el toggle "funcionaba pero daba error" y el popup fallaba siempre al guardar. Cambiado a `action=save&table=TaMeetings&method=PUT&where=MeetinglineID=id` en ambos puntos. | Nuevo filtro de Empresa: fila de pills (Todos + una por cada empresa de TaMeetingsAccesos, generadas dinámicamente) debajo de los filtros existentes; se combina con Estado/Importancia/Urgencia. | Ficha (popup): Estado, Importancia y Urgencia ahora comparten una sola línea destacada (hero-row) con inputs más grandes, dando protagonismo a los 3 campos clave. | Descripción, Análisis y Conclusión pasan a tener cada uno su propio box diferenciado visualmente (borde de color + fondo suave: azul/naranja/verde respectivamente) en vez de ser tres bloques iguales. | Empresa, Usuario, Fecha creación, Fecha próxima reunión, Dónde será y Link se agrupan ahora dentro de un único box (info-box) para organizarlos como un bloque de "datos generales". | FIX: el resaltado (scroll+flash) al abrir la ficha desde un resultado de búsqueda en el campo Título apuntaba por error al box de Estado (bug de v4); ahora resalta directamente el input del título. |  v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
+<!-- HISTORIAL: v8 - Nuevo botón "🎯 DAFO" en la cabecera de la ficha: abre un segundo popup (tablero 2x2 Fortalezas/Debilidades/Oportunidades/Amenazas, con ejes INTERNO-EXTERNO / POSITIVO-NEGATIVO) sobre los 4 campos nuevos dafo_fortaleza/dafo_debilidad/dafo_oportunidad/dafo_amenaza. Cada cuadrante contiene "notas" tipo post-it con checkbox + texto editable + botón eliminar, que se pueden arrastrar libremente en 2D dentro de su cuadrante mediante un asa (⠿, con Pointer Events, funciona con ratón y táctil). Alta rápida con el botón "+ Añadir" (coloca la nota en cascada) o con doble clic directamente sobre el tablero (coloca la nota en el punto exacto pulsado). Las notas sin texto se descartan automáticamente al perder el foco. Cada campo dafo_* se serializa como JSON `[{id,x,y,done,text}]` (x/y en % del cuadrante) — todo el DAFO de una reunión se guarda en un único PUT al pulsar "Guardar DAFO", igual que el resto de la ficha (`action=save&method=PUT&where=`). Si la reunión aún no se ha guardado (nueva, sin ID), el botón avisa de que hay que guardarla primero. Al cerrar la ficha principal se cierra también el DAFO si estuviera abierto. |  v7 - FIX filtro de Empresa: al seleccionar la empresa con ID literal 0 no aparecía ninguna reunión (sí con "Todos"). Causa: `m[F.company]||''` — como 0 es un valor "falsy" en JavaScript, se convertía en cadena vacía y nunca coincidía con el filtro '0'. Añadido helper `meetingCompanyId()` que distingue correctamente "sin empresa" (undefined/null/'') de una empresa real con ID 0, usado tanto en el filtro como en el agrupado del listado normal (antes el agrupado también podía mezclar por casualidad "sin empresa" con la empresa real 0 bajo la misma cabecera; ahora "sin empresa" tiene su propio grupo "Sin empresa"). |  v6 - Nuevo botón "+ Nueva reunión" en la cabecera: abre la misma ficha (popup) que editar una reunión existente pero completamente vacía (estado Pendiente, importancia/urgencia sin valor, Descripción/Análisis/Conclusión vacíos, empresa preseleccionada según el filtro de empresa activo si lo hay, usuario sin seleccionar, "Fecha creación" muestra "Se generará al guardar"). Al pulsar Guardar en modo creación, hace `action=save&table=TaMeetings&method=POST` (crea el registro nuevo) en vez de PUT, y tras crear recarga el listado completo para incorporar el nuevo registro con su MeetinglineID real (Caspio no garantiza devolver el ID en la respuesta del proxy, así que se opta por el recargado, más lento pero seguro, en vez de asumir un formato de respuesta). Refactor: la construcción del objeto a guardar se extrae a `buildMeetingRecordFromModal()`, reutilizada tanto en creación como en edición. |  v5 - Toggle rápido de estado en el listado: al pulsar para cerrar una reunión pide confirmación ("¿Seguro que quieres cerrar esta reunión?"); reabrir no pide confirmación. FIX crítico: tanto el toggle rápido de estado en el listado como el guardado del popup usaban `action=update&table=TaMeetings`, acción que Caspio solo soporta para TaVillas/TaUsers/TaTasks — por eso el toggle "funcionaba pero daba error" y el popup fallaba siempre al guardar. Cambiado a `action=save&table=TaMeetings&method=PUT&where=MeetinglineID=id` en ambos puntos. | Nuevo filtro de Empresa: fila de pills (Todos + una por cada empresa de TaMeetingsAccesos, generadas dinámicamente) debajo de los filtros existentes; se combina con Estado/Importancia/Urgencia. | Ficha (popup): Estado, Importancia y Urgencia ahora comparten una sola línea destacada (hero-row) con inputs más grandes, dando protagonismo a los 3 campos clave. | Descripción, Análisis y Conclusión pasan a tener cada uno su propio box diferenciado visualmente (borde de color + fondo suave: azul/naranja/verde respectivamente) en vez de ser tres bloques iguales. | Empresa, Usuario, Fecha creación, Fecha próxima reunión, Dónde será y Link se agrupan ahora dentro de un único box (info-box) para organizarlos como un bloque de "datos generales". | FIX: el resaltado (scroll+flash) al abrir la ficha desde un resultado de búsqueda en el campo Título apuntaba por error al box de Estado (bug de v4); ahora resalta directamente el input del título. |  v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
 </html>
