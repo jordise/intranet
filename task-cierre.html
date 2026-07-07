@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v12 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -16,7 +16,7 @@
        peticiones incorrectamente, y esta línea lo volvía a registrar en cada carga.
        Un SW roto puede retener las respuestas de los fetch (el guardado se completa en
        la red pero el JS de la página nunca recibe la señal → "Guardando..." eterno). -->
-  <title>Tarea Cierre v11 — 3Villas</title>
+  <title>Tarea Cierre v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -621,13 +621,29 @@ async function fetchWithTimeout(url,options,timeoutMs,label){
 const UPLOAD_TIMEOUT_MS=25000;
 const SLOT_SUFFIX={main:'1',ai1:'after1',ai2:'after2',ai3:'after3',ai4:'after4',ai5:'after5'};
 function _uploadOnceSlot(file,idRes,tType,suffix){
-  const fd=new FormData();fd.append('file',file,file.name||'foto_'+suffix+'.jpg');
+  const fd=new FormData();
+  /* v12: fix crítico — el Worker ignora 'suffix' en su ruta de subida por defecto
+     (solo usa idreserva+tasktype+year), así que las 6 fotos de una misma reserva
+     colisionaban en el MISMO archivo de R2, sobrescribiéndose entre sí. Se manda
+     ahora un 'filename' explícito y único por slot — el Worker lo prioriza siempre. */
+  const ext=(file.name&&file.name.includes('.'))?file.name.split('.').pop().toLowerCase():'jpg';
+  const taskName=tType==='20'?'welcomepack':tType==='10'?'limpieza':tType==='30'?'cierre':'tarea';
+  const folder  =tType==='20'?'wellcomepack':tType==='10'?'limpieza':tType==='30'?'cierre':'tareas';
+  const year=new Date().getFullYear();
+  const filename=`${year}_${taskName}_${idRes}_${suffix}.${ext}`;
+  fd.append('file',file,filename);
+  fd.append('filename',`${folder}/${filename}`);
   fd.append('idreserva',idRes);fd.append('tasktype',tType);fd.append('suffix',suffix);
-  fd.append('year',new Date().getFullYear());
+  fd.append('year',year);
   /* v11: reutiliza fetchWithTimeout (blindado con Promise.race) en vez de AbortController suelto */
   return fetchWithTimeout(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd},UPLOAD_TIMEOUT_MS,'La subida de la foto')
     .then(r=>r.json())
-    .then(j=>j.url||j.publicUrl||'');
+    .then(j=>{
+      const url=j.url||j.publicUrl||'';
+      /* v12: rompe-caché — mismo nombre de archivo en cada edición de esta foto, así que sin esto
+         el navegador/CDN seguirían sirviendo la imagen vieja cacheada (mismo fix que task-wp v20) */
+      return url?url+(url.includes('?')?'&':'?')+'v='+Date.now():'';
+    });
 }
 /* v09: timeout 25s + 1 reintento automático — nunca cuelga guardar() indefinidamente */
 async function _uploadWithRetry(file,idRes,tType,suffix){
@@ -760,4 +776,4 @@ function _startBgUpload(slot,file){
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v11 - Mismos tres fixes que task-wp v18 contra el "Guardando..." eterno: (1) eliminado el registro del Service Worker /3villas-manuals/sw.js que se re-registraba en cada carga pese a que auth.js lo desinstala activamente por interceptar peticiones incorrectamente — un SW roto puede retener las respuestas de los fetch de guardado sin entregarlas nunca al JS de la página; (2) fetchWithTimeout blindado con Promise.race: el temporizador gana siempre aunque la promesa del fetch nunca se resuelva (antes dependía de que el AbortError se propagara, cosa que un SW defectuoso puede impedir); (3) _uploadOnceSlot (subida de fotos) reutiliza fetchWithTimeout blindado en vez de AbortController suelto | v10 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor (mismo bug detectado y corregido en task-wp v15) — la comprobación de existencia y el guardado final de TaTasks (PUT/POST) no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (evita registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v09 - Fix bug crítico: uploadPhoto() devolvía un string (URL) pero se comprobaba como objeto {url}, por lo que ninguna foto (principal ni las 5 de incidencias) llegaba a guardarse en TaTasks pese a subirse correctamente; fix bug latente: el mapeo de slot desde suffix con parseInt('afterN') fallaba y mezclaba el estado de subida de todas las fotos de incidencia bajo 'ai1' (uploadPhoto ahora recibe el slot explícito); activada de verdad la pre-subida en segundo plano (_startBgUpload existía pero nunca se llamaba desde ningún sitio); añadido timeout de 25s + 1 reintento automático a las subidas (evita bloqueos indefinidos tipo "se queda guardando"); vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); fotos de incidencias (ai1-ai5) se suben en paralelo con Promise.all en vez de secuencialmente; compresión reducida de 1200px/0.80 a 1100px/0.75; taskRecordId de la carga inicial evita la consulta duplicada de existencia si la vista lo expone (fallback seguro si no); corregido desfase de versión en comentario cabecera (v6→v09) | v08 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v07 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v06 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v05 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
+<!-- HISTORIAL: v12 - Fix CRÍTICO: las 6 fotos (principal + 5 incidencias) colisionaban en el MISMO archivo de R2 — el Worker ignora el campo 'suffix' en su ruta de subida por defecto (solo usa idreserva+tasktype+year para generar la clave), así que cada foto nueva sobrescribía a las anteriores de la misma reserva sin importar el slot; solo sobrevivía la última en terminar de subir. Ahora _uploadOnceSlot manda un 'filename' explícito y único por slot (${folder}/${año}_${taskName}_${idreserva}_${suffix}.${ext}) — el Worker ya soporta y prioriza ese campo, sin necesidad de tocarlo. Añadido también rompe-caché ?v=timestamp a la URL devuelta (mismo problema y mismo fix que task-wp v20: nombre de archivo fijo por edición → navegador/CDN servían la imagen vieja cacheada) | v11 - Mismos tres fixes que task-wp v18 contra el "Guardando..." eterno: (1) eliminado el registro del Service Worker /3villas-manuals/sw.js que se re-registraba en cada carga pese a que auth.js lo desinstala activamente por interceptar peticiones incorrectamente — un SW roto puede retener las respuestas de los fetch de guardado sin entregarlas nunca al JS de la página; (2) fetchWithTimeout blindado con Promise.race: el temporizador gana siempre aunque la promesa del fetch nunca se resuelva (antes dependía de que el AbortError se propagara, cosa que un SW defectuoso puede impedir); (3) _uploadOnceSlot (subida de fotos) reutiliza fetchWithTimeout blindado en vez de AbortController suelto | v10 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor (mismo bug detectado y corregido en task-wp v15) — la comprobación de existencia y el guardado final de TaTasks (PUT/POST) no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (evita registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v09 - Fix bug crítico: uploadPhoto() devolvía un string (URL) pero se comprobaba como objeto {url}, por lo que ninguna foto (principal ni las 5 de incidencias) llegaba a guardarse en TaTasks pese a subirse correctamente; fix bug latente: el mapeo de slot desde suffix con parseInt('afterN') fallaba y mezclaba el estado de subida de todas las fotos de incidencia bajo 'ai1' (uploadPhoto ahora recibe el slot explícito); activada de verdad la pre-subida en segundo plano (_startBgUpload existía pero nunca se llamaba desde ningún sitio); añadido timeout de 25s + 1 reintento automático a las subidas (evita bloqueos indefinidos tipo "se queda guardando"); vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); fotos de incidencias (ai1-ai5) se suben en paralelo con Promise.all en vez de secuencialmente; compresión reducida de 1200px/0.80 a 1100px/0.75; taskRecordId de la carga inicial evita la consulta duplicada de existencia si la vista lo expone (fallback seguro si no); corregido desfase de versión en comentario cabecera (v6→v09) | v08 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v07 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v06 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v05 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
