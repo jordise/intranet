@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v7 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="/intranet/">
-  <title>Reuniones v5 — 3Villas</title>
+  <title>Reuniones v7 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -34,6 +34,8 @@
   .wp-nav-user{font-size:11px;color:var(--gray-4);font-family:Montserrat,sans-serif;font-weight:700;white-space:nowrap}
   .wp-nav-menu,.wp-nav-close{background:none;border:1.5px solid var(--gray-2);border-radius:7px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--gray-5);display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
   .wp-nav-menu:hover,.wp-nav-close:hover{border-color:var(--red);color:var(--red)}
+  .btn-nueva-reunion{background:var(--red);color:#fff;border:none;border-radius:20px;padding:7px 14px;font-size:11px;font-weight:800;font-family:Montserrat,sans-serif;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+  .btn-nueva-reunion:hover{opacity:.85}
 
   /* ── FILTROS ── */
   #filterPanel{background:#fff;border-bottom:1.5px solid var(--gray-2);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
@@ -236,6 +238,7 @@ var companyFilter='all';
 var impMin=1,urgMin=1;
 var searchNav={}; /* mid -> índice del match actual */
 var currentModalId=null;
+var isNewMeeting=false;
 
 function fmtDate(s){
   if(!s)return'';
@@ -251,6 +254,13 @@ function fmtDateTime(s){
 }
 function findMeeting(mid){
   return allMeetings.find(function(m){return String(m[F.id])===String(mid);});
+}
+/* Devuelve el ID de empresa como string, distinguiendo "sin empresa" (undefined/null/'')
+   de una empresa real cuyo ID sea literalmente 0 — 0||'' se convertiría en '' por ser falsy en JS */
+function meetingCompanyId(m){
+  var v=m[F.company];
+  if(v===undefined||v===null||v==='')return'';
+  return String(v);
 }
 
 /* ── CARGA DE DATOS ── */
@@ -373,7 +383,7 @@ function renderMeetings(){
     var st=Number(m[F.status]||0);
     if(estadoFilter==='pend'&&st>=STATUS_CLOSED)return false;
     if(estadoFilter==='done'&&st<STATUS_CLOSED)return false;
-    if(companyFilter!=='all'&&String(m[F.company]||'')!==companyFilter)return false;
+    if(companyFilter!=='all'&&meetingCompanyId(m)!==companyFilter)return false;
     if(Number(m[F.imp]||0)<impMin)return false;
     if(Number(m[F.urg]||0)<urgMin)return false;
     return true;
@@ -388,7 +398,7 @@ function renderMeetings(){
   var byCompany={};
   var companyOrder=[];
   base.forEach(function(m){
-    var cid=String(m[F.company]||'0');
+    var cid=meetingCompanyId(m)||'__sin_empresa__';
     if(!byCompany[cid]){byCompany[cid]={};companyOrder.push(cid);}
     var st=Number(m[F.status]||0);
     var stKey=st<STATUS_CLOSED?'pend':(st===STATUS_CLOSED?'done':'other');
@@ -401,7 +411,7 @@ function renderMeetings(){
     html='<div class="empty-msg">No hay reuniones que mostrar</div>';
   }else{
     companyOrder.forEach(function(cid){
-      var cname=lookups.company[cid]||'Empresa '+cid;
+      var cname=cid==='__sin_empresa__'?'Sin empresa':(lookups.company[cid]||'Empresa '+cid);
       html+='<div class="company-group">'
         +'<div class="company-header">'+_esc(cname)+'</div>';
       ['pend','done','other'].forEach(function(stKey){
@@ -743,6 +753,7 @@ function scrollAndFlash(fieldKey){
 function openMeetingModal(mid,focusField){
   var m=findMeeting(mid);if(!m)return;
   currentModalId=mid;
+  isNewMeeting=false;
 
   g('mTitle').value=m[F.title]||'';
   g('mTitle').classList.remove('err');
@@ -776,22 +787,50 @@ function openMeetingModal(mid,focusField){
   if(focusField)scrollAndFlash(focusField);
   else g('modalBody').scrollTop=0;
 }
+function openNewMeetingModal(){
+  currentModalId=null;
+  isNewMeeting=true;
+
+  g('mTitle').value='';
+  g('mTitle').classList.remove('err');
+
+  modalStatusPrev=STATUS_DEFAULT_PENDING;
+  setModalEstadoUI(STATUS_DEFAULT_PENDING);
+
+  g('mImp').value='';
+  g('mUrg').value='';
+
+  window._tlReset('mDesc');g('mDesc').value='';window._tlInit('mDesc','Añadir punto…');
+  window._tlReset('mAnalisys');g('mAnalisys').value='';window._tlInit('mAnalisys','Añadir punto…');
+  window._tlReset('mConcl');g('mConcl').value='';window._tlInit('mConcl','Añadir punto…');
+
+  /* Si hay un filtro de empresa activo, se preselecciona como punto de partida */
+  fillEmpresaSelect(companyFilter!=='all'?companyFilter:'');
+
+  initUsuarioSearch();
+  window._setUsuarioModalConfirmed('','');
+
+  g('mFechaCreacion').textContent='Se generará al guardar';
+  g('mFechaProxima').value='';
+  g('mLink2').value='';
+  g('mLink1').value='';
+
+  g('meetingModalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  g('modalBody').scrollTop=0;
+  setTimeout(function(){g('mTitle').focus();},200);
+}
 function closeMeetingModal(){
   g('meetingModalOverlay').classList.remove('open');
   document.body.style.overflow='';
   currentModalId=null;
+  isNewMeeting=false;
 }
 
 /* ── GUARDADO (popup) ── */
-function saveMeetingModal(){
-  if(!currentModalId)return;
-  var title=g('mTitle').value.trim();
-  g('mTitle').classList.remove('err');
-  if(!title){g('mTitle').classList.add('err');g('mTitle').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ El título es obligatorio','err');return;}
-
-  var mid=currentModalId;
+function buildMeetingRecordFromModal(){
   var record={};
-  record[F.title]=title;
+  record[F.title]=g('mTitle').value.trim();
   record[F.status]=modalStatusDraft;
   record[F.imp]=Number(g('mImp').value||0);
   record[F.urg]=Number(g('mUrg').value||0);
@@ -803,8 +842,33 @@ function saveMeetingModal(){
   record[F.date]=g('mFechaProxima').value?g('mFechaProxima').value+' 00:00:00':'';
   record[F.link2]=g('mLink2').value.trim();
   record[F.link1]=g('mLink1').value.trim();
+  return record;
+}
+function saveMeetingModal(){
+  var title=g('mTitle').value.trim();
+  g('mTitle').classList.remove('err');
+  if(!title){g('mTitle').classList.add('err');g('mTitle').scrollIntoView({behavior:'smooth',block:'center'});toast('⚠️ El título es obligatorio','err');return;}
 
+  var record=buildMeetingRecordFromModal();
   var saving=g('mSaving');if(saving){saving.style.display='inline';saving.textContent='Guardando…';}
+
+  if(isNewMeeting){
+    var createUrl=Auth.url(_W+'?action=save&table=TaMeetings&method=POST');
+    fetch(createUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);})
+      .then(function(){
+        if(saving)saving.style.display='none';
+        toast('✓ Reunión creada');
+        closeMeetingModal();
+        /* Recargamos el listado para obtener el nuevo registro con su MeetinglineID real */
+        loadAll();
+      })
+      .catch(function(e){console.error('[reuniones] crear:',e);if(saving)saving.style.display='none';toast('⚠️ Error al crear la reunión','err');});
+    return;
+  }
+
+  if(!currentModalId)return;
+  var mid=currentModalId;
   var url=Auth.url(_W+'?action=save&table=TaMeetings&method=PUT&where='+encodeURIComponent(F.id+'='+mid));
   fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
@@ -849,6 +913,7 @@ window.addEventListener('DOMContentLoaded',function(){
     <div class="wp-nav-sub" id="hSub"></div>
   </div>
   <div class="wp-nav-btns">
+    <button class="btn-nueva-reunion" onclick="openNewMeetingModal()">+ Nueva reunión</button>
     <div class="wp-nav-user">👤 <span id="hUserName"></span></div>
     <button class="wp-nav-menu" onclick="NavComponent.open()" title="Menú">☰</button>
     <button class="wp-nav-close" onclick="history.back()" title="Volver">✕</button>
@@ -998,5 +1063,5 @@ window.addEventListener('DOMContentLoaded',function(){
 </div>
 
 </body>
-<!-- HISTORIAL: v5 - Toggle rápido de estado en el listado: al pulsar para cerrar una reunión pide confirmación ("¿Seguro que quieres cerrar esta reunión?"); reabrir no pide confirmación. FIX crítico: tanto el toggle rápido de estado en el listado como el guardado del popup usaban `action=update&table=TaMeetings`, acción que Caspio solo soporta para TaVillas/TaUsers/TaTasks — por eso el toggle "funcionaba pero daba error" y el popup fallaba siempre al guardar. Cambiado a `action=save&table=TaMeetings&method=PUT&where=MeetinglineID=id` en ambos puntos. | Nuevo filtro de Empresa: fila de pills (Todos + una por cada empresa de TaMeetingsAccesos, generadas dinámicamente) debajo de los filtros existentes; se combina con Estado/Importancia/Urgencia. | Ficha (popup): Estado, Importancia y Urgencia ahora comparten una sola línea destacada (hero-row) con inputs más grandes, dando protagonismo a los 3 campos clave. | Descripción, Análisis y Conclusión pasan a tener cada uno su propio box diferenciado visualmente (borde de color + fondo suave: azul/naranja/verde respectivamente) en vez de ser tres bloques iguales. | Empresa, Usuario, Fecha creación, Fecha próxima reunión, Dónde será y Link se agrupan ahora dentro de un único box (info-box) para organizarlos como un bloque de "datos generales". | FIX: el resaltado (scroll+flash) al abrir la ficha desde un resultado de búsqueda en el campo Título apuntaba por error al box de Estado (bug de v4); ahora resalta directamente el input del título. |  v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
+<!-- HISTORIAL: v7 - FIX filtro de Empresa: al seleccionar la empresa con ID literal 0 no aparecía ninguna reunión (sí con "Todos"). Causa: `m[F.company]||''` — como 0 es un valor "falsy" en JavaScript, se convertía en cadena vacía y nunca coincidía con el filtro '0'. Añadido helper `meetingCompanyId()` que distingue correctamente "sin empresa" (undefined/null/'') de una empresa real con ID 0, usado tanto en el filtro como en el agrupado del listado normal (antes el agrupado también podía mezclar por casualidad "sin empresa" con la empresa real 0 bajo la misma cabecera; ahora "sin empresa" tiene su propio grupo "Sin empresa"). |  v6 - Nuevo botón "+ Nueva reunión" en la cabecera: abre la misma ficha (popup) que editar una reunión existente pero completamente vacía (estado Pendiente, importancia/urgencia sin valor, Descripción/Análisis/Conclusión vacíos, empresa preseleccionada según el filtro de empresa activo si lo hay, usuario sin seleccionar, "Fecha creación" muestra "Se generará al guardar"). Al pulsar Guardar en modo creación, hace `action=save&table=TaMeetings&method=POST` (crea el registro nuevo) en vez de PUT, y tras crear recarga el listado completo para incorporar el nuevo registro con su MeetinglineID real (Caspio no garantiza devolver el ID en la respuesta del proxy, así que se opta por el recargado, más lento pero seguro, en vez de asumir un formato de respuesta). Refactor: la construcción del objeto a guardar se extrae a `buildMeetingRecordFromModal()`, reutilizada tanto en creación como en edición. |  v5 - Toggle rápido de estado en el listado: al pulsar para cerrar una reunión pide confirmación ("¿Seguro que quieres cerrar esta reunión?"); reabrir no pide confirmación. FIX crítico: tanto el toggle rápido de estado en el listado como el guardado del popup usaban `action=update&table=TaMeetings`, acción que Caspio solo soporta para TaVillas/TaUsers/TaTasks — por eso el toggle "funcionaba pero daba error" y el popup fallaba siempre al guardar. Cambiado a `action=save&table=TaMeetings&method=PUT&where=MeetinglineID=id` en ambos puntos. | Nuevo filtro de Empresa: fila de pills (Todos + una por cada empresa de TaMeetingsAccesos, generadas dinámicamente) debajo de los filtros existentes; se combina con Estado/Importancia/Urgencia. | Ficha (popup): Estado, Importancia y Urgencia ahora comparten una sola línea destacada (hero-row) con inputs más grandes, dando protagonismo a los 3 campos clave. | Descripción, Análisis y Conclusión pasan a tener cada uno su propio box diferenciado visualmente (borde de color + fondo suave: azul/naranja/verde respectivamente) en vez de ser tres bloques iguales. | Empresa, Usuario, Fecha creación, Fecha próxima reunión, Dónde será y Link se agrupan ahora dentro de un único box (info-box) para organizarlos como un bloque de "datos generales". | FIX: el resaltado (scroll+flash) al abrir la ficha desde un resultado de búsqueda en el campo Título apuntaba por error al box de Estado (bug de v4); ahora resalta directamente el input del título. |  v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
 </html>
