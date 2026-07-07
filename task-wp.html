@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v17 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v18 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -11,8 +11,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePack v17 — 3Villas</title>
+  <!-- v18: eliminado el registro del Service Worker /3villas-manuals/sw.js.
+       Era un resto de los manuales: auth.js lo DESINSTALA activamente porque intercepta
+       peticiones incorrectamente, y esta línea lo volvía a registrar en cada carga.
+       Un SW roto puede retener las respuestas de los fetch (el guardado se completa en
+       la red pero el JS de la página nunca recibe la señal → "Guardando..." eterno). -->
+  <title>WelcomePack v18 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -312,14 +316,26 @@ function handlePhoto(input){
   });
 }
 /* v15: timeout genérico para fetch — evita que guardar() se quede colgado indefinidamente.
-   Sin reintento automático aquí (a diferencia de la foto): reintentar un POST a ciegas
+   v18: blindado con Promise.race — el temporizador gana SIEMPRE, incluso si la promesa
+   del fetch nunca se resuelve (p.ej. interceptada por un Service Worker defectuoso).
+   Antes dependía de que el AbortError se propagara de vuelta, y eso puede no ocurrir.
+   Sin reintento automático (a diferencia de la foto): reintentar un POST a ciegas
    podría crear un registro duplicado si el primer intento sí llegó al servidor. */
 async function fetchWithTimeout(url,options,timeoutMs,label){
   timeoutMs=timeoutMs||25000;
   const controller=new AbortController();
-  const timeoutId=setTimeout(()=>controller.abort(),timeoutMs);
+  let timeoutId;
+  const timeoutPromise=new Promise((_,reject)=>{
+    timeoutId=setTimeout(()=>{
+      controller.abort();
+      reject(new Error((label||'La operación')+' ha tardado demasiado (posible problema de conexión)'));
+    },timeoutMs);
+  });
   try{
-    return await fetch(url,Object.assign({},options,{signal:controller.signal}));
+    return await Promise.race([
+      fetch(url,Object.assign({},options,{signal:controller.signal})),
+      timeoutPromise
+    ]);
   }catch(e){
     if(e.name==='AbortError')throw new Error((label||'La operación')+' ha tardado demasiado (posible problema de conexión)');
     throw e;
@@ -333,12 +349,10 @@ function _uploadOnceWP(file){
   const year=(new Date().getFullYear());
   const fname='fotos-tareas/'+year+'_wp_'+idReserva+'.jpg';
   fd.append('file',file,fname);fd.append('filename',fname);
-  const controller=new AbortController();
-  const timeoutId=setTimeout(()=>controller.abort(),WP_UPLOAD_TIMEOUT_MS);
-  return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd,signal:controller.signal})
+  /* v18: reutiliza fetchWithTimeout (blindado con Promise.race) en vez de AbortController suelto */
+  return fetchWithTimeout(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd},WP_UPLOAD_TIMEOUT_MS,'La subida de la foto')
     .then(r=>r.json())
-    .then(j=>j.url||j.publicUrl||'')
-    .finally(()=>clearTimeout(timeoutId));
+    .then(j=>j.url||j.publicUrl||'');
 }
 /* v13: timeout 25s + 1 reintento automático; nunca cuelga guardar() indefinidamente */
 async function _doUploadWP(file){
@@ -491,4 +505,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();})
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v17 - Diagnóstico: el bloqueo de más de un minuto persiste pese a los fixes de v15/v16. Se descarta Auth.url() como causa (es síncrono, solo concatena el token, no hace red). Añadida instrumentación temporal de tiempos en guardar() (console.log con marcas de tiempo en cada etapa: subida de foto, comprobación de existencia, guardado TaTasks+TaBookings2021, éxito/error) — no cambia ningún comportamiento, solo diagnóstico para localizar con certeza el paso que tarda | v16 - Fix: "se queda guardando" persistía pese al timeout de v15. Causa real: uploadPhoto() relanzaba _doUploadWP() (2 intentos más de 25s) incluso cuando la pre-subida en segundo plano ya había fallado tras sus propios 2 intentos — hasta 100s solo en la foto antes de llegar a guardar la tarea, especialmente con conexión mala (típico en villas). Ahora, si la pre-subida ya falló, no se reintenta de nuevo desde guardar(): se continúa sin foto (avisando) en vez de doblar la espera | v15 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor — el fetch de guardado de TaTasks/TaBookings2021 y la comprobación de existencia no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (para evitar registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v14 - Optimizaciones de velocidad de guardado/subida de foto: (1) vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); (2) evita la consulta duplicada de existencia de TaTasks en guardar() reutilizando el ID ya cargado por Vi_Tasks_Booking_Villa si está disponible (fallback seguro a la consulta anterior si el campo no viene en la vista); (3) TaTasks y TaBookings2021 se guardan en paralelo con Promise.all en vez de secuencialmente; (4) compresión de foto reducida de 1200px/0.80 a 1100px/0.75 para subidas más rápidas | v13 - Fix bloqueo "se queda guardando" al subir foto: timeout 25s + 1 reintento automático en _doUploadWP (AbortController), nunca cuelga indefinidamente; aviso al usuario si falla tras reintento; fix uploadRes.url (uploadPhoto devuelve string, no objeto) para que la foto se guarde correctamente; corregido desfase de versión en comentario cabecera (v9→v13) | v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
+<!-- HISTORIAL: v18 - Causa probable REAL del "Guardando..." eterno encontrada investigando por qué el botón no recibe la confirmación: (1) la página registraba en cada carga el Service Worker /3villas-manuals/sw.js — un resto de los manuales que auth.js DESINSTALA activamente porque intercepta peticiones incorrectamente; un SW roto se interpone entre el fetch del JS y la red, de modo que la petición de guardado se completa en la red (visible en el panel Network) pero la respuesta nunca llega al JavaScript de la página → coincide exactamente con "se guarda en el servidor pero el botón nunca se entera". Eliminado el registro. (2) fetchWithTimeout blindado con Promise.race: el temporizador gana SIEMPRE aunque la promesa del fetch nunca se resuelva (el mecanismo anterior con solo AbortController dependía de que el abort se propagara de vuelta, cosa que un SW defectuoso puede impedir — por eso ni siquiera saltaba el error a los 25s). (3) La subida de foto (_uploadOnceWP) reutiliza ahora fetchWithTimeout blindado en vez de AbortController suelto | v17 - Diagnóstico: el bloqueo de más de un minuto persiste pese a los fixes de v15/v16. Se descarta Auth.url() como causa (es síncrono, solo concatena el token, no hace red). Añadida instrumentación temporal de tiempos en guardar() (console.log con marcas de tiempo en cada etapa: subida de foto, comprobación de existencia, guardado TaTasks+TaBookings2021, éxito/error) — no cambia ningún comportamiento, solo diagnóstico para localizar con certeza el paso que tarda | v16 - Fix: "se queda guardando" persistía pese al timeout de v15. Causa real: uploadPhoto() relanzaba _doUploadWP() (2 intentos más de 25s) incluso cuando la pre-subida en segundo plano ya había fallado tras sus propios 2 intentos — hasta 100s solo en la foto antes de llegar a guardar la tarea, especialmente con conexión mala (típico en villas). Ahora, si la pre-subida ya falló, no se reintenta de nuevo desde guardar(): se continúa sin foto (avisando) en vez de doblar la espera | v15 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor — el fetch de guardado de TaTasks/TaBookings2021 y la comprobación de existencia no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (para evitar registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v14 - Optimizaciones de velocidad de guardado/subida de foto: (1) vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); (2) evita la consulta duplicada de existencia de TaTasks en guardar() reutilizando el ID ya cargado por Vi_Tasks_Booking_Villa si está disponible (fallback seguro a la consulta anterior si el campo no viene en la vista); (3) TaTasks y TaBookings2021 se guardan en paralelo con Promise.all en vez de secuencialmente; (4) compresión de foto reducida de 1200px/0.80 a 1100px/0.75 para subidas más rápidas | v13 - Fix bloqueo "se queda guardando" al subir foto: timeout 25s + 1 reintento automático en _doUploadWP (AbortController), nunca cuelga indefinidamente; aviso al usuario si falla tras reintento; fix uploadRes.url (uploadPhoto devuelve string, no objeto) para que la foto se guarde correctamente; corregido desfase de versión en comentario cabecera (v9→v13) | v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
