@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v16 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v17 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>WelcomePack v16 — 3Villas</title>
+  <title>WelcomePack v17 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -410,14 +410,21 @@ async function guardar(fromTodoOk){
   const btn=document.getElementById('btnSave'),lbl=document.getElementById('saveLabel'),sp=document.getElementById('saveSpinner'),btnOk=document.getElementById('btnTodoOk');
   btn.disabled=true;if(btnOk)btnOk.disabled=true;
   lbl.textContent='Guardando...';sp.style.display='block';
+  /* v17: instrumentación temporal de tiempos — solo diagnóstico, no cambia el comportamiento.
+     Ayuda a ver en la consola del navegador exactamente qué paso tarda más de un minuto. */
+  const _t0=performance.now();
+  const _tlog=(label)=>console.log('[guardar] '+label+': '+((performance.now()-_t0)/1000).toFixed(1)+'s');
   try{
     const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:sw('swDone'),Limpieza_filtrolavaplatos:sw('swAgua'),Limpieza_salyabrillan_lavaplatos:sw('swWifi')?'Y':'',Taskdescription:document.getElementById('txtComentarios').value.trim(),Taskname:'WelcomePack'};
+    _tlog('inicio');
     if(selectedPhoto){try{const uploadUrl=await uploadPhoto(selectedPhoto,idReserva,taskType);if(uploadUrl){data['Picture_cloudfare1']=uploadUrl;}}catch(eUp){console.warn('Photo upload skipped:',eUp.message);}}
+    _tlog('foto subida (o sin foto nueva)');
     const whereCheck=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
     let exists;
     if(taskRecordId!==undefined){
       /* v14: ya sabemos por la carga inicial (Vi_Tasks_Booking_Villa) si el registro existe — sin fetch extra */
       exists=true;
+      _tlog('existencia conocida por carga inicial (sin fetch)');
     }else{
       /* Fallback: la vista no traía el ID de TaTasks, se comprueba como antes.
          v15: con timeout — sin esto podía quedarse colgado indefinidamente si la red fallaba */
@@ -425,6 +432,7 @@ async function guardar(fromTodoOk){
       const checkRes=await fetchWithTimeout(checkUrl,{},25000,'La comprobación de la tarea');
       const checkJson=await checkRes.json();
       exists=(checkJson.Result||checkJson.result||[]).length>0;
+      _tlog('comprobación de existencia (fetch)');
     }
     const saveQs=exists?`action=save&table=TaTasks&where=${encodeURIComponent(whereCheck)}&method=PUT`:`action=save&table=TaTasks&method=POST`;
     const saveUrl=Auth.url(`${WORKER}?${saveQs}`);
@@ -441,12 +449,15 @@ async function guardar(fromTodoOk){
       fetchWithTimeout(saveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)},25000,'El guardado de la tarea'),
       fetchWithTimeout(bkSaveUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Welcomepackentregado:wpDone})},25000,'La actualización de la reserva').catch(eBk=>{console.warn('No se pudo actualizar TaBookings2021:',eBk.message);return null;})
     ]);
+    _tlog('guardado TaTasks + TaBookings2021 (Promise.all)');
     if(!saveRes.ok){const err=await saveRes.text();throw new Error(err);}
     clearState();
+    _tlog('COMPLETADO con éxito');
     toast('✓ Guardado correctamente','success');
     btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
     setTimeout(()=>{try{window.close();}catch(e){history.back();}},800);
   }catch(e){
+    _tlog('ERROR/EXCEPCIÓN: '+e.message);
     console.error('Save error:',e);
     toast('Error al guardar: '+e.message,'error');
     btn.disabled=false;lbl.textContent='💾 Guardar';sp.style.display='none';
@@ -480,4 +491,4 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLB();})
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v16 - Fix: "se queda guardando" persistía pese al timeout de v15. Causa real: uploadPhoto() relanzaba _doUploadWP() (2 intentos más de 25s) incluso cuando la pre-subida en segundo plano ya había fallado tras sus propios 2 intentos — hasta 100s solo en la foto antes de llegar a guardar la tarea, especialmente con conexión mala (típico en villas). Ahora, si la pre-subida ya falló, no se reintenta de nuevo desde guardar(): se continúa sin foto (avisando) en vez de doblar la espera | v15 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor — el fetch de guardado de TaTasks/TaBookings2021 y la comprobación de existencia no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (para evitar registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v14 - Optimizaciones de velocidad de guardado/subida de foto: (1) vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); (2) evita la consulta duplicada de existencia de TaTasks en guardar() reutilizando el ID ya cargado por Vi_Tasks_Booking_Villa si está disponible (fallback seguro a la consulta anterior si el campo no viene en la vista); (3) TaTasks y TaBookings2021 se guardan en paralelo con Promise.all en vez de secuencialmente; (4) compresión de foto reducida de 1200px/0.80 a 1100px/0.75 para subidas más rápidas | v13 - Fix bloqueo "se queda guardando" al subir foto: timeout 25s + 1 reintento automático en _doUploadWP (AbortController), nunca cuelga indefinidamente; aviso al usuario si falla tras reintento; fix uploadRes.url (uploadPhoto devuelve string, no objeto) para que la foto se guarde correctamente; corregido desfase de versión en comentario cabecera (v9→v13) | v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
+<!-- HISTORIAL: v17 - Diagnóstico: el bloqueo de más de un minuto persiste pese a los fixes de v15/v16. Se descarta Auth.url() como causa (es síncrono, solo concatena el token, no hace red). Añadida instrumentación temporal de tiempos en guardar() (console.log con marcas de tiempo en cada etapa: subida de foto, comprobación de existencia, guardado TaTasks+TaBookings2021, éxito/error) — no cambia ningún comportamiento, solo diagnóstico para localizar con certeza el paso que tarda | v16 - Fix: "se queda guardando" persistía pese al timeout de v15. Causa real: uploadPhoto() relanzaba _doUploadWP() (2 intentos más de 25s) incluso cuando la pre-subida en segundo plano ya había fallado tras sus propios 2 intentos — hasta 100s solo en la foto antes de llegar a guardar la tarea, especialmente con conexión mala (típico en villas). Ahora, si la pre-subida ya falló, no se reintenta de nuevo desde guardar(): se continúa sin foto (avisando) en vez de doblar la espera | v15 - Fix: guardar() podía quedarse colgado indefinidamente en "Guardando..." aunque el dato ya se hubiera guardado correctamente en el servidor — el fetch de guardado de TaTasks/TaBookings2021 y la comprobación de existencia no tenían timeout. Añadido timeout de 25s (fetchWithTimeout) a las tres llamadas, sin reintento automático (para evitar registros duplicados si un POST ya había llegado al servidor); si salta el timeout se avisa con un error claro y se reactivan los botones, permitiendo reintentar manualmente sin riesgo de duplicar | v14 - Optimizaciones de velocidad de guardado/subida de foto: (1) vista previa con Blob URL en vez de base64 (arranca la subida en paralelo, sin esperar a FileReader); (2) evita la consulta duplicada de existencia de TaTasks en guardar() reutilizando el ID ya cargado por Vi_Tasks_Booking_Villa si está disponible (fallback seguro a la consulta anterior si el campo no viene en la vista); (3) TaTasks y TaBookings2021 se guardan en paralelo con Promise.all en vez de secuencialmente; (4) compresión de foto reducida de 1200px/0.80 a 1100px/0.75 para subidas más rápidas | v13 - Fix bloqueo "se queda guardando" al subir foto: timeout 25s + 1 reintento automático en _doUploadWP (AbortController), nunca cuelga indefinidamente; aviso al usuario si falla tras reintento; fix uploadRes.url (uploadPhoto devuelve string, no objeto) para que la foto se guarde correctamente; corregido desfase de versión en comentario cabecera (v9→v13) | v12 - Fix: compressImage no estaba definida (se perdió en v10/v11), foto no se cargaba |  v11 - Fix botón cerrar (history.back en lugar de window.close) |  v10 - Fix: openLB/closeLB faltaban en el script principal | v09 - Vi_Tasks_Booking_Villa (1 fetch vs 2); compressImage; pre-subida background; uploadPhoto cached |  v08 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v9 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v8 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v7 - versión anterior -->
