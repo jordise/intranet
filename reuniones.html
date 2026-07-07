@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v4 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v5 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="/intranet/">
-  <title>Reuniones v4 — 3Villas</title>
+  <title>Reuniones v5 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -36,7 +36,9 @@
   .wp-nav-menu:hover,.wp-nav-close:hover{border-color:var(--red);color:var(--red)}
 
   /* ── FILTROS ── */
-  #filterPanel{background:#fff;border-bottom:1.5px solid var(--gray-2);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #filterPanel{background:#fff;border-bottom:1.5px solid var(--gray-2);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+  .filter-row1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .filter-row2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   #filterPanel input[type=text]{border:1.5px solid var(--gray-2);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none;min-width:200px;transition:border-color .15s,box-shadow .15s}
   #filterPanel input[type=text]:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(200,16,46,.09)}
   .pill-group{display:flex;align-items:center;gap:5px}
@@ -140,9 +142,27 @@
   .modal-body{flex:1;overflow-y:auto;padding:16px}
   .modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1.5px solid var(--gray-2);flex-shrink:0}
   .modal-field{margin-bottom:16px;transition:box-shadow .3s}
-  .modal-field.flash{box-shadow:0 0 0 3px rgba(200,16,46,.3);border-radius:var(--r-md)}
+  .modal-field.flash,.field-box.flash{box-shadow:0 0 0 3px rgba(200,16,46,.3);border-radius:var(--r-md)}
   .modal-field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:600px){.modal-field-row{grid-template-columns:1fr}.modal-box{width:96vw;height:94vh}}
+  #mTitle.flash-title{box-shadow:0 0 0 3px rgba(200,16,46,.3)}
+
+  /* ── ESTADO / IMPORTANCIA / URGENCIA — línea protagonista ── */
+  .hero-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding-bottom:16px;border-bottom:1.5px solid var(--gray-2)}
+  .hero-item{flex:1;min-width:150px}
+  .hero-item .modal-lbl{font-size:11px}
+  .hero-item input[type=number]{font-size:18px;font-weight:800;font-family:Montserrat,sans-serif;text-align:center;padding:10px}
+
+  /* ── BOXES DIFERENCIADOS: Descripción / Análisis / Conclusión ── */
+  .field-box{border:1.5px solid var(--gray-2);border-left:4px solid var(--gray-3);border-radius:var(--r-md);padding:14px;margin-bottom:14px;background:#fff;transition:box-shadow .3s}
+  .field-box-lbl{margin-bottom:8px!important}
+  .field-box-desc{border-left-color:var(--blue);background:var(--blue-light)}
+  .field-box-analisys{border-left-color:var(--orange);background:var(--yellow-light)}
+  .field-box-concl{border-left-color:var(--green);background:var(--green-light)}
+  .field-box .tl-item{background:#fff}
+
+  /* ── BOX DE DATOS GENERALES (Empresa/Usuario/Fechas/Link) ── */
+  .info-box{border:1.5px solid var(--gray-2);border-radius:var(--r-md);padding:16px;background:var(--gray-1)}
   .modal-lbl{display:block;font-size:10px;font-family:Montserrat,sans-serif;font-weight:800;color:var(--gray-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
   .modal-field input[type=text],.modal-field input[type=date],.modal-field input[type=number],.modal-field select,.modal-field textarea{width:100%;border:1.5px solid var(--gray-2);border-radius:var(--r-sm);padding:8px 10px;font-size:13px;font-family:'Open Sans',sans-serif;color:var(--gray-5);outline:none}
   .modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(200,16,46,.09)}
@@ -212,6 +232,7 @@ var allMeetings=[];
 var lookups={status:{},importancy:{},urgency:{},company:{}};
 var allUsers=[];
 var estadoFilter='pend';
+var companyFilter='all';
 var impMin=1,urgMin=1;
 var searchNav={}; /* mid -> índice del match actual */
 var currentModalId=null;
@@ -281,6 +302,7 @@ async function loadAll(){
   }catch(e){console.warn('[reuniones] lookups:',e);}
 
   await loadUsers();
+  renderCompanyPills();
 
   /* Reuniones — filtradas por empresa de acceso del usuario (admin/manager ve todas las de sus empresas) */
   try{
@@ -351,6 +373,7 @@ function renderMeetings(){
     var st=Number(m[F.status]||0);
     if(estadoFilter==='pend'&&st>=STATUS_CLOSED)return false;
     if(estadoFilter==='done'&&st<STATUS_CLOSED)return false;
+    if(companyFilter!=='all'&&String(m[F.company]||'')!==companyFilter)return false;
     if(Number(m[F.imp]||0)<impMin)return false;
     if(Number(m[F.urg]||0)<urgMin)return false;
     return true;
@@ -479,13 +502,14 @@ function toggleEstadoQuick(mid){
   if(closed){
     newSt=(m._prevStatus&&Number(m._prevStatus)<STATUS_CLOSED)?Number(m._prevStatus):STATUS_DEFAULT_PENDING;
   }else{
+    if(!confirm('¿Seguro que quieres cerrar esta reunión?'))return;
     m._prevStatus=st||STATUS_DEFAULT_PENDING;
     newSt=STATUS_CLOSED;
   }
   m[F.status]=newSt;
   renderMeetings();
   var body={};body[F.status]=newSt;
-  var url=Auth.url(_W+'?action=update&table=TaMeetings&id='+encodeURIComponent(mid));
+  var url=Auth.url(_W+'?action=save&table=TaMeetings&method=PUT&where='+encodeURIComponent(F.id+'='+mid));
   fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);})
     .catch(function(e){console.error('[reuniones] toggle estado:',e);toast('⚠️ No se pudo guardar el estado','err');});
@@ -499,6 +523,21 @@ function setEstado(val){
   else if(val==='pend')g('ePend').classList.add('on');
   else g('eDone').classList.add('on');
   renderMeetings();
+}
+function setCompanyFilter(val){
+  companyFilter=val;
+  g('companyPillOpts').querySelectorAll('.pill-opt').forEach(function(b){b.classList.toggle('on',b.dataset.val===val);});
+  renderMeetings();
+}
+function renderCompanyPills(){
+  var host=g('companyPillOpts');if(!host)return;
+  var ids=Object.keys(lookups.company).sort(function(a,b){return(lookups.company[a]||'').localeCompare(lookups.company[b]||'','es',{sensitivity:'base'});});
+  var html='<button class="pill-opt on" data-val="all" onclick="setCompanyFilter(\'all\')">Todos</button>';
+  ids.forEach(function(id){
+    var name=lookups.company[id]||('Empresa '+id);
+    html+='<button class="pill-opt" data-val="'+_ea(id)+'" onclick="setCompanyFilter(\''+_ea(id)+'\')">'+_esc(name)+'</button>';
+  });
+  host.innerHTML=html;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -683,7 +722,16 @@ function toggleModalEstado(){
 
 /* ── ABRIR / CERRAR POPUP ── */
 function scrollAndFlash(fieldKey){
-  var map={};map[F.title]='mTitleFieldWrap';map[F.desc]='mDescFieldWrap';map[F.analisys]='mAnalisysFieldWrap';map[F.concl]='mConclFieldWrap';
+  if(fieldKey===F.title){
+    var t=g('mTitle');if(!t)return;
+    setTimeout(function(){
+      t.scrollIntoView({behavior:'smooth',block:'center'});
+      t.classList.add('flash-title');
+      setTimeout(function(){t.classList.remove('flash-title');},1600);
+    },150);
+    return;
+  }
+  var map={};map[F.desc]='mDescFieldWrap';map[F.analisys]='mAnalisysFieldWrap';map[F.concl]='mConclFieldWrap';
   var elId=map[fieldKey];if(!elId)return;
   var el=g(elId);if(!el)return;
   setTimeout(function(){
@@ -757,7 +805,7 @@ function saveMeetingModal(){
   record[F.link1]=g('mLink1').value.trim();
 
   var saving=g('mSaving');if(saving){saving.style.display='inline';saving.textContent='Guardando…';}
-  var url=Auth.url(_W+'?action=update&table=TaMeetings&id='+encodeURIComponent(mid));
+  var url=Auth.url(_W+'?action=save&table=TaMeetings&method=PUT&where='+encodeURIComponent(F.id+'='+mid));
   fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
       var m=findMeeting(mid);
@@ -809,22 +857,28 @@ window.addEventListener('DOMContentLoaded',function(){
 
 <!-- ── FILTROS ── -->
 <div id="filterPanel">
-  <input type="text" id="fBuscar" placeholder="Buscar título, descripción, análisis, conclusión…" autocomplete="off">
-  <div class="pill-group">
-    <span class="pill-label">Estado</span>
-    <div class="pill-opts">
-      <button class="pill-opt" id="eAll">Todas</button>
-      <button class="pill-opt on" id="ePend">Pendientes</button>
-      <button class="pill-opt" id="eDone">Cerradas</button>
+  <div class="filter-row1">
+    <input type="text" id="fBuscar" placeholder="Buscar título, descripción, análisis, conclusión…" autocomplete="off">
+    <div class="pill-group">
+      <span class="pill-label">Estado</span>
+      <div class="pill-opts">
+        <button class="pill-opt" id="eAll">Todas</button>
+        <button class="pill-opt on" id="ePend">Pendientes</button>
+        <button class="pill-opt" id="eDone">Cerradas</button>
+      </div>
+    </div>
+    <div class="num-filter">
+      <span class="pill-label">🚩 Importancia ≥</span>
+      <input type="number" id="fImpMin" min="1" max="10" step="1" value="1">
+    </div>
+    <div class="num-filter">
+      <span class="pill-label">🏁 Urgencia ≥</span>
+      <input type="number" id="fUrgMin" min="1" max="10" step="1" value="1">
     </div>
   </div>
-  <div class="num-filter">
-    <span class="pill-label">🚩 Importancia ≥</span>
-    <input type="number" id="fImpMin" min="1" max="10" step="1" value="1">
-  </div>
-  <div class="num-filter">
-    <span class="pill-label">🏁 Urgencia ≥</span>
-    <input type="number" id="fUrgMin" min="1" max="10" step="1" value="1">
+  <div class="filter-row2">
+    <span class="pill-label">Empresa</span>
+    <div class="pill-opts" id="companyPillOpts"></div>
   </div>
 </div>
 
@@ -852,81 +906,85 @@ window.addEventListener('DOMContentLoaded',function(){
     </div>
     <div class="modal-body" id="modalBody">
 
-      <div class="modal-field" id="mTitleFieldWrap">
-        <label class="modal-lbl">Estado</label>
-        <div class="estado-row">
-          <span class="estado-label-txt pend" id="mEstadoLabel">Pendiente</span>
-          <div class="estado-switch" id="mEstadoSwitch">
-            <div class="es-circle" id="mEstadoCircle">✓</div>
-            <span class="es-text" id="mEstadoText">Pendiente</span>
+      <!-- ── ESTADO / IMPORTANCIA / URGENCIA — protagonismo en una sola línea ── -->
+      <div class="hero-row">
+        <div class="hero-item">
+          <label class="modal-lbl">Estado</label>
+          <div class="estado-row">
+            <span class="estado-label-txt pend" id="mEstadoLabel">Pendiente</span>
+            <div class="estado-switch" id="mEstadoSwitch">
+              <div class="es-circle" id="mEstadoCircle">✓</div>
+              <span class="es-text" id="mEstadoText">Pendiente</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="modal-field-row">
-        <div class="modal-field">
-          <label class="modal-lbl">Importancia (1-10)</label>
+        <div class="hero-item">
+          <label class="modal-lbl">🚩 Importancia (1-10)</label>
           <input type="number" id="mImp" min="1" max="10" step="1">
         </div>
-        <div class="modal-field">
-          <label class="modal-lbl">Urgencia (1-10)</label>
+        <div class="hero-item">
+          <label class="modal-lbl">🏁 Urgencia (1-10)</label>
           <input type="number" id="mUrg" min="1" max="10" step="1">
         </div>
       </div>
 
-      <div class="modal-field" id="mDescFieldWrap">
-        <label class="modal-lbl">Descripción</label>
+      <!-- ── DESCRIPCIÓN / ANÁLISIS / CONCLUSIÓN — box propio por campo ── -->
+      <div class="field-box field-box-desc" id="mDescFieldWrap">
+        <label class="modal-lbl field-box-lbl">📝 Descripción</label>
         <div class="input-mic"><div class="tl-wrap" id="mDesc_tl"></div><button class="mic-btn hidden" id="micMDesc" type="button">🎤</button></div>
         <textarea id="mDesc" style="display:none"></textarea>
       </div>
 
-      <div class="modal-field" id="mAnalisysFieldWrap">
-        <label class="modal-lbl">Análisis</label>
+      <div class="field-box field-box-analisys" id="mAnalisysFieldWrap">
+        <label class="modal-lbl field-box-lbl">🔍 Análisis</label>
         <div class="input-mic"><div class="tl-wrap" id="mAnalisys_tl"></div><button class="mic-btn hidden" id="micMAnalisys" type="button">🎤</button></div>
         <textarea id="mAnalisys" style="display:none"></textarea>
       </div>
 
-      <div class="modal-field" id="mConclFieldWrap">
-        <label class="modal-lbl">Conclusión</label>
+      <div class="field-box field-box-concl" id="mConclFieldWrap">
+        <label class="modal-lbl field-box-lbl">✅ Conclusión</label>
         <div class="input-mic"><div class="tl-wrap" id="mConcl_tl"></div><button class="mic-btn hidden" id="micMConcl" type="button">🎤</button></div>
         <textarea id="mConcl" style="display:none"></textarea>
       </div>
 
-      <div class="modal-field-row">
-        <div class="modal-field">
-          <label class="modal-lbl">Empresa</label>
-          <select id="mEmpresa"></select>
-        </div>
-        <div class="modal-field">
-          <label class="modal-lbl">Usuario</label>
-          <div class="villa-search-wrap">
-            <input type="text" id="mUsuarioSearch" placeholder="Buscar persona…" autocomplete="off">
-            <div class="villa-dropdown" id="mUsuarioDropdown"></div>
+      <!-- ── DATOS GENERALES — Empresa/Usuario/Fechas/Link agrupados en un mismo box ── -->
+      <div class="info-box">
+        <div class="modal-field-row">
+          <div class="modal-field">
+            <label class="modal-lbl">Empresa</label>
+            <select id="mEmpresa"></select>
           </div>
-          <div class="villa-current" id="mUsuarioCurrentLabel"></div>
-          <input type="hidden" id="mUsuario">
+          <div class="modal-field">
+            <label class="modal-lbl">Usuario</label>
+            <div class="villa-search-wrap">
+              <input type="text" id="mUsuarioSearch" placeholder="Buscar persona…" autocomplete="off">
+              <div class="villa-dropdown" id="mUsuarioDropdown"></div>
+            </div>
+            <div class="villa-current" id="mUsuarioCurrentLabel"></div>
+            <input type="hidden" id="mUsuario">
+          </div>
         </div>
-      </div>
 
-      <div class="modal-field-row">
-        <div class="modal-field">
-          <label class="modal-lbl">Fecha creación</label>
-          <div class="modal-readonly" id="mFechaCreacion">—</div>
+        <div class="modal-field-row">
+          <div class="modal-field">
+            <label class="modal-lbl">Fecha creación</label>
+            <div class="modal-readonly" id="mFechaCreacion">—</div>
+          </div>
+          <div class="modal-field">
+            <label class="modal-lbl">Fecha próxima reunión</label>
+            <input type="date" id="mFechaProxima">
+          </div>
         </div>
-        <div class="modal-field">
-          <label class="modal-lbl">Fecha próxima reunión</label>
-          <input type="date" id="mFechaProxima">
-        </div>
-      </div>
 
-      <div class="modal-field-row">
-        <div class="modal-field">
-          <label class="modal-lbl">Dónde será la próxima reunión</label>
-          <input type="text" id="mLink2" placeholder="Lugar de la próxima reunión…">
-        </div>
-        <div class="modal-field">
-          <label class="modal-lbl">Link</label>
-          <input type="text" id="mLink1" placeholder="https://…">
+        <div class="modal-field-row" style="margin-bottom:0">
+          <div class="modal-field">
+            <label class="modal-lbl">Dónde será la próxima reunión</label>
+            <input type="text" id="mLink2" placeholder="Lugar de la próxima reunión…">
+          </div>
+          <div class="modal-field" style="margin-bottom:0">
+            <label class="modal-lbl">Link</label>
+            <input type="text" id="mLink1" placeholder="https://…">
+          </div>
         </div>
       </div>
 
@@ -940,5 +998,5 @@ window.addEventListener('DOMContentLoaded',function(){
 </div>
 
 </body>
-<!-- HISTORIAL: v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
+<!-- HISTORIAL: v5 - Toggle rápido de estado en el listado: al pulsar para cerrar una reunión pide confirmación ("¿Seguro que quieres cerrar esta reunión?"); reabrir no pide confirmación. FIX crítico: tanto el toggle rápido de estado en el listado como el guardado del popup usaban `action=update&table=TaMeetings`, acción que Caspio solo soporta para TaVillas/TaUsers/TaTasks — por eso el toggle "funcionaba pero daba error" y el popup fallaba siempre al guardar. Cambiado a `action=save&table=TaMeetings&method=PUT&where=MeetinglineID=id` en ambos puntos. | Nuevo filtro de Empresa: fila de pills (Todos + una por cada empresa de TaMeetingsAccesos, generadas dinámicamente) debajo de los filtros existentes; se combina con Estado/Importancia/Urgencia. | Ficha (popup): Estado, Importancia y Urgencia ahora comparten una sola línea destacada (hero-row) con inputs más grandes, dando protagonismo a los 3 campos clave. | Descripción, Análisis y Conclusión pasan a tener cada uno su propio box diferenciado visualmente (borde de color + fondo suave: azul/naranja/verde respectivamente) en vez de ser tres bloques iguales. | Empresa, Usuario, Fecha creación, Fecha próxima reunión, Dónde será y Link se agrupan ahora dentro de un único box (info-box) para organizarlos como un bloque de "datos generales". | FIX: el resaltado (scroll+flash) al abrir la ficha desde un resultado de búsqueda en el campo Título apuntaba por error al box de Estado (bug de v4); ahora resalta directamente el input del título. |  v4 - Rediseño completo: (1) Listado simplificado a título+prioridad+urgencia+fecha+toggle rápido pendiente/cerrada (elimina el widget inline de descripción/conclusión de las tarjetas). (2) Filtros de Importancia y Urgencia pasan de pills "Importante/Urgente" a inputs numéricos (mínimo, 1-10, por defecto 1). (3) Búsqueda ahora cubre título+descripción+análisis+conclusión con tarjetas de resultado que muestran fragmento resaltado y flechas ‹ › para navegar entre los campos donde hay coincidencia; al pulsar se abre la ficha con scroll y flash en el campo correspondiente. (4) Nueva ficha (popup 90vw x 90vh): título, estado con toggle pendiente/cerrada, importancia y urgencia (1-10), Descripción/Análisis/Conclusión con el mismo widget de lista con checkbox+micrófono que editar-tarea.html, Empresa (select desde TaMeetingsAccesos), Usuario (buscador contra TaUsers, mismo patrón que editar-tarea.html, con caché compartida sessionStorage '3v_users_cache'), Fecha de creación (Meetingautodate, solo lectura), Fecha próxima reunión (Meetingdate, editable), Dónde será la próxima reunión (Meetinglink2) y Link (Meetinglink1). Guardado único vía action=update&table=TaMeetings. (5) Toggle de estado en el listado actúa de forma inmediata (PUT directo); toggle dentro de la ficha queda en borrador hasta pulsar Guardar. Cerrada = MeetingStatus 9; al reabrir se restaura el estado previo recordado en esta sesión o, si no existe, 1. (6) Añadido sistema de toast para feedback de guardado/errores. (7) Limpieza: eliminadas las funciones del widget inline de tarjetas (_tlMakeItem/_tlAdd/_tlParse/_tlSerialize/_tlPlaceAdd/_tlSync/_getWrap/_openDesc/_closeDesc/_doSave/_saveDescBtn/descHtml/buildDescWrap), sustituidas por el motor de listas con textarea+id (_tlInit/_tlGet/_tlAddItem/_tlReset) reutilizado dentro del popup. |  v3 - FIX Auth.require: cambiado de Auth.require(['admin','manager']) a Auth.require('reuniones') — auth.js usa claves de página definidas en PERMISSIONS, no arrays de roles; la clave 'reuniones' ya existía en auth.js con acceso [admin, manager, sales]. |  v2 - FIX: eliminada función _esc2 (duplicado exacto de _esc) y sustituidas sus llamadas por _esc; el error "_ea is not defined" en producción apuntaba a código truncado al pegar — el archivo sigue siendo idéntico en lógica pero más limpio y menos propenso a truncamiento. |  v1 - Página nueva. Lista reuniones de TaMeetings agrupadas por empresa y estado. Acceso restringido a admin y manager. Respeta accesos TaUsers_Meeting1..8 igual que la DataPage original. Descripción y Conclusión usan el mismo widget inline de tareas.html (lista de ítems con checkbox, drag y guardar). Filtros: estado (pendientes/todas/cerradas), importancia, urgencia, búsqueda libre. -->
 </html>
