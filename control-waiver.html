@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v06 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v07 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v06 — 3Villas</title>
+  <title>Control Waiver v07 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -77,6 +77,26 @@
     .ytd-txt{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5)}
     .ytd-txt small{font-weight:600;color:var(--gray-4)}
     .ytd-toggle input:checked ~ .ytd-txt{color:var(--green)}
+
+    /* ── Barra de filtros (premium + portales) ── */
+    .filter-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-8px 0 18px}
+    .filter-bar .lbl{font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .seg{display:flex;background:var(--gray-2);border-radius:22px;padding:3px;gap:2px}
+    .seg-opt{border:none;border-radius:18px;padding:6px 14px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer;background:none;color:var(--gray-4);transition:all .15s;white-space:nowrap}
+    .seg-opt.on{background:#fff;color:var(--red);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+    .portal-dd{position:relative}
+    .portal-btn{border:1.5px solid var(--gray-2);background:#fff;border-radius:20px;padding:6px 14px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-5);cursor:pointer;white-space:nowrap}
+    .portal-btn b{color:var(--red)}
+    .portal-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:500;background:#fff;border:1.5px solid var(--gray-2);border-radius:12px;box-shadow:var(--shadow-md);padding:10px 12px;min-width:220px;max-height:320px;overflow-y:auto}
+    .portal-dd.open .portal-menu{display:block}
+    .portal-item{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;color:var(--gray-5);cursor:pointer;border-radius:6px;user-select:none}
+    .portal-item:hover{background:var(--gray-1)}
+    .portal-item input{accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+    .portal-item .cnt{margin-left:auto;font-size:11px;color:var(--gray-4)}
+    .portal-item.dir{font-weight:700;border-bottom:1px solid var(--gray-2);margin-bottom:4px;padding-bottom:8px}
+    .portal-menu-actions{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-2)}
+    .portal-menu-actions button{flex:1;border:1.5px solid var(--gray-2);background:#fff;border-radius:8px;padding:5px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-4);cursor:pointer}
+    .portal-menu-actions button:hover{color:var(--red);border-color:var(--red)}
 
     /* ── Veredicto / titular ── */
     .verdict{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px 20px;margin-bottom:20px;border-left:6px solid var(--gray-3)}
@@ -216,6 +236,19 @@
       <button class="year-opt" id="btnReload" title="Vuelve a leer todo (ignora la caché de meses cerrados)" style="margin-left:auto;border:1.5px solid var(--gray-2)">↻ Recargar todo</button>
     </div>
 
+    <!-- Filtros: checkin premium + portales -->
+    <div class="filter-bar">
+      <span class="lbl">Filtros</span>
+      <div class="seg" id="premSeg">
+        <button class="seg-opt on" data-v="all">Todos</button>
+        <button class="seg-opt" data-v="prem">🌟 Solo Checkin Premium</button>
+      </div>
+      <div class="portal-dd" id="portalDD">
+        <button class="portal-btn" id="portalBtn">Portal: <b id="portalLbl">Todos</b> ▾</button>
+        <div class="portal-menu" id="portalMenu"></div>
+      </div>
+    </div>
+
     <!-- Veredicto -->
     <div class="verdict" id="verdict">
       <div class="verdict-emo" id="verdictEmo">📊</div>
@@ -280,8 +313,8 @@
   var VIEW   = 'Vi_villas_bookings_MU_payments';
 
   var START_YEAR = 2024;          // 2023 y anteriores no se cargan
-  var CACHE_PREFIX = 'cw_m_';     // sessionStorage: agregados por mes cerrado
-  var CACHE_VER = 'v05';          // si cambia la lógica, sube esto para invalidar caché
+  var CACHE_PREFIX = 'cw_m_';     // sessionStorage: filas resumidas por mes cerrado
+  var CACHE_VER = 'v07';          // si cambia la lógica o el formato de caché, sube esto para invalidarla
 
   /* Un "cobro real" es toda fila que tiene Payment_ID en Ta_payments:
      esos registros se crean cuando Stripe cobra de verdad (Mode Live / Payment_service Stripe).
@@ -302,6 +335,11 @@
   var statsTotalRows = 0, statsPayRows = 0; // para el pie
   var ytdMode = false;       // comparativa Year-To-Date (1 ene → hoy)
   var cutAgg = {};           // year -> agregado del "trozo" del mes de corte (día 1 → hoy)
+  var monthRows = {};        // 'y-m' -> filas resumidas del mes (permite refiltrar sin volver a pedir datos)
+  var cutRows = {};          // year -> filas resumidas del trozo YTD (día 1 → hoy)
+  var filterPremium = false; // false = todos · true = solo reservas con checkin premium
+  var filterPortals = null;  // null = todos · Set de claves de portal seleccionadas
+  var portalCounts = {};     // clave de portal -> nº de filas (para el desplegable)
   var TODAY = new Date();
   var CUR_Y = TODAY.getFullYear();
   var CUR_M = TODAY.getMonth()+1;  // 1..12
@@ -347,6 +385,45 @@
     return null;
   }
 
+  /* ── FILTROS: premium y portal ── */
+  /* Directa = mismo criterio que pedir-wellcomepacks: Portal_Name vacío o direct/directo/directa/propia/own. */
+  function isDirecta(raw){ if(!raw) return true; return /direct|directo|directa|propia|own/i.test(String(raw).trim()); }
+  function portalKey(raw){
+    if(isDirecta(raw)) return 'Directas';
+    var s=String(raw).trim();
+    if(/airbnb/i.test(s)) return 'Airbnb';
+    if(/booking/i.test(s)) return 'Booking.com';
+    if(/vrbo|homeaway/i.test(s)) return 'VRBO';
+    if(/expedia/i.test(s)) return 'Expedia';
+    if(/tripadvisor/i.test(s)) return 'Tripadvisor';
+    return s;
+  }
+  /* Caspio YES/NO puede llegar como true/false, "Yes"/"No", "1"/"0"… */
+  function isPremiumVal(v){
+    if(v===true) return true;
+    var s=String(v===null||v===undefined?'':v).trim().toLowerCase();
+    return s==='true'||s==='yes'||s==='y'||s==='1'||s==='sí'||s==='si';
+  }
+  function rowPassesFilters(s){
+    if(filterPremium && s.pr!==1) return false;
+    if(filterPortals && !filterPortals.has(s.pl)) return false;
+    return true;
+  }
+  /* Fila resumida: solo lo necesario para agregar y filtrar (esto es lo que se cachea por mes). */
+  function slimRow(row){
+    return {
+      p: hasPayment(row)?1:0,
+      w: num(field(row,['Ta_payments_importe_deposit_waiver'])),
+      d: num(field(row,['Ta_payments_importe_deposito_seguridad'])),
+      c: num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad'])),
+      k: bookingCode(row),
+      o: depositOpt(field(row,['TaBookings2021_Security_deposit_options'])),
+      r: isRealBooking(row)?1:0,
+      pl: portalKey(row['TaBookings2021_Portal_Name']),
+      pr: isPremiumVal(row['TaBookings2021_checkin_premium'])?1:0
+    };
+  }
+
   /* ── AGREGACIÓN POR FILA (helpers de campo) ── */
   function field(row, names){
     for(var i=0;i<names.length;i++){ if(row[names[i]]!==undefined && row[names[i]]!==null && row[names[i]]!=='') return row[names[i]]; }
@@ -366,10 +443,12 @@
   }
 
   /* ── CARGA DE DATOS: por MES desde 2024, con caché de meses cerrados ── */
-  /* TODO se agrupa por fecha de CHECK-IN (un mes = reservas con check-in en ese mes). */
+  /* TODO se agrupa por fecha de CHECK-IN (un mes = reservas con check-in en ese mes).
+     Se cachean FILAS RESUMIDAS por mes (no agregados): así los filtros de premium y
+     portal se recalculan en local sin repetir ninguna llamada a la API. */
   function loadData(){
     g('stLoad').style.display='block'; g('stErr').style.display='none'; g('dash').style.display='none';
-    byYear={}; bookingsSeen={}; statsTotalRows=0; statsPayRows=0;
+    monthRows={};
 
     var now=new Date();
     var curY=now.getFullYear(), curM=now.getMonth()+1; // 1..12
@@ -380,7 +459,6 @@
       for(var m=1; m<=mEnd; m++) months.push({y:y, m:m});
     }
 
-    var monthAgg={}; // 'y-m' -> agregado de ese mes
     var idx=0;
 
     function isClosed(y,m){ return (y<curY) || (y===curY && m<curM); } // meses anteriores al actual = cerrados
@@ -391,11 +469,11 @@
       var mo=months[idx], key=mo.y+'-'+mo.m;
       g('loadSub').textContent='Cargando '+MONTHS[mo.m-1]+' '+mo.y+' … ('+(idx+1)+'/'+months.length+')';
 
-      // 1) meses cerrados: intentar caché
+      // 1) meses cerrados: intentar caché (filas resumidas)
       if(isClosed(mo.y,mo.m)){
         try{
           var cached=sessionStorage.getItem(cacheKey(mo.y,mo.m));
-          if(cached){ monthAgg[key]=JSON.parse(cached); idx++; return nextMonth(); }
+          if(cached){ monthRows[key]=JSON.parse(cached); idx++; return nextMonth(); }
         }catch(e){ /* caché no disponible -> seguimos a fetch */ }
       }
 
@@ -409,10 +487,10 @@
         .then(function(j){
           if(j && j.error) throw new Error(j.error);
           var rows=(j&&(j.Result||j.result))||[];
-          var agg=aggregateRows(rows, mo.y, mo.m);
-          monthAgg[key]=agg;
+          var slims=rows.map(slimRow);
+          monthRows[key]=slims;
           // cachear solo meses cerrados
-          if(isClosed(mo.y,mo.m)){ try{ sessionStorage.setItem(cacheKey(mo.y,mo.m), JSON.stringify(agg)); }catch(e){} }
+          if(isClosed(mo.y,mo.m)){ try{ sessionStorage.setItem(cacheKey(mo.y,mo.m), JSON.stringify(slims)); }catch(e){} }
           idx++; nextMonth();
         })
         .catch(function(e){
@@ -424,23 +502,12 @@
     }
 
     function finishAll(){
-      // combinar meses en años
-      byYear={};
-      Object.keys(monthAgg).forEach(function(key){
-        var parts=key.split('-'), y=+parts[0], m=+parts[1];
-        var Y=ensureYear(y), a=monthAgg[key], mi=m-1;
-        Y.mAgg[m]=a; // agregado completo del mes (para YTD)
-        Y.waiverAmt+=a.waiverAmt; Y.depositAmt+=a.depositAmt; Y.cardFeeAmt+=a.cardFeeAmt;
-        Y.waiverPays+=a.waiverPays; Y.depositPays+=a.depositPays; Y.cardPays+=a.cardPays;
-        Y.decideWaiver+=a.decideWaiver; Y.decideTarjeta+=a.decideTarjeta; Y.decideTransfer+=a.decideTransfer;
-        Y.decideAirbnb+=a.decideAirbnb; Y.decideNone+=a.decideNone;
-        Y.bookingsTotal+=a.bookingsTotal; Y.transferCount+=a.transferCount;
-        Y.monthly.waiver[mi]+=a.waiverAmt; Y.monthly.deposit[mi]+=a.depositAmt;
-        Y.monthly.card[mi]+=a.cardFeeAmt; Y.monthly.transfer[mi]+=a.transferCount;
-        statsTotalRows+=a.nRows; statsPayRows+=a.nPays;
-      });
+      buildPortalOptions();
+      rebuildFromRows();
 
-      years=Object.keys(byYear).map(Number).filter(function(y){return y>=START_YEAR && y<=2100;}).sort(function(a,b){return a-b;});
+      years=Object.keys(monthRows).map(function(k){return +k.split('-')[0];})
+        .filter(function(y,i,arr){return arr.indexOf(y)===i && y>=START_YEAR && y<=2100;})
+        .sort(function(a,b){return a-b;});
       if(!years.length){
         g('stLoad').style.display='none'; g('stErr').style.display='block';
         g('errMsg').textContent='No hay datos para mostrar.';
@@ -456,18 +523,46 @@
     nextMonth();
   }
 
+  /* Reconstruye TODOS los agregados desde las filas resumidas aplicando los filtros activos.
+     Sin fetch: se usa para la carga inicial y para cada cambio de filtro. */
+  function rebuildFromRows(){
+    byYear={}; bookingsSeen={}; statsTotalRows=0; statsPayRows=0;
+    var keys=Object.keys(monthRows).sort(function(a,b){
+      var pa=a.split('-'), pb=b.split('-');
+      return (+pa[0]-+pb[0]) || (+pa[1]-+pb[1]);
+    });
+    keys.forEach(function(key){
+      var parts=key.split('-'), y=+parts[0], m=+parts[1];
+      var a=aggregateSlim(monthRows[key], bookingsSeen);
+      var Y=ensureYear(y), mi=m-1;
+      Y.mAgg[m]=a; // agregado completo del mes (para YTD)
+      Y.waiverAmt+=a.waiverAmt; Y.depositAmt+=a.depositAmt; Y.cardFeeAmt+=a.cardFeeAmt;
+      Y.waiverPays+=a.waiverPays; Y.depositPays+=a.depositPays; Y.cardPays+=a.cardPays;
+      Y.decideWaiver+=a.decideWaiver; Y.decideTarjeta+=a.decideTarjeta; Y.decideTransfer+=a.decideTransfer;
+      Y.decideAirbnb+=a.decideAirbnb; Y.decideNone+=a.decideNone;
+      Y.bookingsTotal+=a.bookingsTotal; Y.transferCount+=a.transferCount;
+      Y.monthly.waiver[mi]+=a.waiverAmt; Y.monthly.deposit[mi]+=a.depositAmt;
+      Y.monthly.card[mi]+=a.cardFeeAmt; Y.monthly.transfer[mi]+=a.transferCount;
+      statsTotalRows+=a.nRows; statsPayRows+=a.nPays;
+    });
+    // trozos YTD desde sus filas (dedup LOCAL, como siempre: no contaminan bookingsSeen)
+    cutAgg={};
+    Object.keys(cutRows).forEach(function(y){ cutAgg[y]=aggregateSlim(cutRows[y], null); });
+  }
+
   /* Carga el "trozo de corte" YTD: del día 1 al día de hoy del MES ACTUAL, para cada año.
-     Necesario para que YTD sea exacto a día (no a mes completo). Cacheado por año+mes+día. */
+     Necesario para que YTD sea exacto a día (no a mes completo). Se cachean filas resumidas
+     por año+mes+día; el agregado se recalcula con los filtros activos en rebuildFromRows. */
   function ensureCutChunks(done){
-    var pend = years.filter(function(y){ return !cutAgg[y]; });
-    if(!pend.length){ done(); return; }
+    var pend = years.filter(function(y){ return !cutRows[y]; });
+    if(!pend.length){ rebuildFromRows(); done(); return; }
     var i=0;
     function nx(){
-      if(i>=pend.length){ done(); return; }
+      if(i>=pend.length){ rebuildFromRows(); done(); return; }
       var y=pend[i];
       var key='cw_cut_'+CACHE_VER+'_'+y+'_'+CUR_M+'_'+CUR_D;
       // cachear: trozos de años pasados son estables; el del año en curso cambia de día (clave incluye día)
-      try{ var c=sessionStorage.getItem(key); if(c){ cutAgg[y]=JSON.parse(c); i++; return nx(); } }catch(e){}
+      try{ var c=sessionStorage.getItem(key); if(c){ cutRows[y]=JSON.parse(c); i++; return nx(); } }catch(e){}
       var p2=(CUR_M<10?'0':'')+CUR_M, pd=(CUR_D<10?'0':'')+CUR_D;
       var where="TaBookings2021_Checkin>='"+y+"-"+p2+"-01T00:00:00' AND TaBookings2021_Checkin<='"+y+"-"+p2+"-"+pd+"T23:59:59'";
       var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&where='+encodeURIComponent(where)+'&limit=1000';
@@ -477,41 +572,14 @@
         .then(function(j){
           if(j&&j.error)throw new Error(j.error);
           var rows=(j&&(j.Result||j.result))||[];
-          // OJO: dedup de reservas separado del global (no contaminar bookingsSeen)
-          var agg=aggregateCut(rows);
-          cutAgg[y]=agg;
-          try{ sessionStorage.setItem(key, JSON.stringify(agg)); }catch(e){}
+          var slims=rows.map(slimRow);
+          cutRows[y]=slims;
+          try{ sessionStorage.setItem(key, JSON.stringify(slims)); }catch(e){}
           i++; nx();
         })
-        .catch(function(e){ console.error('[cut]',y,e); cutAgg[y]=emptyMonth(); i++; nx(); });
+        .catch(function(e){ console.error('[cut]',y,e); cutRows[y]=[]; i++; nx(); });
     }
     nx();
-  }
-  /* Igual que aggregateRows pero con dedup LOCAL (no toca bookingsSeen global). */
-  function aggregateCut(rows){
-    var a=emptyMonth(); a.nRows=rows.length; var seen={};
-    rows.forEach(function(row){
-      if(hasPayment(row)){
-        a.nPays++;
-        var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
-        var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
-        var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
-        if(wA>0){ a.waiverAmt+=wA; a.waiverPays++; }
-        if(dA>0){ a.depositAmt+=dA; a.depositPays++; }
-        if(cA>0){ a.cardFeeAmt+=cA; a.cardPays++; }
-      }
-      var code=bookingCode(row);
-      if(code && !seen[code] && isRealBooking(row)){
-        seen[code]=true; a.bookingsTotal++;
-        var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
-        if(opt==='waiver') a.decideWaiver++;
-        else if(opt==='transferencia'){ a.decideTransfer++; a.transferCount++; }
-        else if(opt==='tarjeta') a.decideTarjeta++;
-        else if(opt==='airbnb') a.decideAirbnb++;
-        else a.decideNone++;
-      }
-    });
-    return a;
   }
 
   /* Suma de agregados de meses (devuelve un objeto-stats con los mismos campos). */
@@ -551,40 +619,100 @@
     return byYear[y];
   }
 
-  /* Agrega las filas de UN mes (ya filtradas por check-in en ese mes). */
-  function aggregateRows(rows, y, m){
+  /* Agrega filas resumidas de UN mes/trozo aplicando los filtros activos.
+     seenShared: objeto compartido para deduplicar reservas entre meses (o null para dedup solo local). */
+  function aggregateSlim(slims, seenShared){
     var a=emptyMonth();
-    a.nRows=rows.length;
     var seenLocal={};
-    rows.forEach(function(row){
-      /* ── Cobro real en Stripe: la fila tiene Payment_ID ──
-         Va al mes por la fecha de CHECK-IN de la reserva (el mes ya está acotado por el where). */
-      if(hasPayment(row)){
+    (slims||[]).forEach(function(s){
+      if(!rowPassesFilters(s)) return;
+      a.nRows++;
+      /* ── Cobro real en Stripe: la fila tiene Payment_ID ── */
+      if(s.p){
         a.nPays++;
-        var wA=num(field(row,['Ta_payments_importe_deposit_waiver']));
-        var dA=num(field(row,['Ta_payments_importe_deposito_seguridad']));
-        var cA=num(field(row,['Ta_payments_importe_tarjeta_depos_seguridad']));
-        if(wA>0){ a.waiverAmt+=wA; a.waiverPays++; }
-        if(dA>0){ a.depositAmt+=dA; a.depositPays++; }
-        if(cA>0){ a.cardFeeAmt+=cA; a.cardPays++; }
+        if(s.w>0){ a.waiverAmt+=s.w; a.waiverPays++; }
+        if(s.d>0){ a.depositAmt+=s.d; a.depositPays++; }
+        if(s.c>0){ a.cardFeeAmt+=s.c; a.cardPays++; }
       }
       /* ── Decisión de depósito (una vez por reserva real no cancelada) ── */
-      var code=bookingCode(row);
-      if(code && !seenLocal[code] && !bookingsSeen[code] && isRealBooking(row)){
-        seenLocal[code]=true; bookingsSeen[code]=true;
+      var code=s.k;
+      if(code && !seenLocal[code] && !(seenShared&&seenShared[code]) && s.r){
+        seenLocal[code]=true; if(seenShared) seenShared[code]=true;
         a.bookingsTotal++;
-        var opt=depositOpt(field(row,['TaBookings2021_Security_deposit_options']));
-        if(opt==='waiver'){ a.decideWaiver++; }
-        else if(opt==='transferencia'){ a.decideTransfer++; a.transferCount++; }
-        else if(opt==='tarjeta'){ a.decideTarjeta++; }
-        else if(opt==='airbnb'){ a.decideAirbnb++; }
+        if(s.o==='waiver'){ a.decideWaiver++; }
+        else if(s.o==='transferencia'){ a.decideTransfer++; a.transferCount++; }
+        else if(s.o==='tarjeta'){ a.decideTarjeta++; }
+        else if(s.o==='airbnb'){ a.decideAirbnb++; }
         else { a.decideNone++; }
       }
     });
     return a;
   }
 
-  /* ── RENDER ── */
+  /* ── FILTROS: construcción del desplegable de portales y aplicación ── */
+  function buildPortalOptions(){
+    portalCounts={};
+    Object.keys(monthRows).forEach(function(key){
+      monthRows[key].forEach(function(s){ portalCounts[s.pl]=(portalCounts[s.pl]||0)+1; });
+    });
+    renderPortalMenu();
+  }
+  function portalList(){
+    var keys=Object.keys(portalCounts);
+    var others=keys.filter(function(k){return k!=='Directas';})
+      .sort(function(a,b){ return (portalCounts[b]-portalCounts[a]) || a.localeCompare(b); });
+    var out=[];
+    if(portalCounts['Directas']) out.push('Directas'); // directas juntas y en primer lugar
+    return out.concat(others);
+  }
+  function renderPortalMenu(){
+    var list=portalList();
+    g('portalMenu').innerHTML = list.map(function(k){
+      var checked = !filterPortals || filterPortals.has(k);
+      return '<label class="portal-item'+(k==='Directas'?' dir':'')+'">'+
+        '<input type="checkbox" data-k="'+k.replace(/"/g,'&quot;')+'"'+(checked?' checked':'')+'>'+
+        '<span>'+(k==='Directas'?'🏠 ':'')+k+'</span><span class="cnt">'+intf(portalCounts[k]||0)+'</span>'+
+      '</label>';
+    }).join('') +
+    '<div class="portal-menu-actions">'+
+      '<button type="button" id="portalAll">Todos</button>'+
+      '<button type="button" id="portalNone">Ninguno</button>'+
+    '</div>';
+    g('portalMenu').querySelectorAll('input[type=checkbox]').forEach(function(cb){
+      cb.addEventListener('change', readPortalChecks);
+    });
+    g('portalAll').addEventListener('click',function(){
+      g('portalMenu').querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=true;});
+      readPortalChecks();
+    });
+    g('portalNone').addEventListener('click',function(){
+      g('portalMenu').querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+      readPortalChecks();
+    });
+    updatePortalLabel();
+  }
+  function readPortalChecks(){
+    var cbs=g('portalMenu').querySelectorAll('input[type=checkbox]');
+    var sel=new Set(), total=0;
+    cbs.forEach(function(cb){ total++; if(cb.checked) sel.add(cb.dataset.k); });
+    filterPortals = (sel.size===total) ? null : sel; // todos marcados = sin filtro
+    updatePortalLabel();
+    applyFilters();
+  }
+  function updatePortalLabel(){
+    var lbl;
+    if(!filterPortals) lbl='Todos';
+    else if(filterPortals.size===0) lbl='Ninguno';
+    else if(filterPortals.size===1) lbl=Array.from(filterPortals)[0];
+    else lbl=filterPortals.size+' seleccionados';
+    g('portalLbl').textContent=lbl;
+  }
+  function applyFilters(){
+    rebuildFromRows();
+    renderAll();
+  }
+
+  /* ── RENDER ── */  /* ── RENDER ── */
   function renderYearBar(){
     g('yearOpts').innerHTML = years.slice().reverse().map(function(y){
       return '<button class="year-opt'+(y===curYear?' on':'')+'" data-y="'+y+'">'+y+'</button>';
@@ -845,7 +973,14 @@
   }
 
   function renderFoot(){
-    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.'+(ytdMode?'<br><b style="color:var(--green)">Modo YTD activo:</b> cada año se recorta al 1 de enero–'+CUR_D+' '+MONTHS[CUR_M-1]+' para comparar el mismo periodo.':'');
+    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.'+(ytdMode?'<br><b style="color:var(--green)">Modo YTD activo:</b> cada año se recorta al 1 de enero–'+CUR_D+' '+MONTHS[CUR_M-1]+' para comparar el mismo periodo.':'')+filterNote();
+  }
+
+  function filterNote(){
+    var parts=[];
+    if(filterPremium) parts.push('solo Checkin Premium');
+    if(filterPortals) parts.push('portal: '+(filterPortals.size?Array.from(filterPortals).join(', '):'ninguno'));
+    return parts.length ? '<br><b style="color:var(--red)">Filtros activos:</b> '+parts.join(' · ')+'.' : '';
   }
 
   /* ── INIT ── */
@@ -863,7 +998,19 @@
       if(g('mgrName')) g('mgrName').value=nm;
     }
     var rb=g('btnReload');
-    if(rb) rb.addEventListener('click',function(){ clearCache(); cutAgg={}; loadData(); });
+    if(rb) rb.addEventListener('click',function(){ clearCache(); cutAgg={}; cutRows={}; loadData(); });
+    // Filtro premium (segmented)
+    g('premSeg').querySelectorAll('.seg-opt').forEach(function(b){
+      b.addEventListener('click',function(){
+        filterPremium = (b.dataset.v==='prem');
+        g('premSeg').querySelectorAll('.seg-opt').forEach(function(x){x.classList.toggle('on',x===b);});
+        applyFilters();
+      });
+    });
+    // Filtro de portales (desplegable)
+    g('portalBtn').addEventListener('click',function(e){ e.stopPropagation(); g('portalDD').classList.toggle('open'); });
+    g('portalMenu').addEventListener('click',function(e){ e.stopPropagation(); });
+    document.addEventListener('click',function(){ g('portalDD').classList.remove('open'); });
     // etiqueta del rango YTD
     if(g('ytdRange')) g('ytdRange').textContent='(1 ene–'+CUR_D+' '+MONTHS[CUR_M-1]+')';
     var chk=g('ytdChk');
@@ -884,6 +1031,6 @@
   })();
 </script>
 
-<!-- HISTORIAL: v06 - Añadido toggle YTD (Year-To-Date): compara cada año recortado al mismo periodo 1 enero → día de hoy, para ver de forma justa si mejoramos o empeoramos (antes el año en curso parcial se comparaba contra años cerrados completos). Preciso A DÍA: en YTD se suman los meses completos transcurridos + el trozo del mes en curso (día 1 → hoy) cargado por año con where Checkin<=hoy y cacheado (clave incluye día). Se guarda el agregado por mes (mAgg) para poder recortar. Afecta a KPIs, veredicto, tabla y embudo; el gráfico mensual no cambia. | v05 - Carga MES A MES por rango de check-in desde 2024 (supera el tope de 1000 de Caspio), con caché de meses cerrados en sessionStorage y botón Recargar todo. TODO se agrupa por fecha de check-in (fecha estable: los pagos se hacen antes o durante la estancia). | v04 - Fix totales a 0: cobro real = fila con Payment_ID; Security_deposit_options numérico (1 waiver·2 tarjeta·3 transferencia·4 airbnb); adopción sobre todas las reservas; excluye canceladas/propietario. | v03 - Diagnóstico temporal. | v02 - Scripts auth/nav al head; vistas con action=view. | v01 - Primera versión del dashboard. -->
+<!-- HISTORIAL: v07 - Filtros de Checkin Premium (Todos / Solo Checkin Premium) y de Portal (multi-selección; las reservas directas agrupadas como "Directas" con el mismo criterio que pedir-wellcomepacks: Portal_Name vacío o direct/directo/directa/propia/own, en primer lugar del desplegable). Para poder refiltrar SIN repetir llamadas a la API, la caché por mes pasa de guardar agregados a guardar filas resumidas (9 campos por fila) y todos los agregados se reconstruyen en local (rebuildFromRows); aggregateRows y aggregateCut se sustituyen por aggregateSlim. CACHE_VER v05→v07 (invalida la caché antigua). Nota de filtros activos en el pie. | v06 - Añadido toggle YTD (Year-To-Date): compara cada año recortado al mismo periodo 1 enero → día de hoy, para ver de forma justa si mejoramos o empeoramos (antes el año en curso parcial se comparaba contra años cerrados completos). Preciso A DÍA: en YTD se suman los meses completos transcurridos + el trozo del mes en curso (día 1 → hoy) cargado por año con where Checkin<=hoy y cacheado (clave incluye día). Se guarda el agregado por mes (mAgg) para poder recortar. Afecta a KPIs, veredicto, tabla y embudo; el gráfico mensual no cambia. | v05 - Carga MES A MES por rango de check-in desde 2024 (supera el tope de 1000 de Caspio), con caché de meses cerrados en sessionStorage y botón Recargar todo. TODO se agrupa por fecha de check-in (fecha estable: los pagos se hacen antes o durante la estancia). | v04 - Fix totales a 0: cobro real = fila con Payment_ID; Security_deposit_options numérico (1 waiver·2 tarjeta·3 transferencia·4 airbnb); adopción sobre todas las reservas; excluye canceladas/propietario. | v03 - Diagnóstico temporal. | v02 - Scripts auth/nav al head; vistas con action=view. | v01 - Primera versión del dashboard. -->
 </body>
 </html>
