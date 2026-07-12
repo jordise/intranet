@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v15 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v16 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ocupacion.html v03 — 12/05/2026
@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Ocupación v15 — 3Villas</title>
+  <title>Ocupación v16 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -99,7 +99,21 @@
     .manager-item:hover{background:var(--gray-1)}
     .manager-item input[type=checkbox]{accent-color:var(--red);width:16px;height:16px;cursor:pointer;flex-shrink:0}
     .manager-item label{cursor:pointer;flex:1}
-    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4)}
+    #statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:8px 22px;align-items:center;gap:20px;font-size:13px;color:var(--gray-4);flex-wrap:wrap}
+    /* v16: navegación de periodo (a la derecha de los stats) */
+    .pnav-btn{display:inline-flex;align-items:center;gap:4px;background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;cursor:pointer;letter-spacing:.3px;white-space:nowrap}
+    .pnav-btn:hover{background:var(--red-dark)}
+    .pnav-lbl{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);white-space:nowrap}
+    /* v16: botón i de info azul + popup explicativo */
+    .i-info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:10px;font-weight:800;font-style:italic;cursor:pointer;margin-left:4px;vertical-align:middle;line-height:1;padding:0}
+    #infoPop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;padding:20px}
+    #infoPop.open{display:flex}
+    .ip-card{background:#fff;border-radius:12px;max-width:440px;width:100%;padding:18px 20px;box-shadow:0 8px 30px rgba(0,0,0,.25);position:relative}
+    .ip-title{font-family:Montserrat,sans-serif;font-size:14px;font-weight:800;color:var(--gray-5);margin-bottom:8px;padding-right:24px}
+    .ip-body{font-size:13px;color:var(--gray-5);line-height:1.55}
+    .ip-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--gray-4)}
+    /* v16: etiqueta de días libres en la fila de villa */
+    .vrow-free{font-size:9px;font-weight:700;color:var(--green);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .stat{display:flex;align-items:baseline;gap:5px}
     .stat strong{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--gray-5);line-height:1}
 
@@ -252,18 +266,12 @@
 <div id="filterPanel">
   <div class="main-bar" style="flex-wrap:wrap;gap:8px;align-items:flex-end;padding-bottom:10px">
     <div class="pill-group">
-      <span class="pill-label">Ocupación</span>
+      <span class="pill-label">Ocupación <button type="button" class="i-info" onclick="showInfo('hoylibre')" title="¿Qué significa Libres desde HOY?">i</button></span>
       <div class="pill-opts">
         <button class="pill-opt on" id="tOcAll"   onclick="setOcupFilter('all')">Todas</button>
         <button class="pill-opt"    id="tOcDisp"  onclick="setOcupFilter('disp')">Disponibles</button>
         <button class="pill-opt"    id="tOcOcup"  onclick="setOcupFilter('ocup')">Ocupadas</button>
-      </div>
-    </div>
-    <div class="pill-group">
-      <span class="pill-label">WelcomePack</span>
-      <div class="pill-opts">
-        <button class="pill-opt on" id="tWPall"  onclick="setWPFilter('all')">Todos</button>
-        <button class="pill-opt"    id="tWPpend" onclick="setWPFilter('pending')">Pendiente</button>
+        <button class="pill-opt"    id="tOcHoy"   onclick="setOcupFilter('hoy')">🟢 Libres desde HOY</button>
       </div>
     </div>
     <div style="flex:1"></div>
@@ -305,10 +313,10 @@
              onmouseout="this.style.background='var(--red)'">📦 WelcomePacks</a>
         </div>
         <div class="f-group narrow" style="flex:0 0 auto">
-          <label class="f-label">Semana</label>
+          <label class="f-label">Periodo</label>
           <div style="display:flex;gap:4px">
-            <button type="button" class="wk-btn" onclick="shiftWeek(-1)" title="Semana anterior">‹</button>
-            <button type="button" class="wk-btn" onclick="shiftWeek(1)" title="Semana siguiente">›</button>
+            <button type="button" class="wk-btn" onclick="shiftWeek(-1)" title="Periodo anterior">‹</button>
+            <button type="button" class="wk-btn" onclick="shiftWeek(1)" title="Periodo siguiente">›</button>
           </div>
         </div>
         <div class="f-group narrow">
@@ -318,6 +326,14 @@
         <div class="f-group narrow">
           <label class="f-label">Hasta</label>
           <input type="date" id="fHasta" class="f-input" onchange="doSearch()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Días a mostrar</label>
+          <input type="number" id="fDias" class="f-input" min="2" max="31" step="1" onchange="applyDias()">
+        </div>
+        <div class="f-group narrow">
+          <label class="f-label">Mín. días libres <button type="button" class="i-info" onclick="showInfo('minlibres')" title="¿Qué es esto?">i</button></label>
+          <input type="number" id="fMinLibres" class="f-input" min="1" max="31" step="1" onchange="reRenderCal()">
         </div>
       </div>
       <div class="filter-row" style="margin-bottom:0">
@@ -343,6 +359,10 @@
   <div class="stat"><strong id="sStatOcup" style="color:var(--red)">0</strong> ocupadas</div>
   <div class="stat"><strong id="sStatEntra" style="color:var(--blue)">0</strong> entran</div>
   <div class="stat"><strong id="sStatSale" style="color:var(--orange)">0</strong> salen</div>
+  <div style="flex:1"></div>
+  <button type="button" class="pnav-btn" onclick="shiftWeek(-1)">◀ Periodo anterior</button>
+  <span class="pnav-lbl" id="periodLbl"></span>
+  <button type="button" class="pnav-btn" onclick="shiftWeek(1)">Periodo siguiente ▶</button>
 </div>
 
 <!-- ══ CALENDARIO ══ -->
@@ -358,6 +378,14 @@
 </div>
 
 <!-- ══ PANEL DETALLE ══ -->
+<!-- v16: popup informativo de los botones i -->
+<div id="infoPop" onclick="if(event.target===this)closeInfo()">
+  <div class="ip-card">
+    <button class="ip-close" onclick="closeInfo()">✕</button>
+    <div class="ip-title" id="ipTitle"></div>
+    <div class="ip-body" id="ipBody"></div>
+  </div>
+</div>
 <div id="detailPanel" onclick="if(event.target===this||event.target.id==='detailBg')closeDetail()">
   <div id="detailBg"></div>
   <div id="detailCard">
@@ -375,20 +403,19 @@
 'use strict';
 
 /* ════ FILTROS (igual entradas-equipo) ════ */
-var toggleMode='all', fWelcomePack='all', fOcupFilter='all';
+var toggleMode='all', fOcupFilter='all';
 var _searchTimer=null;
 function scheduleSearch(delay){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,delay||0);}
-function setWPFilter(mode){fWelcomePack=mode;['tWPall','tWPpend'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tWPall'?mode==='all':mode==='pending');});scheduleSearch();}
-function setOcupFilter(mode){fOcupFilter=mode;['tOcAll','tOcDisp','tOcOcup'].forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',id==='tOcAll'?mode==='all':id==='tOcDisp'?mode==='disp':mode==='ocup');});scheduleSearch();}
+function setOcupFilter(mode){fOcupFilter=mode;var _m={tOcAll:'all',tOcDisp:'disp',tOcOcup:'ocup',tOcHoy:'hoy'};Object.keys(_m).forEach(function(id){var el=$(id);if(el)el.classList.toggle('on',_m[id]===mode);});scheduleSearch();}
 function toggleMas(){$('btnMas').classList.toggle('on');$('masFiltros').classList.toggle('open');}
-/* Desplaza la ventana visible en bloques de 7 días (‹ semana anterior / semana siguiente ›).
-   Mantiene el ancho actual del rango; si no hay rango válido, usa una semana desde hoy. */
+/* v16: desplaza la ventana visible UN PERIODO completo (el mismo nº de días que se muestra),
+   hacia delante o hacia atrás. Mantiene el ancho actual del rango. */
 function shiftWeek(dir){
   var dEl=$('fDesde'),hEl=$('fHasta');if(!dEl||!hEl)return;
   var desde=dEl.value||todayStr();
   var hasta=hEl.value||dateStr(new Date(toDate(desde).getTime()+6*864e5));
   var span=Math.max(0,Math.round((toDate(hasta)-toDate(desde))/864e5)); /* días de ancho (0 = 1 día) */
-  var step=7*dir;
+  var step=(span+1)*dir;
   var newDesde=new Date(toDate(desde).getTime()+step*864e5);
   var newHasta=new Date(newDesde.getTime()+span*864e5);
   dEl.value=dateStr(newDesde);
@@ -404,8 +431,7 @@ function renderChips(){
   var cod=(($('fCodigo')||{}).value||'').trim();if(cod)chips.push({label:'Reserva: '+cod,clear:function(){if($('fCodigo'))$('fCodigo').value='';}});
   var villa=(($('fVilla')||{}).value||'').trim();if(villa)chips.push({label:'Villa: '+villa,clear:function(){if($('fVilla'))$('fVilla').value='';}});
   var inq=(($('fInquilino')||{}).value||'').trim();if(inq)chips.push({label:'Inquilino: '+inq,clear:function(){if($('fInquilino'))$('fInquilino').value='';}});
-  if(fOcupFilter!=='all')chips.push({label:fOcupFilter==='ocup'?'Solo Ocupadas':'Solo Disponibles',clear:function(){setOcupFilter('all');}});
-  if(fWelcomePack!=='all')chips.push({label:'WP Pendiente',clear:function(){setWPFilter('all');}});
+  if(fOcupFilter!=='all')chips.push({label:fOcupFilter==='ocup'?'Solo Ocupadas':fOcupFilter==='hoy'?'🟢 Libres desde HOY':'Solo Disponibles',clear:function(){setOcupFilter('all');}});
   window.__chOcup=chips;
   var wrap=$('chips');if(wrap)wrap.innerHTML=chips.map(function(c,i){return'<span class="chip-filter">'+c.label+' <button onclick="window.__chOcup['+i+'].clear();renderChips();doSearch()">✕</button></span>';}).join('');
 }
@@ -413,13 +439,14 @@ function clearAll(){
   clearManagers();
   if($('fDesde'))$('fDesde').value=todayStr();
   if($('fHasta'))$('fHasta').value=dateStr(new Date(toDate(todayStr()).getTime()+6*864e5));
+  if($('fDias'))$('fDias').value=7;        /* v16 */
   /* Ajustar top del filterpanel según header */
   function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
   window.addEventListener('resize',fixFilterTop);fixFilterTop();
   if($('fCodigo'))$('fCodigo').value='';
   if($('fVilla'))$('fVilla').value='';
   if($('fInquilino'))$('fInquilino').value='';
-  setWPFilter('all');setOcupFilter('all');
+  setOcupFilter('all');if($('fMinLibres'))$('fMinLibres').value=7;
   renderChips();doSearch();
 }
 
@@ -615,6 +642,54 @@ async function loadMasterVillas(){
   }catch(e){console.warn('masterVillas error:',e);}
 }
 
+/* ════ v16: DÍAS A MOSTRAR / DISPONIBILIDAD / POPUPS INFO ════ */
+/* Cambia el rango a N días desde "Desde" y relanza la búsqueda */
+function applyDias(){
+  var n=parseInt(($('fDias')||{}).value,10);
+  if(!n||n<2)n=7; if(n>31)n=31;
+  if($('fDias'))$('fDias').value=n;
+  var d=($('fDesde')||{}).value||todayStr();
+  if($('fDesde'))$('fDesde').value=d;
+  if($('fHasta'))$('fHasta').value=dateStr(new Date(toDate(d).getTime()+(n-1)*864e5));
+  doSearch();
+}
+/* Disponibilidad de una fila (villa/unidad) dentro del periodo visible:
+   freeDays = días (noches) libres totales; runFromToday = días libres SEGUIDOS
+   empezando hoy (o desde el inicio del periodo si el periodo es futuro). */
+function computeAvail(bookings, desde, totalDays){
+  var D=toDate(desde);
+  var occ=new Array(totalDays);
+  for(var i=0;i<totalDays;i++)occ[i]=false;
+  (bookings||[]).forEach(function(b){
+    var ci=toDate((b[F.checkIn]||'').split('T')[0]), co=toDate((b[F.checkOut]||'').split('T')[0]);
+    if(!ci||!co)return;
+    var st=Math.max(0,Math.round((ci-D)/864e5));
+    var en=Math.min(totalDays,Math.round((co-D)/864e5));
+    for(var i=st;i<en;i++)occ[i]=true;
+  });
+  var free=0;for(var i=0;i<totalDays;i++)if(!occ[i])free++;
+  var tIdx=Math.round((toDate(todayStr())-D)/864e5);
+  var start=Math.max(0,tIdx),run=0;
+  if(tIdx<totalDays){for(var i=start;i<totalDays;i++){if(occ[i])break;run++;}}
+  return{freeDays:free,runFromToday:run};
+}
+/* Mín. días libres efectivo: el valor del input, acotado al periodo visible */
+function getMinLibres(totalDays){
+  var n=parseInt(($('fMinLibres')||{}).value,10);
+  if(!n||n<1)n=totalDays;
+  return Math.min(n,totalDays);
+}
+/* Re-render con los datos ya cargados (SIN llamada nueva a la API) */
+var _lastRange=null;
+function reRenderCal(){if(_lastRange)renderCalendar(_currentBookings,_lastRange.desde,_lastRange.hasta,_lastRange.totalDays);}
+/* Popups informativos (botones i azules) */
+var INFO_TEXTS={
+  minlibres:{t:'Mínimo de días libres',b:'Este número solo se aplica con los filtros <b>Disponibles</b> y <b>🟢 Libres desde HOY</b>:<br><br>• Con <b>Disponibles</b>: se muestran las villas con al menos ese número de días libres dentro del periodo visible (no hace falta que sean seguidos).<br>• Con <b>🟢 Libres desde HOY</b>: los días libres deben ser <b>seguidos y empezar hoy</b>.<br><br>ℹ️ Solo se evalúan los días visibles en el calendario: si pones un número mayor que "Días a mostrar", se ajusta automáticamente al periodo. Para evaluar más días, amplía "Días a mostrar".'},
+  hoylibre:{t:'🟢 Libres desde HOY',b:'Muestra solo las villas que están libres <b>de forma consecutiva empezando HOY</b> (o desde el primer día del periodo, si estás mirando fechas futuras), durante al menos los días indicados en "Mín. días libres".<br><br><b>Ejemplo:</b> con "Mín. días libres" = 5, verás las villas donde un huésped podría entrar hoy y quedarse 5 noches seguidas.<br><br>Además, cada villa muestra una etiqueta 🟢 con sus días libres totales y cuántos son seguidos desde hoy, y el listado siempre se ordena de más a menos días libres.'}
+};
+function showInfo(k){var i=INFO_TEXTS[k];if(!i)return;$('ipTitle').textContent=i.t;$('ipBody').innerHTML=i.b;$('infoPop').classList.add('open');}
+function closeInfo(){$('infoPop').classList.remove('open');}
+
 /* ════ BÚSQUEDA Y RENDER ════ */
 window.doSearch=doSearch;
 function doSearch(){
@@ -628,6 +703,9 @@ function doSearch(){
   /* Total de días: max 90 para performance del calendario */
   var totalDays=daysBetween(desde,hasta)+1;
   if(totalDays>90){toast('⚠️ Máximo 90 días en el calendario. Reduce el rango.');hasta=dateStr(new Date(toDate(desde).getTime()+(89)*864e5));totalDays=90;if($('fHasta'))$('fHasta').value=hasta;}
+  /* v16: mantener sincronizado el input "Días a mostrar" y la etiqueta del periodo */
+  if($('fDias'))$('fDias').value=totalDays;
+  if($('periodLbl'))$('periodLbl').textContent=fmtD(desde)+' – '+fmtD(hasta);
 
   var parts=["TaBookings2021_BookingStatus IN ('new','modified')"];
   /* Solapamiento: check-in <= hasta AND check-out >= desde */
@@ -643,7 +721,7 @@ function doSearch(){
   var inqFilt=(($('fInquilino')||{}).value||'').trim();
   if(inqFilt)parts.push("TaBookings2021_Guest_Full_Name LIKE '%"+inqFilt.replace(/'/g,"''")+"%'");
 
-  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(parts.join(' AND '))+'&limit=500&orderby=TaVillas_Name_villa_para_inquilinos ASC';
+  var url=WORKER+'?action=view&view=Vi_villas_and_bookings2021&where='+encodeURIComponent(parts.join(' AND '))+'&limit=1000&orderby=TaVillas_Name_villa_para_inquilinos ASC';
 
   $('loadOverlay').style.display='flex';$('loadTxt').textContent='Cargando ocupación…';
   $('calScroll').style.display='none';$('emptyMsg').style.display='none';
@@ -700,7 +778,16 @@ function renderCalendar(bookings, desde, hasta, totalDays){
     }
   });
 
-  var villas=Object.values(byVilla).sort(function(a,b){
+  _lastRange={desde:desde,hasta:hasta,totalDays:totalDays}; /* v16: para reRenderCal */
+
+  var villas=Object.values(byVilla);
+  /* v16: disponibilidad por fila (días libres + racha desde hoy) */
+  villas.forEach(function(v){v._avail=computeAvail(v.bookings,desde,totalDays);});
+  /* v16: ORDEN — más días libres primero; a igualdad, mayor racha libre desde hoy;
+     a igualdad, alfabético. */
+  villas.sort(function(a,b){
+    if(b._avail.freeDays!==a._avail.freeDays)return b._avail.freeDays-a._avail.freeDays;
+    if(b._avail.runFromToday!==a._avail.runFromToday)return b._avail.runFromToday-a._avail.runFromToday;
     var an=a.name+(a.muName?' '+a.muName:''), bn=b.name+(b.muName?' '+b.muName:'');
     return an.localeCompare(bn,'es');
   });
@@ -717,9 +804,12 @@ function renderCalendar(bookings, desde, hasta, totalDays){
   /* Filtro Ocupación (Todas / Disponibles / Ocupadas): afecta solo a lo que se PINTA.
      disp = villa libre en el periodo; ocup = con reserva (ocupada/entra/sale). */
   if(fOcupFilter!=='all'){
+    var _minL=getMinLibres(totalDays); /* v16: acotado al periodo visible */
     villas=villas.filter(function(v){
-      var s=villaStatus(v.bookings,desde,hasta);
-      return fOcupFilter==='disp' ? s==='libre' : s!=='libre';
+      if(fOcupFilter==='ocup')return villaStatus(v.bookings,desde,hasta)!=='libre';
+      if(fOcupFilter==='disp')return v._avail.freeDays>=_minL;
+      if(fOcupFilter==='hoy') return v._avail.runFromToday>=_minL;
+      return true;
     });
     if(!villas.length){$('emptyMsg').style.display='';$('calScroll').style.display='none';return;}
   }
@@ -771,6 +861,7 @@ function renderCalendar(bookings, desde, hasta, totalDays){
       '<div class="vrow-info" title="'+esc(v.name+(v.muName?' / '+v.muName:''))+'">'
         +'<div class="vrow-name">'+displayName+'</div>'
         +'<div class="vrow-badge '+badgeClass+'">'+badgeTxt+'</div>'
+        +(v._avail&&v._avail.freeDays>0?'<div class="vrow-free">🟢 '+v._avail.freeDays+'d libres'+(v._avail.runFromToday>0?' · '+v._avail.runFromToday+'d desde hoy':'')+'</div>':'')
       +'</div>'
       +'<div class="vrow-tl" id="tl_'+rowId+'"></div>';
     body.appendChild(row);
@@ -1004,6 +1095,8 @@ document.addEventListener('DOMContentLoaded',async function(){
 
   if($('fDesde'))$('fDesde').value=todayStr();
   if($('fHasta'))$('fHasta').value=dateStr(new Date(toDate(todayStr()).getTime()+6*864e5));
+  if($('fDias'))$('fDias').value=7;        /* v16: días a mostrar por defecto */
+  if($('fMinLibres'))$('fMinLibres').value=7; /* v16: mín. días libres por defecto */
   /* Ajustar top del filterpanel según header */
   function fixFilterTop(){var hdr=document.querySelector('header'),fp=$('filterPanel');if(hdr&&fp)fp.style.top=hdr.offsetHeight+'px';}
   window.addEventListener('resize',fixFilterTop);fixFilterTop();
@@ -1020,7 +1113,10 @@ window.addEventListener('pageshow',function(e){if(e.persisted)doSearch();});
    el botón "Filtros" (toggleMas) y los filtros de píldoras no respondían. */
 window.toggleMas=toggleMas;
 window.setOcupFilter=setOcupFilter;
-window.setWPFilter=setWPFilter;
+window.applyDias=applyDias;
+window.reRenderCal=reRenderCal;
+window.showInfo=showInfo;
+window.closeInfo=closeInfo;
 window.clearAll=clearAll;
 window.scheduleSearch=scheduleSearch;
 window.shiftWeek=shiftWeek;
@@ -1029,4 +1125,4 @@ window.shiftWeek=shiftWeek;
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v15 - Dos accesos nuevos en el calendario. (1) VILLA CLICABLE: click en la celda de la villa (nombre/badge, .vrow-info) abre villa.html?villa_id=<villaid> en pestana nueva (window.open _blank, para no perder el calendario y los filtros); cursor pointer + subrayado al hover. Solo se engancha si la fila tiene villaid. (2) BOTON VER DETALLES en cada barra de reserva: boton verde (mismo estilo/icono que entradas-primer-contacto y que el de entradas-equipo v118), colocado justo despues de la info (nombre+fechas) y centrado verticalmente (el flex align-items:center de .bk-bar); en barras estrechas (widthPct<=18) version icon-only redonda para que quepa. Al pulsarlo (stopPropagation, no abre el panel lateral) navega al deep-link de entradas-primer-contacto-whatsapp v12: ?detalle=CODE&volver=<esta URL>; al cerrar el popup se vuelve aqui. Nueva funcion openPrimerContacto(code) y clases CSS .bk-verdet/.ico-only; listeners via addEventListener (no onclick inline, por el IIFE). REQUIERE entradas-primer-contacto-whatsapp v12 desplegado. El click en el resto de la barra sigue abriendo el panel lateral de detalle como antes. Sin llamadas nuevas a la API. RETROFIT obligatorio aplicado en esta misma version: (a) favicon estandar anadido al <head> (no habia ninguno); (b) spinner de #loadOverlay convertido de div+CSS-background a <img class=spinner> con el mismo base64 en el src (estandar del intranet, evita broken image en Safari/iOS); la regla CSS pasa a img.spinner dimensionando la imagen (display block, object-fit contain) y conserva la animacion spin-3v. | v14 - Fix: el box de reserva no cuadraba con el fondo en el día de salida. El fin del box se calculaba como coDay-0.5, terminando medio día ANTES de lo correcto (a mediodía del día previo a la salida), lo que dejaba fondo rojo sin box encima y daba sensación de rojo descuadrado tras una reserva (p. ej. tras Estelle Teodosio). Corregido a coDay+0.5: la última noche es la víspera del check-out, así que el box llega hasta MEDIODÍA del día de salida, coincidiendo con la mitad izquierda roja del fondo de ese día. Los back-to-back (sale uno y entra otro el mismo día, p. ej. Celine→Alessandro) quedan correctos: ambos boxes se encuentran en el mediodía sin solaparse y el fondo permanece ocupado. | v13 - Fix: el Total de la cabecera no coincidía con el detalle al mostrar todo. La cabecera usaba masterVillas.size (villaids únicos con reserva en el AÑO entero, sin desglosar multiunits), mientras el detalle contaba las filas realmente pintadas. Ahora el Total = libres + ocupadas + entran + salen (mismo universo que los stats de estado y que el detalle), y sStatTot usa ese mismo valor. Eliminado el sTot provisional de loadMasterVillas que mostraba el conteo del año antes del render. masterVillas se mantiene solo para añadir las villas libres al calendario. | v12 - Multiunit ampliado a las 5 unidades por reserva. Una reserva puede ocupar hasta 5 unidades (PMSmultiunitID, PMSmultiunitID2..5); ahora aparece como fila en CADA una de sus unidades, no solo en la primera. Nuevo helper muIdsOf(r) que recoge los IDs no vacíos de los 5 campos; la agrupación mete la reserva en la fila villaId#muId de cada unidad. Añadidos multiunitId2..5 al mapa de campos F. | v11 - Dos cambios en la carga de datos. (1) Multiunits: las villas multiunit ahora se muestran como UNA FILA POR UNIDAD (se agrupa por villaId#PMSmultiunitID en vez de solo villaId), con el nombre de la unidad de TaMultiunits bajo el de la villa; las villas sin multiunit siguen como una sola fila. El id del timeline es único por unidad para evitar colisiones. (2) Estado de reserva: tanto loadMasterVillas (universo de villas del año) como doSearch (bookings del periodo) filtran ahora por BookingStatus IN ('new','modified') en lugar de <>'cancelled', para considerar solo reservas válidas. | v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
+<!-- HISTORIAL: v16 - Seis cambios en filtros/orden/navegacion. (1) NAVEGACION DE PERIODO visible: en la stats bar (a la derecha de Total/libres/ocupadas/entran/salen) botones grandes rojos 'Periodo anterior' / 'Periodo siguiente' + etiqueta con las fechas del periodo (#periodLbl, actualizada en doSearch). Los ‹ › antiguos existian desde v8 pero escondidos dentro del panel Filtros (por eso 'desaparecieron'); se conservan y el grupo pasa de 'Semana' a 'Periodo'. shiftWeek ahora desplaza EL PERIODO COMPLETO (span+1 dias) en vez de 7 fijos. (2) ELIMINADO el filtro WelcomePack (era decorativo: fWelcomePack no se usaba en ningun where ni filtrado); limpiados variable, setWPFilter, chip, referencia en clearAll y export a window. El boton-enlace rojo 'WelcomePacks' a pedir-wellcomepacks NO se toca. (3) NUEVO input 'Dias a mostrar' (fDias, 2-31, defecto 7): fija Hasta=Desde+N-1 y busca; si el usuario cambia Desde/Hasta a mano, doSearch lo re-sincroniza. (4) NUEVO input 'Min. dias libres' (fMinLibres, defecto 7) con boton i azul y popup: solo aplica con los filtros Disponibles y Libres desde HOY; se acota automaticamente al periodo visible (getMinLibres). Cambiarlo re-renderiza con los datos ya cargados (reRenderCal + _lastRange), SIN llamada nueva a la API. El filtro Disponibles pasa de 'status libre' (100% libre) a 'freeDays >= min' — con los valores por defecto (7/7) el comportamiento es identico al anterior. (5) ORDEN nuevo del listado: mas dias libres primero; a igualdad, mayor racha de dias libres SEGUIDOS desde hoy; a igualdad, alfabetico (nueva computeAvail: freeDays por noches ocupadas ci<=d<co dentro del periodo, runFromToday desde max(hoy, inicio del periodo)). Cada fila muestra ademas una etiqueta verde '🟢 Xd libres · Yd desde hoy' bajo el badge. (6) NUEVO filtro '🟢 Libres desde HOY' (4a opcion del grupo Ocupacion, con boton i y popup explicativo): muestra villas con racha libre consecutiva desde hoy >= min dias libres; chip propio. Extras: limit de la vista 500→1000 (misma unica llamada; evita truncar con periodos largos, la pagina ya permitia hasta 90 dias), statsBar con flex-wrap, popup generico #infoPop (botones i azules .i-info), clearAll resetea tambien fDias y fMinLibres a 7. | v15 - Dos accesos nuevos en el calendario. (1) VILLA CLICABLE: click en la celda de la villa (nombre/badge, .vrow-info) abre villa.html?villa_id=<villaid> en pestana nueva (window.open _blank, para no perder el calendario y los filtros); cursor pointer + subrayado al hover. Solo se engancha si la fila tiene villaid. (2) BOTON VER DETALLES en cada barra de reserva: boton verde (mismo estilo/icono que entradas-primer-contacto y que el de entradas-equipo v118), colocado justo despues de la info (nombre+fechas) y centrado verticalmente (el flex align-items:center de .bk-bar); en barras estrechas (widthPct<=18) version icon-only redonda para que quepa. Al pulsarlo (stopPropagation, no abre el panel lateral) navega al deep-link de entradas-primer-contacto-whatsapp v12: ?detalle=CODE&volver=<esta URL>; al cerrar el popup se vuelve aqui. Nueva funcion openPrimerContacto(code) y clases CSS .bk-verdet/.ico-only; listeners via addEventListener (no onclick inline, por el IIFE). REQUIERE entradas-primer-contacto-whatsapp v12 desplegado. El click en el resto de la barra sigue abriendo el panel lateral de detalle como antes. Sin llamadas nuevas a la API. RETROFIT obligatorio aplicado en esta misma version: (a) favicon estandar anadido al <head> (no habia ninguno); (b) spinner de #loadOverlay convertido de div+CSS-background a <img class=spinner> con el mismo base64 en el src (estandar del intranet, evita broken image en Safari/iOS); la regla CSS pasa a img.spinner dimensionando la imagen (display block, object-fit contain) y conserva la animacion spin-3v. | v14 - Fix: el box de reserva no cuadraba con el fondo en el día de salida. El fin del box se calculaba como coDay-0.5, terminando medio día ANTES de lo correcto (a mediodía del día previo a la salida), lo que dejaba fondo rojo sin box encima y daba sensación de rojo descuadrado tras una reserva (p. ej. tras Estelle Teodosio). Corregido a coDay+0.5: la última noche es la víspera del check-out, así que el box llega hasta MEDIODÍA del día de salida, coincidiendo con la mitad izquierda roja del fondo de ese día. Los back-to-back (sale uno y entra otro el mismo día, p. ej. Celine→Alessandro) quedan correctos: ambos boxes se encuentran en el mediodía sin solaparse y el fondo permanece ocupado. | v13 - Fix: el Total de la cabecera no coincidía con el detalle al mostrar todo. La cabecera usaba masterVillas.size (villaids únicos con reserva en el AÑO entero, sin desglosar multiunits), mientras el detalle contaba las filas realmente pintadas. Ahora el Total = libres + ocupadas + entran + salen (mismo universo que los stats de estado y que el detalle), y sStatTot usa ese mismo valor. Eliminado el sTot provisional de loadMasterVillas que mostraba el conteo del año antes del render. masterVillas se mantiene solo para añadir las villas libres al calendario. | v12 - Multiunit ampliado a las 5 unidades por reserva. Una reserva puede ocupar hasta 5 unidades (PMSmultiunitID, PMSmultiunitID2..5); ahora aparece como fila en CADA una de sus unidades, no solo en la primera. Nuevo helper muIdsOf(r) que recoge los IDs no vacíos de los 5 campos; la agrupación mete la reserva en la fila villaId#muId de cada unidad. Añadidos multiunitId2..5 al mapa de campos F. | v11 - Dos cambios en la carga de datos. (1) Multiunits: las villas multiunit ahora se muestran como UNA FILA POR UNIDAD (se agrupa por villaId#PMSmultiunitID en vez de solo villaId), con el nombre de la unidad de TaMultiunits bajo el de la villa; las villas sin multiunit siguen como una sola fila. El id del timeline es único por unidad para evitar colisiones. (2) Estado de reserva: tanto loadMasterVillas (universo de villas del año) como doSearch (bookings del periodo) filtran ahora por BookingStatus IN ('new','modified') en lugar de <>'cancelled', para considerar solo reservas válidas. | v10 - Cabecera rediseñada al estilo de editar-tarea.html: barra superior blanca con el logo (logo-negro.png) enlazando a index, título "Ocupación" y botones ☰ (rojo) y ✕ a la derecha, en lugar de la barra roja anterior. Se mantienen los mismos botones/controles y los stats (Total / libres / ocupadas / entran / salen), adaptados a fondo claro. | v9 - Rediseño de las barras de reserva y del fondo. Barras (boxes de huésped): cuando el check-in es visible en el rango, el box empieza a MEDIO día (mitad derecha del día de entrada) con borde izquierdo azul; si la reserva viene de antes del rango, empieza pegado al borde izquierdo SIN borde. Cuando el check-out es visible, el box termina a MEDIO día (mitad izquierda del día de salida) con borde derecho rojo; si la salida es posterior al rango, llega al borde derecho SIN borde. Fondo neutro de la barra (#eef1f4); los colores entrada/salida quedan solo en los bordes. Fondo de las celdas simplificado a DOS estados: ocupado (rojo muy claro) / libre (verde claro), por mitades de día — izquierda ocupada si hay reserva la noche anterior o salida ese día; derecha ocupada si hay reserva esa noche o entrada ese día. Eliminadas las clases st-ocupada/st-entra/st-sale/st-intra y los fondos dc-salida/dc-entrada (huérfanos). | v8 - Vista semanal por defecto (Desde = hoy, Hasta = hoy+6) y botones ‹ / › para pasar de semana en semana (shiftWeek, mantiene el ancho del rango actual). Nuevas medias-celdas de color de fondo por día en el detalle de cada villa: cada día se divide en mitad izquierda y derecha. Izquierda: si hay SALIDA ese día → rojo salida (fuerte); si no, según el día anterior (ocupado → rojo muy claro / libre → verde claro). Derecha: si hay ENTRADA ese día → azul; si no, según el día siguiente (ocupado → rojo muy claro / libre → verde claro). Las barras de reserva con nombre de huésped y fechas se mantienen encima (z-index). Eliminada la libre-strip gris (redundante con las celdas verdes) y su CSS. | v7 - Fix: el filtro de Ocupación (Todas / Disponibles / Ocupadas) no hacía nada — siempre salían todas las villas. setOcupFilter guardaba el valor y mostraba el chip, pero renderCalendar nunca filtraba las villas por fOcupFilter. Solución: en renderCalendar, tras calcular las estadísticas (que siguen contando TODAS las villas), se filtra la lista que se pinta: 'disp' muestra solo villas libres en el periodo y 'ocup' solo las que tienen reserva (ocupada/entra/sale), usando el mismo villaStatus que ya determina el badge. Si el filtro deja la lista vacía se muestra el mensaje de vacío; al pintar resultados se oculta emptyMsg. | v6 - Fix: el botón "Filtros" no abría el panel de más filtros y las píldoras (Todas/Disponibles/Ocupadas, Todos/Pendiente) y el botón limpiar (✕) no respondían. Causa: toggleMas, setOcupFilter, setWPFilter, clearAll y scheduleSearch estaban definidas dentro del IIFE pero no se exponían a window, y los atributos onclick/oninput inline las buscan en el ámbito global. Solución: exponerlas a window antes de cerrar el IIFE (igual que ya se hacía con doSearch, closeDetail, toggleManagerPanel, etc.). También corregido el <title>, que decía v03 mientras el comentario interno iba por v5. | v5 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v4 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v3 - versión anterior -->
