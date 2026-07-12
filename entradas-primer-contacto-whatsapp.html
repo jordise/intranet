@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v12 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/3villas-manuals/sw.js').catch(()=>{}));</script>
-  <title>Primer Contacto v11 — 3Villas</title>
+  <title>Primer Contacto v12 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
@@ -918,33 +918,47 @@ function reRender(){
   if(_cachedRecs&&_cachedFecha)renderResult(_cachedRecs,_cachedFecha);
 }
 
-// ════════════ BUILD CARD ════════════
-function buildCard(e){
-  var r=e.r,dias=e.dias,done=e.done,code=e.code,ui=e.ui;
+// ════════════ DATOS DEL MODAL (compartido: cards y deep-link) ════════════
+/* v12: extrae de una fila de la vista todos los datos que necesita el modal.
+   Misma lógica que antes vivía dentro de buildCard, sin cambios de campos. */
+function rowToModalData(r,done){
   var villa=r[F.villa]||'Villa';
   var villaCorto=r[F.villaCorto]||'';
   var ci=r[F.ci]||'',ciTime=r[F.ciTime]||'',arrT=r[F.arrival]||'',co=r[F.co]||'';
   var rawGuestName=r[F.guestName]||'';
   var guestSurename=String(r[F.guestSurename]||'').trim();
   var statusFormula=String(r[F.statusFormula]||'').trim();
+  var displayName=r[F.fiscalName]||rawGuestName||'—';
+  var phHost=r[F.phHost]||'',phArr=r[F.phArr]||'',cual=r[F.phCual]||'';
+  var vmId=r[F.vmId]||'',vmName=vmId?(usersMap.get(String(vmId))||''):'';
+  var email=r[F.guestEmail]||'';
+  var muId=String(r[F.multiunit]||'').trim();
+  var mgrN=($('mgrName')||{value:''}).value||meName||Auth.name()||'Villa Manager';
+  return{code:r[F.code]||'',name:displayName,rawGuestName:rawGuestName,guestSurename:guestSurename,
+    statusFormula:statusFormula,phHost:phHost,phArr:phArr,cual:cual,
+    ciTime:ciTime,arrival:arrT,villa:villa,villaCorto:villaCorto,multiunit:muId,
+    ci:ci,co:co,email:email,done:done,vmName:vmName,mgrN:mgrN};
+}
+
+// ════════════ BUILD CARD ════════════
+function buildCard(e){
+  var r=e.r,dias=e.dias,done=e.done,code=e.code,ui=e.ui;
+  var villa=r[F.villa]||'Villa';
+  var ci=r[F.ci]||'',ciTime=r[F.ciTime]||'',arrT=r[F.arrival]||'';
+  var rawGuestName=r[F.guestName]||'';
   // Nombre para mostrar en la card
   var displayName=r[F.fiscalName]||rawGuestName||'—';
   var phHost=r[F.phHost]||'',phArr=r[F.phArr]||'',cual=r[F.phCual]||'';
   var usearr=useArr(cual),activePh=usearr?phArr:phHost,noPh=!cleanPh(activePh);
   var vmId=r[F.vmId]||'',vmName=vmId?(usersMap.get(String(vmId))||''):'';
-  var email=r[F.guestEmail]||'';
   var muId=String(r[F.multiunit]||'').trim();
   // Villa display: Name_villa_para_inquilinos + (/ descripcion si hay multiunit)
   var muDisplayName=muId?multiunitsMap.get('name_'+muId)||'':'';
   var villaDisplay=muDisplayName?villa+' / '+muDisplayName:villa;
-  var mgrN=($('mgrName')||{value:''}).value||meName||Auth.name()||'Villa Manager';
   var tid='t_'+code.replace(/[^a-z0-9]/gi,'_');
 
   // Datos completos para el modal
-  var rD={code:code,name:displayName,rawGuestName:rawGuestName,guestSurename:guestSurename,
-    statusFormula:statusFormula,phHost:phHost,phArr:phArr,cual:cual,
-    ciTime:ciTime,arrival:arrT,villa:villa,villaCorto:villaCorto,multiunit:muId,
-    ci:ci,co:co,email:email,done:done,vmName:vmName,mgrN:mgrN};
+  var rD=rowToModalData(r,done);
 
   var card=document.createElement('div');
   card.className='pc-card '+(done?'done':'pend');
@@ -1080,7 +1094,39 @@ function openModal(d){
   updateScBox(d);refreshPrev();
   $('waModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closeModal(){$('waModal').classList.remove('open');document.body.style.overflow='';}
+function closeModal(){
+  $('waModal').classList.remove('open');document.body.style.overflow='';
+  /* v12: si el popup se abrió por deep-link desde otra página, al cerrarlo volvemos a ella */
+  if(_dlActive){
+    _dlActive=false;
+    if(_dlVolver){location.href=_dlVolver;}
+    else if(history.length>1){history.back();}
+  }
+}
+
+// ════════════ DEEP-LINK (v12): abrir el popup directamente desde otra página ════════════
+/* Uso: entradas-primer-contacto-whatsapp.html?detalle=CODIGO[&volver=URL_codificada]
+   - detalle: código de reserva (FS_confirmation_code). Abre el popup de detalles al cargar.
+   - volver (opcional): URL a la que regresar al cerrar el popup. Si no se pasa,
+     se hace history.back() (la página que hizo el enlace queda en el historial).
+   La reserva puede estar fuera de la ventana de fechas que carga la página, así que
+   se pide expresamente a la vista (1 fetch, SOLO cuando llega el parámetro). */
+var _dlActive=false,_dlVolver='';
+async function openDeepLink(code){
+  try{
+    var w=F.code+"='"+String(code).replace(/'/g,"''")+"'";
+    var url=WORKER+'?action=view&view='+encodeURIComponent(VIEW)+'&where='+encodeURIComponent(w)+'&limit=1';
+    var res=await fetch(Auth.url(url));
+    var j=await res.json();if(j.error)throw new Error(j.error);
+    var recs=j.Result||j.result||[];
+    if(!recs.length){toast('Reserva '+code+' no encontrada','err');return;}
+    var r=recs[0];
+    _dlActive=true;
+    openModal(rowToModalData(r,isTruthy(r[F.contactado])));
+  }catch(err){
+    toast('Error cargando la reserva: '+err.message,'err');
+  }
+}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 
 function setCual(v,btn){
@@ -1196,8 +1242,13 @@ window.addEventListener('DOMContentLoaded',async function(){
     $('fFecha').value=todayStr();
   }
   doSearch();
+  /* v12: deep-link — si la URL trae ?detalle=CODIGO, abrir el popup de esa reserva */
+  var _dlP=new URLSearchParams(location.search);
+  var _dlCode=(_dlP.get('detalle')||'').trim();
+  _dlVolver=_dlP.get('volver')||'';
+  if(_dlCode)openDeepLink(_dlCode);
 });
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v11 - Corrección sobre v10: el cambio de URL del enlace de la villa en el mensaje de WhatsApp (variable lnk en buildMsg) estaba incompleto — se había cambiado solo la parte del dominio/ruta, dejando el nombre del parámetro antiguo (?TaBookings2021_FS_confirmation_code=). Ahora la URL es la correcta y completa: de https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code= a https://www.3villas.com/intranet/checkin-pasos.html?reserva= (coincide con el parámetro que espera checkin-pasos.html). Se mantienen los dos retrofits obligatorios ya aplicados en v10 (favicon estándar embebido en el <head>; spinner de #stLoad como <img class="spinner" src="data:..."> en vez de <div class="spinner"></div>, mismo base64 que ya usaba la regla CSS). | v9 - Fix URL Caspio: c1abn432 → c1abn932 en lnk generación link booking | v8 - Fix: .state-box sin display !important — no pisaba display:none del JS | v7 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
+<!-- HISTORIAL: v12 - Deep-link al popup de detalles desde otras paginas. Nuevos parametros de URL: ?detalle=CODIGO (FS_confirmation_code) abre automaticamente el popup de detalles de esa reserva al cargar la pagina; &volver=URL_codificada (opcional) indica a donde regresar al cerrar el popup (cualquier via de cierre: boton X, click fuera, Escape o tras guardar) — si no se pasa volver, se hace history.back(). Implementacion: (1) la construccion del objeto de datos del modal (rD) se extrae de buildCard a la nueva funcion rowToModalData(r,done), reutilizada por buildCard (sin cambios de campos ni de comportamiento) y por el deep-link; en buildCard se eliminan las variables locales que quedaban huerfanas tras la extraccion (guestSurename, statusFormula, co, email, mgrN, villaCorto) — villa/muId/villaDisplay/telefonos/vmName se conservan porque la card los sigue usando. (2) Nueva funcion openDeepLink(code): 1 fetch a la vista con where FS_confirmation_code='CODE' limit 1 (JUSTIFICACION del fetch nuevo: la reserva puede estar fuera de la ventana de fechas hoy-1/+rango que carga doSearch, asi que no se puede garantizar que este en los datos ya cargados; solo se ejecuta cuando llega el parametro detalle, nunca en el uso normal). Comillas simples del codigo escapadas (''). Si la reserva no existe o falla el fetch: toast de error y la pagina queda en su vista normal. (3) closeModal comprueba _dlActive y navega de vuelta (_dlVolver o history.back). El deep-link se dispara al final del init, tras cargar usuarios/multiunits/mgrName (datos que el modal necesita), en paralelo con doSearch. | v11 - Corrección sobre v10: el cambio de URL del enlace de la villa en el mensaje de WhatsApp (variable lnk en buildMsg) estaba incompleto — se había cambiado solo la parte del dominio/ruta, dejando el nombre del parámetro antiguo (?TaBookings2021_FS_confirmation_code=). Ahora la URL es la correcta y completa: de https://c1abn932.caspio.com/dp/353f7000a501823a9e10433dbcd7?TaBookings2021_FS_confirmation_code= a https://www.3villas.com/intranet/checkin-pasos.html?reserva= (coincide con el parámetro que espera checkin-pasos.html). Se mantienen los dos retrofits obligatorios ya aplicados en v10 (favicon estándar embebido en el <head>; spinner de #stLoad como <img class="spinner" src="data:..."> en vez de <div class="spinner"></div>, mismo base64 que ya usaba la regla CSS). | v9 - Fix URL Caspio: c1abn432 → c1abn932 en lnk generación link booking | v8 - Fix: .state-box sin display !important — no pisaba display:none del JS | v7 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
