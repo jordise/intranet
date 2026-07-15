@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v07 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v08 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -14,7 +14,7 @@
   <!-- ══ FAVICON (ruta absoluta, embebido) ══ -->
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Waiver v07 — 3Villas</title>
+  <title>Control Waiver v08 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── ESTILOS BASE (:root + comunes) ── */
@@ -97,6 +97,21 @@
     .portal-menu-actions{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-2)}
     .portal-menu-actions button{flex:1;border:1.5px solid var(--gray-2);background:#fff;border-radius:8px;padding:5px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-4);cursor:pointer}
     .portal-menu-actions button:hover{color:var(--red);border-color:var(--red)}
+
+    /* ── Panel "Más filtros": comparativa de dos periodos ── */
+    #mfBtn.on{border-color:var(--red);color:var(--red);background:var(--red-light)}
+    .mf-panel{background:#fff;border:1.5px solid var(--gray-2);border-radius:12px;box-shadow:var(--shadow-sm);padding:14px 16px;margin:-8px 0 18px;display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+    .mf-group{display:flex;flex-direction:column;gap:6px}
+    .mf-lbl{font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+    .mf-dates{display:flex;align-items:center;gap:8px}
+    .mf-dates input{border:1.5px solid var(--gray-2);border-radius:8px;padding:6px 8px;font-family:'Open Sans',sans-serif;font-size:13px;color:var(--gray-5)}
+    .mf-sep{color:var(--gray-4);font-size:13px}
+    .mf-actions{display:flex;gap:8px}
+    .mf-actions button{border:none;border-radius:8px;padding:8px 16px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+    #mfApply{background:var(--red);color:#fff}
+    #mfApply:hover{background:var(--red-dark)}
+    #mfClear{background:var(--gray-2);color:var(--gray-5)}
+    .mf-note{flex-basis:100%;font-size:11px;color:var(--gray-4)}
 
     /* ── Veredicto / titular ── */
     .verdict{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px 20px;margin-bottom:20px;border-left:6px solid var(--gray-3)}
@@ -247,6 +262,24 @@
         <button class="portal-btn" id="portalBtn">Portal: <b id="portalLbl">Todos</b> ▾</button>
         <div class="portal-menu" id="portalMenu"></div>
       </div>
+      <button class="portal-btn" id="mfBtn" type="button">⚙️ Más filtros</button>
+    </div>
+
+    <!-- Más filtros: comparativa de dos periodos de fechas -->
+    <div class="mf-panel" id="mfPanel" style="display:none">
+      <div class="mf-group">
+        <span class="mf-lbl">Periodo principal</span>
+        <div class="mf-dates"><input type="date" id="pA1"><span class="mf-sep">→</span><input type="date" id="pA2"></div>
+      </div>
+      <div class="mf-group">
+        <span class="mf-lbl">Periodo a comparar</span>
+        <div class="mf-dates"><input type="date" id="pB1"><span class="mf-sep">→</span><input type="date" id="pB2"></div>
+      </div>
+      <div class="mf-actions">
+        <button type="button" id="mfApply">Comparar</button>
+        <button type="button" id="mfClear" style="display:none">✕ Quitar comparativa</button>
+      </div>
+      <div class="mf-note" id="mfNote"></div>
     </div>
 
     <!-- Veredicto -->
@@ -314,7 +347,7 @@
 
   var START_YEAR = 2024;          // 2023 y anteriores no se cargan
   var CACHE_PREFIX = 'cw_m_';     // sessionStorage: filas resumidas por mes cerrado
-  var CACHE_VER = 'v07';          // si cambia la lógica o el formato de caché, sube esto para invalidarla
+  var CACHE_VER = 'v08';          // si cambia la lógica o el formato de caché, sube esto para invalidarla
 
   /* Un "cobro real" es toda fila que tiene Payment_ID en Ta_payments:
      esos registros se crean cuando Stripe cobra de verdad (Mode Live / Payment_service Stripe).
@@ -344,6 +377,13 @@
   var CUR_Y = TODAY.getFullYear();
   var CUR_M = TODAY.getMonth()+1;  // 1..12
   var CUR_D = TODAY.getDate();
+  /* Comparativa de dos periodos ("Más filtros") */
+  var periodMode = false;        // true = comparando periodo principal vs periodo a comparar
+  var perA = null, perB = null;  // {from:'YYYY-MM-DD', to:'YYYY-MM-DD'} — A = principal · B = a comparar
+  var perStats = null;           // {A,B} agregados de cada periodo (se recalculan en renderAll)
+  var MIN_DATE = START_YEAR+'-01-01';                          // primer día con datos cargados
+  var LAST_D_CUR = new Date(CUR_Y, CUR_M, 0).getDate();
+  var MAX_DATE = CUR_Y+'-'+(CUR_M<10?'0':'')+CUR_M+'-'+(LAST_D_CUR<10?'0':'')+LAST_D_CUR; // último día del mes actual (los datos se cargan por mes completo)
 
   /* Métricas del gráfico: clave -> {label, color, emoji, fmt, agg} */
   var METRICS = {
@@ -360,6 +400,7 @@
   function eur(n){ return '€'+Math.round(n).toLocaleString('es-ES'); }
   function eurFull(n){ return (Math.round(n*100)/100).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
   function intf(n){ return Math.round(n).toLocaleString('es-ES'); }
+  function fmtDMY(iso){ if(!iso)return '—'; var p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
   /* Cobro real: la fila tiene Payment_ID. */
   function hasPayment(row){ var p=field(row,['Ta_payments_Payment_ID']); return p!==undefined && p!==null && String(p).trim()!==''; }
@@ -409,6 +450,16 @@
     if(filterPortals && !filterPortals.has(s.pl)) return false;
     return true;
   }
+  /* Día de check-in de la fila en formato YYYY-MM-DD (parseo manual, sin new Date(string)). */
+  function checkinDay(row){
+    var v=row['TaBookings2021_Checkin'];
+    if(v===null||v===undefined||v==='') return '';
+    var s=String(v), m=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if(m) return m[1]+'-'+m[2]+'-'+m[3];
+    m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // por si llegara en formato US M/D/YYYY
+    if(m) return m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);
+    return '';
+  }
   /* Fila resumida: solo lo necesario para agregar y filtrar (esto es lo que se cachea por mes). */
   function slimRow(row){
     return {
@@ -420,7 +471,8 @@
       o: depositOpt(field(row,['TaBookings2021_Security_deposit_options'])),
       r: isRealBooking(row)?1:0,
       pl: portalKey(row['TaBookings2021_Portal_Name']),
-      pr: isPremiumVal(row['TaBookings2021_checkin_premium'])?1:0
+      pr: isPremiumVal(row['TaBookings2021_checkin_premium'])?1:0,
+      dt: checkinDay(row)
     };
   }
 
@@ -517,7 +569,7 @@
       curYear = years[years.length-1];
       prevYear= years.length>1 ? years[years.length-2] : null;
       g('stLoad').style.display='none'; g('dash').style.display='block';
-      renderYearBar(); renderAll();
+      renderYearBar(); updatePeriodUI(); renderAll();
     }
 
     nextMonth();
@@ -603,6 +655,21 @@
     for(var m=1;m<CUR_M;m++){ if(Y.mAgg[m]) list.push(Y.mAgg[m]); }
     if(cutAgg[y]) list.push(cutAgg[y]);
     return sumAggs(list);
+  }
+
+  /* Stats de un rango de fechas [from,to] (YYYY-MM-DD, ambos inclusive) a partir de las filas
+     resumidas ya cargadas: 100% en local, sin llamadas nuevas a la API. Respeta los filtros
+     activos (premium/portal, vía aggregateSlim) y deduplica reservas dentro del periodo. */
+  function statsForRange(from,to){
+    var rows=[];
+    Object.keys(monthRows).forEach(function(key){
+      var parts=key.split('-'), y=+parts[0], m=+parts[1];
+      var p2=(m<10?'0':'')+m, lastD=new Date(y,m,0).getDate();
+      var mFirst=y+'-'+p2+'-01', mLast=y+'-'+p2+'-'+(lastD<10?'0':'')+lastD;
+      if(mLast<from || mFirst>to) return; // mes sin solape con el rango
+      monthRows[key].forEach(function(s){ if(s.dt && s.dt>=from && s.dt<=to) rows.push(s); });
+    });
+    return aggregateSlim(rows, null);
   }
 
   function ensureYear(y){
@@ -734,15 +801,29 @@
     var p=(cur-prev)/Math.abs(prev)*100;
     return {pct:p, dir: Math.abs(p)<0.5?'flat':(p>0?'up':'down')};
   }
+  function refLabel(){ return periodMode ? 'periodo a comparar' : String(prevYear); }
   function deltaChip(d, invert){
     if(!d) return '<span class="kpi-delta flat">— sin año previo</span>';
     var arrow = d.dir==='up'?'▲':(d.dir==='down'?'▼':'—');
     var cls = d.dir + (invert?' neg':'');
     var txt = (d.dir==='flat')?'igual':(Math.abs(d.pct).toFixed(0)+'%');
-    return '<span class="kpi-delta '+cls+'">'+arrow+' '+txt+' vs '+prevYear+'</span>';
+    return '<span class="kpi-delta '+cls+'">'+arrow+' '+txt+' vs '+refLabel()+'</span>';
   }
 
   function renderAll(){
+    if(periodMode && perA && perB){
+      perStats={ A:statsForRange(perA.from,perA.to), B:statsForRange(perB.from,perB.to) };
+      g('yearVs').innerHTML='comparando <b>periodo principal</b> ('+fmtDMY(perA.from)+' – '+fmtDMY(perA.to)+') con <b>periodo a comparar</b> ('+fmtDMY(perB.from)+' – '+fmtDMY(perB.to)+')';
+      g('funnelYear').textContent='Periodo principal · '+fmtDMY(perA.from)+' – '+fmtDMY(perA.to);
+      renderKpis(perStats.A, perStats.B);
+      renderVerdict(perStats.A, perStats.B);
+      renderMetricTabs();
+      renderChart(); // el gráfico interanual se mantiene tal cual (por años)
+      renderFunnel(perStats.A);
+      renderSummary();
+      renderFoot();
+      return;
+    }
     var C=statsFor(curYear), P=prevYear?statsFor(prevYear):null;
     var modeLbl = ytdMode ? (' · YTD 1 ene–'+CUR_D+' '+MONTHS[CUR_M-1]) : '';
     g('yearVs').innerHTML = (prevYear ? ('comparando <b>'+curYear+'</b> con <b>'+prevYear+'</b>') : ('mostrando <b>'+curYear+'</b> (sin año anterior)')) + (ytdMode?'<b style="color:var(--green)">'+modeLbl+'</b>':'');
@@ -817,10 +898,11 @@
       else { parts.push('bajan los depósitos por transferencia (menos gestión manual)'); score+=0.5; }
     }
 
+    var refTxt = periodMode ? 'el periodo a comparar' : String(prevYear);
     var cls,emo,title;
-    if(score>0.5){ cls='good'; emo='📈'; title='Vais mejor que en '+prevYear; }
-    else if(score<-0.5){ cls='bad'; emo='📉'; title='Ojo: hay señales de empeoramiento frente a '+prevYear; }
-    else { cls='flat'; emo='➖'; title='Año estable respecto a '+prevYear; }
+    if(score>0.5){ cls='good'; emo='📈'; title='Vais mejor que en '+refTxt; }
+    else if(score<-0.5){ cls='bad'; emo='📉'; title='Ojo: hay señales de empeoramiento frente a '+refTxt; }
+    else { cls='flat'; emo='➖'; title=(periodMode?'Periodo principal estable respecto al periodo a comparar':'Año estable respecto a '+prevYear); }
 
     box.className='verdict '+cls;
     g('verdictEmo').textContent=emo;
@@ -937,7 +1019,7 @@
     if(a>0) extra.push('Airbnb sin waiver: '+intf(a)+' ('+pct(a).toFixed(0)+'%)');
     if(n>0) extra.push('Sin opción elegida: '+intf(n)+' ('+pct(n).toFixed(0)+'%)');
     if(!tot){
-      g('funnel').innerHTML='<div style="grid-column:1/-1;color:var(--gray-4);font-size:13px;text-align:center;padding:20px">No hay reservas con depósito registradas en '+curYear+'.</div>';
+      g('funnel').innerHTML='<div style="grid-column:1/-1;color:var(--gray-4);font-size:13px;text-align:center;padding:20px">No hay reservas con depósito registradas '+(periodMode?'en el periodo principal':'en '+curYear)+'.</div>';
       return;
     }
     g('funnel').innerHTML=items.map(function(it){
@@ -950,30 +1032,42 @@
     }).join('') + (extra.length?'<div style="grid-column:1/-1;font-size:11px;color:var(--gray-4);margin-top:2px">'+extra.join(' · ')+'</div>':'');
   }
 
+  /* Celdas comunes de la tabla resumen (mismas columnas en modo años y modo periodos). */
+  function summaryCells(Y){
+    var a=adoptionRate(Y);
+    return '<td>'+intf(Y.bookingsTotal||0)+'</td>'+
+      '<td>'+eur(Y.waiverAmt||0)+'</td>'+
+      '<td>'+intf(Y.waiverPays||0)+'</td>'+
+      '<td>'+(a!==null?a.toFixed(0)+'%':'—')+'</td>'+
+      '<td>'+intf(Y.transferCount||0)+'</td>'+
+      '<td>'+eur(Y.cardFeeAmt||0)+'</td>'+
+      '<td>'+eur(Y.depositAmt||0)+'</td>';
+  }
   function renderSummary(){
+    var cols='<th>Reservas</th><th>🛡️ Ingr. waiver</th><th>Cobros waiver</th><th>🎯 Adopción</th>'+
+      '<th>🏦 Transfer.</th><th>💳 Gastos tarj.</th><th>🔒 Depós. Stripe</th>';
+    if(periodMode && perStats){
+      var headP='<thead><tr><th>Periodo</th>'+cols+'</tr></thead>';
+      var defs=[
+        {lbl:'Principal · '+fmtDMY(perA.from)+' – '+fmtDMY(perA.to), S:perStats.A, cur:true},
+        {lbl:'A comparar · '+fmtDMY(perB.from)+' – '+fmtDMY(perB.to), S:perStats.B, cur:false}
+      ];
+      var bodyP='<tbody>'+defs.map(function(d){
+        return '<tr class="'+(d.cur?'cur':'')+'"><td class="lbl">'+d.lbl+'</td>'+summaryCells(d.S)+'</tr>';
+      }).join('')+'</tbody>';
+      g('summaryTbl').innerHTML=headP+bodyP;
+      return;
+    }
     var rows = years.slice().reverse();
-    var head='<thead><tr>'+
-      '<th>Año'+(ytdMode?' (YTD)':'')+'</th><th>Reservas</th><th>🛡️ Ingr. waiver</th><th>Cobros waiver</th><th>🎯 Adopción</th>'+
-      '<th>🏦 Transfer.</th><th>💳 Gastos tarj.</th><th>🔒 Depós. Stripe</th>'+
-      '</tr></thead>';
+    var head='<thead><tr><th>Año'+(ytdMode?' (YTD)':'')+'</th>'+cols+'</tr></thead>';
     var body='<tbody>'+rows.map(function(y){
-      var Y=statsFor(y), a=adoptionRate(Y);
-      return '<tr class="'+(y===curYear?'cur':'')+'">'+
-        '<td class="lbl">'+y+'</td>'+
-        '<td>'+intf(Y.bookingsTotal||0)+'</td>'+
-        '<td>'+eur(Y.waiverAmt||0)+'</td>'+
-        '<td>'+intf(Y.waiverPays||0)+'</td>'+
-        '<td>'+(a!==null?a.toFixed(0)+'%':'—')+'</td>'+
-        '<td>'+intf(Y.transferCount||0)+'</td>'+
-        '<td>'+eur(Y.cardFeeAmt||0)+'</td>'+
-        '<td>'+eur(Y.depositAmt||0)+'</td>'+
-      '</tr>';
+      return '<tr class="'+(y===curYear?'cur':'')+'"><td class="lbl">'+y+'</td>'+summaryCells(statsFor(y))+'</tr>';
     }).join('')+'</tbody>';
     g('summaryTbl').innerHTML=head+body;
   }
 
   function renderFoot(){
-    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.'+(ytdMode?'<br><b style="color:var(--green)">Modo YTD activo:</b> cada año se recorta al 1 de enero–'+CUR_D+' '+MONTHS[CUR_M-1]+' para comparar el mismo periodo.':'')+filterNote();
+    g('footNote').innerHTML='Analizadas '+intf(statsTotalRows)+' filas (check-in desde '+START_YEAR+') · '+intf(statsPayRows)+' cobros en Stripe · '+intf(Object.keys(bookingsSeen).length)+' reservas (reales, no canceladas).<br>Todo se agrupa por <b>fecha de check-in</b>. Las cifras de dinero son cobros reales en Stripe. El reparto del depósito usa la opción elegida en cada reserva (1 waiver · 2 tarjeta · 3 transferencia · 4 airbnb). Los meses ya cerrados se sirven desde caché; el mes en curso se recarga siempre.'+(ytdMode&&!periodMode?'<br><b style="color:var(--green)">Modo YTD activo:</b> cada año se recorta al 1 de enero–'+CUR_D+' '+MONTHS[CUR_M-1]+' para comparar el mismo periodo.':'')+(periodMode&&perA&&perB?'<br><b style="color:var(--blue)">Comparativa por periodos activa:</b> principal '+fmtDMY(perA.from)+' – '+fmtDMY(perA.to)+' vs a comparar '+fmtDMY(perB.from)+' – '+fmtDMY(perB.to)+'.':'')+filterNote();
   }
 
   function filterNote(){
@@ -981,6 +1075,32 @@
     if(filterPremium) parts.push('solo Checkin Premium');
     if(filterPortals) parts.push('portal: '+(filterPortals.size?Array.from(filterPortals).join(', '):'ninguno'));
     return parts.length ? '<br><b style="color:var(--red)">Filtros activos:</b> '+parts.join(' · ')+'.' : '';
+  }
+
+  /* ── MÁS FILTROS: comparativa de dos periodos ── */
+  function clampD(v){ if(v<MIN_DATE)return MIN_DATE; if(v>MAX_DATE)return MAX_DATE; return v; }
+  function mfMsg(txt,isErr){ var n=g('mfNote'); n.textContent=txt; n.style.color=isErr?'var(--red)':'var(--gray-4)'; }
+  function mfDefaultMsg(){ mfMsg('Datos disponibles: '+fmtDMY(MIN_DATE)+' – '+fmtDMY(MAX_DATE)+'. Si eliges fechas fuera de ese rango, se recortan automáticamente.',false); }
+  function updatePeriodUI(){
+    g('yearOpts').style.display = periodMode?'none':'flex';
+    g('ytdToggle').style.display = periodMode?'none':'inline-flex';
+    g('mfClear').style.display = periodMode?'inline-block':'none';
+    g('mfBtn').classList.toggle('on', periodMode);
+  }
+  function applyPeriods(){
+    var a1=g('pA1').value, a2=g('pA2').value, b1=g('pB1').value, b2=g('pB2').value;
+    if(!a1||!a2||!b1||!b2){ mfMsg('Rellena las cuatro fechas para poder comparar.',true); return; }
+    a1=clampD(a1); a2=clampD(a2); b1=clampD(b1); b2=clampD(b2);
+    if(a1>a2||b1>b2){ mfMsg('En cada periodo, la fecha "desde" debe ser anterior o igual a la fecha "hasta".',true); return; }
+    perA={from:a1,to:a2}; perB={from:b1,to:b2};
+    periodMode=true;
+    mfMsg('Comparando '+fmtDMY(a1)+' – '+fmtDMY(a2)+' (principal) con '+fmtDMY(b1)+' – '+fmtDMY(b2)+' (a comparar).',false);
+    updatePeriodUI(); renderAll();
+  }
+  function clearPeriods(){
+    periodMode=false; perA=null; perB=null; perStats=null;
+    mfDefaultMsg();
+    updatePeriodUI(); renderAll();
   }
 
   /* ── INIT ── */
@@ -1011,6 +1131,12 @@
     g('portalBtn').addEventListener('click',function(e){ e.stopPropagation(); g('portalDD').classList.toggle('open'); });
     g('portalMenu').addEventListener('click',function(e){ e.stopPropagation(); });
     document.addEventListener('click',function(){ g('portalDD').classList.remove('open'); });
+    // Más filtros: comparativa de dos periodos
+    ['pA1','pA2','pB1','pB2'].forEach(function(id){ g(id).min=MIN_DATE; g(id).max=MAX_DATE; });
+    g('mfBtn').addEventListener('click',function(){ var p=g('mfPanel'); p.style.display=(p.style.display==='none')?'flex':'none'; });
+    g('mfApply').addEventListener('click',applyPeriods);
+    g('mfClear').addEventListener('click',clearPeriods);
+    mfDefaultMsg();
     // etiqueta del rango YTD
     if(g('ytdRange')) g('ytdRange').textContent='(1 ene–'+CUR_D+' '+MONTHS[CUR_M-1]+')';
     var chk=g('ytdChk');
@@ -1031,6 +1157,6 @@
   })();
 </script>
 
-<!-- HISTORIAL: v07 - Filtros de Checkin Premium (Todos / Solo Checkin Premium) y de Portal (multi-selección; las reservas directas agrupadas como "Directas" con el mismo criterio que pedir-wellcomepacks: Portal_Name vacío o direct/directo/directa/propia/own, en primer lugar del desplegable). Para poder refiltrar SIN repetir llamadas a la API, la caché por mes pasa de guardar agregados a guardar filas resumidas (9 campos por fila) y todos los agregados se reconstruyen en local (rebuildFromRows); aggregateRows y aggregateCut se sustituyen por aggregateSlim. CACHE_VER v05→v07 (invalida la caché antigua). Nota de filtros activos en el pie. | v06 - Añadido toggle YTD (Year-To-Date): compara cada año recortado al mismo periodo 1 enero → día de hoy, para ver de forma justa si mejoramos o empeoramos (antes el año en curso parcial se comparaba contra años cerrados completos). Preciso A DÍA: en YTD se suman los meses completos transcurridos + el trozo del mes en curso (día 1 → hoy) cargado por año con where Checkin<=hoy y cacheado (clave incluye día). Se guarda el agregado por mes (mAgg) para poder recortar. Afecta a KPIs, veredicto, tabla y embudo; el gráfico mensual no cambia. | v05 - Carga MES A MES por rango de check-in desde 2024 (supera el tope de 1000 de Caspio), con caché de meses cerrados en sessionStorage y botón Recargar todo. TODO se agrupa por fecha de check-in (fecha estable: los pagos se hacen antes o durante la estancia). | v04 - Fix totales a 0: cobro real = fila con Payment_ID; Security_deposit_options numérico (1 waiver·2 tarjeta·3 transferencia·4 airbnb); adopción sobre todas las reservas; excluye canceladas/propietario. | v03 - Diagnóstico temporal. | v02 - Scripts auth/nav al head; vistas con action=view. | v01 - Primera versión del dashboard. -->
+<!-- HISTORIAL: v08 - "Más filtros": comparativa de dos periodos de fechas (Periodo principal vs Periodo a comparar). Botón ⚙️ despliega panel con dos rangos de fechas; al pulsar Comparar, los KPIs, el veredicto, el embudo, la tabla resumen y el pie muestran principal vs a comparar (el selector de año y el toggle YTD se ocultan mientras la comparativa está activa; "Quitar comparativa" restaura el modo por años). El gráfico mensual interanual sigue visible tal cual (por años). Cálculo 100% en local sin llamadas nuevas a la API: las filas resumidas cacheadas incorporan la fecha de check-in (campo dt, nuevo helper checkinDay), CACHE_VER v07→v08 (invalida la caché antigua una vez). Los filtros de Premium y Portal siguen aplicando también dentro de la comparativa. Tabla resumen refactorizada con summaryCells (mismas columnas en ambos modos). | v07 - Filtros de Checkin Premium (Todos / Solo Checkin Premium) y de Portal (multi-selección; las reservas directas agrupadas como "Directas" con el mismo criterio que pedir-wellcomepacks: Portal_Name vacío o direct/directo/directa/propia/own, en primer lugar del desplegable). Para poder refiltrar SIN repetir llamadas a la API, la caché por mes pasa de guardar agregados a guardar filas resumidas (9 campos por fila) y todos los agregados se reconstruyen en local (rebuildFromRows); aggregateRows y aggregateCut se sustituyen por aggregateSlim. CACHE_VER v05→v07 (invalida la caché antigua). Nota de filtros activos en el pie. | v06 - Añadido toggle YTD (Year-To-Date): compara cada año recortado al mismo periodo 1 enero → día de hoy, para ver de forma justa si mejoramos o empeoramos (antes el año en curso parcial se comparaba contra años cerrados completos). Preciso A DÍA: en YTD se suman los meses completos transcurridos + el trozo del mes en curso (día 1 → hoy) cargado por año con where Checkin<=hoy y cacheado (clave incluye día). Se guarda el agregado por mes (mAgg) para poder recortar. Afecta a KPIs, veredicto, tabla y embudo; el gráfico mensual no cambia. | v05 - Carga MES A MES por rango de check-in desde 2024 (supera el tope de 1000 de Caspio), con caché de meses cerrados en sessionStorage y botón Recargar todo. TODO se agrupa por fecha de check-in (fecha estable: los pagos se hacen antes o durante la estancia). | v04 - Fix totales a 0: cobro real = fila con Payment_ID; Security_deposit_options numérico (1 waiver·2 tarjeta·3 transferencia·4 airbnb); adopción sobre todas las reservas; excluye canceladas/propietario. | v03 - Diagnóstico temporal. | v02 - Scripts auth/nav al head; vistas con action=view. | v01 - Primera versión del dashboard. -->
 </body>
 </html>
