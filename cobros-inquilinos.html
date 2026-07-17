@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v28 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v29 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v28 — 3Villas</title>
+  <title>Control Cobros Inquilinos v29 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
@@ -827,6 +827,45 @@ function fmtDesglose(r){
   return lines.length ? lines.join('') : '<span style="color:var(--gray-3);font-size:11px">—</span>';
 }
 
+/* v29: importes PENDIENTES de la reserva (sustituye a los importes informativos).
+   Ecotasa + lo que toque según la opción del paso 3 + extras (upsellings).
+   Defensivo: si la vista no trae un campo (undefined), esa línea no se evalúa. */
+function fmtPendientes(r){
+  const rows = [];
+  const pend = (label, eur) => rows.push(`<div class="ficha-row"><span class="ficha-lbl">${label}</span><span class="ficha-val" style="display:flex;align-items:center;gap:6px"><span class="money">${eur.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span><span class="bdg b-no">✗ Pendiente</span></span></div>`);
+  const val = f => r['TaBookings2021_'+f];
+  const num = f => parseFloat(val(f))||0;
+  const cob = f => isTruthy(val(f));
+  const has = f => val(f)!==undefined;
+
+  /* Ecotasa */
+  if(has('Ecotasa_final') && num('Ecotasa_final')>0 && !cob('Ecotasa_cobrada')) pend('Ecotasa', num('Ecotasa_final'));
+
+  /* Según la opción del paso 3 */
+  const opt = parseInt(val('Security_deposit_options'));
+  if(isNaN(opt)||opt===0){
+    rows.push('<div style="margin:4px 0;padding:7px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:11.5px;font-weight:700;color:#b45309">⚠️ Todavía no se ha seleccionado ninguna opción en checkin-pasos</div>');
+  } else if(opt===1){
+    if(num('Deposit_waver_EUR')>0 && !cob('Deposit_waver_cobrado')) pend('Waiver', num('Deposit_waver_EUR'));
+  } else if(opt===2){
+    if(num('Security_deposit_EUR')>0 && !cob('Security_deposit_cobrado')) pend('Depósito', num('Security_deposit_EUR'));
+    if(num('Gasto_tarjeta_deposito_seguridad')>0 && !cob('Gasto_tarjeta_dep_seguri_cobrado')) pend('Gastos tarjeta dep.', num('Gasto_tarjeta_deposito_seguridad'));
+  } else if(opt===3){
+    if(num('Security_deposit_EUR')>0 && !cob('Security_deposit_cobrado')) pend('Depósito (transferencia)', num('Security_deposit_EUR'));
+  } /* opt 4 (airbnb sin waiver): nada pendiente por nuestra parte */
+
+  /* Extras (upsellings) pendientes */
+  for(let i=1;i<=3;i++){
+    if(has('Upselling'+i+'_EUR') && num('Upselling'+i+'_EUR')>0 && !cob('Upselling'+i+'_cobrado')){
+      const txt = val('Upselling'+i+'_text') || ('Extra '+i);
+      pend('Extra: '+esc(String(txt)), num('Upselling'+i+'_EUR'));
+    }
+  }
+
+  if(!rows.length) return '<div class="ficha-row"><span class="ficha-lbl">Importes pendientes</span><span class="bdg b-ok">✓ Nada pendiente</span></div>';
+  return '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);margin:2px 0 4px">Importes pendientes</div>'+rows.join('');
+}
+
 function fmtDepOption(r){
   const opt = r['TaBookings2021_Security_deposit_options'];
   const eur = r['TaBookings2021_Security_deposit_EUR'];
@@ -856,15 +895,13 @@ function renderCards(){
     const status    = r['TaBookings2021_BookingStatus'] || '';
     const devuelto  = isTruthy(r['TaBookings2021_Security_deposit_devuelto']);
     const importe   = r['Ta_payments_Importe'];
-    const depEUR    = r['TaBookings2021_Security_deposit_EUR'];
     const depOpt    = r['TaBookings2021_Security_deposit_options'];
     const depOptLbl = DEP_OPTIONS_LABELS[String(depOpt)] || '';
     const comentDev = r['TaBookings2021_Comentarios_devolucion_deposito'] || '';
-    const waverEUR  = r['TaBookings2021_Deposit_waver_EUR'];
     /* v28: con waiver seleccionado (opción 1) el depósito no se cobra ni se
-       retiene — no hay devolución pendiente; lo pendiente es cobrar el waiver */
+       retiene — no hay devolución pendiente. v29: los importes/pendientes los
+       calcula fmtPendientes; aquí solo queda la regla de la fila "devuelto". */
     const isWaiverOpt = String(depOpt) === '1';
-    const waverCob    = isTruthy(r['TaBookings2021_Deposit_waver_cobrado']);
     const showDevuelto = !isWaiverOpt || devuelto; /* devuelto histórico se sigue mostrando */
     const hasCobro  = !!(txId || r['Ta_payments_Transactiaon_date']);
     const headBg    = hasCobro ? '#1e9e4e' : '#e07b00';
@@ -913,12 +950,7 @@ function renderCards(){
       <div class="ficha-box2">
         <div class="ficha-box-title">Otros importes de la reserva</div>
         ${depOptLbl ? `<div class="ficha-row"><span class="ficha-lbl">El cliente ha seleccionado</span><span class="ficha-val">${esc(depOptLbl)}</span></div>` : ''}
-        <div class="ficha-row"><span class="ficha-lbl">Importe depósito</span><span class="ficha-val money">${depEUR != null ? fmtEUR(depEUR) : '—'}</span></div>
-        <div class="ficha-row"><span class="ficha-lbl">Deposit waver</span><span class="ficha-val money">${waverEUR != null ? fmtEUR(waverEUR) : '—'}</span></div>
-        ${isWaiverOpt ? `<div class="ficha-row">
-          <span class="ficha-lbl">Waiver cobrado</span>
-          <span class="bdg ${waverCob ? 'b-ok' : 'b-no'}">${waverCob ? '✓ Cobrado' : '✗ Pendiente'}</span>
-        </div>` : ''}
+        ${fmtPendientes(r)}
         ${showDevuelto ? `<div class="ficha-row">
           <span class="ficha-lbl">Depósito devuelto</span>
           <span class="bdg ${devuelto ? 'b-ok' : 'b-no'}">${devuelto ? '✓ Devuelto' : '✗ Pendiente'}</span>
@@ -976,7 +1008,7 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v28 - Ficha (BOX 2 'Otros importes'), caso waiver (caso real reserva 58812697): con Security_deposit_options=1 (waiver) la fila 'Deposito devuelto: X Pendiente' se pintaba siempre y hacia parecer que los 900 EUR estaban pendientes de devolver — con waiver el deposito NO se cobra ni se retiene, no hay devolucion. AHORA: (a) la fila 'Deposito devuelto' solo se muestra si la opcion NO es waiver, o si el deposito consta como devuelto (historico, p. ej. se cobro antes de cambiar a waiver — no se pierde informacion); (b) con waiver seleccionado se muestra en su lugar la fila 'Waiver cobrado' con badge Cobrado/Pendiente segun Deposit_waver_cobrado — lo que realmente esta pendiente en ese caso. Los importes informativos (Importe deposito y Deposit waver) se siguen mostrando igual. La tabla/listado y sus filtros de 'Deposito devuelto' NO se tocan. Sin llamadas API nuevas. RETROFIT obligatorio en esta misma version: anadido el favicon estandar al <head> (no habia ninguno); el spinner ya era el estandar (img base64) y no se toca. | v27 - Fix botón volver: window.history.back(); spinner corazón 3Villas igual que entradas-equipo | v26 - Botón Volver fijo abajo izquierda (history.back()) | v25 - Fichas rediseñadas: cabecera con código gris+copiar; box0 resumen reserva; box1 verde cobro Stripe con copiar txId; box2 gris otros importes | v24 - Cobros default Todos; orden pills Todos/Con/Sin; vista default fichas; selector vista en filtros antes de Buscar; sin iconos en título y botón | v23 - Parámetro URL ?code=RESERVA: precarga el código, quita filtro fechas y cobros, abre vista fichas | v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v29 - Ficha, BOX 2 'Otros importes' rediseñado a IMPORTES PENDIENTES (pedido por Jordi): fuera las filas informativas fijas 'Importe deposito' y 'Deposit waver' (y la fila 'Waiver cobrado' de la v28, absorbida por la nueva logica). Nueva fmtPendientes(r): (a) Ecotasa pendiente con su importe (Ecotasa_final>0 y no cobrada); (b) segun Security_deposit_options del paso 3 de checkin-pasos: opcion 1 -> Waiver pendiente; opcion 2 -> Deposito y Gastos tarjeta pendientes; opcion 3 -> Deposito (transferencia) pendiente; opcion 4 (airbnb) -> nada; (c) si NO hay opcion seleccionada (0/vacio) -> aviso ambar 'Todavia no se ha seleccionado ninguna opcion en checkin-pasos'; (d) Extras pendientes: Upselling1-3 con importe >0 y no cobrados, con su texto (Upselling*_text) e importe; (e) si no hay nada pendiente -> 'OK Nada pendiente'. Comprobaciones de cobrado con isTruthy (robusto con booleanos) y defensivas: si la vista Vi_bookingsall_and_paymen_editb no trae algun campo, esa linea no se muestra (si faltan lineas, anadir a la vista: Ecotasa_final, Ecotasa_cobrada, Deposit_waver_EUR/cobrado, Security_deposit_EUR/cobrado, Gasto_tarjeta_deposito_seguridad/Gasto_tarjeta_dep_seguri_cobrado, Upselling1-3_EUR/_cobrado/_text). Se mantienen la fila 'El cliente ha seleccionado', la regla v28 de 'Deposito devuelto' y los comentarios de devolucion. Limpieza: consts huerfanas depEUR, waverEUR y waverCob eliminadas de la ficha (la tabla no se toca). | v28 - Ficha (BOX 2 'Otros importes'), caso waiver (caso real reserva 58812697): con Security_deposit_options=1 (waiver) la fila 'Deposito devuelto: X Pendiente' se pintaba siempre y hacia parecer que los 900 EUR estaban pendientes de devolver — con waiver el deposito NO se cobra ni se retiene, no hay devolucion. AHORA: (a) la fila 'Deposito devuelto' solo se muestra si la opcion NO es waiver, o si el deposito consta como devuelto (historico, p. ej. se cobro antes de cambiar a waiver — no se pierde informacion); (b) con waiver seleccionado se muestra en su lugar la fila 'Waiver cobrado' con badge Cobrado/Pendiente segun Deposit_waver_cobrado — lo que realmente esta pendiente en ese caso. Los importes informativos (Importe deposito y Deposit waver) se siguen mostrando igual. La tabla/listado y sus filtros de 'Deposito devuelto' NO se tocan. Sin llamadas API nuevas. RETROFIT obligatorio en esta misma version: anadido el favicon estandar al <head> (no habia ninguno); el spinner ya era el estandar (img base64) y no se toca. | v27 - Fix botón volver: window.history.back(); spinner corazón 3Villas igual que entradas-equipo | v26 - Botón Volver fijo abajo izquierda (history.back()) | v25 - Fichas rediseñadas: cabecera con código gris+copiar; box0 resumen reserva; box1 verde cobro Stripe con copiar txId; box2 gris otros importes | v24 - Cobros default Todos; orden pills Todos/Con/Sin; vista default fichas; selector vista en filtros antes de Buscar; sin iconos en título y botón | v23 - Parámetro URL ?code=RESERVA: precarga el código, quita filtro fechas y cobros, abre vista fichas | v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
   <button class="btn-back" onclick="window.history.back()">← Volver</button>
 </body>
 </html>
