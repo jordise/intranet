@@ -1,4 +1,19 @@
-/* checkin-auth.js v19 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v21 — Autenticación huéspedes 3Villas
+   CAMBIOS v21 (sobre v20):
+   - lbl_alt_code ("Código especial de acceso") traducido a los 5 idiomas que
+     faltaban (es/fr/nl/pt/ca); desde la v10 solo existía en en/de/it y el resto
+     veía el label en inglés en la pantalla del código alternativo.
+   CAMBIOS v20 (sobre v19):
+   - Modo directo (reserva sin email, entrada del código alternativo): el placeholder
+     pasa de 5 puntos a una fila LLENA de puntos (el código tiene 8-11 dígitos y los
+     5 puntos hacían esperar un código de 5). El modo OTP por email mantiene sus 5.
+   - Botón "i" azul junto al label del código (solo en modo directo) que abre un
+     popup explicando que, al no tener su email, deberían haber recibido el código
+     junto al link; disculpas si no, y botón verde de WhatsApp (mismo número del pie,
+     +34 659 93 34 34) con mensaje pre-rellenado pidiendo el código al equipo, con
+     el código de reserva incluido. Todo traducido a los 8 idiomas.
+   - Limpieza: los 3 bloques duplicados que montaban el modo directo usan ahora la
+     helper _pinDirectUI(on).
    Flujo huésped:
    1. checkin-online: URL tiene ?reserva=XXXXXXXX (o ?TaBookings2021_FS_confirmation_code= / ?FS_confirmation_code= / ?code=)
       → pantalla verificación email → PIN → sesión guardada en localStorage (15 días) → onVerified(booking)
@@ -74,6 +89,10 @@ const CheckinAuth = (function(){
       err_send:'Could not send the code. Please try again or contact us.',
       no_email_check:'I don\'t have access to the booking email',
       no_email_hint:'Enter the code we sent you by email or WhatsApp.',
+      code_info_title:'About your access code',
+      code_info_txt:'Since we don\u2019t have your email address, you should have received an access code together with this link. If you didn\u2019t, we apologise. Please use this button to request your code from the 3Villas team.',
+      code_info_wa:'Request my code via WhatsApp',
+      code_info_wa_msg:'Hello, we have booking {code} and we kindly ask you to send us the code to access the online check-in.',
       err_locked:'Access blocked. Try again in {mins} minute{s}.',
       lbl_alt_code:'Special access code',
       err_code:'Please enter the full code.',
@@ -98,6 +117,11 @@ const CheckinAuth = (function(){
       no_email:'\u00bfNo lo has recibido? Revisa el spam o cont\u00e1ctanos en',
       no_email_check:'No tengo acceso al email de la reserva',
       no_email_hint:'Introduce el c\u00f3digo que te hemos enviado por email o WhatsApp.',
+      code_info_title:'Sobre tu c\u00f3digo de acceso',
+      code_info_txt:'Al no tener tu email, junto a este enlace deber\u00edas haber recibido un c\u00f3digo para introducirlo aqu\u00ed. Si no es as\u00ed, te pedimos disculpas. Por favor, usa este bot\u00f3n para pedir tu c\u00f3digo al equipo de 3Villas.',
+      code_info_wa:'Pedir mi c\u00f3digo por WhatsApp',
+      code_info_wa_msg:'Hola, tenemos la reserva {code} y solicitamos nos env\u00eden por favor el c\u00f3digo para poder entrar al check-in online.',
+      lbl_alt_code:'C\u00f3digo especial de acceso',
       verified:'\u00a1Verificado!', loading:'Cargando tu check-in\u2026',
       need_help:'\u00bfNecesitas ayuda?',
       err_email:'Por favor, introduce un email v\u00e1lido.',
@@ -125,6 +149,11 @@ const CheckinAuth = (function(){
       no_email:"Vous ne l\u2019avez pas re\u00e7u ? V\u00e9rifiez les spams ou contactez-nous :",
       no_email_check:"Je n'ai pas acc\u00e8s \u00e0 l'e-mail de r\u00e9servation",
       no_email_hint:'Entrez le code que nous vous avons envoy\u00e9 par e-mail ou WhatsApp.',
+      code_info_title:'\u00c0 propos de votre code d\u2019acc\u00e8s',
+      code_info_txt:'Comme nous n\u2019avons pas votre adresse e-mail, vous devriez avoir re\u00e7u un code d\u2019acc\u00e8s avec ce lien. Si ce n\u2019est pas le cas, veuillez nous excuser. Utilisez ce bouton pour demander votre code \u00e0 l\u2019\u00e9quipe 3Villas.',
+      code_info_wa:'Demander mon code par WhatsApp',
+      code_info_wa_msg:'Bonjour, nous avons la r\u00e9servation {code} et nous vous prions de bien vouloir nous envoyer le code pour acc\u00e9der au check-in en ligne.',
+      lbl_alt_code:'Code d\u2019acc\u00e8s sp\u00e9cial',
       verified:'V\u00e9rifi\u00e9 !', loading:'Chargement de votre check-in\u2026',
       need_help:"Besoin d\u2019aide ?",
       err_email:'Veuillez entrer une adresse e-mail valide.',
@@ -157,6 +186,10 @@ const CheckinAuth = (function(){
       err_send:'Code konnte nicht gesendet werden. Bitte erneut versuchen oder uns kontaktieren.',
       no_email_check:'Ich habe keinen Zugriff auf die Buchungs-E-Mail',
       no_email_hint:'Geben Sie den Code ein, den wir Ihnen per E-Mail oder WhatsApp gesendet haben.',
+      code_info_title:'Zu Ihrem Zugangscode',
+      code_info_txt:'Da wir Ihre E-Mail-Adresse nicht haben, sollten Sie zusammen mit diesem Link einen Zugangscode erhalten haben. Falls nicht, bitten wir um Entschuldigung. Bitte fordern Sie Ihren Code \u00fcber diese Schaltfl\u00e4che beim 3Villas-Team an.',
+      code_info_wa:'Code per WhatsApp anfordern',
+      code_info_wa_msg:'Hallo, wir haben die Buchung {code} und bitten Sie, uns den Code f\u00fcr den Online-Check-in zuzusenden.',
       err_locked:'Zugang gesperrt. Versuchen Sie es in {mins} Minute{s} erneut.',
       lbl_alt_code:'Sonderzugangscode',
       err_code:'Bitte geben Sie den vollst\u00e4ndigen Code ein.',
@@ -186,6 +219,10 @@ const CheckinAuth = (function(){
       err_send:'Impossibile inviare il codice. Riprova o contattaci.',
       no_email_check:"Non ho accesso all\'email della prenotazione",
       no_email_hint:'Inserisci il codice che ti abbiamo inviato via email o WhatsApp.',
+      code_info_title:'Sul tuo codice di accesso',
+      code_info_txt:'Non avendo la tua email, insieme a questo link dovresti aver ricevuto un codice da inserire qui. In caso contrario, ci scusiamo. Usa questo pulsante per richiedere il codice al team 3Villas.',
+      code_info_wa:'Richiedi il mio codice via WhatsApp',
+      code_info_wa_msg:'Ciao, abbiamo la prenotazione {code} e vi chiediamo gentilmente di inviarci il codice per accedere al check-in online.',
       err_locked:'Accesso bloccato. Riprova tra {mins} minuto{s}.',
       lbl_alt_code:'Codice speciale di accesso',
       err_code:'Inserisci il codice completo.',
@@ -210,6 +247,11 @@ const CheckinAuth = (function(){
       no_email:'Niet ontvangen? Controleer spam of neem contact op:',
       no_email_check:'Ik heb geen toegang tot het boekings-e-mailadres',
       no_email_hint:'Voer de code in die wij u per e-mail of WhatsApp hebben gestuurd.',
+      code_info_title:'Over uw toegangscode',
+      code_info_txt:'Omdat we uw e-mailadres niet hebben, zou u samen met deze link een toegangscode moeten hebben ontvangen. Zo niet, dan bieden wij onze excuses aan. Gebruik deze knop om uw code op te vragen bij het 3Villas-team.',
+      code_info_wa:'Mijn code aanvragen via WhatsApp',
+      code_info_wa_msg:'Hallo, wij hebben boeking {code} en verzoeken u vriendelijk ons de code te sturen om de online check-in te kunnen starten.',
+      lbl_alt_code:'Speciale toegangscode',
       verified:'Geverifieerd!', loading:'Check-in wordt geladen\u2026',
       need_help:'Hulp nodig?',
       err_email:'Voer een geldig e-mailadres in.',
@@ -237,6 +279,11 @@ const CheckinAuth = (function(){
       no_email:'N\u00e3o recebeu? Verifique o spam ou contacte-nos:',
       no_email_check:'N\u00e3o tenho acesso ao email de reserva',
       no_email_hint:'Introduza o c\u00f3digo que lhe envi\u00e1mos por email ou WhatsApp.',
+      code_info_title:'Sobre o seu c\u00f3digo de acesso',
+      code_info_txt:'Como n\u00e3o temos o seu email, dever\u00e1 ter recebido um c\u00f3digo de acesso juntamente com este link. Caso contr\u00e1rio, pedimos desculpa. Use este bot\u00e3o para pedir o seu c\u00f3digo \u00e0 equipa 3Villas.',
+      code_info_wa:'Pedir o meu c\u00f3digo por WhatsApp',
+      code_info_wa_msg:'Ol\u00e1, temos a reserva {code} e solicitamos que nos enviem o c\u00f3digo para aceder ao check-in online.',
+      lbl_alt_code:'C\u00f3digo especial de acesso',
       verified:'Verificado!', loading:'A carregar o check-in\u2026',
       need_help:'Precisa de ajuda?',
       err_email:'Por favor, introduza um email v\u00e1lido.',
@@ -264,6 +311,11 @@ const CheckinAuth = (function(){
       no_email:"No l\u2019has rebut? Revisa l\u2019spam o contacta\u2019ns a",
       no_email_check:"No tinc acc\u00e9s a l'email de la reserva",
       no_email_hint:"Introdueix el codi que t'hem enviat per correu electr\u00f2nic o WhatsApp.",
+      code_info_title:"Sobre el teu codi d'acc\u00e9s",
+      code_info_txt:"Com que no tenim el teu email, juntament amb aquest enlla\u00e7 hauries d'haver rebut un codi per introduir-lo aqu\u00ed. Si no \u00e9s aix\u00ed, et demanem disculpes. Fes servir aquest bot\u00f3 per demanar el teu codi a l'equip de 3Villas.",
+      code_info_wa:'Demanar el meu codi per WhatsApp',
+      code_info_wa_msg:'Hola, tenim la reserva {code} i us demanem que ens envieu el codi per poder entrar al check-in online.',
+      lbl_alt_code:"Codi especial d'acc\u00e9s",
       verified:'Verificat!', loading:"Carregant el check-in\u2026",
       need_help:'Necessites ajuda?',
       err_email:'Si us plau, introdueix un email v\u00e0lid.',
@@ -300,6 +352,8 @@ const CheckinAuth = (function(){
       el.textContent=_t(el.getAttribute('data-ca-i18n'));
     });
     document.querySelectorAll('[data-ca-ph]').forEach(function(el){
+      /* v20: en modo directo el placeholder de caPin es la fila llena de puntos */
+      if(el.id==='caPin' && _directPin){ el.placeholder=CA_DIRECT_DOTS; return; }
       el.placeholder=_t(el.getAttribute('data-ca-ph'));
     });
   }
@@ -518,6 +572,13 @@ const CheckinAuth = (function(){
     .ca-title{font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;
       color:#C8102E;text-align:center;margin-bottom:6px}
     .ca-sub{font-size:13px;color:#868e96;text-align:center;margin-bottom:22px;line-height:1.5}
+    .ca-info-i{display:none;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:none;background:#1967d2;color:#fff;font-size:11px;font-weight:900;font-family:Georgia,serif;font-style:italic;cursor:pointer;flex-shrink:0}
+    .ca-cinfo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:none;align-items:center;justify-content:center;padding:20px}
+    .ca-cinfo-box{background:#fff;border-radius:14px;max-width:340px;width:100%;padding:18px 18px 16px;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .ca-cinfo-x{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:none;background:#f1f3f5;color:#495057;font-size:15px;cursor:pointer;line-height:1}
+    .ca-cinfo-title{font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;margin-bottom:8px;color:#212529;padding-right:26px}
+    .ca-cinfo-txt{font-size:13px;line-height:1.55;color:#495057;margin-bottom:14px}
+    .ca-cinfo-wa{width:100%;border:none;border-radius:10px;background:#25d366;color:#fff;font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
     .ca-lbl{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;
       text-transform:uppercase;letter-spacing:.5px;color:#495057;display:block;margin-bottom:5px}
     .ca-inp{width:100%;padding:11px 14px;border:1.5px solid #dee2e6;border-radius:10px;
@@ -593,7 +654,10 @@ const CheckinAuth = (function(){
           <div class="ca-title" data-ca-i18n="title_pin">Check your email</div>
           <div class="ca-sub" id="caPinSub"></div>
           <div class="ca-err" id="caErrPin"></div>
-          <label class="ca-lbl" data-ca-i18n="lbl_pin">Access code</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label class="ca-lbl" data-ca-i18n="lbl_pin" style="margin-bottom:0">Access code</label>
+            <button type="button" class="ca-info-i" id="caPinInfoBtn" onclick="CheckinAuth._codeInfo(true)">i</button>
+          </div>
           <input class="ca-inp pin" id="caPin" type="text" inputmode="numeric"
                  maxlength="30" data-ca-ph="ph_pin" placeholder="&middot; &middot; &middot; &middot; &middot;" autocomplete="one-time-code">
           <button class="ca-btn" id="caBtnPin" onclick="CheckinAuth._verify()">Verify code</button>
@@ -602,6 +666,14 @@ const CheckinAuth = (function(){
           <div class="ca-contact">
             <span data-ca-i18n="no_email">Didn't receive it? Check spam or contact us at</span>
             <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">+34 659 93 34 34</a>
+          </div>
+          <div class="ca-cinfo" id="caCodeInfo">
+            <div class="ca-cinfo-box">
+              <button type="button" class="ca-cinfo-x" onclick="CheckinAuth._codeInfo(false)">&times;</button>
+              <div class="ca-cinfo-title" data-ca-i18n="code_info_title">About your access code</div>
+              <div class="ca-cinfo-txt" data-ca-i18n="code_info_txt"></div>
+              <button type="button" class="ca-cinfo-wa" onclick="CheckinAuth._waCode()">&#x1F4AC; <span data-ca-i18n="code_info_wa">Request my code via WhatsApp</span></button>
+            </div>
           </div>
         </div>
         <div id="caStepOk" style="display:none">
@@ -646,8 +718,7 @@ const CheckinAuth = (function(){
           /* Sin email: pre-marcar checkbox e ir directamente al PIN */
           const cb = document.getElementById('caNoEmail');
           if(cb){ cb.checked = true; _noEmailMode = true; }
-          const lbl = document.querySelector('#caStepPin .ca-lbl');
-          if(lbl) lbl.textContent = _t('lbl_alt_code');
+          _pinDirectUI(true);
           document.getElementById('caPinSub').textContent = _t('no_email_hint');
           step('Pin');
         }
@@ -675,6 +746,31 @@ const CheckinAuth = (function(){
   }
 
   let _code='', _email='', _att=0, _cb=null;
+  let _directPin=false; /* v20: true = entrada directa del código alternativo (sin email) */
+  const CA_DIRECT_DOTS='\u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7';
+
+  /* v20: UI del paso PIN según el modo. Modo directo (sin email): label de código
+     alternativo, placeholder LLENO de puntos (el código puede tener 8-11 dígitos;
+     los 5 puntos del OTP despistaban) y botón "i" de info visible. Modo email:
+     restaura el placeholder de 5 puntos (OTP real de 5 dígitos) y oculta la "i". */
+  function _pinDirectUI(on){
+    _directPin = !!on;
+    const lbl = document.querySelector('#caStepPin .ca-lbl');
+    if(lbl) lbl.textContent = _t(on ? 'lbl_alt_code' : 'lbl_pin');
+    const inp = document.getElementById('caPin');
+    if(inp) inp.placeholder = on ? CA_DIRECT_DOTS : _t('ph_pin');
+    const ib = document.getElementById('caPinInfoBtn');
+    if(ib) ib.style.display = on ? 'inline-flex' : 'none';
+    if(!on) _codeInfo(false);
+  }
+  function _codeInfo(show){
+    const p = document.getElementById('caCodeInfo');
+    if(p) p.style.display = show ? 'flex' : 'none';
+  }
+  function _waCode(){
+    const msg = _t('code_info_wa_msg', {code:_code||''});
+    window.open('https://api.whatsapp.com/send?phone=34659933434&text='+encodeURIComponent(msg), '_blank');
+  }
 
   let _noEmailMode = false;
 
@@ -682,8 +778,7 @@ const CheckinAuth = (function(){
     _noEmailMode = document.getElementById('caNoEmail').checked;
     if(_noEmailMode){
       /* Ir directamente al paso PIN con el label de código especial */
-      const lbl = document.querySelector('#caStepPin .ca-lbl');
-      if(lbl) lbl.textContent = _t('lbl_alt_code');
+      _pinDirectUI(true);
       document.getElementById('caPinSub').textContent = _t('no_email_hint');
       step('Pin');
     } else {
@@ -696,9 +791,8 @@ const CheckinAuth = (function(){
     noErr('caErrEmail');
     /* Modo sin email: saltar directamente al paso PIN */
     if(_noEmailMode){
+      _pinDirectUI(true);
       document.getElementById('caPinSub').textContent = _t('no_email_hint');
-      const lbl = document.querySelector('#caStepPin .ca-lbl');
-      if(lbl) lbl.textContent = _t('lbl_alt_code');
       step('Pin');
       return;
     }
@@ -708,6 +802,7 @@ const CheckinAuth = (function(){
     try {
       await wPost('send-checkin-code', { bookingCode:_code, email });
       _email = email;
+      _pinDirectUI(false); /* v20: modo OTP por email — 5 puntos y sin botón "i" */
       document.getElementById('caPinSub').textContent = _t('sent',{email:email});
       step('Pin');
     } catch(e){
@@ -929,6 +1024,8 @@ const CheckinAuth = (function(){
     _verify: () => verify(),
     _back:   () => back(),
     _toggleNoEmail: () => _toggleNoEmail(),
+    _codeInfo: (v) => _codeInfo(v),
+    _waCode:   () => _waCode(),
     _setLang: (l) => _setLang(l),
     _refreshLang: () => { if(document.getElementById('caOverlay')) _refreshOverlay(); },
 
@@ -940,4 +1037,4 @@ const CheckinAuth = (function(){
 
 })();
 
-/* HISTORIAL: v19 - Fix de seguridad/UX: a un huésped CON email NUNCA debe ofrecérsele el código alternativo. El overlay activaba el modo sin-email (pre-marcar caNoEmail + saltar al PIN con código alternativo 5+code+7) si (hasEmail===false || !j.hint). El "|| !j.hint" era un fallback para Workers antiguos, pero hacía que una reserva CON email cayera en el modo alternativo cuando el Worker no devolvía hint (versión antigua, email sin máscara, etc.). Aunque el Worker rechaza el alternativo en reservas con email (no es bypass real), confundía al huésped. Ahora el modo sin-email solo se activa con hasEmail===false EXPLÍCITO; si hasEmail no viene definido se asume que SÍ hay email (lo seguro: pedir email). El fallback "sin respuesta del Worker" sigue mostrando el checkbox desmarcado (no pre-marca, no entra en modo alternativo) para no bloquear al huésped si checkin-hint cae. | v18 - Fix: en reservas SIN email, el overlay pre-marca el checkbox "No tengo acceso al email de la reserva" (caNoEmail) y va directo al PIN. Al pulsar "Usar otro email" (back()) se volvía al paso Email pero el checkbox seguía marcado y _noEmailMode=true, así que al introducir un email (p.ej. @3villas.com) NO se enviaba el código (send() saltaba al PIN por el modo sin-email). Ahora back() desmarca caNoEmail, pone _noEmailMode=false, limpia el campo de email y el error, de modo que "Usar otro email" funciona como un envío normal de código por email. | v17 - Auto-refresh simple y estable en loadBookingData: antes, si había caché, devolvía el caché y NO consultaba Caspio (los cambios hechos fuera no se veían). Ahora intenta SIEMPRE traer lo último de Caspio (solo corre en el arranque, no en la navegación entre pasos), con credencial en orden: token de check-in (JWT, sirve en reservas con y sin email vía Worker v43+), luego PIN de sesión, luego código alternativo 5+code+7; si todo falla, usa el caché como respaldo (no rompe la experiencia) y NO borra la sesión aquí. Esto arregla la lentitud y la expulsión al overlay de email que causaba el arranque alternativo de checkin-pasos v56 (que se saltaba init). | v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
+/* HISTORIAL: v21 - i18n: lbl_alt_code (label del código alternativo en el paso PIN, usado por _pinDirectUI) añadido en es ('C\u00f3digo especial de acceso'), fr ('Code d\u2019acc\u00e8s sp\u00e9cial'), nl ('Speciale toegangscode'), pt ('C\u00f3digo especial de acesso') y ca ("Codi especial d'acc\u00e9s"). Desde la v10 solo existía en en/de/it y los demás idiomas caían al fallback inglés en la propia pantalla del código. Sin más cambios. | v20 - UX del código alternativo (modo sin email): (1) el placeholder del input pasa de 5 puntos (\u00b7 x5, correcto solo para el OTP de email) a una fila llena de 12 puntos SOLO en modo directo — los huéspedes esperaban un código de 5 dígitos cuando el alternativo tiene 8-11; el modo OTP por email conserva sus 5 puntos (ph_pin) y el cambio de idioma respeta el modo (_applyOverlayTexts). (2) Nuevo botón "i" azul (caPinInfoBtn, visible solo en modo directo) junto al label: abre el popup caCodeInfo que explica que al no tener su email deberían haber recibido un código junto al link, pide disculpas si no es así, y ofrece un botón verde de WhatsApp al mismo número del pie (34659933434) con mensaje pre-rellenado (code_info_wa_msg, incluye el código de reserva) pidiendo el código al equipo. 4 claves i18n nuevas (code_info_title/txt/wa/wa_msg) en los 8 idiomas. (3) Limpieza: los 3 bloques duplicados que montaban el modo directo (checkin-hint sin email, back() y send() en modo sin email) usan la nueva helper _pinDirectUI(on), que también restaura el modo email (ruta 'sent'). API pública: _codeInfo y _waCode. | v19 - Fix de seguridad/UX: a un huésped CON email NUNCA debe ofrecérsele el código alternativo. El overlay activaba el modo sin-email (pre-marcar caNoEmail + saltar al PIN con código alternativo 5+code+7) si (hasEmail===false || !j.hint). El "|| !j.hint" era un fallback para Workers antiguos, pero hacía que una reserva CON email cayera en el modo alternativo cuando el Worker no devolvía hint (versión antigua, email sin máscara, etc.). Aunque el Worker rechaza el alternativo en reservas con email (no es bypass real), confundía al huésped. Ahora el modo sin-email solo se activa con hasEmail===false EXPLÍCITO; si hasEmail no viene definido se asume que SÍ hay email (lo seguro: pedir email). El fallback "sin respuesta del Worker" sigue mostrando el checkbox desmarcado (no pre-marca, no entra en modo alternativo) para no bloquear al huésped si checkin-hint cae. | v18 - Fix: en reservas SIN email, el overlay pre-marca el checkbox "No tengo acceso al email de la reserva" (caNoEmail) y va directo al PIN. Al pulsar "Usar otro email" (back()) se volvía al paso Email pero el checkbox seguía marcado y _noEmailMode=true, así que al introducir un email (p.ej. @3villas.com) NO se enviaba el código (send() saltaba al PIN por el modo sin-email). Ahora back() desmarca caNoEmail, pone _noEmailMode=false, limpia el campo de email y el error, de modo que "Usar otro email" funciona como un envío normal de código por email. | v17 - Auto-refresh simple y estable en loadBookingData: antes, si había caché, devolvía el caché y NO consultaba Caspio (los cambios hechos fuera no se veían). Ahora intenta SIEMPRE traer lo último de Caspio (solo corre en el arranque, no en la navegación entre pasos), con credencial en orden: token de check-in (JWT, sirve en reservas con y sin email vía Worker v43+), luego PIN de sesión, luego código alternativo 5+code+7; si todo falla, usa el caché como respaldo (no rompe la experiencia) y NO borra la sesión aquí. Esto arregla la lentitud y la expulsión al overlay de email que causaba el arranque alternativo de checkin-pasos v56 (que se saltaba init). | v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
