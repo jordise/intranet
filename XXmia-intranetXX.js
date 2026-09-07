@@ -188,7 +188,22 @@ const T = {
   retry     :'Reintentar',                                          /* J2 */
   payFail   :'No he podido leer los pagos.',                         /* J2 */
   /* J1 */
-  ctxChip   :'Usando esta reserva'   /* chip de la reserva abierta en la página */
+  ctxChip   :'Usando esta reserva',   /* chip de la reserva abierta en la página */
+  /* J3 — Avisar de un fallo. Mia no envía nada: el aviso lo copia o lo abre
+     en WhatsApp la propia persona, y elige ella el chat. */
+  rptOpen   :'Avisar de un fallo',
+  rptTitle  :'Posible fallo de Mia',
+  rptPage   :'Página:',
+  rptQ      :'Pregunta:',
+  rptChips  :'Filtros:',
+  rptLink   :'Enlace:',
+  rptNone   :'ninguno',
+  rptExpect :'Esperaba:',
+  rptGot    :'Salió:',
+  rptCopy   :'Copiar',
+  rptCopied :'Copiado',
+  rptWa     :'Abrir WhatsApp',
+  rptLabel  :'Texto del aviso'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -557,11 +572,32 @@ body.easy .mia-panel .mia-btn,
 body.easy .mia-panel .mcard-h .mia-t,
 body.easy .mia-go{text-transform:none;letter-spacing:0}
 .mia-panel .mia-retry{margin-top:8px}
+
+/* ── J3: Avisar de un fallo. Todo cuelga de .mia-panel y nada toca la página.
+   El cuadro es de teléfono: ancho completo, seis líneas, letra de 16 px (por
+   debajo de 16 el navegador del móvil hace zoom al escribir) y los dos
+   botones van en .mia-btns, que ya se reparte en varias líneas. ── */
+.mia-panel .mia-report{margin-top:6px;padding:6px 2px;min-height:44px;border:none;background:none;font-family:inherit;font-size:13px;color:var(--mia-muted);text-decoration:underline;cursor:pointer}
+.mia-panel .mia-rbox{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.mia-panel .mia-rta{width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--gray-2,#e8eaed);border-radius:8px;background:#fff;color:var(--gray-5,#2d3142);font-family:inherit;font-size:16px;line-height:1.4;resize:vertical}
+.mia-panel .mia-report:focus-visible,
+.mia-panel .mia-rta:focus-visible{outline:2px solid #9e0c24;outline-offset:2px}
+body.dark .mia-panel .mia-report{color:#c9cdd8!important}
+body.dark .mia-panel .mia-rta{background:#1e1e26;border-color:rgba(255,255,255,.20);color:#fff!important}
+body.dark .mia-panel .mia-report:focus-visible,
+body.dark .mia-panel .mia-rta:focus-visible{outline-color:#ff9fae}
+body.easy .mia-panel .mia-report,
+body.easy .mia-panel .mia-rta{font-family:'Atkinson Hyperlegible','Open Sans',sans-serif}
+body.easy .mia-panel .mia-report{font-size:15px}
+body.easy .mia-panel .mia-rta{font-size:18px}
 `;
 
 /* ════════════════ ESTADO DEL MÓDULO ════════════════ */
 let ROW=null, PANEL=null, BODY=null, INPUT=null, AABTN=null, ANCHOR=null;
-let ST={ q:'' };
+/* shareHref y shareChips (J3) los pone cada respuesta y solo sirven para el
+   texto del aviso de fallo: el enlace de filtros y los chips que se ven. */
+let ST={ q:'', shareHref:'', shareChips:[] };
+let RPT=null;           // J3: aviso de fallo abierto ahora mismo, si lo hay
 let USERS=null;         // mapa UserID → Name (solo como último recurso, para la ficha)
 let USERS_FAIL=false;   // J2: true si el último intento de leer TaUsers falló
 let downShown=false;
@@ -709,12 +745,27 @@ function mount(){
    evento antes de que suba, y solo hace algo con el panel abierto: con el
    panel cerrado no se toca el Escape de la pagina. */
 let ESCH=null;
+/* J3: cierra el cuadro del aviso de fallo si está abierto. Devuelve true solo
+   cuando ha cerrado algo, para que el Escape no siga hasta el panel. */
+function closeReport(){
+  if(!RPT)return false;
+  const r=RPT; RPT=null;
+  if(r.box&&r.box.parentNode)r.box.parentNode.removeChild(r.box);
+  if(r.btn){
+    r.btn.setAttribute('aria-expanded','false');
+    try{ r.btn.focus(); }catch(e){}
+  }
+  return true;
+}
 function bindEsc(){
   if(ESCH)return;
   ESCH=function(ev){
     if(ev.key!=='Escape'&&ev.key!=='Esc')return;
     if(!PANEL||!PANEL.classList.contains('show'))return;
     ev.stopPropagation();
+    /* J3: con el aviso de fallo abierto, el primer Escape solo cierra el
+       aviso. El siguiente cierra el panel, como siempre. */
+    if(FEAT.report&&closeReport())return;
     closePanel();
   };
   document.addEventListener('keydown',ESCH,true);
@@ -746,7 +797,7 @@ function closePanel(){
     unbindEsc();
   }
 }
-function clearPanel(){ if(BODY)BODY.textContent=''; }
+function clearPanel(){ if(BODY)BODY.textContent=''; RPT=null; /* J3 */ }
 
 function panelHead(){
   const top=E('div','mia-top');
@@ -761,6 +812,77 @@ function panelHead(){
   top.appendChild(x);
   return top;
 }
+/* ── J3: AVISAR DE UN FALLO ──
+   El texto sale de CUATRO cosas y de ninguna más: la página, la pregunta que
+   se escribió, los chips de esta respuesta y el enlace de filtros. Nunca de
+   una fila leída de Caspio: ahí van nombres de inquilinos. Mia no manda nada
+   ni guarda nada; la persona copia el texto o lo abre en WhatsApp y elige
+   ella el chat, por eso el enlace de WhatsApp no lleva ningún número. */
+function reportText(){
+  const ch=(ST.shareChips||[]).filter(Boolean).join(', ');
+  return [
+    T.rptTitle,
+    T.rptPage+' '+curPage(),
+    T.rptQ+' '+String(ST.q||''),
+    T.rptChips+' '+(ch||T.rptNone),
+    T.rptLink+' '+(ST.shareHref||'-'),
+    T.rptExpect,
+    T.rptGot
+  ].join('\n');
+}
+function waHref(txt){ return 'https://wa.me/?text='+encodeURIComponent(String(txt==null?'':txt)); }
+function reportBox(){
+  const box=E('div','mia-rbox');
+  const ta=document.createElement('textarea');
+  ta.className='mia-rta'; ta.rows=6;
+  ta.setAttribute('aria-label',T.rptLabel);
+  ta.value=reportText();
+  box.appendChild(ta);
+  const btns=E('div','mia-btns');
+  const cp=E('button','mia-btn',T.rptCopy); cp.type='button';
+  cp.addEventListener('click',function(){
+    const txt=ta.value;
+    const fb=function(){
+      try{ ta.focus(); ta.select(); document.execCommand('copy'); }catch(e){}
+    };
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        const p=navigator.clipboard.writeText(txt);
+        if(p&&p.catch)p.catch(fb);
+      }else fb();
+    }catch(e){ fb(); }
+    cp.textContent=T.rptCopied;
+    setTimeout(function(){ cp.textContent=T.rptCopy; },2000);
+  });
+  btns.appendChild(cp);
+  /* Enlace de verdad, no una ventana abierta por código: así el teléfono abre
+     WhatsApp y ningún bloqueador de ventanas se mete. El destino se recalcula
+     en cada tecla, para que lo que la persona añade viaje también. */
+  const wa=btn(T.rptWa,waHref(ta.value),true);
+  wa.setAttribute('target','_blank');
+  wa.setAttribute('rel','noopener');
+  ta.addEventListener('input',function(){ wa.setAttribute('href',waHref(ta.value)); });
+  btns.appendChild(wa);
+  box.appendChild(btns);
+  return box;
+}
+function reportBlock(){
+  const wrap=E('div','mia-rwrap');
+  const b=E('button','mia-report',T.rptOpen);
+  b.type='button';
+  b.setAttribute('aria-expanded','false');
+  wrap.appendChild(b);
+  b.addEventListener('click',function(){
+    if(RPT){ closeReport(); return; }
+    const box=reportBox();
+    wrap.appendChild(box);
+    RPT={box:box,btn:b};
+    b.setAttribute('aria-expanded','true');
+    const ta=box.querySelector('textarea');
+    if(ta)try{ ta.focus(); }catch(e){}
+  });
+  return wrap;
+}
 function say(node){
   /* El panel puede haberse ido entre la pregunta y la respuesta (Worker caído
      y el usuario cierra el aviso). Entonces no hay dónde escribir: se calla. */
@@ -769,6 +891,7 @@ function say(node){
   BODY.appendChild(panelHead());
   if(node)BODY.appendChild(node);
   BODY.appendChild(E('div','mia-foot',T.onlyRead));
+  if(FEAT.report)BODY.appendChild(reportBlock());   /* J3 */
   openPanel();
 }
 function note(txt){ return E('div','mia-note',txt); }
@@ -797,6 +920,15 @@ function chipText(k,v){
   if(v===true)return lbl;
   if(isDate(v))return lbl+': '+fmtDate(v);
   return lbl+': '+v;
+}
+/* J3: los mismos textos que se ven en los chips, en una lista de cadenas,
+   para el aviso de fallo. Mismo filtro que chipsBlock: lo que no se pinta
+   tampoco se cuenta. */
+function chipTexts(chips){
+  return Object.keys(chips||{}).filter(function(k){
+    const v=chips[k];
+    return v!==''&&v!=null&&v!==false&&!(Array.isArray(v)&&!v.length);
+  }).map(function(k){ return chipText(k,chips[k]); });
 }
 function chipsBlock(chips,filters,onChange){
   const keys=Object.keys(chips||{}).filter(function(k){
@@ -1445,6 +1577,7 @@ function doBookingsLink(b,extraNo,pre){   /* extraNo = data.unmatched; pre = J2,
     const na=noApplyBlock(plan.no);
     if(na)box.appendChild(na);
     const href=link('entradas',plan.params);
+    ST.shareHref=href; ST.shareChips=chipTexts(plan.chips);   /* J3 */
     const btns=E('div','mia-btns');
     if(curPage()===PAGES.entradas){
       const go=E('button','mia-btn mia-primary',T.openEnt); go.type='button';
@@ -1479,6 +1612,9 @@ function readFailNote(fn){
 }
 async function doBookingsCard(b,extraNo){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
+  /* J3: el aviso comparte SIEMPRE el enlace del plan, nunca el de una fila:
+     el de la fila lleva el nombre del inquilino en inq=. */
+  ST.shareHref=link('entradas',plan.params); ST.shareChips=chipTexts(plan.chips);
   /* Sin código: las más recientes primero, para que las cinco que se
      enseñan sean las útiles. */
   const order=(b.code&&String(b.code).trim())?'':F.checkIn+' DESC';
@@ -1525,6 +1661,7 @@ async function doBookingsCard(b,extraNo){
    la consulta de estancia; si la consulta falla, ventana de ±30 días. */
 async function doBookingsStay(b,extraNo){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
+  ST.shareHref=link('entradas',plan.params); ST.shareChips=chipTexts(plan.chips);   /* J3 */
   let rows;
   try{ rows=await fetchBookings(b,MAX_ROWS,F.checkIn+' DESC'); }
   catch(e){
@@ -1580,6 +1717,11 @@ async function doNotes(n,extraNo){
   const chips={};
   if(code)chips[(n&&n.ctxOn)?'ctx':'code']=code;   /* J1: mismo chip que en reservas */
   if(guest)chips.guest=guest;
+  /* J3: con código, el enlace de notas; sin él, el de Entradas con el nombre
+     que se escribió. Los de la lista salen de filas leídas y no se comparten. */
+  ST.shareHref=code?link('notas',{TaBookings2021_FS_confirmation_code:code})
+                   :(guest?link('entradas',bookingsPlan({guest:guest}).params):'');
+  ST.shareChips=chipTexts(chips);
   const again=function(){ doNotes(n,extraNo); };
   const head=function(box){
     const c=chipsBlock(chips,n,again);
@@ -1755,6 +1897,7 @@ async function doTasks(t,extraNo){
     const na=noApplyBlock(plan.no);
     if(na)box.appendChild(na);
     const href=link('tareas',plan.params);
+    ST.shareHref=href; ST.shareChips=chipTexts(plan.chips);   /* J3 */
     const btns=E('div','mia-btns');
     if(curPage()===PAGES.tareas){
       const go=E('button','mia-btn mia-primary',T.openTar); go.type='button';
@@ -1786,6 +1929,7 @@ function doAvailability(a,extraNo){
   if(isDate(a.from)||isDate(a.to))bits.push(fmtDate(a.from)+' → '+fmtDate(a.to));
   if(a.pax)bits.push(a.pax+' plazas');
   if(a.pool)bits.push('piscina');
+  ST.shareHref=link('ocupacion',{}); ST.shareChips=[];   /* J3: Ocupación no admite filtros por enlace */
   box.appendChild(note(T.ocuNote+' '+(bits.join(', ')||'—')));
   const na=noApplyBlock((Array.isArray(a.other)?a.other:[]).map(function(o){ return String(o==null?'':o); }).concat(extraNo||[]));
   if(na)box.appendChild(na);
@@ -1816,6 +1960,7 @@ async function doVilla(v,extraNo){
   }
   if(hits.length===1){
     const id=String(hits[0].id||'');
+    if(isId(id))ST.shareHref=link('villa',{villa_id:id});   /* J3 */
     if(res.guessed)box.appendChild(note(T.guessVilla));
     box.appendChild(note(String(hits[0].name||name)));
     const btns=E('div','mia-btns');
@@ -1993,6 +2138,7 @@ async function onAsk(){
   const q=String(INPUT.value||'').trim().slice(0,300);
   if(!q)return;
   ST.q=q;
+  ST.shareHref=''; ST.shareChips=[];   /* J3: cada pregunta empieza sin enlace ni chips */
   say(note(T.loading));
   let data;
   try{ data=await askWorker(q); }
