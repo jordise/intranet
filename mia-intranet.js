@@ -183,7 +183,10 @@ const T = {
   rmFilter  :'Quitar filtro',
   guest     :'Inquilino', dates:'Fechas', vm:'Villa Manager', state:'Estado',
   payments  :'Pagos', concept:'Concepto', date:'Fecha', amount:'Importe', total:'Total',
-  nights    :'noches'
+  nights    :'noches',
+  /* J4 */
+  manyUnits :'He encontrado varias unidades. Elige una:',
+  moreUnits :'Hay más unidades; escribe la etiqueta de la que buscas.'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -774,7 +777,7 @@ const CHIP_LABELS = {
   stay_on:'Está el', manager:'Manager', source:'Source', cleaner:'Limpieza', tipo:'Tipo',
   type:'Tipo', status:'Estado', user:'Usuario', from:'Desde', to:'Hasta',
   urgent:'Urgente', important:'Importante', pax:'Plazas', pool:'Piscina',
-  noauto:'Sin automáticas'
+  noauto:'Sin automáticas', unit:'Unidad'
 };
 function chipText(k,v){
   const lbl=own(CHIP_LABELS,k)||k;
@@ -1590,6 +1593,22 @@ function tasksPlan(t){
      un navegador pueda tener en caché hasta cuatro horas (ignora vid, filtra por nombre). */
   if(t.villa && isId(t.villaId)){ p.vid=String(t.villaId); p.vi=t.villa; chips.villa=t.villa; }
   else if(t.villa){ p.vi=t.villa; chips.villa=t.villa; }
+  /* J4: la unidad (apartamento) dentro de la villa. mu es el multiunitID de
+     TaMultiunits, el mismo valor que lee el filtro de tareas.html (línea 1640),
+     y solo tiene sentido con la villa resuelta a una: por eso va atado a vid.
+     unitId/unitName los ha resuelto doTasks. Si la villa no se resolvió, o si
+     se quita su chip, la unidad no se puede aplicar y se dice. */
+  if(FEAT.unit && t.unit){
+    if(t.unitId && t.villa && isId(t.villaId)){
+      p.mu=String(t.unitId);
+      const uLbl=String(t.unitName||t.unit);
+      chips.unit=uLbl;
+      /* Donde la tarjeta nombra la villa, nombra también la unidad. */
+      chips.villa=t.villa+' — '+uLbl;
+    }else{
+      no.push('unidad "'+t.unit+'"');
+    }
+  }
   if(t.status){
     const est=own(TASK_EST,fold(t.status));
     if(est){ p.est=est; chips.status=t.status; }
@@ -1623,6 +1642,83 @@ function tasksPlan(t){
   /* Quién decide esto es doTasks, aquí solo se emite. */
   if(t.noauto===true){ p.auto='0'; chips.noauto=true; }
   return {params:p,chips:chips,no:no};
+}
+/* De cada fila de TaMultiunits Mia guarda SOLO esto: el id, la villa, el
+   nombre completo, la etiqueta corta y el nombre de listing. Keybox y todo lo
+   demás se quedan fuera aquí, además de que stripSensitive ya los ha borrado
+   al recibir la respuesta. */
+function unitRow(r){
+  return {
+    id:String(r.multiunitID||'').trim(),
+    villaId:String(r.VillaIDcaspio||'').trim(),
+    name:String(r.nombre_completo||'').trim(),
+    short:String(r.descripcion_corta||'').trim(),
+    alt:String(r.nombre_listing_manual||'').trim()
+  };
+}
+/* La misma llamada que hace tareas.html en loadMultiunitsFirst() (línea 1012),
+   con el token del propio usuario. Solo se baja si la pregunta nombra una
+   unidad. Una vez por carga de página. */
+let UNITSP=null;
+async function loadUnits(){
+  if(UNITSP)return UNITSP;
+  UNITSP=(async function(){
+    let list=null;
+    try{
+      const rows=await proxyGet('action=data&table=TaMultiunits&limit=200');
+      list=rows.map(unitRow).filter(function(u){ return u.id&&u.villaId&&(u.name||u.short); });
+    }catch(e){ dbg('TaMultiunits ko'); }
+    if(list)return list;
+    /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
+       vez. Dentro de la misma pregunta solo se llama aquí una vez, así que no
+       hay bucle de reintentos. */
+    UNITSP=null;
+    return [];
+  })();
+  return UNITSP;
+}
+/* Letras y cifras, sin espacios ni acentos: "13 a" y "13A" son la misma. */
+function unitKey(v){ return fold(v).replace(/[^a-z0-9]+/g,''); }
+/* Lo que se enseña de una unidad: la etiqueta corta ("Apto 4", "13A") y, si no
+   la hay, el nombre completo. */
+function unitLabel(u){ return String((u&&(u.short||u.name))||'').trim(); }
+/* Las tres formas de nombrar una unidad, cada una tal cual y sin espacios. */
+function unitKeys(u){
+  const out=[];
+  [u.name,u.short,u.alt].forEach(function(f){
+    const s=fold(f); if(s&&out.indexOf(s)<0)out.push(s);
+    const k=unitKey(f); if(k&&out.indexOf(k)<0)out.push(k);
+  });
+  return out;
+}
+/* Unidades que encajan con las palabras del usuario. Manda lo igual (nombre,
+   etiqueta corta o nombre de listing, con espacios o sin ellos); solo si no hay
+   ninguna igual valen las que contienen lo escrito. Así "13" es el apto 13 y no
+   también el 13A, y "13 a" sí es el 13A. */
+function matchUnits(units,words){
+  const q=fold(words), qk=unitKey(words);
+  if(!q)return [];
+  function hit(u,test){
+    const ks=unitKeys(u);
+    for(let i=0;i<ks.length;i++)if(test(ks[i]))return true;
+    return false;
+  }
+  const exact=units.filter(function(u){
+    return hit(u,function(s){ return s===q||(!!qk&&s===qk); });
+  });
+  if(exact.length)return exact;
+  return units.filter(function(u){
+    return hit(u,function(s){ return s.indexOf(q)>=0||(!!qk&&s.indexOf(qk)>=0); });
+  });
+}
+/* Unidades de UNA villa que encajan con lo escrito. Sin villa no hay lista. */
+async function resolveUnit(villaId,words){
+  const vid=String(villaId==null?'':villaId).trim();
+  if(!vid)return [];
+  const rows=await loadUnits();
+  const mine=rows.filter(function(u){ return u.villaId===vid; });
+  if(!mine.length)return [];
+  return matchUnits(mine,words);
 }
 async function doTasks(t,extraNo){
   /* Las tres tareas automáticas (limpieza, welcomepack, cierre) comparten
@@ -1675,6 +1771,41 @@ async function doTasks(t,extraNo){
       delete t.villa;
       extraNo=(extraNo||[]).concat(['villa: '+vName]);
       topNote=T.noVilla;
+    }
+  }
+  /* J4: la unidad se resuelve una vez, igual que la villa, y solo si la villa
+     ha quedado en una: mu es un id de TaMultiunits y sin villa no hay lista con
+     la que comparar. Cero unidades, o villa sin resolver, lo dice tasksPlan en
+     "No pude aplicar". */
+  if(FEAT.unit){
+    const uWords=String(t.unit==null?'':t.unit).trim();
+    if(uWords && t.villa && isId(t.villaId)){
+      const uHits=await resolveUnit(t.villaId,uWords);
+      if(uHits.length===1){
+        t.unitId=uHits[0].id; t.unitName=unitLabel(uHits[0]);
+      }else if(uHits.length>1){
+        /* Varias unidades: no se elige por el usuario. Un enlace por unidad,
+           cada uno con su mu y con el resto de filtros ya puestos. Mismo tope
+           que la lista de villas. */
+        const boxU=E('div');
+        boxU.appendChild(note(T.manyUnits));
+        const listU=E('div','mia-list');
+        uHits.slice(0,MAX_VILLAS).forEach(function(h){
+          const rowU=E('div','mia-vrow');
+          const aU=document.createElement('a');
+          aU.className='mia-vmain';
+          aU.setAttribute('href',link('tareas',tasksPlan(Object.assign({},t,{unitId:h.id,unitName:unitLabel(h)})).params));
+          aU.appendChild(E('span','mia-n',t.villa+' — '+unitLabel(h)));
+          rowU.appendChild(aU);
+          listU.appendChild(rowU);
+        });
+        boxU.appendChild(listU);
+        if(uHits.length>MAX_VILLAS)boxU.appendChild(note(T.moreUnits));
+        const naU=noApplyBlock(tasksPlan(Object.assign({},t,{unit:''})).no.concat(extraNo||[]));
+        if(naU)boxU.appendChild(naU);
+        say(boxU);
+        return;
+      }
     }
   }
   const render=function(){
