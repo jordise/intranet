@@ -105,8 +105,8 @@ console.log('\nla reserva abierta, página por página');
 })();
 (function () {
   var p = 'cobros-inquilinos.html';
-  ok('cobros: ?code= manda',
-    env({ page: p, search: '?code=' + CODE, byId: { fCode: { value: CODE2 } } }).pageBookingCode() === CODE);
+  ok('cobros: el campo de búsqueda manda sobre ?code=',
+    env({ page: p, search: '?code=' + CODE, byId: { fCode: { value: CODE2 } } }).pageBookingCode() === CODE2);
   ok('cobros: sin parámetro se lee el campo de búsqueda',
     env({ page: p, byId: { fCode: { value: CODE2 } } }).pageBookingCode() === CODE2);
   ok('cobros: campo vacío, sin reserva', env({ page: p, byId: { fCode: { value: '' } } }).pageBookingCode() === '');
