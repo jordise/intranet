@@ -186,7 +186,9 @@ const T = {
   nights    :'noches',
   readFail  :'No he podido leer los datos. Vuelve a intentarlo.',   /* J2 */
   retry     :'Reintentar',                                          /* J2 */
-  payFail   :'No he podido leer los pagos.'                         /* J2 */
+  payFail   :'No he podido leer los pagos.',                         /* J2 */
+  /* J1 */
+  ctxChip   :'Usando esta reserva'   /* chip de la reserva abierta en la página */
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -779,8 +781,16 @@ const CHIP_LABELS = {
   stay_on:'Está el', manager:'Manager', source:'Source', cleaner:'Limpieza', tipo:'Tipo',
   type:'Tipo', status:'Estado', user:'Usuario', from:'Desde', to:'Hasta',
   urgent:'Urgente', important:'Importante', pax:'Plazas', pool:'Piscina',
-  noauto:'Sin automáticas'
+  noauto:'Sin automáticas',
+  ctx:T.ctxChip   /* J1: el código no lo dijo la pregunta, lo dice la página */
 };
+/* Quitar un chip borra su filtro. El de la reserva de la página (J1) borra el
+   código Y apunta que el usuario no la quiere: al repintar no se vuelve a
+   meter sola. Para cualquier otra clave hace exactamente lo de siempre. */
+function dropFilter(f,k){
+  if(k==='ctx'){ delete f.code; f.ctxOn=false; f.ctxOff=true; return; }
+  delete f[k];
+}
 function chipText(k,v){
   const lbl=own(CHIP_LABELS,k)||k;
   if(k==='stay_on')return lbl+' '+fmtShort(v);
@@ -802,7 +812,7 @@ function chipsBlock(chips,filters,onChange){
     const x=E('button','mia-x'); x.type='button';
     x.appendChild(E('i',null,'✕'));
     x.title=T.rmFilter; x.setAttribute('aria-label',T.rmFilter+' '+(own(CHIP_LABELS,k)||k));
-    x.addEventListener('click',function(){ delete filters[k]; onChange(); });
+    x.addEventListener('click',function(){ dropFilter(filters,k); onChange(); });
     c.appendChild(x);
     wrap.appendChild(c);
   });
@@ -1388,7 +1398,9 @@ function resultList(rows,extraLabel,hrefOf){
    source ni de limpieza: esos van a "No pude aplicar". */
 function bookingsPlan(b){
   const p={}, chips={}, no=[];
-  if(b.code){ p.cod=b.code; chips.code=b.code; }
+  /* J1: si el código lo puso la página y no la pregunta, el chip lo dice
+     ("Usando esta reserva: …"). El filtro y el enlace son los mismos. */
+  if(b.code){ p.cod=b.code; chips[b.ctxOn?'ctx':'code']=b.code; }
   if(b.guest){ p.inq=b.guest; chips.guest=b.guest; }
   if(b.villa){ p.villa=b.villa; chips.villa=b.villa; }
   if(isDate(b.stay_on)){
@@ -1566,7 +1578,7 @@ async function doNotes(n,extraNo){
   const guest=String((n&&n.guest)||'').trim();
   /* Un chip por cada condición aplicada de verdad, igual que en reservas. */
   const chips={};
-  if(code)chips.code=code;
+  if(code)chips[(n&&n.ctxOn)?'ctx':'code']=code;   /* J1: mismo chip que en reservas */
   if(guest)chips.guest=guest;
   const again=function(){ doNotes(n,extraNo); };
   const head=function(box){
@@ -1891,6 +1903,91 @@ async function askWorker(q){
   try{ return await res.json(); }
   catch(e){ throw kind('red'); }
 }
+/* ════════════════ J1 · LA RESERVA ABIERTA EN LA PÁGINA ════════════════ */
+/* "¿ha pagado?" en la página de una reserva es una pregunta completa para
+   quien la hace: la reserva ya está delante. Mia usa esa reserva cuando la
+   pregunta no nombra ninguna.
+   Reglas:
+    · El código se lee EN EL MOMENTO DE PREGUNTAR. Nunca al montar la fila y
+      nunca guardado de una pregunta a la siguiente: si el usuario abre otra
+      reserva, la siguiente pregunta lee la otra.
+    · Solo se lee el código de confirmación, que es lo que la página ya enseña
+      en su URL o en su cabecera. Ni un dato del huésped, ni una caja de
+      llaves, ni una contraseña.
+    · No se manda nada nuevo al Worker: el código se aplica aquí, en el
+      navegador, igual que si lo hubiera escrito quien pregunta.
+    · Nada se guarda en el almacenamiento y nada se registra. */
+/* Páginas que no están en PAGES porque Mia no enlaza a ellas: solo lee de
+   ellas la reserva abierta. */
+const CTX_COBROS = 'cobros-inquilinos.html';
+const CTX_WA     = 'entradas-primer-contacto-whatsapp.html';
+/* Un código de confirmación: ocho o más letras y cifras, sin nada más
+   (56120018 de Hostaway, HM3ABCDEF de Airbnb). El tope de 30 es el mismo
+   maxlength del campo de cobros-inquilinos. Todo lo demás no es un código:
+   un nombre, una fecha o un texto vacío se descartan aquí. */
+const CTX_CODE_RE = /^[A-Za-z0-9]{8,30}$/;
+function ctxCode(v){
+  const s=String(v==null?'':v).trim().replace(/^#/,'');
+  return CTX_CODE_RE.test(s)?s:'';
+}
+function ctxParam(name){
+  try{ return new URLSearchParams(location.search).get(name)||''; }
+  catch(e){ return ''; }
+}
+function pageBookingCode(){
+  try{
+    const page=curPage();
+    /* Notas: la reserva es el parámetro de la URL; la página no abre otra. */
+    if(page===PAGES.notas)return ctxCode(ctxParam('TaBookings2021_FS_confirmation_code'));
+    /* Cobros: llega por ?code= y la página lo copia al campo de búsqueda. */
+    if(page===CTX_COBROS){
+      const u=ctxCode(ctxParam('code'));
+      if(u)return u;
+      const el=document.getElementById('fCode');
+      return el?ctxCode(el.value):'';
+    }
+    /* Primer contacto: solo cuando la ventana de la reserva está abierta.
+       mData se queda con la última reserva después de cerrarla, así que sin
+       la clase open no vale. */
+    if(page===CTX_WA){
+      const m=document.getElementById('waModal');
+      if(!m||!m.classList||!m.classList.contains('open'))return '';
+      let d=null;
+      try{ d=window.mData; }catch(e){}
+      return (d&&typeof d==='object')?ctxCode(d.code):'';
+    }
+    /* Entradas: una lista de reservas no es "esta reserva". Solo vale cuando
+       en la tabla se ve UNA sola: entonces la página está enseñando esa. */
+    if(page===PAGES.entradas){
+      const nodes=document.querySelectorAll('.res-id');
+      const seen=[];
+      for(let i=0;i<nodes.length;i++){
+        const c=ctxCode(nodes[i].textContent);
+        if(c&&seen.indexOf(c)<0)seen.push(c);
+        if(seen.length>1)return '';
+      }
+      return seen.length===1?seen[0]:'';
+    }
+  }catch(e){}
+  return '';
+}
+/* Campos que ya dicen de qué reserva habla la pregunta. Si viene cualquiera
+   de ellos, manda la pregunta y la página no pinta nada. */
+const CTX_OWN_KEYS = ['code','guest','villa','check_in_from','check_in_to','stay_on','manager','source','cleaner'];
+function injectPageBooking(f){
+  if(!FEAT.ctx)return false;
+  if(!f||typeof f!=='object')return false;
+  if(f.ctxOff)return false;          /* el usuario ya quitó el chip: no vuelve */
+  for(let i=0;i<CTX_OWN_KEYS.length;i++){
+    const v=f[CTX_OWN_KEYS[i]];
+    if(v!==undefined&&v!==null&&v!==''&&v!==false)return false;
+  }
+  const code=pageBookingCode();
+  if(!code)return false;
+  f.code=code; f.ctxOn=true;
+  return true;
+}
+
 async function onAsk(){
   if(!INPUT)return;
   const q=String(INPUT.value||'').trim().slice(0,300);
@@ -1916,6 +2013,9 @@ async function onAsk(){
   /* Lo que el Worker no supo mapear se dice SIEMPRE, en el camino que sea:
      antes solo salía en la respuesta "no he entendido". */
   const um=(Array.isArray(data.unmatched)?data.unmatched:[]).map(function(x){ return String(x==null?'':x).trim(); }).filter(Boolean);
+  /* J1: la pregunta no dice de qué reserva habla, pero la página sí. */
+  if(FEAT.ctx&&target==='bookings'){ data.bookings=data.bookings||{}; injectPageBooking(data.bookings); }
+  else if(FEAT.ctx&&target==='notes'){ data.notes=data.notes||{}; injectPageBooking(data.notes); }
   try{
     if(target==='bookings'){
       const b=Object.assign({},data.bookings||{});
