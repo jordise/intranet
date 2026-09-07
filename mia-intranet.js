@@ -57,6 +57,19 @@ const VIEW_PAYMENTS  = 'Vi_bookingsall_and_paymen_editb';
    ya de camino. */
 const TIMEOUT_MS     = 22000;
 const MAX_ROWS       = 5;              // filas por lista (igual que el límite de la consulta)
+/* J6: tareas con incidencia. INC_MAX son las que se enseñan; INC_FETCH es el
+   tope de la consulta que YA filtra por la marca de incidencia (en el volcado
+   del 2026-09-01 hay 599 tareas con marca en cuatro años y medio, así que 200
+   sobra para cualquier ventana); INC_SCAN es el tope del plan B, cuando el
+   servidor no acepta filtrar por un campo Sí/No y hay que separarlas aquí:
+   mismo tope de 1000 filas que usa tareas.html en su propia consulta. */
+const INC_MAX        = 30;
+const INC_FETCH      = 200;
+const INC_SCAN       = 1000;
+/* Ventana por defecto cuando la pregunta no trae fechas: los últimos 14 días. */
+const INC_DAYS       = 14;
+/* Texto de la incidencia recortado: una respuesta es un índice, no el parte. */
+const INC_TEXT       = 160;
 /* Villas por lista de elección. "bini" está en dieciocho nombres, así que un
    tope de diez escondía villas de verdad. Pasado el tope se pide más letras. */
 const MAX_VILLAS     = 20;
@@ -183,7 +196,20 @@ const T = {
   rmFilter  :'Quitar filtro',
   guest     :'Inquilino', dates:'Fechas', vm:'Villa Manager', state:'Estado',
   payments  :'Pagos', concept:'Concepto', date:'Fecha', amount:'Importe', total:'Total',
-  nights    :'noches'
+  nights    :'noches',
+  /* J6 */
+  incHead   :'Registro de la tarea tal como está. Reportado no significa aceptado ni resuelto.',
+  incNone   :'No hay tareas con incidencia en esas fechas.',
+  incKo     :'No he podido leer las tareas.',
+  incMore   :'Hay más tareas con incidencia. Ábrelas todas en Tareas.',
+  incResp   :'Responsable:',
+  incDone   :'terminada',
+  incPend   :'pendiente',
+  incPhoto  :'1 foto',
+  incPhotos :'fotos',
+  incNoPhoto:'sin fotos',
+  incOpen   :'Abrir tarea',
+  incNoLink :'El enlace de Tareas no filtra por incidencia: ese filtro solo lo aplico yo aquí.'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -551,6 +577,37 @@ body.easy .mia-row .mia-go{font-size:15px}
 body.easy .mia-panel .mia-btn,
 body.easy .mia-panel .mcard-h .mia-t,
 body.easy .mia-go{text-transform:none;letter-spacing:0}
+
+/* J6 — tareas con incidencia. Una fila por tarea, en columna: en un móvil
+   estrecho nada se sale ni se corta, y en pantalla ancha ocupa el mismo carril
+   que el resto del panel. Mismos colores y bordes que .mia-vrow: no hay ni un
+   color nuevo. */
+.mia-panel .mia-inc{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0;padding:10px 12px;border:1px solid var(--gray-2,#e8eaed);border-radius:10px;background:#fff}
+.mia-panel .mia-inc .mia-inc-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;width:100%;min-width:0}
+.mia-panel .mia-inc .mia-inc-v{font-family:Montserrat,sans-serif;font-weight:800;font-size:16px;min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--gray-5,#2d3142)}
+.mia-panel .mia-inc .mia-inc-d{font-size:14px;color:var(--mia-muted);white-space:nowrap}
+.mia-panel .mia-inc .mia-inc-n{font-size:16px;font-weight:600;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--gray-5,#2d3142)}
+.mia-panel .mia-inc .mia-inc-t{font-size:16px;line-height:1.5;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--gray-5,#2d3142)}
+.mia-panel .mia-inc .mia-inc-m{display:flex;flex-wrap:wrap;gap:2px 10px;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;font-size:14px;color:var(--mia-muted)}
+.mia-panel .mia-inc .mia-btn{align-self:stretch}
+@media (min-width:481px){ .mia-panel .mia-inc .mia-btn{align-self:flex-start} }
+body.dark .mia-panel .mia-inc{background:#252535;border-color:rgba(255,255,255,.14)}
+body.dark .mia-panel .mia-inc .mia-inc-v,
+body.dark .mia-panel .mia-inc .mia-inc-n,
+body.dark .mia-panel .mia-inc .mia-inc-t{color:#fff!important}
+body.dark .mia-panel .mia-inc .mia-inc-d,
+body.dark .mia-panel .mia-inc .mia-inc-m{color:#c9cdd8!important}
+body.easy .mia-panel .mia-inc,
+body.easy .mia-panel .mia-inc .mia-inc-v,
+body.easy .mia-panel .mia-inc .mia-inc-n,
+body.easy .mia-panel .mia-inc .mia-inc-t,
+body.easy .mia-panel .mia-inc .mia-inc-d,
+body.easy .mia-panel .mia-inc .mia-inc-m{font-family:'Atkinson Hyperlegible','Open Sans',sans-serif}
+body.easy .mia-panel .mia-inc .mia-inc-v,
+body.easy .mia-panel .mia-inc .mia-inc-n,
+body.easy .mia-panel .mia-inc .mia-inc-t{font-size:18px}
+body.easy .mia-panel .mia-inc .mia-inc-d,
+body.easy .mia-panel .mia-inc .mia-inc-m{font-size:16px}
 `;
 
 /* ════════════════ ESTADO DEL MÓDULO ════════════════ */
@@ -774,7 +831,8 @@ const CHIP_LABELS = {
   stay_on:'Está el', manager:'Manager', source:'Source', cleaner:'Limpieza', tipo:'Tipo',
   type:'Tipo', status:'Estado', user:'Usuario', from:'Desde', to:'Hasta',
   urgent:'Urgente', important:'Importante', pax:'Plazas', pool:'Piscina',
-  noauto:'Sin automáticas'
+  noauto:'Sin automáticas',
+  incident:'Con incidencia'   /* J6 */
 };
 function chipText(k,v){
   const lbl=own(CHIP_LABELS,k)||k;
@@ -1677,6 +1735,12 @@ async function doTasks(t,extraNo){
       topNote=T.noVilla;
     }
   }
+  /* J6: la pregunta es por incidencias reportadas. Se bifurca AQUÍ, con la
+     villa ya resuelta por el bloque de arriba: así la lista de incidencias
+     usa el mismo id de villa, el mismo aviso de villa supuesta y las mismas
+     villas parecidas que el resto de Tareas, sin repetir ni una línea.
+     Con FEAT.incid a 0 esta rama no existe y la respuesta es la de siempre. */
+  if(FEAT.incid && t.incident===true){ await doTasksIncidents(t,extraNo,topNote,near); return; }
   const render=function(){
     const plan=tasksPlan(t); plan.no=plan.no.concat(extraNo||[]);
     const box=E('div');
@@ -1705,6 +1769,181 @@ async function doTasks(t,extraNo){
     say(box);
   };
   render();
+}
+
+/* ════════════════ TAREAS CON INCIDENCIA (J6) ════════════════ */
+/* Qué se enseña: el registro que la limpieza rellenó, tal cual. Reportado no
+   es aceptado ni resuelto, y la nota de cabecera lo dice siempre.
+
+   Los campos, leídos del volcado del 2026-09-01 y de las páginas que rellena
+   el equipo (task-limpieza.html y task-cierre.html):
+    · Incidencias es un campo Sí/No —el interruptor "⚠️ Incidencias"—, no un
+      texto: 599 tareas marcadas de 75.285. Aquí NUNCA se pinta su valor.
+    · El texto de la incidencia es Taskdescription ("📝 Descripción de la
+      incidencia" en la página de limpieza). Las tareas de antes de 2026
+      guardaban ese texto en Solutiondescription (531 de las 599), así que se
+      usa como segunda opción. Si no hay ninguno de los dos, no se pinta línea.
+    · La fecha es Data_to_be_done_fixed. Data_to_be_done está vacío en 75.284
+      de las 75.285 filas, y es el campo por el que filtran tareas.html y
+      listado-guardias-e-intervenciones.html.
+    · Las fotos son los campos que empiezan por Picture_ o por Pictures_:
+      guardan URLs, así que de ellos solo sale una CUENTA. Ni una URL entra
+      en el DOM. */
+function incText(r){
+  const s=String(r.Taskdescription||r.Solutiondescription||'').trim();
+  return s.length>INC_TEXT?s.slice(0,INC_TEXT):s;
+}
+/* Cuenta de fotos. Solo cuenta: el valor es una URL y no se toca. */
+function incPhotos(r){
+  let n=0;
+  const ks=Object.keys(r||{});
+  for(let i=0;i<ks.length;i++){
+    if(!/^Pictures?_/.test(ks[i]))continue;
+    if(String(r[ks[i]]==null?'':r[ks[i]]).trim())n++;
+  }
+  return n;
+}
+function incPhotoText(n){
+  if(!n)return T.incNoPhoto;
+  return n===1?T.incPhoto:(n+' '+T.incPhotos);
+}
+/* WHERE con la sintaxis de tareas.html: mismas comillas dobladas, mismo
+   villaid=N y mismo corte de fechas con T00:00:00 / T23:59:59.
+   withFlag decide si la marca de incidencia va en el servidor. Este proyecto
+   tiene documentado que un campo Sí/No no es de fiar en el WHERE (ver el
+   historial v07 de listado-guardias-e-intervenciones.html), así que se pide
+   con la marca y, si el servidor rechaza la consulta, se vuelve a pedir sin
+   ella y se separan aquí. En los dos casos la marca se comprueba también
+   aquí antes de pintar: nunca sale una tarea sin incidencia. */
+function incidentsWhere(t,uid,withFlag){
+  const parts=[];
+  if(withFlag)parts.push('Incidencias=1');
+  /* La misma condición que tasksPlan: el id solo vale si sigue habiendo
+     nombre de villa. Al quitar el chip de villa se borra t.villa, y entonces
+     el filtro tiene que irse de la consulta igual que se va del enlace. */
+  if(t.villa && isId(t.villaId))parts.push('villaid='+parseInt(t.villaId,10));
+  if(isDate(t.from))parts.push("Data_to_be_done_fixed>='"+t.from+"T00:00:00'");
+  if(isDate(t.to))parts.push("Data_to_be_done_fixed<='"+t.to+"T23:59:59'");
+  /* Responsable O asignado: quien responde de la tarea y quien la hizo. */
+  if(uid)parts.push("(UserID_responsible_alfanum='"+sq(uid)+"' OR UserID_asigned_alfanum='"+sq(uid)+"')");
+  return parts.join(' AND ');
+}
+/* Solo las marcadas, de la más reciente a la más antigua. El orden se rehace
+   aquí y no se confía al servidor: así la lista es la misma venga como venga. */
+function incidentsPick(rows){
+  const list=(rows||[]).filter(function(r){ return r&&isOk(r.Incidencias)===true; });
+  list.sort(function(a,b){
+    const A=String(a.Data_to_be_done_fixed||''), B=String(b.Data_to_be_done_fixed||'');
+    return A<B?1:(A>B?-1:0);
+  });
+  return list;
+}
+const INC_ORDER='Data_to_be_done_fixed DESC';
+function incidentsQs(where,limit){
+  return 'action=data&table=TaTasks'+(where?'&where='+encodeURIComponent(where):'')
+    +'&orderBy='+encodeURIComponent(INC_ORDER)+'&limit='+limit;
+}
+async function incidentsFetch(t,uid){
+  try{
+    return await proxyGet(incidentsQs(incidentsWhere(t,uid,true),INC_FETCH));
+  }catch(e){
+    /* Plan B: el servidor no ha querido la marca Sí/No. Se pide la misma
+       ventana sin ella, con el tope de 1000 filas de tareas.html, y las
+       tareas con incidencia se separan aquí. */
+    dbg('incidencias: 2ª consulta sin la marca');
+    return await proxyGet(incidentsQs(incidentsWhere(t,uid,false),INC_SCAN));
+  }
+}
+/* id de villa → nombre, del mismo listado que ya usa doTasks. */
+async function villaNames(){
+  const rows=await loadVillas();
+  const m={};
+  rows.forEach(function(v){ m[String(v.id)]=v.name; });
+  return m;
+}
+/* Una fila = un registro de tarea. Todo entra por textContent (E). */
+function incidentRow(r,names){
+  const row=E('div','mia-inc');
+  const vid=String(r.villaid==null?'':r.villaid).trim();
+  const head=E('div','mia-inc-h');
+  /* Mismo criterio que tareas.html v86: si la villa no está en el listado se
+     dice "Villa <id>", que sigue siendo un dato útil. */
+  head.appendChild(E('span','mia-inc-v',(names&&names[vid])||(vid?'Villa '+vid:'—')));
+  head.appendChild(E('span','mia-inc-d',fmtDate(r.Data_to_be_done_fixed)));
+  row.appendChild(head);
+  const tn=String(r.Taskname==null?'':r.Taskname).trim();
+  if(tn)row.appendChild(E('div','mia-inc-n',tn));
+  const tx=incText(r);
+  if(tx)row.appendChild(E('div','mia-inc-t',tx));
+  const meta=E('div','mia-inc-m');
+  /* El nombre sale del mapa de usuarios; si no está, una raya. Nunca el id a
+     secas, igual que en la ficha de reserva. */
+  const resp=userName(String(r.UserID_responsible_alfanum||'').trim())
+          || userName(String(r.UserID_asigned_alfanum||'').trim());
+  meta.appendChild(E('span',null,T.incResp+' '+(resp||'—')));
+  meta.appendChild(E('span',null,isOk(r.Tarea_terminada)===true?T.incDone:T.incPend));
+  meta.appendChild(E('span',null,incPhotoText(incPhotos(r))));
+  row.appendChild(meta);
+  const tid=String(r.taskid==null?'':r.taskid).trim();
+  if(isId(tid))row.appendChild(btn(T.incOpen,link('tareas',{tid:tid})));
+  return row;
+}
+async function doTasksIncidents(t,extraNo,topNote,near){
+  /* Ventana por defecto: los últimos INC_DAYS días hasta hoy. Se decide UNA
+     vez, igual que noauto en doTasks: si quien pregunta quita los chips de
+     fecha, la ventana no vuelve a ponerse sola. */
+  if(!t.incWin){
+    t.incWin=1;
+    if(!isDate(t.from)&&!isDate(t.to)){ const hoy=todayISO(); t.from=addDays(hoy,-INC_DAYS); t.to=hoy; }
+  }
+  const u=t.user?findUser(t.user):{id:'',many:false};
+  const no=(extraNo||[]).slice();
+  if(t.user&&!u.id)no.push('usuario: '+t.user+(u.many?' (varios)':''));
+
+  let rows=null, ko=false;
+  try{ rows=await incidentsFetch(t,u.id); }
+  catch(e){ ko=true; }
+  const names=await villaNames();
+  const list=ko?[]:incidentsPick(rows);
+  const shown=list.slice(0,INC_MAX);
+
+  /* Quitar el chip de incidencia deja de ser esta pregunta: se responde con la
+     tarjeta normal de Tareas. Cualquier otro chip rehace esta misma lista. */
+  const again=function(){
+    if(t.incident!==true){ doTasks(t,extraNo); return; }
+    doTasksIncidents(t,extraNo,topNote,near);
+  };
+
+  const box=E('div');
+  if(topNote)box.appendChild(note(topNote));
+  const chips=chipsBlock({incident:true,villa:t.villa,from:t.from,to:t.to,user:t.user},t,again);
+  if(chips)box.appendChild(chips);
+  /* Siempre, pase lo que pase con la consulta. */
+  box.appendChild(note(T.incHead));
+  const na=noApplyBlock(no);
+  if(na)box.appendChild(na);
+  if(ko){
+    box.appendChild(note(T.incKo));
+  }else if(!shown.length){
+    box.appendChild(note(T.incNone));
+  }else{
+    const l=E('div','mia-list');
+    shown.forEach(function(r){ l.appendChild(incidentRow(r,names)); });
+    box.appendChild(l);
+    if(list.length>INC_MAX)box.appendChild(note(T.incMore));
+  }
+  /* El enlace abre Tareas con la villa, las fechas y el usuario, pero la
+     página no sabe filtrar por incidencia: se dice, para que el botón no
+     prometa una lista que no da. */
+  box.appendChild(note(T.incNoLink));
+  const btns=E('div','mia-btns');
+  btns.appendChild(btn(T.openTar,link('tareas',tasksPlan(t).params),true));
+  box.appendChild(btns);
+  const sg=suggestBlock(near,function(h){
+    return link('tareas',tasksPlan(Object.assign({},t,{villa:h.name,villaId:h.id})).params);
+  });
+  if(sg)box.appendChild(sg);
+  say(box);
 }
 
 /* ════════════════ OCUPACIÓN Y VILLAS ════════════════ */
