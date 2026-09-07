@@ -435,7 +435,7 @@ function menuPages(){
         if(out.length<PAGE_MAX){
           const url=String(it.url||'').trim();
           const label=String(it.label||'').trim();
-          if(label&&url&&url.indexOf('://')<0&&/\.html$/.test(url)){
+          if(label&&url&&url.indexOf('://')<0&&url.indexOf('/')!==0&&url.indexOf('..')<0&&/\.html$/.test(url)){
             const key=url.split('/').pop().replace(/\.html$/,'');
             if(PAGE_KEY_RE.test(key)&&PAGE_SKIP.indexOf(key)<0&&!own(seen,key)){
               seen[key]=1;
