@@ -61,6 +61,17 @@ const MAX_ROWS       = 5;              // filas por lista (igual que el límite 
    tope de diez escondía villas de verdad. Pasado el tope se pide más letras. */
 const MAX_VILLAS     = 20;
 const MAX_SUGGEST    = 5;   /* villas parecidas bajo "¿Querías decir…?" */
+/* Interruptores por función (paquete 2026-09-07, viajes 1-6). Poner a 0 y
+   subir el archivo apaga solo esa función; el resto de Mia sigue igual. Es la
+   palanca 0 del ROLLBACK.md del Worker: más fina que quitar el módulo. */
+const FEAT = {
+  ctx   :1,   /* J1: usa la reserva abierta en la página como filtro */
+  retry :1,   /* J2: fallo de lectura distinto de "sin resultados" + Reintentar */
+  report:1,   /* J3: "Avisar de un fallo" al pie de cada respuesta */
+  unit  :1,   /* J4: unidad (apartamento) dentro de una villa en Tareas */
+  ready :1,   /* J5: tarjeta "qué falta" para las entradas de un día */
+  incid :1    /* J6: tareas con incidencia reportada por limpieza */
+};
 const K_EASY         = '3v_easy';      // localStorage: texto más legible
 const K_OFF          = '3v_mia_off';   // sessionStorage: Mia apagada esta sesión
 
