@@ -183,7 +183,10 @@ const T = {
   rmFilter  :'Quitar filtro',
   guest     :'Inquilino', dates:'Fechas', vm:'Villa Manager', state:'Estado',
   payments  :'Pagos', concept:'Concepto', date:'Fecha', amount:'Importe', total:'Total',
-  nights    :'noches'
+  nights    :'noches',
+  readFail  :'No he podido leer los datos. Vuelve a intentarlo.',   /* J2 */
+  retry     :'Reintentar',                                          /* J2 */
+  payFail   :'No he podido leer los pagos.'                         /* J2 */
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -551,12 +554,14 @@ body.easy .mia-row .mia-go{font-size:15px}
 body.easy .mia-panel .mia-btn,
 body.easy .mia-panel .mcard-h .mia-t,
 body.easy .mia-go{text-transform:none;letter-spacing:0}
+.mia-panel .mia-retry{margin-top:8px}
 `;
 
 /* ════════════════ ESTADO DEL MÓDULO ════════════════ */
 let ROW=null, PANEL=null, BODY=null, INPUT=null, AABTN=null, ANCHOR=null;
 let ST={ q:'' };
 let USERS=null;         // mapa UserID → Name (solo como último recurso, para la ficha)
+let USERS_FAIL=false;   // J2: true si el último intento de leer TaUsers falló
 let downShown=false;
 
 /* ════════════════ TEXTO MÁS LEGIBLE (Aa) ════════════════ */
@@ -966,10 +971,11 @@ async function loadUsers(){
         if(id&&nm)m.set(id,nm);
       });
     }catch(e){ dbg('TaUsers ko'); }
-    if(m){ USERS=m; return m; }
+    if(m){ USERS=m; USERS_FAIL=false; return m; }
     /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
        vez. Dentro de la misma pregunta solo se llama aquí una vez, así que no
        hay bucle de reintentos. */
+    USERS_FAIL=true;   /* J2: quien pregunte por un usuario lo sabrá */
     USERSP=null;
     return new Map();
   })();
@@ -1319,7 +1325,9 @@ async function renderState(r,ctx){
   say(box);
 
   if(!payBox)return;
-  if(code){
+  /* J2: función con nombre para que el botón Reintentar vuelva a leer SOLO
+     los pagos, sin repintar el resto de la ficha. */
+  async function loadPayments(){
     try{
       const rows=await proxyGet('action=view&view='+encodeURIComponent(VIEW_PAYMENTS)
         +'&where='+encodeURIComponent(PAY.code+"='"+sq(code)+"'")+'&limit=50');
@@ -1327,8 +1335,16 @@ async function renderState(r,ctx){
       payBox.appendChild(payTable(rows));
     }catch(e){
       payBox.textContent='';
-      payBox.appendChild(note('No he podido leer los pagos.'));
+      if(FEAT.retry){
+        payBox.appendChild(note(T.payFail));
+        payBox.appendChild(retryBlock(loadPayments));
+      }else{
+        payBox.appendChild(note('No he podido leer los pagos.'));
+      }
     }
+  }
+  if(code){
+    await loadPayments();
   }else{
     payBox.textContent='';
   }
@@ -1406,10 +1422,11 @@ function bookingsPlan(b){
   if(p.desde===undefined&&p.hasta===undefined){ p.desde=EMPTY; p.hasta=EMPTY; }
   return {params:p,chips:chips,no:no};
 }
-function doBookingsLink(b,extraNo){   /* extraNo = data.unmatched */
+function doBookingsLink(b,extraNo,pre){   /* extraNo = data.unmatched; pre = J2, nota delante */
   const render=function(){
     const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
     const box=E('div');
+    if(pre)box.appendChild(pre);
     const chips=chipsBlock(plan.chips,b,render);
     if(chips)box.appendChild(chips);
     box.appendChild(note(T.usedHere));
@@ -1429,6 +1446,25 @@ function doBookingsLink(b,extraNo){   /* extraNo = data.unmatched */
   };
   render();
 }
+/* J2: un fallo de lectura nunca se calla como si no hubiera resultados. El
+   botón vuelve a llamar a fn() con los mismos datos: no repite la pregunta
+   al Worker, solo la lectura que falló. Un botón, un reintento por toque. */
+function retryBlock(fn){
+  const box=E('div','mia-retry');
+  const b=document.createElement('button');
+  b.type='button';
+  b.className='mia-btn';
+  b.textContent=T.retry;
+  b.addEventListener('click',function(){ fn(); });
+  box.appendChild(b);
+  return box;
+}
+function readFailNote(fn){
+  const box=E('div');
+  box.appendChild(note(T.readFail));
+  box.appendChild(retryBlock(fn));
+  return box;
+}
 async function doBookingsCard(b,extraNo){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
   /* Sin código: las más recientes primero, para que las cinco que se
@@ -1436,7 +1472,10 @@ async function doBookingsCard(b,extraNo){
   const order=(b.code&&String(b.code).trim())?'':F.checkIn+' DESC';
   let rows;
   try{ rows=await fetchBookings(b,MAX_ROWS,order); }
-  catch(e){ say(note('No he podido leer la reserva.')); return; }
+  catch(e){
+    if(FEAT.retry){ say(readFailNote(function(){ doBookingsCard(b,extraNo); })); return; }
+    say(note('No he podido leer la reserva.')); return;
+  }
   if(rows===null){ say(note(T.noBooking)); return; }
 
   if(!rows.length){
@@ -1476,7 +1515,14 @@ async function doBookingsStay(b,extraNo){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
   let rows;
   try{ rows=await fetchBookings(b,MAX_ROWS,F.checkIn+' DESC'); }
-  catch(e){ doBookingsLink(b); return; }
+  catch(e){
+    if(!FEAT.retry){ doBookingsLink(b); return; }
+    const pre=E('div');
+    pre.appendChild(note(T.readFail));
+    pre.appendChild(retryBlock(function(){ doBookingsStay(b,extraNo); }));
+    doBookingsLink(b,extraNo,pre);
+    return;
+  }
   if(rows===null){ doBookingsLink(b); return; }
   if(rows.length===1){
     await renderState(rows[0],{chips:plan.chips,no:plan.no,filters:b,onChange:function(){ doBookings(b,false,extraNo); }});
@@ -1541,7 +1587,10 @@ async function doNotes(n,extraNo){
   if(!guest){ sayWithNo(note(T.noBooking),extraNo); return; }
   let rows;
   try{ rows=await fetchBookings({guest:guest},MAX_ROWS,F.checkIn+' DESC'); }
-  catch(e){ say(note('No he podido leer la reserva.')); return; }
+  catch(e){
+    if(FEAT.retry){ say(readFailNote(again)); return; }
+    say(note('No he podido leer la reserva.')); return;
+  }
   const box=E('div');
   head(box);
   if(!rows||!rows.length){
@@ -1633,6 +1682,13 @@ async function doTasks(t,extraNo){
     const ty=fold(t.type);
     const names=!!own(TASK_BT,ty) || /limpiez|welcome|wellcome|cierre/.test(ty);
     if(!names) t.noauto=true;
+  }
+  /* J2: si TaUsers no se pudo leer y la pregunta pide un usuario que el mapa
+     no resuelve, el fallo real es de lectura, no "usuario no encontrado":
+     decirlo así en vez de mandar el nombre a "No pude aplicar". */
+  if(FEAT.retry && t.user && USERS_FAIL && !findUser(t.user).id){
+    sayWithNo(readFailNote(async function(){ await ensureUsers(t.user); await doTasks(t,extraNo); }),extraNo);
+    return;
   }
   /* La villa se resuelve una vez, antes de pintar nada: con el id el filtro de
      tareas.html es exacto y deja de depender del texto del nombre. */
@@ -1731,7 +1787,10 @@ async function doVilla(v,extraNo){
   if(!name){ sayWithNo(note(T.noVilla),extraNo); return; }
   /* La misma lista que usa doTasks, resuelta con el mismo criterio. */
   const res=await resolveVilla(name);
-  if(!res.ok){ sayWithNo(note('No he podido leer las villas.'),extraNo); return; }
+  if(!res.ok){
+    if(FEAT.retry){ sayWithNo(readFailNote(function(){ doVilla(v,extraNo); }),extraNo); return; }
+    sayWithNo(note('No he podido leer las villas.'),extraNo); return;
+  }
   const hits=res.hits;
   const sgV=suggestBlock(res.near,function(h){ return isId(String(h.id||''))?link('villa',{villa_id:String(h.id)}):null; });
   const box=E('div');
