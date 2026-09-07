@@ -103,6 +103,8 @@ function env(proxyBehavior) {
     'async ' + fnSource('fetchBookings'),
     /* say: en vez de pintar, guarda el nodo para que la prueba lo examine. */
     'function say(node){ __SAID=node; }',
+    /* J3 comparte el enlace del plan desde la tarjeta: aquí solo hace falta que exista. */
+    'var ST={q:"",shareHref:"",shareChips:[]}; function chipTexts(){ return []; }',
     fnSource('retryBlock'), fnSource('readFailNote'),
     'async ' + fnSource('doBookingsCard'),
     'this.doBookingsCard=doBookingsCard; this.FEAT=FEAT; this.T=T;',

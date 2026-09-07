@@ -2586,12 +2586,12 @@ function pageBookingCode(){
     const page=curPage();
     /* Notas: la reserva es el parámetro de la URL; la página no abre otra. */
     if(page===PAGES.notas)return ctxCode(ctxParam('TaBookings2021_FS_confirmation_code'));
-    /* Cobros: llega por ?code= y la página lo copia al campo de búsqueda. */
+    /* Cobros: llega por ?code= y la página lo copia al campo de búsqueda.
+       Manda el campo: si la persona ha escrito otro código, es ese. */
     if(page===CTX_COBROS){
-      const u=ctxCode(ctxParam('code'));
-      if(u)return u;
       const el=document.getElementById('fCode');
-      return el?ctxCode(el.value):'';
+      const f=el?ctxCode(el.value):'';
+      return f||ctxCode(ctxParam('code'));
     }
     /* Primer contacto: solo cuando la ventana de la reserva está abierta.
        mData se queda con la última reserva después de cerrarla, así que sin
