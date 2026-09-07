@@ -226,6 +226,7 @@ const T = {
   rptLabel  :'Texto del aviso',
   /* J4 */
   manyUnits :'He encontrado varias unidades. Elige una:',
+  unitVilla :'Esa unidad está en esta villa, no en la del nombre exacto. Quita el chip si no es.',
   moreUnits :'Hay más unidades; escribe la etiqueta de la que buscas.',
   /* J5 — tarjeta "qué falta para las entradas de un día" */
   rdNone    :'No hay entradas en esas fechas.',
@@ -2180,7 +2181,22 @@ async function doTasks(t,extraNo){
   if(FEAT.unit){
     const uWords=String(t.unit==null?'':t.unit).trim();
     if(uWords && t.villa && isId(t.villaId)){
-      const uHits=await resolveUnit(t.villaId,uWords);
+      let uHits=await resolveUnit(t.villaId,uWords);
+      /* La villa acertada no tiene esa unidad, pero una de las parecidas sí
+         (VILLA VORAMAR frente a APARTAMENTOS VORAMAR): si es exactamente una,
+         Mia se pasa a esa villa y lo dice. */
+      if(!uHits.length && near.length){
+        const alts=[];
+        for(let ai=0; ai<near.length; ai++){
+          const hh=await resolveUnit(near[ai].id,uWords);
+          if(hh.length===1)alts.push({v:near[ai],u:hh[0]});
+        }
+        if(alts.length===1){
+          t.villaId=alts[0].v.id; t.villa=alts[0].v.name; uHits=[alts[0].u];
+          near=near.filter(function(h){ return h.id!==alts[0].v.id; });
+          topNote=note(T.unitVilla);
+        }
+      }
       if(uHits.length===1){
         t.unitId=uHits[0].id; t.unitName=unitLabel(uHits[0]);
       }else if(uHits.length>1){
@@ -2336,7 +2352,7 @@ async function villaNames(){
   return m;
 }
 /* Una fila = un registro de tarea. Todo entra por textContent (E). */
-function incidentRow(r,names){
+function incidentRow(r,names,users){
   const row=E('div','mia-inc');
   const vid=String(r.villaid==null?'':r.villaid).trim();
   const head=E('div','mia-inc-h');
@@ -2352,8 +2368,10 @@ function incidentRow(r,names){
   const meta=E('div','mia-inc-m');
   /* El nombre sale del mapa de usuarios; si no está, una raya. Nunca el id a
      secas, igual que en la ficha de reserva. */
-  const resp=userName(String(r.UserID_responsible_alfanum||'').trim())
-          || userName(String(r.UserID_asigned_alfanum||'').trim());
+  /* tareas.html no expone el mapa de usuarios de Entradas: se completa con
+     la lista de TaUsers ya descargada (users), sin otra llamada. */
+  const rid=String(r.UserID_responsible_alfanum||'').trim(), aid=String(r.UserID_asigned_alfanum||'').trim();
+  const resp=userName(rid)||(users&&users.get(rid))||userName(aid)||(users&&users.get(aid))||'';
   meta.appendChild(E('span',null,T.incResp+' '+(resp||'—')));
   meta.appendChild(E('span',null,isOk(r.Tarea_terminada)===true?T.incDone:T.incPend));
   meta.appendChild(E('span',null,incPhotoText(incPhotos(r))));
@@ -2402,7 +2420,8 @@ async function doTasksIncidents(t,extraNo,topNote,near){
     box.appendChild(note(T.incNone));
   }else{
     const l=E('div','mia-list');
-    shown.forEach(function(r){ l.appendChild(incidentRow(r,names)); });
+    let users=null; try{ users=await loadUsers(); }catch(e){}
+    shown.forEach(function(r){ l.appendChild(incidentRow(r,names,users)); });
     box.appendChild(l);
     if(list.length>INC_MAX)box.appendChild(note(T.incMore));
   }
