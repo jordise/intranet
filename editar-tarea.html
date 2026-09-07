@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v64 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v65 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <!-- ══ PWA ══ -->
@@ -25,14 +25,14 @@
   }
 </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Tarea v64 — 3Villas</title>
+  <title>Editar Tarea v65 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <script>
     // ── AUTO-DETECCIÓN DE VERSIÓN (Opción B) — retrofit obligatorio, no estaba implementado ──
     (function(){
-      const PAGE_VERSION='v64';
+      const PAGE_VERSION='v65';
       try{
         if(location.protocol==='file:') return;
         fetch(location.pathname,{cache:'reload'}).then(r=>r.text()).then(html=>{
@@ -115,6 +115,9 @@
     .tt-circle{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--gray-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;background:#fff;color:transparent}
     .terminada-toggle.on .tt-circle{border-color:var(--green);background:var(--green);color:#fff}
     .tt-text{flex:1;font-size:14px;font-weight:600}
+    .terminada-toggle.locked{opacity:.6;cursor:not-allowed}
+    .tt-lock{font-size:11px;color:var(--gray-4);display:none}
+    .tt-lock.on{display:block}
     .terminada-toggle.on .tt-text{color:var(--green-dark);font-weight:700}
     .res-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
     .btn-cerrar{background:var(--green);color:#fff;border:none;border-radius:12px;padding:16px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;letter-spacing:.3px;grid-column:1/-1}
@@ -231,6 +234,7 @@
           <div class="tt-circle" id="ttCircle"></div>
           <span class="tt-text" id="ttText">Marcar como terminada</span>
         </div>
+        <div class="tt-lock" id="ttLock">Solo un manager puede desmarcar</div>
         <div class="field">
           <label class="lbl">Solución aplicada</label>
           <div class="input-mic"><div class="tl-wrap" id="fSolucion_tl"></div><button class="mic-btn hidden" id="micSolucion" type="button">🎤</button></div>
@@ -523,7 +527,8 @@ function restoreStateIfRecent() {
       window._setUsuarioConfirmed(s.asignado,s.asignadoName||(_rU?_rU.name:''));
     }
     if(s.villaId&&typeof window._setVillaConfirmed==='function')window._setVillaConfirmed(s.villaId,s.villaName);
-    if(typeof setTerminada==='function')setTerminada(!!s.terminada);
+    if(typeof setTerminada==='function')setTerminada(doneLocked?true:!!s.terminada);
+    if(typeof aplicarBloqueoTerminada==='function')aplicarBloqueoTerminada();
   } catch(e) {}
 }
 function clearState(){ try{if(taskId)sessionStorage.removeItem(_stateKey());}catch(e){} }
@@ -539,6 +544,20 @@ window.openLightbox=function(src){ if(!src)return; g('lbImg').src=src; g('lightb
 window.closeLightbox=function(){ g('lightbox').classList.remove('open'); };
 document.addEventListener('keydown',function(e){ if(e.key==='Escape')window.closeLightbox(); });
 
+/* v65: solo admin/manager pueden desmarcar una tarea de reserva ya terminada */
+function puedeDesmarcar(){var r=(typeof Auth!=='undefined'&&Auth.role)?String(Auth.role()||'').toLowerCase():'';return r==='admin'||r==='manager';}
+var doneLocked=false; /* true = la tarea se cargo terminada y este rol no puede desmarcarla */
+/* El bloqueo se decide una sola vez, al cargar la tarea */
+function calcBloqueoDesmarcado(t){
+  var tipo=String((t&&t['Tasktype_booking'])||'').trim();
+  if(['10','20','30'].indexOf(tipo)===-1)return false; /* solo las tareas de reserva */
+  return isTruthy(t[F.terminada])&&!puedeDesmarcar();
+}
+function aplicarBloqueoTerminada(){
+  var row=g('ttRow'); if(row)row.classList.toggle('locked',doneLocked);
+  var lock=g('ttLock'); if(lock)lock.classList.toggle('on',doneLocked);
+}
+
 function setTerminada(val){
   isTerminada=!!val;
   var row=g('ttRow'),circle=g('ttCircle'),text=g('ttText');
@@ -547,7 +566,10 @@ function setTerminada(val){
   var s=g('hStatus');
   if(s){if(isTerminada){s.textContent='✓ Terminada';s.className='hero-status done';}else{s.textContent='⏳ Pendiente';s.className='hero-status pend';}}
 }
-window.toggleTerminada=function(){ setTerminada(!isTerminada); };
+window.toggleTerminada=function(){
+  if(doneLocked&&isTerminada){ setTerminada(true); aplicarBloqueoTerminada(); toast('Solo un manager puede desmarcar','err'); return; }
+  setTerminada(!isTerminada);
+};
 
 function setFlag(field,val){
   if(field==='urgente'){isUrgente=!!val;var el=g('ftUrgente');if(el)el.classList.toggle('on',isUrgente);}
@@ -611,6 +633,7 @@ function loadTask(){
         Data_to_be_done:row['TaTasks_Data_to_be_done']||'',
         UserID_asigned_alfanum: row['TaTasks_UserID_asigned_alfanum']||'',
         Tarea_terminada:row['TaTasks_Tarea_terminada'],
+        Tasktype_booking: row['TaTasks_Tasktype_booking'],
         Internal_notes: row['TaTasks_Internal_notes']||'',
         Solutiondescription: row['TaTasks_Solutiondescription']||'',
         PMSmultiunitID: row['TaTasks_PMSmultiunitID']||'',
@@ -692,7 +715,9 @@ function populateForm(){
     var _auName=t._assignedName||(allUsers.find(function(u){return u.id===_aid;})||{}).name||'';
     window._setUsuarioConfirmed(_aid,_auName);
   }
+  doneLocked=calcBloqueoDesmarcado(t); /* v65 */
   setTerminada(isTruthy(t[F.terminada]));
+  aplicarBloqueoTerminada();
   setFlag('urgente',isTruthy(t['urgente']||t['Urgente']));
   setFlag('importante',isTruthy(t['importante']||t['Importante']));
   selectedVillaId=String(t.villaid||'');
@@ -963,7 +988,7 @@ function submitForm(markDone){
     record[F.descripcion]=(window._tlGet?_tlGet('fDesc'):g('fDesc').value).trim();
     record[F.fecha]      =(g('fFecha').value||today())+' 00:00:00';
     record[F.asignado]   =selectedUserId||g('fAsignado').value||'';
-    record[F.terminada]  =isTerminada;
+    record[F.terminada]  =doneLocked?true:isTerminada;
     record[F.notas]      =g('fNotas').value.trim();
     record[F.solucion]   =(window._tlGet?_tlGet('fSolucion'):g('fSolucion').value).trim();
     if(selectedVillaId)  record['villaid']=parseInt(selectedVillaId)||0;
@@ -1176,4 +1201,4 @@ function onDone(){
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v64 - Migración del Service Worker legacy: el registro pasa de '/3villas-manuals/sw.js' a '/intranet/sw.js' (versión más reciente, con caché versionada y limpieza de cachés antiguas), desregistrando primero cualquier SW activo con scope '/3villas-manuals/' para limpiar dispositivos que aún lo tuvieran instalado. Mismo cambio aplicado a la vez en entradas-equipo.html, tareas.html, nueva-tarea.html y listado-ocupacion.html. RETROFIT OBLIGATORIO detectado y corregido de paso: el archivo no tenía implementado el mecanismo de auto-detección de versión (Opción B) pese a la regla permanente de memoria — añadido en el <head> junto con las meta Cache-Control/Pragma no-cache que tampoco existían. Favicon ya era estándar. Sin cambios en ninguna otra lógica de la página. | v63 - Fotos: añadido Date.now() al final del nombre de archivo (año_before/after_taskId_usuario_slot_TIMESTAMP) en pre-subida y fallback; al reemplazar una foto del mismo slot se genera URL nueva en vez de reutilizar la misma clave R2, evitando que el navegador/CDN muestre la imagen antigua cacheada | v62 - goBack() lee sessionStorage[3v_eys_return] (guardado por entradas-equipo.html al abrir una tarea): si existe, navega directamente a la URL guardada (evita el bug de history.back() que con base href=/intranet/ volvía a index.html en lugar de entradas-equipo.html); guarda el scroll en 3v_eys_scroll para que entradas-equipo lo restaure al cargar. Si no hay URL guardada, hace history.back() como antes. |  v61 - Retrofit: favicon estándar añadido (ruta absoluta); spinner CSS .big-spinner sustituido por img base64 estándar del corazón 3Villas. |  v60 - FIX espaciado real: el checkbox de las listas heredaba flex:1 de la regla .input-mic input (se estiraba a ~180px y empujaba el texto); añadido flex:none al checkbox. Ahora grip+checkbox quedan compactos a la izquierda y el texto ocupa todo el ancho | v59 - Listas: compactado grip (12px) y checkbox (16px), gap 4px y min-width:0 en el texto (no surtió efecto por el flex heredado, corregido en v60) | v58 - Listas Descripción/Solución: reducido el espacio grip↔checkbox↔texto (gap 6px) para más ancho de edición; botón × anclado a la derecha. La fila "Añadir" se coloca encima de la primera tarea terminada (si las hay) y al final si no hay terminadas; ítem nuevo desmarcado entra como último pendiente | v57 - Descripción y Solución: editor Quill sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Micro adaptado: dicta un ítem nuevo desmarcado. Eliminado Quill (CDN, CSS .ql-*, botones .re-*) | v56 - Lightbox fotos: botón cerrar ✕ visible en esquina superior derecha | v55 - Vi_Tasks_and_Villas incluye TaMultiunits: 1 sola llamada al cargar (vs 4 anteriores); multiunits completos en background para cambio de villa | v54 - Carga en 2 fases: Vi_Tasks_and_Villas sustituye loadTask+loadVillas+loadUsers (1 fetch vs 3); formulario visible inmediatamente; buscadores cargan en background | v53 - Fix botón borrar foto siempre visible (móvil); carga más rápida: loadTask sin 2ª fetch villa (usa allVillas), caché sessionStorage 5min para users y villas | v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->
+<!-- HISTORIAL: v65 - Bloqueo de desmarcado: en una tarea de reserva (Tasktype_booking 10, 20 o 30) que se abre ya terminada, solo un rol admin o manager puede desmarcarla. Para los demas roles el interruptor queda bloqueado (opacidad .6, cursor no permitido), aparece la linea "Solo un manager puede desmarcar" debajo, el toque avisa con ese mismo texto y el guardado envia Tarea_terminada en true aunque el control diga lo contrario; la sesion restaurada tampoco lo puede apagar. Motivo: el disparador de Caspio marca la tarea como terminada en cualquier actualizacion, asi que un desmarcado desde la intranet no se sostiene y confunde al equipo. La vista Vi_Tasks_and_Villas ya devolvia TaTasks_Tasktype_booking: ahora se guarda en taskData para decidir el bloqueo una sola vez al cargar. Sin cambios en las tareas que no son de reserva, en los roles admin y manager, en las URL de guardado ni en el resto del formulario. | v64 - Migración del Service Worker legacy: el registro pasa de '/3villas-manuals/sw.js' a '/intranet/sw.js' (versión más reciente, con caché versionada y limpieza de cachés antiguas), desregistrando primero cualquier SW activo con scope '/3villas-manuals/' para limpiar dispositivos que aún lo tuvieran instalado. Mismo cambio aplicado a la vez en entradas-equipo.html, tareas.html, nueva-tarea.html y listado-ocupacion.html. RETROFIT OBLIGATORIO detectado y corregido de paso: el archivo no tenía implementado el mecanismo de auto-detección de versión (Opción B) pese a la regla permanente de memoria — añadido en el <head> junto con las meta Cache-Control/Pragma no-cache que tampoco existían. Favicon ya era estándar. Sin cambios en ninguna otra lógica de la página. | v63 - Fotos: añadido Date.now() al final del nombre de archivo (año_before/after_taskId_usuario_slot_TIMESTAMP) en pre-subida y fallback; al reemplazar una foto del mismo slot se genera URL nueva en vez de reutilizar la misma clave R2, evitando que el navegador/CDN muestre la imagen antigua cacheada | v62 - goBack() lee sessionStorage[3v_eys_return] (guardado por entradas-equipo.html al abrir una tarea): si existe, navega directamente a la URL guardada (evita el bug de history.back() que con base href=/intranet/ volvía a index.html en lugar de entradas-equipo.html); guarda el scroll en 3v_eys_scroll para que entradas-equipo lo restaure al cargar. Si no hay URL guardada, hace history.back() como antes. |  v61 - Retrofit: favicon estándar añadido (ruta absoluta); spinner CSS .big-spinner sustituido por img base64 estándar del corazón 3Villas. |  v60 - FIX espaciado real: el checkbox de las listas heredaba flex:1 de la regla .input-mic input (se estiraba a ~180px y empujaba el texto); añadido flex:none al checkbox. Ahora grip+checkbox quedan compactos a la izquierda y el texto ocupa todo el ancho | v59 - Listas: compactado grip (12px) y checkbox (16px), gap 4px y min-width:0 en el texto (no surtió efecto por el flex heredado, corregido en v60) | v58 - Listas Descripción/Solución: reducido el espacio grip↔checkbox↔texto (gap 6px) para más ancho de edición; botón × anclado a la derecha. La fila "Añadir" se coloca encima de la primera tarea terminada (si las hay) y al final si no hay terminadas; ítem nuevo desmarcado entra como último pendiente | v57 - Descripción y Solución: editor Quill sustituido por lista editable (checkbox + edición inline + drag&drop reordenar + auto-mover marcado al fondo/desmarcado arriba + botón eliminar). Mismo formato de texto guardado ([x]/[ ]/•); líneas planas legacy se cargan como ítem desmarcado. Micro adaptado: dicta un ítem nuevo desmarcado. Eliminado Quill (CDN, CSS .ql-*, botones .re-*) | v56 - Lightbox fotos: botón cerrar ✕ visible en esquina superior derecha | v55 - Vi_Tasks_and_Villas incluye TaMultiunits: 1 sola llamada al cargar (vs 4 anteriores); multiunits completos en background para cambio de villa | v54 - Carga en 2 fases: Vi_Tasks_and_Villas sustituye loadTask+loadVillas+loadUsers (1 fetch vs 3); formulario visible inmediatamente; buscadores cargan en background | v53 - Fix botón borrar foto siempre visible (móvil); carga más rápida: loadTask sin 2ª fetch villa (usa allVillas), caché sessionStorage 5min para users y villas | v52 - Pre-subida de fotos en background al seleccionarlas; compresión canvas 1200px/80% (archivos >300KB); overlay spinner/✓/⚠ en thumbnail; uploadPhoto usa URL cacheada si ya subida | v51 - versión anterior -->

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v8 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v11 | Historial completo al final -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="3Villas">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/intranet/sw.js').catch(()=>{}));</script>
-  <title>Tarea Limpieza v10 — 3Villas</title>
+  <title>Tarea Limpieza v11 — 3Villas</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--orange:#e07b00;--r:14px;--shadow:0 4px 18px rgba(0,0,0,.12)}
@@ -80,7 +80,7 @@
     .btn-save:active{background:#17834a;transform:scale(.98)}
     .btn-save:disabled{background:var(--gray-3);box-shadow:none;cursor:not-allowed}
     .btn-save    @keyframes spin{to{transform:rotate(360deg)}}
-    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d3142;color:#fff;padding:12px 22px;border-radius:30px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;max-width:90vw;text-align:center}
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d3142;color:#fff;padding:12px 22px;border-radius:30px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;z-index:999;max-width:90vw;text-align:center;line-height:1.35}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     .toast.success{background:var(--green)}
     .toast.error{background:var(--red)}
@@ -382,6 +382,8 @@ function restoreStateIfRecent(){
   try{const raw=sessionStorage.getItem(STATE_KEY);if(!raw)return;const s=JSON.parse(raw);if(Date.now()-s.ts>MAX_AGE)return;
   $sw('swVentanas',s.v);$sw('swAires',s.a);$sw('swBasura',s.b);$sw('swDone',s.d);
   const ti=g('txtIncidencia');if(ti)ti.value=s.inc||'';const tn=g('txtNotas');if(tn)tn.value=s.n||'';
+  /* v11: una tarea bloqueada no se puede desmarcar restaurando el estado de la sesion */
+  if(doneLocked)$sw('swDone',true);
   if(s.io&&!incOpen)openInc();onSwDoneChange();}catch(e){}
 }
 function clearState(){try{sessionStorage.removeItem(STATE_KEY);}catch(e){}}
@@ -403,13 +405,36 @@ function hide(id){const e=g(id);if(e)e.style.display='none';}
 function show(id){const e=g(id);if(e)e.style.display='';}
 
 let toastTimer;
-function toast(msg,type){const el=g('toast');el.textContent=msg;el.className='toast show '+(type||'success');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',3000);}
+function toast(msg,type){const el=g('toast');el.textContent=msg;el.className='toast show '+(type||'success');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',type==='error'?5000:3000);}
+
+/* v11: solo admin/manager pueden desmarcar una tarea de reserva ya terminada */
+function puedeDesmarcar(){var r=(typeof Auth!=='undefined'&&Auth.role)?String(Auth.role()||'').toLowerCase():'';return r==='admin'||r==='manager';}
+var doneLocked=false; /* true = la tarea se cargo terminada y este rol no puede desmarcarla */
+/* v11: mismas reglas de si/no que $sw, para leer la fila despues de guardar */
+function esVerdadero(v){return v===true||v===1||v===-1||['yes','sí','true','1'].includes(String(v==null?'':v).toLowerCase());}
+/* v11: deja el control de terminada desactivado y con su aviso; se repinta en cada cambio */
+function pintarBloqueoDone(){
+  if(!doneLocked)return;
+  const el=g('swDone'),card=g('cardDone'),hint=g('doneHint');
+  if(el){el.checked=true;el.disabled=true;}
+  const row=card?card.querySelector('.toggle-row'):null;
+  const swb=(row&&row.querySelector)?row.querySelector('.switch'):null;if(swb)swb.style.opacity='.6';if(row)row.style.cursor='not-allowed';
+  if(hint){hint.textContent='Solo un manager puede desmarcar';hint.style.color='#595f70';}
+}
+/* v11: la foto principal nueva no se ha subido, asi que no se escribe nada */
+function abortarPorFotoFallida(){
+  if(!doneLocked&&sw('swDone')){$sw('swDone',false);onSwDoneChange();}
+  toast(doneLocked?'Foto no subida. No se ha guardado nada':'Foto no subida. La tarea sigue pendiente','error');
+}
 
 /* ── Tarea completada ── */
 function onSwDoneChange(){
+  /* v11: si la tarea esta bloqueada, cualquier intento de apagarla la vuelve a encender */
+  if(doneLocked&&!sw('swDone')){$sw('swDone',true);toast('Solo un manager puede desmarcar','error');}
   const done=sw('swDone'),card=g('cardDone'),hint=g('doneHint');
   if(done){if(card)card.style.borderColor='var(--green)';if(hint){hint.textContent='Tarea marcada como completada';hint.style.color='var(--green)';}}
   else{if(card)card.style.borderColor='var(--red-light)';if(hint){hint.textContent='⚠️ Pendiente — aparecerá en el listado';hint.style.color='var(--red)';}}
+  pintarBloqueoDone();
 }
 function markDone(){if(!sw('swDone')){g('swDone').checked=true;onSwDoneChange();}}
 
@@ -495,11 +520,13 @@ async function guardarTodoOk(){
 /* ── Guardar ── */
 async function guardar(fromOk){
   /* Foto obligatoria solo si se marca la tarea como completada */
-  if(sw('swDone')&&!fotoPresente()){fotoError();return;}
+  /* v11: una tarea bloqueada (terminada, rol sin permiso) se puede guardar sin foto nueva: solo notas e incidencias */
+  if(!doneLocked&&sw('swDone')&&!fotoPresente()){fotoError();return;}
   const btn=g('btnSave'),lbl=g('saveLabel'),sp=g('saveSpinner'),btnOk=g('btnTodoOk');
   btn.disabled=true;if(btnOk)btnOk.disabled=true;lbl.textContent='Guardando...';sp.style.display='block';
   try{
-    const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:sw('swDone'),
+    /* v11: con la tarea bloqueada siempre viaja terminada=true, mire lo que mire el control */
+    const data={Idreserva:idReserva,Tasktype_booking:taskType,Tarea_terminada:doneLocked?true:sw('swDone'),
       Limpieza_filtrolavaplatos:sw('swVentanas'),
       Limpieza_salyabrillan_lavaplatos:sw('swAires')?'Y':'',
       Limpieza_cajon_lavadora_limpio:sw('swBasura')?'Y':'',
@@ -508,9 +535,19 @@ async function guardar(fromOk){
       Taskname:cfg.badge||'Limpieza'};
 
     /* Subir foto principal: si hay archivo nuevo, subir; si hay previa cargada, preservar URL */
-    if(photos.main.file&&photos.main.base64){
-      try{const up=await uploadPhoto(photos.main.file,idReserva,taskType,'1');if(up&&up.url)data['Picture_cloudfare1']=up.url;}
-      catch(e){console.warn('Upload foto principal:',e);toast('⚠️ Error subiendo foto cocina','error');}
+    if(photos.main.file){
+      /* v11: si la foto nueva no sube, no se guarda NADA (antes la tarea se guardaba terminada y sin foto) */
+      let up=null,upErr=null;
+      try{up=await uploadPhoto(photos.main.file,idReserva,taskType,'1');}
+      catch(e){upErr=e;console.warn('Upload foto principal:',e);}
+      const upUrl=(typeof up==='string')?up:((up&&up.url)||'');
+      if(upErr||!upUrl){
+        abortarPorFotoFallida();
+        btn.disabled=false;lbl.textContent='💾 Guardar';sp.style.display='none';if(btnOk)btnOk.disabled=false;
+        return;
+      }
+      /* v11: uploadPhoto() devuelve la URL como texto, no {url}: antes esta linea nunca guardaba la foto de cocina (cierre v09 y wp v13 ya lo corrigieron). Rompe-cache ?v= como en wp v20 porque el archivo en R2 se llama igual en cada edicion */
+      data['Picture_cloudfare1']=upUrl+(upUrl.includes('?')?'&':'?')+'v='+Date.now();
     } else {
       /* Preservar URL existente si la foto ya estaba guardada */
       const prevImg=g('photoPreview');
@@ -520,7 +557,7 @@ async function guardar(fromOk){
     /* Subir fotos incidencias → Picture_cloudfare_after1..5 */
     for(const[slot,idx]of[['ai1',1],['ai2',2],['ai3',3],['ai4',4],['ai5',5]]){
       if(photos[slot].file&&photos[slot].base64){
-        try{const up=await uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx);if(up&&up.url)data['Picture_cloudfare_after'+idx]=up.url;}
+        try{const up=await uploadPhoto(photos[slot].file,idReserva,taskType,'after'+idx);const u=(typeof up==='string')?up:((up&&up.url)||'');if(u)data['Picture_cloudfare_after'+idx]=u+(u.includes('?')?'&':'?')+'v='+Date.now();else toast('⚠️ Error subiendo foto '+(idx),'error');}
         catch(e){console.warn('Upload foto inc'+idx+':',e);toast('⚠️ Error subiendo foto '+(idx),'error');}
       } else {
         const prevImg=g('aiPreview'+idx);
@@ -530,7 +567,7 @@ async function guardar(fromOk){
     }
 
     /* Comprobar si existe la tarea y guardar */
-    const wh=`Idreserva='${idReserva}' AND Tasktype_booking=${parseInt(taskType)}`;
+    const wh=`Idreserva='${String(idReserva).replace(/'/g,"''")}' AND Tasktype_booking=${parseInt(taskType)||0}`;
     const chkRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`));
     const chkJson=await chkRes.json();
     const existingRows=(chkJson.Result||chkJson.result||[]);
@@ -548,9 +585,34 @@ async function guardar(fromOk){
       res=await fetch(Auth.url(`${WORKER}?action=save&table=TaTasks&method=POST`),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     }
     if(!res.ok){const errTxt=await res.text();throw new Error('HTTP '+res.status+': '+errTxt.slice(0,120));}
+    /* v11: se lee la fila otra vez y se enseña el estado real. Caspio puede devolver la tarea
+       como terminada aunque se haya enviado pendiente (disparador). Un fallo de esta lectura
+       nunca rompe el guardado: solo se avisa de que no se ha podido comprobar. */
+    const enviadoDone=data.Tarea_terminada===true;
+    let leidoDone=null;
+    try{
+      const rbCtrl=new AbortController();
+      const rbTimer=setTimeout(()=>rbCtrl.abort(),10000);
+      try{
+        const rbRes=await fetch(Auth.url(`${WORKER}?action=data&table=TaTasks&where=${encodeURIComponent(wh)}&limit=1`),{signal:rbCtrl.signal});
+        if(rbRes.ok){
+          const rbJson=await rbRes.json();
+          const rbRow=(rbJson.Result||rbJson.result||[])[0];
+          if(rbRow)leidoDone=esVerdadero(rbRow['Tarea_terminada']);
+        }
+      }finally{clearTimeout(rbTimer);}
+    }catch(eRb){console.warn('Lectura posterior al guardado:',eRb);leidoDone=null;}
+    if(leidoDone!==null&&leidoDone!==enviadoDone){
+      $sw('swDone',doneLocked?true:leidoDone);onSwDoneChange();saveState();
+      {const hm=g?g('doneHint'):document.getElementById('wpDoneHint');if(hm){hm.textContent='El sistema la deja como '+(leidoDone?'TERMINADA':'PENDIENTE');hm.style.color='var(--red)';}}
+      toast(leidoDone?'Guardado. El sistema la deja como TERMINADA':'Guardado. El sistema la deja como PENDIENTE','error');
+      btn.disabled=false;lbl.textContent='💾 Guardar';sp.style.display='none';if(btnOk)btnOk.disabled=false;
+      return;
+    }
     clearState();
-    toast('✓ Guardado correctamente','success');
+    toast(leidoDone===null?'✓ Guardado, sin confirmar. Comprueba en Equipo':'✓ Guardado correctamente','success');
     btn.disabled=false;lbl.textContent='✓ GUARDADO';btn.style.background='var(--green)';
+    if(leidoDone===null){sp.style.display='none';if(btnOk)btnOk.disabled=false;return;}
     setTimeout(()=>{try{window.close();}catch(e){history.back();}},800);
   }catch(e){
     console.error(e);toast('Error: '+e.message,'error');
@@ -560,14 +622,18 @@ async function guardar(fromOk){
 
 async function uploadPhoto(file,idRes,tType,suffix){
   /* Usar URL pre-subida si ya está lista */
-  const slot=suffix==='1'?'main':('ai'+(parseInt(suffix)-1||1));
+  /* v11: el slot se calcula bien ('after2' antes caia en ai1 por parseInt) */
+  const slot=suffix==='1'?'main':('ai'+(String(suffix).replace('after','')||'1'));
   const up=_getSlotUpload(slot);
   if(up.status==='done'&&up.url)return Promise.resolve(up.url);
   if(up.status==='uploading'&&up.promise)return up.promise;
-  /* fallback */
-  const fd=new FormData();fd.append('file',file,file.name||'foto_'+suffix+'.jpg');
+  /* v11: nombre de archivo unico por foto, como cierre v12: sin el, el Worker guarda las seis fotos de la reserva en el MISMO archivo de R2 y cada subida pisa la anterior */
+  const ext=(file.name&&file.name.includes('.'))?file.name.split('.').pop().toLowerCase():'jpg';
+  const year=new Date().getFullYear();
+  const fname=`${year}_limpieza_${idRes}_${suffix}.${ext}`;
+  const fd=new FormData();fd.append('file',file,fname);fd.append('filename',`limpieza/${fname}`);
   fd.append('idreserva',idRes);fd.append('tasktype',tType);fd.append('suffix',suffix);
-  fd.append('year',new Date().getFullYear());
+  fd.append('year',year);
   return fetch(Auth.url(`${WORKER}?action=upload`),{method:'POST',body:fd})
     .then(r=>r.json()).then(j=>j.url||j.publicUrl||'').catch(()=>'');
 }
@@ -588,6 +654,8 @@ async function loadTask(){
   $sw('swVentanas', r['TaTasks_Limpieza_filtrolavaplatos']);
   $sw('swAires',    r['TaTasks_Limpieza_salyabrillan_lavaplatos']==='Y'||r['TaTasks_Limpieza_salyabrillan_lavaplatos']===true);
   $sw('swBasura',   r['TaTasks_Limpieza_cajon_lavadora_limpio']==='Y'||r['TaTasks_Limpieza_cajon_lavadora_limpio']===true);
+  /* v11: el bloqueo se decide una sola vez, con el estado que llega de la base de datos */
+  doneLocked=sw('swDone')&&!puedeDesmarcar();
   onSwDoneChange();
   const ti=g('txtIncidencia');if(ti&&r['TaTasks_Taskdescription'])ti.value=r['TaTasks_Taskdescription'];
   const tn=g('txtNotas');if(tn&&r['TaTasks_Solutiondescription'])tn.value=r['TaTasks_Solutiondescription'];
@@ -605,7 +673,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
   g('hTaskBadge').textContent=cfg.badge;
   if(!idReserva){showError('Faltan parámetros en la URL.');return;}
   try{
-    await Promise.allSettled([loadBooking(),loadTask()]);
+    const cargas=await Promise.allSettled([loadBooking(),loadTask()]);
+    if(cargas[1].status==='rejected'){showError('No se ha podido cargar la tarea: '+(cargas[1].reason&&cargas[1].reason.message||'sin respuesta')+'. Cierra y vuelve a abrirla.');return;}
     restoreStateIfRecent();initAutoSave();
     hide('loadOverlay');show('mainContent');initMic();
   }catch(e){showError('Error al cargar: '+e.message);}
@@ -670,4 +739,4 @@ function _startBgUpload(slot,file){
 <div id="lbOverlay" onclick="if(event.target===this||event.target.id==='lbImg2')closeLB()"><button id="lbClose" onclick="closeLB()">✕</button><img id="lbImg2" src="" alt=""></div>
 </body>
 </html>
-<!-- HISTORIAL: v10 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v09 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v08 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v07 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v8 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v7 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v6 - versión anterior -->
+<!-- HISTORIAL: v11 - Cuatro cambios contra el mismo problema (el cuarto, encontrado al revisar la pantalla entera: uploadPhoto() devuelve la URL como texto pero guardar() comprobaba up.url, asi que la foto de cocina y las fotos de incidencias hechas desde esta pagina NUNCA se guardaban en TaTasks, aunque si se subian; ahora se guardan con rompe-cache ?v= como en wp v20). Los otros tres: una tarea de reserva marcada por error no se podia deshacer y el guardado podia mentir. (1) Solo un admin o un manager puede desmarcar una tarea que se abre ya terminada: el interruptor queda desactivado, debajo pone "Solo un manager puede desmarcar" y el guardado envia Tarea_terminada=true aunque se fuerce el control desde fuera; la decision se toma una sola vez al cargar. (2) Si la foto de cocina nueva no se sube, ya no se guarda nada: antes solo avisaba y la tarea se guardaba como terminada y sin foto. (3) Despues de guardar se lee la fila otra vez: si Caspio devuelve un estado distinto al enviado la pagina no se cierra, no borra lo escrito y avisa del estado real; si la lectura falla se avisa con "Guardado, sin confirmar. Comprueba en Equipo". No cambian las notas, las incidencias, las fotos de incidencias, las URLs de guardado ni la comprobacion de existencia; un manager sigue pudiendo desmarcar y guardar como siempre Revision (cinco agentes) anadida a la v11: una tarea bloqueada se guarda sin foto nueva (solo notas e incidencias; antes la foto obligatoria dejaba al limpiador sin poder guardar); la subida manda un nombre de archivo unico por foto (limpieza/ANO_limpieza_RESERVA_SUFIJO.ext, como cierre v12: sin el, las seis fotos de una reserva pisaban el mismo archivo en R2) y el slot de las fotos de incidencia se calcula bien; si la carga de la tarea falla se enseña un error y no un formulario vacio sin bloqueo; si la relectura no responde la pagina no se cierra sola; tras un desacuerdo se guarda el estado de sesion; el Idreserva se escapa en el WHERE; el aviso de bloqueo va en gris oscuro legible y solo se apaga el interruptor; los avisos de error duran 5 s y parten en dos lineas en moviles; textos sin la palabra Caspio. | v10 - Fix botón cerrar (history.back); fix lightbox stopPropagation en img onclick |  v09 - Fix: lightbox no abría al pulsar foto (showPhotoPreview no asignaba onclick) | v08 - Vi_Tasks_Booking_Villa (1 fetch); compressImage; pre-subida background por slot |  v07 - Lightbox fotos con botón ✕; compressImage 1200px/80% |  v8 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v7 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v6 - versión anterior -->

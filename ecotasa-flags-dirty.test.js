@@ -423,7 +423,7 @@ console.log('\n== task-wp.html (fallo visible) ==');
   var bloque = src.slice(i, src.indexOf('clearState();', i));
   ok('en ese caso NO se cierra la pagina ni se borra el estado',
     bloque.indexOf('return;') > 0 && bloque.indexOf('window.close()') === -1 && bloque.indexOf('clearState()') === -1);
-  ok('marcador de version v21', /VERSIÓN ACTUAL: v21 \|/.test(src.split('\n')[2]));
+  ok('marcador de version v22', /VERSIÓN ACTUAL: v22 \|/.test(src.split('\n')[2]));
 })();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail\n');
