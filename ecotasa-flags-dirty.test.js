@@ -1,4 +1,6 @@
-/* Pruebas: las marcas de check-in solo se guardan si el usuario las ha cambiado.
+/* Pruebas: las marcas de check-in y los cinco campos del bloque de deposito solo
+   se guardan si el usuario los ha cambiado; y los cobros del deposito pagados
+   fuera de Stripe (v72) se marcan bien.
    node ecotasa-flags-dirty.test.js
 
    Problema que cubren: las tres paginas del equipo guardan la reserva entera.
@@ -160,8 +162,8 @@ console.log('\n== checkin-testear-reserva.html (soloCambiados) ==');
 /* ── 4. Version de cada pagina y llamada dentro del guardado ── */
 console.log('\n== las tres paginas (HTML) ==');
 [
-  ['notas-equipo-reservas.html', 71, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
-  ['notas-villamanager.html', 34, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-equipo-reservas.html', 72, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-villamanager.html', 35, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
   ['checkin-testear-reserva.html', 10, 'async function saveAll(){', 'soloCambiados(fields,_booking,']
 ].forEach(function (t) {
   var file = t[0], ver = t[1], cabecera = t[2], llamada = t[3];
@@ -182,6 +184,247 @@ console.log('\n== rastro de marcas manuales (v70/v33) intacto ==');
   ok(P + ': sigue el bloque var _mn=marcasNuevas();', src.indexOf('var _mn=marcasNuevas();') > 0);
   ok(P + ": sigue la escritura record.Marcas_manuales=_ls.join('\\n');", src.indexOf("record.Marcas_manuales=_ls.join('\\n');") > 0);
 });
+
+/* ── 6. v72: los cinco campos del bloque de deposito ── */
+/* Un record como el que arma la pagina para el bloque de deposito. */
+function recordDep(v) {
+  v = v || {};
+  return {
+    CleaningNotes: 'notas del equipo',
+    Security_deposit_options: v.opt === undefined ? 1 : v.opt,
+    Se_permite_waver: v.waver === undefined ? 1 : v.waver,
+    Security_deposit_EUR: v.dep === undefined ? null : v.dep,
+    Deposit_waver_EUR: v.wav === undefined ? null : v.wav,
+    Gasto_tarjeta_deposito_seguridad: v.gasto === undefined ? null : v.gasto
+  };
+}
+var DEPC = ['Security_deposit_options', 'Se_permite_waver', 'Security_deposit_EUR', 'Deposit_waver_EUR', 'Gasto_tarjeta_deposito_seguridad'];
+function ningunaDep(r) { return DEPC.every(function (k) { return !(k in r); }); }
+
+[['notas-equipo-reservas.html', 'v72'], ['notas-villamanager.html', 'v35']].forEach(function (par) {
+  var P = par[0];
+  console.log('\n== ' + P + ' (depCambiados) ==');
+  var api = cargar(P, ['depNum', 'depCambiados', 'waverCargado']);
+  var f = api.depCambiados;
+  /* la ficha se abre con: opcion 1, waiver permitido, 500 de deposito, 50 de
+     waiver y 12.50 de gastos de tarjeta */
+  var CARGADO = { opt: '1', waver: '1', dep: '500', wav: '50', gasto: '12.50' };
+  function ahora(cambio) {
+    var o = {}; for (var k in CARGADO) o[k] = CARGADO[k];
+    for (var k2 in (cambio || {})) o[k2] = cambio[k2];
+    return o;
+  }
+
+  var r = f(recordDep(), CARGADO, ahora());
+  ok('abrir y guardar sin tocar el deposito no envia ninguno de los cinco campos', ningunaDep(r), JSON.stringify(r));
+  ok('  ...y los campos que no son del deposito se quedan', r.CleaningNotes === 'notas del equipo');
+
+  r = f(recordDep({ wav: '75' }), CARGADO, ahora({ wav: '75' }));
+  ok('cambiar el importe del waiver envia solo Deposit_waver_EUR', r.Deposit_waver_EUR === '75');
+  ok('  ...y los otros cuatro no viajan', DEPC.filter(function (k) { return k !== 'Deposit_waver_EUR'; }).every(function (k) { return !(k in r); }), JSON.stringify(r));
+
+  r = f(recordDep(), CARGADO, ahora({ dep: '500.00' }));
+  ok('500 y 500.00 son el mismo importe: no viaja', !('Security_deposit_EUR' in r));
+  r = f(recordDep(), CARGADO, ahora({ dep: '500.001' }));
+  ok('una diferencia menor de medio centimo no viaja', !('Security_deposit_EUR' in r));
+  r = f(recordDep({ dep: '500.01' }), CARGADO, ahora({ dep: '500.01' }));
+  ok('  ...y un centimo de mas si viaja', r.Security_deposit_EUR === '500.01');
+
+  r = f(recordDep(), { opt: '1', waver: '1', dep: '', wav: '50', gasto: '12.50' }, ahora({ dep: '0' }));
+  ok('importe vacio y 0 son el mismo valor: no viaja', !('Security_deposit_EUR' in r));
+  r = f(recordDep(), { opt: '1', waver: '1', dep: '0', wav: '50', gasto: '12.50' }, ahora({ dep: '' }));
+  ok('  ...y al reves tampoco', !('Security_deposit_EUR' in r));
+
+  r = f(recordDep({ opt: 2 }), CARGADO, ahora({ opt: '2' }));
+  ok('cambiar la opcion del deposito envia Security_deposit_options', r.Security_deposit_options === 2);
+  ok('  ...y solo esa', DEPC.filter(function (k) { return k !== 'Security_deposit_options'; }).every(function (k) { return !(k in r); }), JSON.stringify(r));
+
+  r = f(recordDep({ waver: 20 }), CARGADO, ahora({ waver: '20' }));
+  ok('pasar el waiver a No (20) envia Se_permite_waver', r.Se_permite_waver === 20);
+  r = f(recordDep(), { opt: '1', waver: '', dep: '500', wav: '50', gasto: '12.50' }, ahora());
+  ok('un Se_permite_waver vacio cuenta como Si (1): no viaja', !('Se_permite_waver' in r));
+
+  r = f(recordDep(), null, ahora());
+  ok('si no se cargo el bloque, ninguno de los cinco viaja', ningunaDep(r), JSON.stringify(r));
+  r = f(recordDep(), CARGADO, ahora({ dep: 'no es un numero' }));
+  ok('un valor que no es un numero no viaja', !('Security_deposit_EUR' in r));
+
+  var base = recordDep();
+  ok('devuelve el mismo record que recibe', f(base, CARGADO, ahora()) === base);
+
+  /* waverCargado: la lectura de Se_permite_waver (1 = Si, 20 = No, el 0 no existe) */
+  var w = api.waverCargado;
+  ok('un 20 guardado se lee como 20, no como Si', w(20) === '20' && w('20') === '20');
+  ok('un 0 guardado NO se lee como Si', w(0) === '0' && w('0') === '0');
+  ok('el campo vacio se queda vacio (elegir Si es un cambio real)', w('') === '' && w(null) === '' && w(undefined) === '');
+  ok('  ...y un 1 sigue siendo 1', w(1) === '1');
+});
+
+/* ── 7. v72: cobros del deposito fuera de Stripe (solo notas-equipo-reservas) ── */
+console.log('\n== notas-equipo-reservas.html (cobros fuera de Stripe) ==');
+
+/* Saca un bloque que empieza por un marcador y acaba en su llave de cierre. */
+function bloqueLlaves(file, inicio) {
+  var src = fs.readFileSync(file, 'utf8');
+  var i = src.indexOf(inicio);
+  if (i < 0) throw new Error('no encuentro ' + inicio + ' en ' + file);
+  var j = src.indexOf('{', i), depth = 0, k = j;
+  for (; k < src.length; k++) {
+    if (src[k] === '{') depth++;
+    else if (src[k] === '}') { depth--; if (depth === 0) { k++; break; } }
+  }
+  return src.slice(i, k);
+}
+
+(function () {
+  var P = 'notas-equipo-reservas.html';
+  var api = cargar(P, ['depCobrosPend']);
+  var f = api.depCobrosPend;
+
+  var r = f({ CleaningNotes: 'x' }, {});
+  ok('sin nada marcado no viaja ningun cobro del deposito',
+    !('Deposit_waver_cobrado' in r) && !('Security_deposit_cobrado' in r) && !('Gasto_tarjeta_dep_seguri_cobrado' in r));
+  r = f({}, { waiver: 'transferencia' });
+  ok('marcar el waiver escribe Deposit_waver_cobrado a 1', r.Deposit_waver_cobrado === 1);
+  ok('  ...y no toca el deposito ni los gastos', !('Security_deposit_cobrado' in r) && !('Gasto_tarjeta_dep_seguri_cobrado' in r), JSON.stringify(r));
+  r = f({}, { deposito: 'efectivo', gastos: 'transferencia' });
+  ok('deposito y gastos marcados escriben sus dos flags a 1', r.Security_deposit_cobrado === 1 && r.Gasto_tarjeta_dep_seguri_cobrado === 1);
+  r = f({}, { waiver: '', deposito: null });
+  ok('lo no marcado nunca escribe un 0', Object.keys(r).length === 0, JSON.stringify(r));
+  r = f({}, null);
+  ok('sin objeto de marcas tampoco escribe nada', Object.keys(r).length === 0);
+
+  /* el boton: confirm, importe obligatorio y la marca con su metodo */
+  function botonEnv(valor, respuesta) {
+    var win = { __depPendCobrado: {}, __depCobrado: {} };
+    var avisos = [];
+    var els = { fWavEUR: { value: valor }, fDepEUR: { value: '' }, fGastoT: { value: '' } };
+    var body = [
+      bloqueLlaves(P, 'var DEP_COBROS={') + ';',
+      bloqueLlaves(P, 'window.marcarDepCobradoFuera=function') + ';',
+      'return window;'
+    ].join('\n');
+    var g = function (id) { return els[id] || null; };
+    var toast = function (m, t) { avisos.push(t + ': ' + m); };
+    var confirm = function () { return respuesta; };
+    var updateDepCobros = function () { };
+    var w = new Function('window', 'g', 'toast', 'confirm', 'updateDepCobros', body)(win, g, toast, confirm, updateDepCobros);
+    return { win: w, avisos: avisos };
+  }
+
+  var e = botonEnv('', true);
+  e.win.marcarDepCobradoFuera('waiver', 'transferencia');
+  ok('sin importe no se marca nada', !e.win.__depPendCobrado.waiver);
+  ok('  ...y se avisa al usuario', e.avisos.length === 1 && e.avisos[0].indexOf('err:') === 0, JSON.stringify(e.avisos));
+
+  e = botonEnv('50', false);
+  e.win.marcarDepCobradoFuera('waiver', 'transferencia');
+  ok('si el usuario cancela el confirm no se marca nada', !e.win.__depPendCobrado.waiver);
+
+  e = botonEnv('50', true);
+  e.win.marcarDepCobradoFuera('waiver', 'transferencia');
+  ok('confirmando queda marcado el waiver con su metodo', e.win.__depPendCobrado.waiver === 'transferencia');
+  ok('  ...y se recuerda pulsar Guardar', e.avisos.join(' ').indexOf('Guardar') > 0, JSON.stringify(e.avisos));
+
+  e = botonEnv('50', true);
+  e.win.marcarDepCobradoFuera('inventado', 'transferencia');
+  ok('un tipo que no existe no marca nada', Object.keys(e.win.__depPendCobrado).length === 0);
+
+  /* el sello que se anade al rastro de marcas manuales */
+  function selloEnv(pend) {
+    var els = {
+      cbArrDone: { checked: false }, cbPolDone: { checked: false },
+      cbDepTerm: { checked: false }, fEcotasaCobrada: { value: '0' }
+    };
+    var body = [
+      bloqueLlaves(P, 'function marcaSello('),
+      bloqueLlaves(P, 'function marcasNuevas('),
+      'return marcasNuevas();'
+    ].join('\n');
+    return new Function('window', 'g', 'MARCA_DEFS', 'marcaPrev', 'Auth', body)(
+      { __depPendCobrado: pend },
+      function (id) { return els[id] || null; },
+      [['arr', 'Arrival form', 'mkArrDone'], ['pol', 'Policia', 'mkPolDone'], ['dep', 'Deposito', 'mkDepTerm'], ['eco', 'Ecotasa', 'mkEco']],
+      { arr: false, pol: false, dep: false, eco: false },
+      { name: function () { return 'Toni Segui'; } }
+    );
+  }
+
+  var m = selloEnv({});
+  ok('sin cobros marcados no hay ningun sello', m.length === 0, JSON.stringify(m));
+  m = selloEnv({ waiver: 'transferencia' });
+  ok('marcar el waiver deja exactamente un sello', m.length === 1, JSON.stringify(m));
+  ok('  ...con el formato [Waiver cobrado por transferencia DD/MM/AAAA HH:MM - Nombre]',
+    /^\[Waiver cobrado por transferencia \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} - Toni Segui\]$/.test(m[0]), m[0]);
+  m = selloEnv({ deposito: 'efectivo', gastos: 'transferencia' });
+  ok('deposito y gastos dejan sus dos sellos, con sus etiquetas', m.length === 2 &&
+    m[0].indexOf('[Deposito cobrado en efectivo ') === 0 &&
+    m[1].indexOf('[Gastos tarjeta cobrados por transferencia ') === 0, JSON.stringify(m));
+
+  /* la linea de cobro NO se pinta bajo la casilla del deposito: son dos cosas
+     distintas (decision del paso 3 contra dinero recibido) */
+  (function () {
+    var els = {};
+    ['mkArrDone', 'mkPolDone', 'mkDepTerm', 'mkEco'].forEach(function (id) { els[id] = { style: {}, innerHTML: '' }; });
+    var body = [
+      bloqueLlaves(P, 'function marcaEsc('),
+      bloqueLlaves(P, 'function renderMarcas('),
+      'renderMarcas();'
+    ].join('\n');
+    new Function('g', 'MARCA_DEFS', 'marcasTexto', body)(
+      function (id) { return els[id] || null; },
+      [['arr', 'Arrival form', 'mkArrDone'], ['pol', 'Policia', 'mkPolDone'], ['dep', 'Deposito', 'mkDepTerm'], ['eco', 'Ecotasa', 'mkEco']],
+      '[Deposito marcado 01/09/2026 10:00 - Marta]\n[Deposito cobrado por transferencia 07/09/2026 12:30 - Toni Segui]'
+    );
+    ok('la casilla del deposito sigue mostrando su sello de siempre', els.mkDepTerm.innerHTML.indexOf('- Marta') > 0);
+    ok('  ...y no muestra la linea del cobro por transferencia', els.mkDepTerm.innerHTML.indexOf('cobrado por transferencia') === -1, els.mkDepTerm.innerHTML);
+  })();
+
+  /* el guardado llama a las dos piezas nuevas */
+  var bloque = bloqueGuardado(P, 'window.guardar=function(){');
+  ok('el guardado filtra los cinco campos del deposito', bloque.indexOf('depCambiados(record,depPrev,') > 0);
+  ok('el guardado escribe los cobros marcados en esta sesion', bloque.indexOf('depCobrosPend(record,window.__depPendCobrado);') > 0);
+  var srcE = fs.readFileSync(P, 'utf8');
+  ok('los botones estan en la pagina, uno por linea y con los dos metodos',
+    ["marcarDepCobradoFuera('waiver','transferencia')", "marcarDepCobradoFuera('waiver','efectivo')",
+      "marcarDepCobradoFuera('deposito','transferencia')", "marcarDepCobradoFuera('deposito','efectivo')",
+      "marcarDepCobradoFuera('gastos','transferencia')", "marcarDepCobradoFuera('gastos','efectivo')"]
+      .every(function (t) { return srcE.indexOf(t) > 0; }));
+  ok('la pagina nunca escribe un 0 en los tres campos de cobro',
+    !/(Deposit_waver_cobrado|Security_deposit_cobrado|Gasto_tarjeta_dep_seguri_cobrado)\s*[:=]\s*0/.test(srcE));
+})();
+
+/* ── 8. notas-villamanager: mismo desplegable de waiver, sin ceros ── */
+console.log('\n== notas-villamanager.html (Se_permite_waver) ==');
+(function () {
+  var src = fs.readFileSync('notas-villamanager.html', 'utf8');
+  ok('el desplegable tiene los valores reales del lookup (1 = Si, 20 = No)',
+    src.indexOf('<option value="1">Sí</option><option value="20">No</option>') > 0);
+  ok('ya no queda ningun option con valor 0', src.indexOf('<option value="0">No</option>') === -1);
+  ok('el guardado nunca escribe 0: vacio va como null y lo demas como numero', src.indexOf("Se_permite_waver:g('fSeWaver').value===''?null:parseInt(g('fSeWaver').value)") > 0 && src.indexOf("Se_permite_waver:parseInt(g('fSeWaver').value||0)") < 0);
+  ok('una marca pendiente se descarta cuando la linea deja de aplicar', fs.readFileSync('notas-equipo-reservas.html', 'utf8').indexOf('if(pend)delete window.__depPendCobrado[tipo];') > 0 && fs.readFileSync('notas-equipo-reservas.html', 'utf8').indexOf('updateDepCobros(); /* descarta marcas pendientes') > 0);
+  ok('el texto de un extra se escapa en la linea de pagos de Equipo', /var lbl=String\(it\.label\|\|''\)\.replace\(\/&\/g,'&amp;'\)/.test(fs.readFileSync('entradas-equipo.html', 'utf8')));
+  ok('el guardado filtra los cinco campos del deposito',
+    bloqueGuardado('notas-villamanager.html', 'window.guardar=function(){').indexOf('depCambiados(record,depPrev,') > 0);
+})();
+
+/* ── 9. task-wp: un fallo de la reserva ya no se traga ── */
+console.log('\n== task-wp.html (fallo visible) ==');
+(function () {
+  var src = fs.readFileSync('task-wp.html', 'utf8');
+  ok('ya no queda el catch que se tragaba el fallo de la reserva',
+    src.indexOf('.catch(eBk=>{console.warn(') === -1);
+  ok('el fallo de la reserva se guarda para mirarlo despues', src.indexOf('.catch(eBk=>{bkErr=eBk;return null;})') > 0);
+  ok('tambien se mira si la respuesta no es OK (un 4xx no lanza excepcion)',
+    src.indexOf('if(bkErr||!bkRes||!bkRes.ok){') > 0);
+  ok('avisa con el texto acordado',
+    src.indexOf("toast('Tarea guardada, pero la reserva no se ha actualizado: pulsa Guardar otra vez','error');") > 0);
+  var i = src.indexOf('if(bkErr||!bkRes||!bkRes.ok){');
+  var bloque = src.slice(i, src.indexOf('clearState();', i));
+  ok('en ese caso NO se cierra la pagina ni se borra el estado',
+    bloque.indexOf('return;') > 0 && bloque.indexOf('window.close()') === -1 && bloque.indexOf('clearState()') === -1);
+  ok('marcador de version v21', /VERSIÓN ACTUAL: v21 \|/.test(src.split('\n')[2]));
+})();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail\n');
 process.exit(fail ? 1 : 0);

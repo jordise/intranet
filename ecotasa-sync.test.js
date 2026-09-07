@@ -44,7 +44,7 @@ function makeEnv(auth) {
     fnSource('calcPaymentItems'), fnSource('paymentsLineHTML'), fnSource('_lvBdg'),
     fnSource('isOk'),
     fnSource('_ecoCodigoValido'), fnSource('pagosPendientes'), fnSource('pagosWhere'),
-    fnSource('pagosStripeMerge'), fnSource('decidirReparacion'), fnSource('aplicarCandidato'),
+    fnSource('pagosStripeMerge'), fnSource('decidirReparacion'), fnSource('aplicarCandidato'), fnSource('paso4Falta'), fnSource('paso4Label'),
     fnSource('marcaSelloStripe'), fnSource('paso4Local'), fnSource('_lvBdgEco'),
     'return {pagosPendientes:pagosPendientes,pagosWhere:pagosWhere,pagosStripeMerge:pagosStripeMerge,' +
     'decidirReparacion:decidirReparacion,aplicarCandidato:aplicarCandidato,paso4Local:paso4Local,' +
@@ -333,7 +333,7 @@ console.log('\n== orden de trabajo (syncPagosStripe con dobles) ==');
   ok('  ...la linea de pagos muestra el cobro con etiqueta (Stripe)',
     /\(Stripe\)/.test(E.paymentsLineHTML(recsA[0])), E.paymentsLineHTML(recsA[0]));
   ok('  ...y la insignia del listado sale verde con etiqueta (Stripe)',
-    E._lvBdgEco(recsA[0], 'u').indexOf('lv-ok') > 0 && E._lvBdgEco(recsA[0], 'u').indexOf('Ecotasa (Stripe)') > 0, E._lvBdgEco(recsA[0], 'u'));
+    E._lvBdgEco(recsA[0], 'u').indexOf('lv-ok') > 0 && E._lvBdgEco(recsA[0], 'u').indexOf('Paso 4 (Stripe)') > 0, E._lvBdgEco(recsA[0], 'u'));
 
   /* caso "no": ecotasa anulada a proposito */
   var B = makeSyncEnv({ payments: [fila('X2')], live: { 'X2': { Ecotasa_cobrada: '0', Ecotasa_comentarios: 'Anulada ecotasa porque no vinieron' } } });
@@ -471,9 +471,9 @@ function finalizar() {
   console.log('\n== la pagina (HTML) ==');
 
   var linea3 = SRC.split('\n')[2];
-  ok('la cabecera dice VERSION ACTUAL v143', /VERSIÓN ACTUAL: v143/.test(linea3), linea3);
-  ok('PAGE_VERSION dice v143', /const PAGE_VERSION='v143';/.test(SRC));
-  ok('el titulo dice v143', /<title>Entradas Equipo v143/.test(SRC));
+  ok('la cabecera dice VERSION ACTUAL v144', /VERSIÓN ACTUAL: v144/.test(linea3), linea3);
+  ok('PAGE_VERSION dice v144', /const PAGE_VERSION='v144';/.test(SRC));
+  ok('el titulo dice v144', /<title>Entradas Equipo v144/.test(SRC));
 
   ok('existe el interruptor ECO_SYNC', /var ECO_SYNC=1;/.test(SRC));
   ok('existe el interruptor ECO_SYNC_WRITE', /var ECO_SYNC_WRITE=1;/.test(SRC));
@@ -489,7 +489,7 @@ function finalizar() {
   ok('ya no queda rastro de la regla vieja ecotasaStripeOk', SRC.indexOf('ecotasaStripeOk') === -1);
   ok('la escritura va por action=save con method=PUT sobre TaBookings2021',
     /action=save&table=TaBookings2021&where=/.test(SRC));
-  ok('el historial recoge v143 y v142', /<!-- HISTORIAL: v143 - /.test(SRC) && /\| v142 - /.test(SRC));
+  ok('el historial recoge v144 y v143', /<!-- HISTORIAL: v144 - /.test(SRC) && /\| v143 - /.test(SRC));
   ok('el historial explica la regla del importe y la puerta de rol',
     /margen de 0,05 euros/.test(SRC) && /admin, manager o staff/.test(SRC));
 
