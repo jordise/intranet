@@ -57,6 +57,10 @@ const VIEW_PAYMENTS  = 'Vi_bookingsall_and_paymen_editb';
    ya de camino. */
 const TIMEOUT_MS     = 22000;
 const MAX_ROWS       = 5;              // filas por lista (igual que el límite de la consulta)
+/* J5: tope de la tarjeta "qué falta" de las entradas de un día. El día más
+   cargado de 2026 tuvo 54 entradas, así que 60 las coge todas; el proxy corta
+   en 1000, muy por encima. */
+const READY_MAX      = 60;
 /* Villas por lista de elección. "bini" está en dieciocho nombres, así que un
    tope de diez escondía villas de verdad. Pasado el tope se pide más letras. */
 const MAX_VILLAS     = 20;
@@ -91,7 +95,10 @@ const F = {
   limpieza:'TaBookings2021_LimpiezaTerminada', wellcomePack:'TaBookings2021_Welcomepackentregado',
   cierre:'TaBookings2021_Checkoutcontrolado', checkinPend:'TaBookings2021_checkinonline_todo_terminado',
   ecotasaCobrada:'TaBookings2021_Paso4_terminado', policeDone:'TaBookings2021_Registro_policia_done',
-  depositDone:'TaBookings2021_Security_deposit_terminado'
+  depositDone:'TaBookings2021_Security_deposit_terminado',
+  /* J5: la marca del formulario de llegada, misma casilla que enseña
+     entradas-equipo (línea 818 de v141). */
+  arrivalFormDone:'TaBookings2021_Arrivalform_done'
 };
 const U = { id:'UserID', name:'Name' };
 
@@ -183,7 +190,22 @@ const T = {
   rmFilter  :'Quitar filtro',
   guest     :'Inquilino', dates:'Fechas', vm:'Villa Manager', state:'Estado',
   payments  :'Pagos', concept:'Concepto', date:'Fecha', amount:'Importe', total:'Total',
-  nights    :'noches'
+  nights    :'noches',
+  /* J5 — tarjeta "qué falta para las entradas de un día" */
+  rdNone    :'No hay entradas en esas fechas.',
+  rdRead    :'No he podido leer las entradas.',
+  rdMore    :'Hay más de 60 entradas. Ábrelas en Entradas.',
+  rdSource  :'Marcas de Entradas Equipo (tabla de reservas). Una marca no significa que Mia haya comprobado el trabajo.',
+  rdEnt     :'entradas',
+  rdPendN   :'con algo pendiente',
+  rdPend    :'pendiente',
+  rdNa      :'sin dato',
+  rdArrival :'Arrival form',
+  rdPolice  :'Policía',
+  rdPaso4   :'Paso 4 (ecotasa/depósito)',
+  rdDeposit :'Depósito',
+  rdClean   :'Limpieza',
+  rdWp      :'Welcome pack'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -551,6 +573,24 @@ body.easy .mia-row .mia-go{font-size:15px}
 body.easy .mia-panel .mia-btn,
 body.easy .mia-panel .mcard-h .mia-t,
 body.easy .mia-go{text-transform:none;letter-spacing:0}
+
+/* J5 — tarjeta "qué falta" de las entradas de un día. Una fila por reserva y
+   sus seis marcas en pastillas que doblan de línea en el móvil. La pastilla
+   dice el estado con palabras ("pendiente", "sin dato"), no solo con color:
+   se lee igual en blanco y negro y con el color apagado. */
+.mia-panel .mia-rdrow{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--gray-2,#e8eaed);border-radius:10px;background:#fff}
+.mia-panel .mia-rdrow .mia-rd-n{font-family:Montserrat,sans-serif;font-weight:800;font-size:16px;min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--gray-5,#2d3142)}
+.mia-panel .mia-rdrow .mia-rd-m{font-size:14px;min-width:0;overflow-wrap:anywhere;word-break:break-word;color:var(--mia-muted)}
+.mia-panel .mia-rdrow .mia-st{font-size:13px;padding:5px 10px;min-height:32px}
+/* Sin dato: borde de rayas y gris oscuro. Nunca verde: un campo vacío no es
+   un trabajo hecho. */
+.mia-panel .mia-st.na{border-style:dashed;border-color:#5c6273;background:#fff;color:#3d4356}
+body.dark .mia-panel .mia-rdrow{background:#252535;border-color:rgba(255,255,255,.14)}
+body.dark .mia-panel .mia-rdrow .mia-rd-n{color:#fff!important}
+body.dark .mia-panel .mia-rdrow .mia-rd-m{color:#c9cdd8!important}
+body.dark .mia-panel .mia-st.na{background:#1e1e26;border-color:#a7adbb;color:#e3e6ee!important}
+body.easy .mia-panel .mia-rdrow .mia-rd-n,
+body.easy .mia-panel .mia-rdrow .mia-rd-m{font-family:'Atkinson Hyperlegible','Open Sans',sans-serif;font-size:18px}
 `;
 
 /* ════════════════ ESTADO DEL MÓDULO ════════════════ */
@@ -1502,7 +1542,98 @@ async function doBookingsStay(b,extraNo){
   }
   say(box);
 }
-async function doBookings(b,card,extraNo){
+/* ── J5: "¿qué falta para las entradas de mañana?" ────────────────────────
+   Una fila por reserva con sus seis marcas. Ninguna casilla vacía se da por
+   buena: un campo nulo o vacío dice "sin dato", nunca "hecho". Las marcas son
+   las de Entradas Equipo (la tabla de reservas): dicen lo que alguien apuntó,
+   no lo que Mia haya comprobado. */
+const READY_FLAGS = [
+  [T.rdArrival,'arrivalFormDone'],
+  [T.rdPolice ,'policeDone'],
+  [T.rdPaso4  ,'ecotasaCobrada'],
+  [T.rdDeposit,'depositDone'],
+  [T.rdClean  ,'limpieza'],
+  [T.rdWp     ,'wellcomePack']
+];
+/* Tres estados de verdad: hecho, pendiente y sin dato. isOk() devuelve null
+   cuando el campo es nulo o está vacío, y ese null NO se convierte en hecho. */
+function readyPill(label,val){
+  const ok=isOk(val);
+  const st=E('span','mia-st'+(ok===true?' ok':ok===false?' pend':' na'));
+  st.textContent=(ok===true?'✓ ':ok===false?'· ':'? ')+label
+    +(ok===true?'':' '+(ok===false?T.rdPend:T.rdNa));
+  return st;
+}
+/* Pendiente = cualquiera de las seis que no esté hecha, y "sin dato" cuenta.
+   Si no contara, un día entero sin apuntar saldría como día resuelto. */
+function readyPending(r){
+  return READY_FLAGS.some(function(f){ return isOk(g(r,f[1]))!==true; });
+}
+function readyRow(r){
+  const row=E('div','mia-rdrow');
+  row.appendChild(E('div','mia-rd-n',String(g(r,'villaName')||'—')));
+  const code=String(g(r,'confirmCode')||'').trim();
+  const meta=[String(g(r,'guestName')||'').trim(),code?'#'+code:'',fmtDate(g(r,'checkIn'))]
+    .filter(Boolean).join(' · ');
+  row.appendChild(E('div','mia-rd-m',meta));
+  const sts=E('div','mia-states');
+  READY_FLAGS.forEach(function(f){ sts.appendChild(readyPill(f[0],g(r,f[1]))); });
+  row.appendChild(sts);
+  return row;
+}
+async function doBookingsReady(b,extraNo){
+  /* La pregunta es de entradas: si el Worker no manda tipo, lo pone Mia. Es
+     lo que define esta tarjeta, así que el chip Tipo vuelve si se quita. */
+  const bb=Object.assign({},b);
+  if(!bb.tipo)bb.tipo='entrada';
+  const plan=bookingsPlan(bb); plan.no=plan.no.concat(extraNo||[]);
+  const again=function(){ doBookingsReady(bb,extraNo); };
+  let rows;
+  try{ rows=await fetchBookings(bb,READY_MAX,F.checkIn+' ASC,'+F.villaName+' ASC'); }
+  catch(e){ say(note(T.rdRead)); return; }
+  rows=rows||[];
+  const box=E('div');
+  const chips=chipsBlock(plan.chips,bb,again);
+  if(chips)box.appendChild(chips);
+  /* El botón sale del plan, nunca de una fila: el enlace tiene que abrir el
+     día entero, no la reserva de arriba. */
+  const btns=E('div','mia-btns');
+  btns.appendChild(btn(T.openEnt,link('entradas',plan.params),true));
+  if(!rows.length){
+    box.appendChild(note(T.rdNone));
+    box.appendChild(note(T.rdSource));
+    const na0=noApplyBlock(plan.no);
+    if(na0)box.appendChild(na0);
+    box.appendChild(btns);
+    say(box);
+    return;
+  }
+  /* Lo que tiene algo pendiente, arriba. sort() mantiene el orden de la
+     consulta entre iguales (check-in y luego nombre de villa). */
+  const list=rows.slice().sort(function(x,y){
+    return (readyPending(x)?0:1)-(readyPending(y)?0:1);
+  });
+  if(rows.length<READY_MAX){
+    let pend=0;
+    list.forEach(function(r){ if(readyPending(r))pend++; });
+    box.appendChild(note(rows.length+' '+T.rdEnt+', '+pend+' '+T.rdPendN));
+  }else{
+    /* Tope alcanzado: la cuenta sería mentira, así que no se da ninguna. */
+    box.appendChild(note(T.rdMore));
+  }
+  const ul=E('div','mia-list');
+  list.forEach(function(r){ ul.appendChild(readyRow(r)); });
+  box.appendChild(ul);
+  box.appendChild(note(T.rdSource));
+  const na=noApplyBlock(plan.no);
+  if(na)box.appendChild(na);
+  box.appendChild(btns);
+  say(box);
+}
+async function doBookings(b,card,extraNo,answerCard){
+  /* J5: la tarjeta "qué falta" de las entradas de un día. Con FEAT.ready=0
+     no se pide nunca y el resto del reparto es exactamente el de antes. */
+  if(FEAT.ready&&answerCard==='ready'){ await doBookingsReady(b,extraNo); return; }
   if(isDate(b.stay_on)){ await doBookingsStay(b,extraNo); return; }
   /* Con nombre, con código o con manager se consulta y se enseña la ficha o la
      lista: son las tres preguntas cuya respuesta el enlace no puede dar bien
@@ -1862,7 +1993,7 @@ async function onAsk(){
       const b=Object.assign({},data.bookings||{});
       await ensureUsers(b.manager);
       const card=data.answer_card==='state'&&((b.code&&String(b.code).trim())||(b.guest&&String(b.guest).trim()));
-      await doBookings(b,card,um);
+      await doBookings(b,card,um,data.answer_card);
     }
     else if(target==='tasks'){
       const t=Object.assign({},data.tasks||{});
