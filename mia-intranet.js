@@ -2194,7 +2194,7 @@ async function doTasks(t,extraNo){
         if(alts.length===1){
           t.villaId=alts[0].v.id; t.villa=alts[0].v.name; uHits=[alts[0].u];
           near=near.filter(function(h){ return h.id!==alts[0].v.id; });
-          topNote=note(T.unitVilla);
+          topNote=T.unitVilla;
         }
       }
       if(uHits.length===1){
