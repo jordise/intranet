@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->
 <head>
     <base href="/intranet/">
   <meta charset="UTF-8">
@@ -70,7 +70,7 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/3villas-manuals/sw.js')
+      navigator.serviceWorker.register('/intranet/sw.js')
         .then(r => console.log('SW registrado:', r.scope))
         .catch(e => console.warn('SW error:', e));
     });
@@ -149,7 +149,20 @@
 <script>
 const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
 let pendingToken = '';
-const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/3villas-manuals/entradas.html';
+// Valida el parametro redirect para evitar que apunte fuera del intranet o a un esquema peligroso
+function sanitizeRedirect(raw) {
+  const fallback = 'entradas.html';
+  if (!raw) return fallback;
+  // Los navegadores quitan espacios y caracteres de control al resolver una URL: se quitan antes de comprobar
+  raw = String(raw).replace(/[\s\u0000-\u001f\u007f]/g, '');
+  if (!raw) return fallback;
+  if (/^[a-z]+:/i.test(raw)) return fallback;
+  if (raw.startsWith('//') || raw.startsWith('\\')) return fallback;
+  if (raw.includes('..')) return fallback;
+  if (raw.startsWith('/') && !raw.startsWith('/intranet/')) return fallback;
+  return raw;
+}
+const redirectUrl = sanitizeRedirect(new URLSearchParams(location.search).get('redirect'));
 
 // Si ya hay sesión válida → redirigir directamente
 (function checkExistingSession() {
@@ -264,4 +277,4 @@ function goBack() {
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v2 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v1 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v0 - versión anterior -->
+<!-- HISTORIAL: v3 - redirect validado (whitelist /intranet/ + rutas relativas, sin esquemas ni ".."); ruta del service worker corregida a /intranet/sw.js | v2 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v1 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v0 - versión anterior -->
