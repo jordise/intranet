@@ -392,6 +392,10 @@
    paginas que declaran let/const s. __miaLoader corta una segunda ejecucion, asi que
    incluir el fichero dos veces no anade nada. La ruta se saca del propio src y solo
    se cambia el ultimo nombre de fichero si es un nav-component*.js; si no cambia
-   nada (fichero renombrado a otra cosa) se cae a la ruta relativa, para que nunca
-   pueda cargarse a si mismo. */
-try{if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()&&!window.__miaLoader){window.__miaLoader=1;document.head.appendChild(Object.assign(document.createElement('script'),{src:(function(u){var v=String(u||'').replace(/\/nav-component[^\/?#]*\.js/,'/mia-intranet.js');return(!u||v===String(u))?'mia-intranet.js':v;})(document.currentScript&&document.currentScript.src)}));}}catch(e){}
+   nada (fichero renombrado a otra cosa) se cae a la ruta absoluta del intranet:
+   la relativa se resolvia contra el <base href> de varias paginas y podia acabar
+   en otro sitio, y ademas nunca puede cargarse a si mismo.
+   G19: ademas del token se mira el rol. Mia solo aparece para admin, manager,
+   staff y sales (la misma lista de MIA_ALLOWED_ROLES en mia-intranet.js), asi
+   que una cuenta de limpieza ya no se baja 138 KB en cada pagina. */
+try{if(typeof Auth!=='undefined'&&Auth.token&&Auth.token()&&Auth.role&&['admin','manager','staff','sales'].indexOf(String(Auth.role()||'').trim().toLowerCase())>=0&&!window.__miaLoader){window.__miaLoader=1;document.head.appendChild(Object.assign(document.createElement('script'),{src:(function(u){var v=String(u||'').replace(/\/nav-component[^\/?#]*\.js/,'/mia-intranet.js');return(!u||v===String(u))?'/intranet/mia-intranet.js':v;})(document.currentScript&&document.currentScript.src)}));}}catch(e){}

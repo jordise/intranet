@@ -88,7 +88,11 @@ const FEAT = {
   unit  :1,   /* J4: unidad (apartamento) dentro de una villa en Tareas */
   ready :1,   /* J5: tarjeta "qué falta" para las entradas de un día */
   incid :1,   /* J6: tareas con incidencia reportada por limpieza */
-  page  :1    /* J7: abrir una página del menú de quien pregunta, por su nombre */
+  page  :1,   /* J7: abrir una página del menú de quien pregunta, por su nombre */
+  /* J8: una pregunta cada vez. Cada pregunta lleva un número y la respuesta
+     que llega tarde, de una pregunta anterior, no se pinta. A 0 vuelve el
+     comportamiento de antes: sin número y sin bloqueo del campo. */
+  seq   :1
 };
 const K_EASY         = '3v_easy';      // localStorage: texto más legible
 const K_OFF          = '3v_mia_off';   // sessionStorage: Mia apagada esta sesión
@@ -260,7 +264,12 @@ const T = {
   incNoLink :'El enlace de Tareas no filtra por incidencia: ese filtro solo lo aplico yo aquí.',
   /* J7 */
   pageOpen  :'Abrir',
-  pageLine  :'Esta página del menú:'
+  pageLine  :'Esta página del menú:',
+  /* Barrido del 2026-09-07 */
+  noFilter  :'Dime un código, un nombre o una villa.',
+  incAsig   :'Asignada a:',
+  noApplyInq:'el inquilino en el enlace: el nombre lleva comillas',
+  rdToday   :'Sin fechas en la pregunta: son las entradas de hoy. Al quitar el chip de fecha vuelve a hoy.'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -411,6 +420,9 @@ function setMiaOff(){ try{ sessionStorage.setItem(K_OFF,'1'); }catch(e){} }
    Es la lista de ESTE rol: una página que su menú no tiene nunca se envía y
    por tanto nunca se enlaza. */
 const PAGE_KEY_RE = /^[a-z0-9-]{1,40}$/;
+/* G14: el último trozo de la url tiene que ser un nombre de archivo y nada
+   más. Deja fuera "javascript:x.html" y cualquier ruta con signos raros. */
+const PAGE_FILE_RE = /^[a-z0-9._-]+\.html$/i;
 const PAGE_MAX    = 40;
 const PAGE_DEPTH  = 4;   /* menús anidados: tope para no caminar en círculos */
 const PAGE_SKIP   = ['login'];
@@ -436,10 +448,14 @@ function menuPages(){
           const url=String(it.url||'').trim();
           const label=String(it.label||'').trim();
           if(label&&url&&url.indexOf('://')<0&&url.indexOf('/')!==0&&url.indexOf('..')<0&&/\.html$/.test(url)){
-            const key=url.split('/').pop().replace(/\.html$/,'');
-            if(PAGE_KEY_RE.test(key)&&PAGE_SKIP.indexOf(key)<0&&!own(seen,key)){
+            /* G14: la clave sale de un nombre de archivo de la lista blanca, y
+               lo que se guarda como url es esa misma clave: nunca el texto que
+               venía en el menú. */
+            const file=url.split('/').pop();
+            const key=PAGE_FILE_RE.test(file)?file.replace(/\.html$/i,''):'';
+            if(key&&PAGE_KEY_RE.test(key)&&PAGE_SKIP.indexOf(key)<0&&!own(seen,key)){
               seen[key]=1;
-              out.push({key:key,label:label,url:url});
+              out.push({key:key,label:label,url:key+'.html'});
             }
           }
         }
@@ -754,14 +770,35 @@ body.easy .mia-panel .mia-inc .mia-inc-m{font-size:16px}
 `;
 
 /* ════════════════ ESTADO DEL MÓDULO ════════════════ */
-let ROW=null, PANEL=null, BODY=null, INPUT=null, AABTN=null, ANCHOR=null;
+let ROW=null, PANEL=null, BODY=null, INPUT=null, AABTN=null, ANCHOR=null, GOBTN=null;
+/* J8: el número de la pregunta que se está respondiendo. Sube con cada
+   pregunta y al cerrar el panel. Toda respuesta que llegue con otro número se
+   tira: nunca se pinta la respuesta de una pregunta que ya no está. */
+let REQ=0;
+let BUSY=false;         /* J8: hay una pregunta en marcha (campo y botón bloqueados) */
+/* G4: el último fallo de una lectura, para saber si fue la sesión caducada.
+   Se pone en cada catch de lectura y se lee en esa misma pregunta. */
+let LAST_KO=null;
 /* shareHref y shareChips (J3) los pone cada respuesta y solo sirven para el
    texto del aviso de fallo: el enlace de filtros y los chips que se ven. */
 let ST={ q:'', shareHref:'', shareChips:[] };
 let RPT=null;           // J3: aviso de fallo abierto ahora mismo, si lo hay
 let USERS=null;         // mapa UserID → Name (solo como último recurso, para la ficha)
-let USERS_FAIL=false;   // J2: true si el último intento de leer TaUsers falló
 let downShown=false;
+
+/* J8: true cuando esta respuesta ya no es la de la pregunta que está en
+   pantalla, o el panel se ha cerrado mientras venía de camino. */
+function stale(req){ return !!FEAT.seq && req!==undefined && req!==REQ; }
+/* J8: mientras se responde, el campo y el botón se bloquean. Enter y el clic
+   no hacen nada hasta que llega la respuesta o el aviso de fallo. Con
+   FEAT.seq=0 no se bloquea nada y todo queda como antes. */
+function setBusy(on){
+  BUSY=!!on;
+  const lock=!!FEAT.seq&&BUSY;
+  try{ if(INPUT)INPUT.disabled=lock; }catch(e){}
+  try{ if(GOBTN)GOBTN.disabled=lock; }catch(e){}
+}
+function locked(){ return !!FEAT.seq&&BUSY; }
 
 /* ════════════════ TEXTO MÁS LEGIBLE (Aa) ════════════════ */
 let fontLoaded=false;
@@ -809,7 +846,8 @@ function buildRow(){
   inp.type='text'; inp.id='miaInput'; inp.autocomplete='off';
   inp.setAttribute('placeholder',T.ph); inp.setAttribute('aria-label',T.ph);
   inp.addEventListener('keydown',function(ev){
-    if(ev.key==='Enter'){ ev.preventDefault(); onAsk(); }
+    /* J8: con una pregunta en marcha, Enter no hace nada. */
+    if(ev.key==='Enter'){ ev.preventDefault(); if(locked())return; onAsk(); }
   });
   field.appendChild(inp);
   /* El botón va FUERA del campo: los dos miden 44 px de alto y uno de 44
@@ -825,10 +863,10 @@ function buildRow(){
   go.appendChild(gi);
   go.setAttribute('aria-label',T.go);
   go.title=T.go;
-  go.addEventListener('click',onAsk);
+  go.addEventListener('click',function(){ if(locked())return; onAsk(); });   /* J8 */
   inn.appendChild(field); inn.appendChild(go);
   row.appendChild(inn);
-  INPUT=inp;
+  INPUT=inp; GOBTN=go;
   return row;
 }
 function buildPanel(){
@@ -864,14 +902,21 @@ function placeAa(){
    apagarlo—, pero la preferencia guardada NO se toca: en la próxima página con
    Mia vuelve encendido. */
 function hideRow(keepPanel){
-  if(AABTN&&AABTN.parentNode)AABTN.parentNode.removeChild(AABTN);
-  AABTN=null;
-  document.body.classList.remove('easy');
-  if(ROW&&ROW.parentNode)ROW.parentNode.removeChild(ROW);
-  ROW=null; INPUT=null;
   /* El panel solo se queda si tiene algo que enseñar (el aviso de caída).
      Un #miaPanel vacío no se deja en la página. */
   const keep=keepPanel&&PANEL&&PANEL.classList.contains('show')&&BODY&&BODY.childNodes.length>0;
+  if(AABTN&&AABTN.parentNode)AABTN.parentNode.removeChild(AABTN);
+  /* G3: si el panel se queda, el botón Aa y el texto grande se quedan con él.
+     Un fallo de un momento no puede dejar a nadie sin el texto legible: el
+     botón se muda al panel, que es lo único de Mia que sigue en la página. */
+  if(keep&&AABTN){
+    BODY.appendChild(AABTN);
+  }else{
+    AABTN=null;
+    document.body.classList.remove('easy');
+  }
+  if(ROW&&ROW.parentNode)ROW.parentNode.removeChild(ROW);
+  ROW=null; INPUT=null; GOBTN=null;
   if(!keep){
     if(PANEL&&PANEL.parentNode)PANEL.parentNode.removeChild(PANEL);
     PANEL=null; BODY=null;
@@ -923,7 +968,11 @@ function bindEsc(){
   ESCH=function(ev){
     if(ev.key!=='Escape'&&ev.key!=='Esc')return;
     if(!PANEL||!PANEL.classList.contains('show'))return;
-    ev.stopPropagation();
+    /* G12: el Escape solo se para cuando venía de dentro de lo de Mia. Si el
+       foco está en un modal de la página, el modal se queda con su Escape. */
+    const tg=ev.target;
+    const mio=!!(tg&&((PANEL&&PANEL.contains&&PANEL.contains(tg))||(ROW&&ROW.contains&&ROW.contains(tg))));
+    if(mio)ev.stopPropagation();
     /* J3: con el aviso de fallo abierto, el primer Escape solo cierra el
        aviso. El siguiente cierra el panel, como siempre. */
     if(FEAT.report&&closeReport())return;
@@ -938,6 +987,9 @@ function unbindEsc(){
 }
 function openPanel(){ if(PANEL)PANEL.classList.add('show'); }
 function closePanel(){
+  /* J8: al cerrar sube el número de la pregunta, así una respuesta que venga
+     de camino se tira y el panel se queda cerrado. El campo se desbloquea. */
+  if(FEAT.seq){ REQ++; setBusy(false); }
   if(PANEL)PANEL.classList.remove('show');
   if(BODY)BODY.textContent='';
   /* Si la fila ya no está (Worker caído) el panel era lo último de Mia en la
@@ -955,6 +1007,10 @@ function closePanel(){
     const ff=document.getElementById('miaEasyFont');
     if(ff&&ff.parentNode)ff.parentNode.removeChild(ff);
     fontLoaded=false;
+    /* G3: el botón Aa se había mudado al panel; con el panel se va, así que el
+       texto grande se apaga también. La preferencia guardada no se toca. */
+    AABTN=null;
+    document.body.classList.remove('easy');
     unbindEsc();
   }
 }
@@ -1044,7 +1100,10 @@ function reportBlock(){
   });
   return wrap;
 }
-function say(node){
+function say(node,req){
+  /* J8: la respuesta de una pregunta anterior no pisa la de ahora, y una que
+     llega con el panel ya cerrado no lo vuelve a abrir. */
+  if(stale(req))return;
   /* El panel puede haberse ido entre la pregunta y la respuesta (Worker caído
      y el usuario cierra el aviso). Entonces no hay dónde escribir: se calla. */
   if(!BODY||!PANEL)return;
@@ -1252,6 +1311,9 @@ function stripSensitive(rows){
 }
 async function proxyGet(qs){
   const res=await fetch(Auth.url(PROXY+'?'+qs));
+  /* G4: la sesión caducada no es un fallo de lectura. Con 401 o 403 no hay
+     nada que reintentar: hay que volver a entrar, y así se dice. */
+  if(res&&(res.status===401||res.status===403))throw kind('401');
   const json=await res.json();
   const rows=stripSensitive(json.Result||json.result||[]);
   if(json.error)throw new Error(String(json.error));
@@ -1264,7 +1326,10 @@ async function proxyGet(qs){
    quitan los campos sensibles al recibirlas, se guarda solo id→nombre y las
    filas se sueltan. Una vez por carga de página, ni una petición más. */
 let USERSP=null;
-async function loadUsers(){
+/* G5: el resultado de cada intento se DEVUELVE ({map,ok}) y no se guarda en
+   una variable del módulo. Una lectura que falló hace dos preguntas ya no
+   puede hablar por la de ahora. */
+async function loadUsersRes(){
   if(USERSP)return USERSP;
   USERSP=(async function(){
     let m=null;
@@ -1275,27 +1340,28 @@ async function loadUsers(){
         const id=String(u[U.id]||'').trim(), nm=String(u[U.name]||'').trim();
         if(id&&nm)m.set(id,nm);
       });
-    }catch(e){ dbg('TaUsers ko'); }
-    if(m){ USERS=m; USERS_FAIL=false; return m; }
+    }catch(e){ LAST_KO=e; dbg('TaUsers ko'); }
+    if(m){ USERS=m; return {map:m,ok:true}; }
     /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
        vez. Dentro de la misma pregunta solo se llama aquí una vez, así que no
        hay bucle de reintentos. */
-    USERS_FAIL=true;   /* J2: quien pregunte por un usuario lo sabrá */
     USERSP=null;
-    return new Map();
+    return {map:new Map(),ok:false};
   })();
   return USERSP;
 }
+async function loadUsers(){ return (await loadUsersRes()).map; }
 /* Solo se baja el mapa si hace falta un nombre y la página no tiene el suyo
    (tareas.html guarda allUsersMap dentro de su IIFE, así que no se ve). */
+/* Devuelve si el mapa está disponible para ESTA pregunta (G5). */
 async function ensureUsers(name){
   const raw=String(name==null?'':name).trim();
-  if(!raw)return;
+  if(!raw)return true;
   /* También para un token con forma de id: con el mapa cargado se comprueba
      que existe de verdad, así "LIMPIEZ4" no acaba en u= como si fuera una
      persona. */
-  if(userPairs().length)return;
-  await loadUsers();
+  if(userPairs().length)return true;
+  return (await loadUsersRes()).ok;
 }
 /* La misma llamada que ya hacía doVilla: action=data&table=TaVillas&limit=500,
    con el token del propio usuario. De cada fila se guarda solo el id, el
@@ -1315,7 +1381,7 @@ async function loadVillas(){
           alt:String(r.Name||'').trim()
         };
       }).filter(function(v){ return v.id&&v.name; });
-    }catch(e){ dbg('TaVillas ko'); }
+    }catch(e){ LAST_KO=e; dbg('TaVillas ko'); }
     if(list)return list;
     /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
        vez. Dentro de la misma pregunta solo se llama aquí una vez, así que no
@@ -1425,7 +1491,12 @@ function phClean(f){
 }
 function bookingsWhere(b){
   const parts=[];
-  const code=(b.code||'').trim(), guest=(b.guest||'').trim(), villa=(b.villa||'').trim();
+  /* G11: lo que llega del Worker puede ser un número (un código sin comillas).
+     String() en el borde: sin él, trim() revienta y la respuesta era "No he
+     entendido la pregunta". */
+  const code=String(b.code==null?'':b.code).trim(),
+        guest=String(b.guest==null?'':b.guest).trim(),
+        villa=String(b.villa==null?'':b.villa).trim();
   /* Siempre, también con código: es la primera condición de buildWhere() en
      entradas-equipo, así que la ficha enseña lo mismo que la página. */
   parts.push(F.status+"<>'cancelled'");
@@ -1483,6 +1554,11 @@ function bookingsWhere(b){
      ninguno de los dos, así que el enlace no los lleva y el chip no los
      dice; si la consulta sí los aplicara, la ficha enseñaría menos reservas
      que el enlace del mismo panel. Los dos van a "No pude aplicar". */
+  /* G2: la condición de canceladas va siempre y sola no es un filtro. Si es lo
+     único que hay, no hay consulta: fetchBookings devuelve null y quien
+     pregunta recibe una nota, no las cinco reservas más nuevas de la empresa
+     con el nombre de sus inquilinos. */
+  if(parts.length<=1)return '';
   return parts.join(' AND ');
 }
 async function fetchBookings(b,limit,order){
@@ -1495,12 +1571,10 @@ async function fetchBookings(b,limit,order){
 }
 
 /* ════════════════ FICHA DE ESTADO ════════════════ */
-function statePill(label,val){
-  const ok=isOk(val);
-  const st=E('span','mia-st'+(ok===true?' ok':ok===false?' pend':''));
-  st.textContent=(ok===true?'✓ ':'· ')+label;
-  return st;
-}
+/* G9: tres estados de verdad, los mismos de readyPill: hecho, pendiente y sin
+   dato. Un campo vacío no es un trabajo pendiente, es un campo sin rellenar, y
+   pintarlo igual que "pendiente" era decir un dato que nadie apuntó. */
+function statePill(label,val){ return readyPill(label,val); }
 function payConcept(r){
   const out=[];
   PAY_CONCEPTS.forEach(function(p){ if(isOk(r[p[0]])===true)out.push(p[1]); });
@@ -1549,11 +1623,20 @@ function entradasParamsFor(r){
   const code=String(g(r,'confirmCode')||'').trim();
   const guest=String(g(r,'guestName')||'').trim();
   const p={ desde:addDays(dOnly(g(r,'checkIn')),-1), hasta:addDays(dOnly(g(r,'checkOut')),1) };
-  if(code)p.cod=code; else if(guest)p.inq=guest;
+  /* G10: mismo criterio que bookingsPlan. entradas-equipo mete inq en su WHERE
+     sin escapar, así que un nombre con comillas le rompe la consulta: en ese
+     caso el enlace va solo con las fechas. Aquí no hay lista de "No pude
+     aplicar" que enseñar —esto es el enlace de una fila—, así que se cae en
+     silencio y la fila sigue abriendo la ventana de esos días. */
+  if(code)p.cod=code;
+  else if(guest&&!/['"]/.test(guest))p.inq=guest;
   return p;
 }
 
-async function renderState(r,ctx){
+async function renderState(r,ctx,req){
+  /* J8: si esta ficha ya no es la de la pregunta que hay en pantalla, no se
+     pinta y tampoco se leen sus pagos: sería una lectura para nadie. */
+  if(stale(req))return;
   const code=String(g(r,'confirmCode')||'');
   const villa=String(g(r,'villaName')||'—');
   const box=E('div');
@@ -1627,20 +1710,26 @@ async function renderState(r,ctx){
   body.appendChild(btns);
 
   box.appendChild(card);
-  say(box);
+  say(box,req);
 
   if(!payBox)return;
   /* J2: función con nombre para que el botón Reintentar vuelva a leer SOLO
      los pagos, sin repintar el resto de la ficha. */
   async function loadPayments(){
     try{
+      /* Solo las líneas cobradas: una línea sin cobrar no puede sumar en el
+         total de la ficha. Mismo campo de estado que ya se ve en cada línea. */
       const rows=await proxyGet('action=view&view='+encodeURIComponent(VIEW_PAYMENTS)
-        +'&where='+encodeURIComponent(PAY.code+"='"+sq(code)+"'")+'&limit=50');
+        +'&where='+encodeURIComponent(PAY.code+"='"+sq(code)+"' AND "+PAY.status+"='COBRADO'")+'&limit=50');
+      if(stale(req))return;   /* J8: los pagos de una pregunta anterior no se pintan */
       payBox.textContent='';
       payBox.appendChild(payTable(rows));
     }catch(e){
+      if(stale(req))return;   /* J8 */
       payBox.textContent='';
       if(FEAT.retry){
+        /* G4: sesión caducada, no fallo de lectura: sin botón Reintentar. */
+        if(e&&e.miaKind==='401'){ payBox.appendChild(note(T.expired)); return; }
         payBox.appendChild(note(T.payFail));
         payBox.appendChild(retryBlock(loadPayments));
       }else{
@@ -1670,20 +1759,28 @@ function moreBlock(box,plan,b){
 }
 
 /* Fila de resultado: nombre + datos (abre la ficha) y un botón a la derecha */
-function resultRow(r,extraLabel,extraHref){
+function resultRow(r,extraLabel,extraHref,req){
   const row=E('div','mia-vrow');
   const main=E('button','mia-vmain'); main.type='button';
   main.appendChild(E('span','mia-n',String(g(r,'villaName')||'—')));
   main.appendChild(E('span','mia-m',String(g(r,'guestName')||'')+' · '
     +fmtDate(g(r,'checkIn'))+' → '+fmtDate(g(r,'checkOut'))));
-  main.addEventListener('click',function(){ renderState(r); });
+  main.addEventListener('click',function(){
+    /* G7: al abrir una fila, el aviso de fallo pasa a hablar de ESTA reserva y
+       se queda sin los chips de la lista, que ya no está. Sin código no se
+       comparte enlace: el de la fila llevaría el nombre del inquilino. */
+    const c=String(g(r,'confirmCode')||'').trim();
+    ST.shareHref=c?link('entradas',entradasParamsFor(r)):'';
+    ST.shareChips=[];
+    renderState(r,null,req);
+  });
   row.appendChild(main);
   if(extraLabel&&extraHref)row.appendChild(btn(extraLabel,extraHref));
   return row;
 }
-function resultList(rows,extraLabel,hrefOf){
+function resultList(rows,extraLabel,hrefOf,req){
   const list=E('div','mia-list');
-  rows.forEach(function(r){ list.appendChild(resultRow(r,extraLabel,hrefOf?hrefOf(r):'')); });
+  rows.forEach(function(r){ list.appendChild(resultRow(r,extraLabel,hrefOf?hrefOf(r):'',req)); });
   return list;
 }
 
@@ -1696,7 +1793,15 @@ function bookingsPlan(b){
   /* J1: si el código lo puso la página y no la pregunta, el chip lo dice
      ("Usando esta reserva: …"). El filtro y el enlace son los mismos. */
   if(b.code){ p.cod=b.code; chips[b.ctxOn?'ctx':'code']=b.code; }
-  if(b.guest){ p.inq=b.guest; chips.guest=b.guest; }
+  if(b.guest){
+    /* G10: entradas-equipo mete inq en su WHERE sin escapar (ver el comentario
+       de entradasParamsFor), así que un nombre con comillas le rompe la
+       consulta. Con comillas no viaja en el enlace y se dice; el filtro sigue
+       aplicándose en la consulta de Mia. */
+    if(/['"]/.test(String(b.guest)))no.push(T.noApplyInq);
+    else p.inq=b.guest;
+    chips.guest=b.guest;
+  }
   if(b.villa){ p.villa=b.villa; chips.villa=b.villa; }
   if(isDate(b.stay_on)){
     /* Nunca una ventana de un día: Entradas cruza entradas Y salidas contra
@@ -1729,7 +1834,7 @@ function bookingsPlan(b){
   if(p.desde===undefined&&p.hasta===undefined){ p.desde=EMPTY; p.hasta=EMPTY; }
   return {params:p,chips:chips,no:no};
 }
-function doBookingsLink(b,extraNo,pre){   /* extraNo = data.unmatched; pre = J2, nota delante */
+function doBookingsLink(b,extraNo,pre,req){   /* extraNo = data.unmatched; pre = J2, nota delante */
   const render=function(){
     const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
     const box=E('div');
@@ -1750,7 +1855,7 @@ function doBookingsLink(b,extraNo,pre){   /* extraNo = data.unmatched; pre = J2,
       btns.appendChild(btn(T.openEnt,href,true));
     }
     box.appendChild(btns);
-    say(box);
+    say(box,req);
   };
   render();
 }
@@ -1767,13 +1872,16 @@ function retryBlock(fn){
   box.appendChild(b);
   return box;
 }
-function readFailNote(fn){
+/* G4: con la sesión caducada no hay nada que reintentar. El aviso lo dice y
+   no lleva botón: el botón solo volvería a fallar. */
+function readFailNote(fn,e){
+  if(e&&e.miaKind==='401')return note(T.expired);
   const box=E('div');
   box.appendChild(note(T.readFail));
   box.appendChild(retryBlock(fn));
   return box;
 }
-async function doBookingsCard(b,extraNo){
+async function doBookingsCard(b,extraNo,req){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
   /* J3: el aviso comparte SIEMPRE el enlace del plan, nunca el de una fila:
      el de la fila lleva el nombre del inquilino en inq=. */
@@ -1782,19 +1890,25 @@ async function doBookingsCard(b,extraNo){
      enseñan sean las útiles. */
   const order=(b.code&&String(b.code).trim())?'':F.checkIn+' DESC';
   let rows;
-  try{ rows=await fetchBookings(b,MAX_ROWS,order); }
+  /* G17: se pide una fila de más que las que se enseñan. Así se sabe si de
+     verdad hay más y con exactamente MAX_ROWS no se promete un resto que no
+     existe. */
+  try{ rows=await fetchBookings(b,MAX_ROWS+1,order); }
   catch(e){
-    if(FEAT.retry){ say(readFailNote(function(){ doBookingsCard(b,extraNo); })); return; }
-    say(note('No he podido leer la reserva.')); return;
+    if(FEAT.retry){ say(readFailNote(function(){ doBookingsCard(b,extraNo,req); },e),req); return; }
+    say(note('No he podido leer la reserva.'),req); return;
   }
-  if(rows===null){ say(note(T.noBooking)); return; }
+  /* G2: sin ningún filtro no hay lista de reservas, hay una pregunta. */
+  if(rows===null){ say(note(T.noFilter),req); return; }
+  const more=rows.length>MAX_ROWS;
+  if(more)rows=rows.slice(0,MAX_ROWS);
 
   if(!rows.length){
     /* Sin resultados no se deja al usuario en un callejón: el mismo enlace
        de Entradas que llevaría el panel de lista, con lo que sí se pudo
        aplicar (código o inquilino, villa y fechas). */
     const box=E('div');
-    const chips=chipsBlock(plan.chips,b,function(){ doBookingsCard(b,extraNo); });
+    const chips=chipsBlock(plan.chips,b,function(){ doBookingsCard(b,extraNo,req); });
     if(chips)box.appendChild(chips);
     box.appendChild(note(T.noBooking));
     const na=noApplyBlock(plan.no);
@@ -1802,52 +1916,58 @@ async function doBookingsCard(b,extraNo){
     const btns=E('div','mia-btns');
     btns.appendChild(btn(T.openEnt,link('entradas',plan.params),true));
     box.appendChild(btns);
-    say(box);
+    say(box,req);
     return;
   }
   if(rows.length===1){
-    await renderState(rows[0],{chips:plan.chips,no:plan.no,filters:b,onChange:function(){ doBookingsCard(b,extraNo); }});
+    await renderState(rows[0],{chips:plan.chips,no:plan.no,filters:b,onChange:function(){ doBookingsCard(b,extraNo,req); }},req);
     return;
   }
 
   const box=E('div');
-  const chips=chipsBlock(plan.chips,b,function(){ doBookingsCard(b,extraNo); });
+  const chips=chipsBlock(plan.chips,b,function(){ doBookingsCard(b,extraNo,req); });
   if(chips)box.appendChild(chips);
   box.appendChild(note(T.many));
-  box.appendChild(resultList(rows,T.openEnt,function(r){ return link('entradas',entradasParamsFor(r)); }));
-  if(rows.length>=MAX_ROWS)moreBlock(box,plan,b);
+  box.appendChild(resultList(rows,T.openEnt,function(r){ return link('entradas',entradasParamsFor(r)); },req));
+  if(more)moreBlock(box,plan,b);
   const na=noApplyBlock(plan.no);
   if(na)box.appendChild(na);
-  say(box);
+  say(box,req);
 }
 /* "quién está el 14" — nunca un enlace de un día. Se lista lo que devuelve
    la consulta de estancia; si la consulta falla, ventana de ±30 días. */
-async function doBookingsStay(b,extraNo){
+async function doBookingsStay(b,extraNo,req){
   const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
   ST.shareHref=link('entradas',plan.params); ST.shareChips=chipTexts(plan.chips);   /* J3 */
   let rows;
-  try{ rows=await fetchBookings(b,MAX_ROWS,F.checkIn+' DESC'); }
+  try{ rows=await fetchBookings(b,MAX_ROWS+1,F.checkIn+' DESC'); }   /* G17: una fila de más */
   catch(e){
-    if(!FEAT.retry){ doBookingsLink(b); return; }
+    /* G15: lo que el Worker no supo aplicar viaja también por este camino. */
+    if(!FEAT.retry){ doBookingsLink(b,extraNo,null,req); return; }
+    /* G4: con la sesión caducada no se ofrece un botón que no puede funcionar. */
+    if(e&&e.miaKind==='401'){ say(note(T.expired),req); return; }
     const pre=E('div');
     pre.appendChild(note(T.readFail));
-    pre.appendChild(retryBlock(function(){ doBookingsStay(b,extraNo); }));
-    doBookingsLink(b,extraNo,pre);
+    pre.appendChild(retryBlock(function(){ doBookingsStay(b,extraNo,req); }));
+    doBookingsLink(b,extraNo,pre,req);
     return;
   }
-  if(rows===null){ doBookingsLink(b); return; }
+  /* G2: sin ningún filtro no se lista nada. */
+  if(rows===null){ sayWithNo(note(T.noFilter),extraNo,req); return; }
+  const more=rows.length>MAX_ROWS;
+  if(more)rows=rows.slice(0,MAX_ROWS);
   if(rows.length===1){
-    await renderState(rows[0],{chips:plan.chips,no:plan.no,filters:b,onChange:function(){ doBookings(b,false,extraNo); }});
+    await renderState(rows[0],{chips:plan.chips,no:plan.no,filters:b,onChange:function(){ doBookings(b,false,extraNo,'',req); }},req);
     return;
   }
 
   const box=E('div');
-  const chips=chipsBlock(plan.chips,b,function(){ doBookings(b,false,extraNo); });
+  const chips=chipsBlock(plan.chips,b,function(){ doBookings(b,false,extraNo,'',req); });
   if(chips)box.appendChild(chips);
   box.appendChild(note(rows.length?T.many:T.noBooking));
   if(rows.length){
-    box.appendChild(resultList(rows,T.openEnt,function(r){ return link('entradas',entradasParamsFor(r)); }));
-    if(rows.length>=MAX_ROWS)moreBlock(box,plan,b);
+    box.appendChild(resultList(rows,T.openEnt,function(r){ return link('entradas',entradasParamsFor(r)); },req));
+    if(more)moreBlock(box,plan,b);
   }
   const na=noApplyBlock(plan.no);
   if(na)box.appendChild(na);
@@ -1858,7 +1978,7 @@ async function doBookingsStay(b,extraNo){
     btns.appendChild(btn(T.openEnt,link('entradas',plan.params),true));
     box.appendChild(btns);
   }
-  say(box);
+  say(box,req);
 }
 /* ── J5: "¿qué falta para las entradas de mañana?" ────────────────────────
    Una fila por reserva con sus seis marcas. Ninguna casilla vacía se da por
@@ -1899,23 +2019,33 @@ function readyRow(r){
   row.appendChild(sts);
   return row;
 }
-async function doBookingsReady(b,extraNo){
+async function doBookingsReady(b,extraNo,req){
   /* La pregunta es de entradas: si el Worker no manda tipo, lo pone Mia. Es
      lo que define esta tarjeta, así que el chip Tipo vuelve si se quita. */
   const bb=Object.assign({},b);
   if(!bb.tipo)bb.tipo='entrada';
   /* Sin fecha la tarjeta sería "todas las reservas desde 2021": sin fechas
      es el día de hoy. */
-  if(!isDate(bb.check_in_from)&&!isDate(bb.check_in_to)&&!isDate(bb.stay_on)){ const hoy=todayISO(); bb.check_in_from=hoy; bb.check_in_to=hoy; }
+  /* G18: sin fechas la tarjeta es la de HOY, y al quitar el chip de fecha
+     vuelve a hoy (la ventana no se ensancha sola a todas las reservas). Se
+     dice con una nota para que nadie lea la lista como "todas". */
+  let hoyPuesto=false;
+  if(!isDate(bb.check_in_from)&&!isDate(bb.check_in_to)&&!isDate(bb.stay_on)){ const hoy=todayISO(); bb.check_in_from=hoy; bb.check_in_to=hoy; hoyPuesto=true; }
   const plan=bookingsPlan(bb); plan.no=plan.no.concat(extraNo||[]);
-  const again=function(){ doBookingsReady(bb,extraNo); };
+  /* G7: la tarjeta también deja puesto el enlace del plan y sus chips para el
+     aviso de fallo. Nunca el enlace de una fila. */
+  ST.shareHref=link('entradas',plan.params); ST.shareChips=chipTexts(plan.chips);
+  const again=function(){ doBookingsReady(bb,extraNo,req); };
   let rows;
   try{ rows=await fetchBookings(bb,READY_MAX,F.checkIn+' ASC,'+F.villaName+' ASC'); }
-  catch(e){ if(FEAT.retry){ say(readFailNote(again)); return; } say(note(T.rdRead)); return; }
+  catch(e){ if(FEAT.retry){ say(readFailNote(again,e),req); return; } say(note(T.rdRead),req); return; }
+  /* G2: sin ningún filtro no hay tarjeta. */
+  if(rows===null){ say(note(T.noFilter),req); return; }
   rows=rows||[];
   const box=E('div');
   const chips=chipsBlock(plan.chips,bb,again);
   if(chips)box.appendChild(chips);
+  if(hoyPuesto)box.appendChild(note(T.rdToday));   /* G18 */
   /* El botón sale del plan, nunca de una fila: el enlace tiene que abrir el
      día entero, no la reserva de arriba. */
   const btns=E('div','mia-btns');
@@ -1926,7 +2056,7 @@ async function doBookingsReady(b,extraNo){
     const na0=noApplyBlock(plan.no);
     if(na0)box.appendChild(na0);
     box.appendChild(btns);
-    say(box);
+    say(box,req);
     return;
   }
   /* Lo que tiene algo pendiente, arriba. sort() mantiene el orden de la
@@ -1949,25 +2079,33 @@ async function doBookingsReady(b,extraNo){
   const na=noApplyBlock(plan.no);
   if(na)box.appendChild(na);
   box.appendChild(btns);
-  say(box);
+  say(box,req);
 }
-async function doBookings(b,card,extraNo,answerCard){
+async function doBookings(b,card,extraNo,answerCard,req){
+  /* G5: el mapa de usuarios se pide aquí y su fallo se sabe en el momento. Un
+     manager que no se resuelve porque la lectura falló no es un manager
+     desconocido: es una lectura que hay que reintentar. */
+  const usersOk=b.manager?await ensureUsers(b.manager):true;
+  if(FEAT.retry&&b.manager&&!usersOk&&!findUser(b.manager).id){
+    say(readFailNote(function(){ doBookings(b,card,extraNo,answerCard,req); },LAST_KO),req);
+    return;
+  }
   /* J5: la tarjeta "qué falta" de las entradas de un día. Con FEAT.ready=0
      no se pide nunca y el resto del reparto es exactamente el de antes. */
-  if(FEAT.ready&&answerCard==='ready'){ await doBookingsReady(b,extraNo); return; }
-  if(isDate(b.stay_on)){ await doBookingsStay(b,extraNo); return; }
+  if(FEAT.ready&&answerCard==='ready'){ await doBookingsReady(b,extraNo,req); return; }
+  if(isDate(b.stay_on)){ await doBookingsStay(b,extraNo,req); return; }
   /* Con nombre, con código o con manager se consulta y se enseña la ficha o la
      lista: son las tres preguntas cuya respuesta el enlace no puede dar bien
      (el manager lo pisa la preferencia de la página, y sin fechas la ventana
      guardada esconde la reserva). */
   const named=(b.code&&String(b.code).trim())||(b.guest&&String(b.guest).trim());
   const mgr=b.manager?findUser(b.manager).id:'';
-  if(card||named||mgr){ await doBookingsCard(b,extraNo); return; }
-  doBookingsLink(b,extraNo);
+  if(card||named||mgr){ await doBookingsCard(b,extraNo,req); return; }
+  doBookingsLink(b,extraNo,null,req);
 }
 
 /* ════════════════ NOTAS ════════════════ */
-async function doNotes(n,extraNo){
+async function doNotes(n,extraNo,req){
   const code=String((n&&n.code)||'').trim();
   const guest=String((n&&n.guest)||'').trim();
   /* Un chip por cada condición aplicada de verdad, igual que en reservas. */
@@ -1979,7 +2117,7 @@ async function doNotes(n,extraNo){
   ST.shareHref=code?link('notas',{TaBookings2021_FS_confirmation_code:code})
                    :(guest?link('entradas',bookingsPlan({guest:guest}).params):'');
   ST.shareChips=chipTexts(chips);
-  const again=function(){ doNotes(n,extraNo); };
+  const again=function(){ doNotes(n,extraNo,req); };
   const head=function(box){
     const c=chipsBlock(chips,n,again);
     if(c)box.appendChild(c);
@@ -1992,16 +2130,20 @@ async function doNotes(n,extraNo){
     const btns=E('div','mia-btns');
     btns.appendChild(btn(T.openNotes,link('notas',{TaBookings2021_FS_confirmation_code:code}),true));
     box.appendChild(btns);
-    say(box);
+    say(box,req);
     return;
   }
-  if(!guest){ sayWithNo(note(T.noBooking),extraNo); return; }
+  /* G16: sin código y sin nombre no se ha buscado nada, así que no se puede
+     decir "no encuentro esa reserva". Se pide el dato que falta. */
+  if(!guest){ sayWithNo(note(T.noFilter),extraNo,req); return; }
   let rows;
-  try{ rows=await fetchBookings({guest:guest},MAX_ROWS,F.checkIn+' DESC'); }
+  try{ rows=await fetchBookings({guest:guest},MAX_ROWS+1,F.checkIn+' DESC'); }   /* G17 */
   catch(e){
-    if(FEAT.retry){ say(readFailNote(again)); return; }
-    say(note('No he podido leer la reserva.')); return;
+    if(FEAT.retry){ say(readFailNote(again,e),req); return; }
+    say(note('No he podido leer la reserva.'),req); return;
   }
+  const more=!!rows&&rows.length>MAX_ROWS;
+  if(more)rows=rows.slice(0,MAX_ROWS);
   const box=E('div');
   head(box);
   if(!rows||!rows.length){
@@ -2013,18 +2155,18 @@ async function doNotes(n,extraNo){
     const btns=E('div','mia-btns');
     btns.appendChild(btn(T.openEnt,link('entradas',bookingsPlan({guest:guest}).params),true));
     box.appendChild(btns);
-    say(box);
+    say(box,req);
     return;
   }
   box.appendChild(note(T.many));
   box.appendChild(resultList(rows,T.notes,function(r){
     const c=String(g(r,'confirmCode')||'').trim();
     return c?link('notas',{TaBookings2021_FS_confirmation_code:c}):'';
-  }));
-  if(rows.length>=MAX_ROWS)moreBlock(box,bookingsPlan({guest:guest}),{guest:guest});
+  },req));
+  if(more)moreBlock(box,bookingsPlan({guest:guest}),{guest:guest});
   const naL=noApplyBlock(extraNo);
   if(naL)box.appendChild(naL);
-  say(box);
+  say(box,req);
 }
 
 /* ════════════════ TAREAS ════════════════ */
@@ -2116,6 +2258,9 @@ function unitRow(r){
 /* La misma llamada que hace tareas.html en loadMultiunitsFirst() (línea 1012),
    con el token del propio usuario. Solo se baja si la pregunta nombra una
    unidad. Una vez por carga de página. */
+/* G6: devuelve {list,ok}, igual que resolveVilla. Un fallo de lectura NO es
+   "esa unidad no existe", así que se distingue y quien llama ofrece
+   Reintentar en vez de dar por buena una lista vacía. */
 let UNITSP=null;
 async function loadUnits(){
   if(UNITSP)return UNITSP;
@@ -2124,13 +2269,13 @@ async function loadUnits(){
     try{
       const rows=await proxyGet('action=data&table=TaMultiunits&limit=500');
       list=rows.map(unitRow).filter(function(u){ return u.id&&u.villaId&&(u.name||u.short); });
-    }catch(e){ dbg('TaMultiunits ko'); }
-    if(list)return list;
+    }catch(e){ LAST_KO=e; dbg('TaMultiunits ko'); }
+    if(list)return {list:list,ok:true};
     /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
        vez. Dentro de la misma pregunta solo se llama aquí una vez, así que no
        hay bucle de reintentos. */
     UNITSP=null;
-    return [];
+    return {list:[],ok:false};
   })();
   return UNITSP;
 }
@@ -2171,13 +2316,14 @@ function matchUnits(units,words){
 /* Unidades de UNA villa que encajan con lo escrito. Sin villa no hay lista. */
 async function resolveUnit(villaId,words){
   const vid=String(villaId==null?'':villaId).trim();
-  if(!vid)return [];
-  const rows=await loadUnits();
-  const mine=rows.filter(function(u){ return u.villaId===vid; });
-  if(!mine.length)return [];
-  return matchUnits(mine,words);
+  if(!vid)return {hits:[],ok:true};
+  const res=await loadUnits();
+  if(!res.ok)return {hits:[],ok:false};   /* G6 */
+  const mine=res.list.filter(function(u){ return u.villaId===vid; });
+  if(!mine.length)return {hits:[],ok:true};
+  return {hits:matchUnits(mine,words),ok:true};
 }
-async function doTasks(t,extraNo){
+async function doTasks(t,extraNo,req){
   /* Las tres tareas automáticas (limpieza, welcomepack, cierre) comparten
      Tasktype 20. Se ocultan salvo que la pregunta las nombre: "limpiezas
      pendientes de X" tiene que enseñarlas. El usuario puede quitar el chip.
@@ -2190,8 +2336,9 @@ async function doTasks(t,extraNo){
   /* J2: si TaUsers no se pudo leer y la pregunta pide un usuario que el mapa
      no resuelve, el fallo real es de lectura, no "usuario no encontrado":
      decirlo así en vez de mandar el nombre a "No pude aplicar". */
-  if(FEAT.retry && t.user && USERS_FAIL && !findUser(t.user).id){
-    sayWithNo(readFailNote(async function(){ await ensureUsers(t.user); await doTasks(t,extraNo); }),extraNo);
+  const usersOk=t.user?await ensureUsers(t.user):true;
+  if(FEAT.retry && t.user && !usersOk && !findUser(t.user).id){
+    sayWithNo(readFailNote(async function(){ await doTasks(t,extraNo,req); },LAST_KO),extraNo,req);
     return;
   }
   /* La villa se resuelve una vez, antes de pintar nada: con el id el filtro de
@@ -2228,7 +2375,7 @@ async function doTasks(t,extraNo){
       if(r.hits.length>MAX_VILLAS)box.appendChild(note(T.moreVillas));
       const naV=noApplyBlock(tasksPlan(Object.assign({},t,{villa:''})).no.concat(extraNo||[]));
       if(naV)box.appendChild(naV);
-      say(box);
+      say(box,req);
       return;
     }else{
       /* Ninguna villa con ese nombre: el resto de la pregunta sí se aplica. */
@@ -2244,14 +2391,18 @@ async function doTasks(t,extraNo){
   if(FEAT.unit){
     const uWords=String(t.unit==null?'':t.unit).trim();
     if(uWords && t.villa && isId(t.villaId)){
-      let uHits=await resolveUnit(t.villaId,uWords);
+      const uRes=await resolveUnit(t.villaId,uWords);
+      /* G6: la lista de unidades no se pudo leer. No es que la unidad no
+         exista: se ofrece volver a intentarlo. */
+      if(!uRes.ok&&FEAT.retry){ say(readFailNote(function(){ doTasks(t,extraNo,req); },LAST_KO),req); return; }
+      let uHits=uRes.hits;
       /* La villa acertada no tiene esa unidad, pero una de las parecidas sí
          (VILLA VORAMAR frente a APARTAMENTOS VORAMAR): si es exactamente una,
          Mia se pasa a esa villa y lo dice. */
       if(!uHits.length && near.length){
         const alts=[];
         for(let ai=0; ai<near.length; ai++){
-          const hh=await resolveUnit(near[ai].id,uWords);
+          const hh=(await resolveUnit(near[ai].id,uWords)).hits;
           if(hh.length===1)alts.push({v:near[ai],u:hh[0]});
         }
         if(alts.length===1){
@@ -2282,7 +2433,7 @@ async function doTasks(t,extraNo){
         if(uHits.length>MAX_VILLAS)boxU.appendChild(note(T.moreUnits));
         const naU=noApplyBlock(tasksPlan(Object.assign({},t,{unit:''})).no.concat(extraNo||[]));
         if(naU)boxU.appendChild(naU);
-        say(boxU);
+        say(boxU,req);
         return;
       }
     }
@@ -2292,7 +2443,7 @@ async function doTasks(t,extraNo){
      usa el mismo id de villa, el mismo aviso de villa supuesta y las mismas
      villas parecidas que el resto de Tareas, sin repetir ni una línea.
      Con FEAT.incid a 0 esta rama no existe y la respuesta es la de siempre. */
-  if(FEAT.incid && t.incident===true){ await doTasksIncidents(t,extraNo,topNote,near); return; }
+  if(FEAT.incid && t.incident===true){ await doTasksIncidents(t,extraNo,topNote,near,req); return; }
   const render=function(){
     const plan=tasksPlan(t); plan.no=plan.no.concat(extraNo||[]);
     const box=E('div');
@@ -2319,7 +2470,7 @@ async function doTasks(t,extraNo){
       return link('tareas',tasksPlan(Object.assign({},t,{villa:h.name,villaId:h.id})).params);
     });
     if(sg)box.appendChild(sg);
-    say(box);
+    say(box,req);
   };
   render();
 }
@@ -2439,8 +2590,14 @@ function incidentRow(r,names,users){
   /* tareas.html no expone el mapa de usuarios de Entradas: se completa con
      la lista de TaUsers ya descargada (users), sin otra llamada. */
   const rid=String(r.UserID_responsible_alfanum||'').trim(), aid=String(r.UserID_asigned_alfanum||'').trim();
-  const resp=userName(rid)||(users&&users.get(rid))||userName(aid)||(users&&users.get(aid))||'';
-  meta.appendChild(E('span',null,T.incResp+' '+(resp||'—')));
+  /* G8: la etiqueta dice de quién es el nombre que se pinta. Si el nombre sale
+     del responsable, "Responsable:"; si sale de quien la tiene asignada,
+     "Asignada a:". Antes ponía siempre "Responsable" aunque el id fuera el
+     otro, y eso señalaba a la persona equivocada. */
+  const rName=userName(rid)||(users&&users.get(rid))||'';
+  const aName=rName?'':(userName(aid)||(users&&users.get(aid))||'');
+  const asig=(!rName)&&(!!aName||(!rid&&!!aid));
+  meta.appendChild(E('span',null,(asig?T.incAsig:T.incResp)+' '+(rName||aName||'—')));
   meta.appendChild(E('span',null,isOk(r.Tarea_terminada)===true?T.incDone:T.incPend));
   meta.appendChild(E('span',null,incPhotoText(incPhotos(r))));
   row.appendChild(meta);
@@ -2448,7 +2605,7 @@ function incidentRow(r,names,users){
   if(isId(tid))row.appendChild(btn(T.incOpen,link('tareas',{tid:tid})));
   return row;
 }
-async function doTasksIncidents(t,extraNo,topNote,near){
+async function doTasksIncidents(t,extraNo,topNote,near,req){
   /* Ventana por defecto: los últimos INC_DAYS días hasta hoy. Se decide UNA
      vez, igual que noauto en doTasks: si quien pregunta quita los chips de
      fecha, la ventana no vuelve a ponerse sola. */
@@ -2466,7 +2623,7 @@ async function doTasksIncidents(t,extraNo,topNote,near){
 
   let rows=null, ko=false;
   try{ rows=await incidentsFetch(t,u.id); }
-  catch(e){ ko=true; }
+  catch(e){ LAST_KO=e; ko=true; }
   const names=await villaNames();
   /* Tope de la consulta alcanzado: puede faltar alguna tarea antigua. */
   const capped=!ko&&rows&&rows.length>=(t._incPlanB?INC_SCAN:INC_FETCH);
@@ -2479,13 +2636,17 @@ async function doTasksIncidents(t,extraNo,topNote,near){
   const again=function(){
     if(!t.unit){ t.unitId=''; t.unitName=''; }
     if(!t.villa){ topNote=null; near=[]; }
-    if(t.incident!==true){ doTasks(t,extraNo); return; }
-    doTasksIncidents(t,extraNo,topNote,near);
+    if(t.incident!==true){ doTasks(t,extraNo,req); return; }
+    doTasksIncidents(t,extraNo,topNote,near,req);
   };
 
   const box=E('div');
   if(topNote)box.appendChild(note(topNote));
-  const chips=chipsBlock({incident:true,villa:t.villa,unit:t.unitId?t.unitName:'',from:t.from,to:t.to,user:t.user},t,again);
+  const chipObj={incident:true,villa:t.villa,unit:t.unitId?t.unitName:'',from:t.from,to:t.to,user:t.user};
+  /* G7: el aviso de fallo lleva el enlace de Tareas de esta pregunta y estos
+     mismos chips. Antes se quedaba con los de la respuesta anterior. */
+  ST.shareHref=link('tareas',tasksPlan(t).params); ST.shareChips=chipTexts(chipObj);
+  const chips=chipsBlock(chipObj,t,again);
   if(chips)box.appendChild(chips);
   /* Siempre, pase lo que pase con la consulta. */
   box.appendChild(note(T.incHead));
@@ -2514,7 +2675,7 @@ async function doTasksIncidents(t,extraNo,topNote,near){
     return link('tareas',tasksPlan(Object.assign({},t,{villa:h.name,villaId:h.id})).params);
   });
   if(sg)box.appendChild(sg);
-  say(box);
+  say(box,req);
 }
 
 /* ════════════════ OCUPACIÓN Y VILLAS ════════════════ */
@@ -2522,7 +2683,7 @@ async function doTasksIncidents(t,extraNo,topNote,near){
    así que NO hay chips que enseñar —un chip diría un filtro que no existe—.
    Lo que se entiende se dice como instrucción ("abre la página y pon…") y lo
    que no (el texto suelto de other) va a "No pude aplicar". */
-function doAvailability(a,extraNo){
+function doAvailability(a,extraNo,req){
   const box=E('div');
   const bits=[];
   if(isDate(a.from)||isDate(a.to))bits.push(fmtDate(a.from)+' → '+fmtDate(a.to));
@@ -2535,16 +2696,16 @@ function doAvailability(a,extraNo){
   const btns=E('div','mia-btns');
   btns.appendChild(btn(T.openOcu,link('ocupacion',{}),true));
   box.appendChild(btns);
-  say(box);
+  say(box,req);
 }
-async function doVilla(v,extraNo){
+async function doVilla(v,extraNo,req){
   const name=String((v&&v.name)||'').trim();
-  if(!name){ sayWithNo(note(T.noVilla),extraNo); return; }
+  if(!name){ sayWithNo(note(T.noVilla),extraNo,req); return; }
   /* La misma lista que usa doTasks, resuelta con el mismo criterio. */
   const res=await resolveVilla(name);
   if(!res.ok){
-    if(FEAT.retry){ sayWithNo(readFailNote(function(){ doVilla(v,extraNo); }),extraNo); return; }
-    sayWithNo(note('No he podido leer las villas.'),extraNo); return;
+    if(FEAT.retry){ sayWithNo(readFailNote(function(){ doVilla(v,extraNo,req); },LAST_KO),extraNo,req); return; }
+    sayWithNo(note('No he podido leer las villas.'),extraNo,req); return;
   }
   const hits=res.hits;
   const sgV=suggestBlock(res.near,function(h){ return isId(String(h.id||''))?link('villa',{villa_id:String(h.id)}):null; });
@@ -2554,7 +2715,7 @@ async function doVilla(v,extraNo){
     if(sgV)box.appendChild(sgV);
     const naN=noApplyBlock(extraNo);
     if(naN)box.appendChild(naN);
-    say(box);
+    say(box,req);
     return;
   }
   if(hits.length===1){
@@ -2593,46 +2754,53 @@ async function doVilla(v,extraNo){
   }
   const naV=noApplyBlock(extraNo);
   if(naV)box.appendChild(naV);
-  say(box);
+  say(box,req);
 }
 /* Una nota mas lo que el Worker no pudo aplicar, en un solo bloque. */
-function sayWithNo(el,extraNo){
+function sayWithNo(el,extraNo,req){
   const na=noApplyBlock(extraNo);
-  if(!na){ say(el); return; }
+  if(!na){ say(el,req); return; }
   const box=E('div');
   box.appendChild(el);
   box.appendChild(na);
-  say(box);
+  say(box,req);
 }
 /* J7 · abrir una página del menú por su nombre. El Worker solo devuelve una
    clave; el nombre y el enlace salen de la lista que se le mandó, que es la
    del menú de quien pregunta. Si la clave no está en esa lista (Worker viejo,
    respuesta rara), no se inventa nada: devuelve false y la respuesta pasa a
    "no he entendido". Sin chips: aquí no hay ningún filtro. */
-function doPage(p,extraNo){
+function doPage(p,extraNo,req){
   const key=String((p&&p.key)||'').trim().toLowerCase();
   if(!key)return false;
   const list=menuPages();
   let hit=null;
   for(let i=0;i<list.length;i++){ if(list[i].key===key){ hit=list[i]; break; } }
   if(!hit)return false;
-  ST.shareHref=hit.url; ST.shareChips=[];   /* J3 */
+  /* G14: el enlace se arma con la clave de la lista blanca, nunca con la url
+     tal como venía en el menú. */
+  const href=hit.key+'.html';
+  ST.shareHref=href; ST.shareChips=[];   /* J3 */
   const box=E('div');
   box.appendChild(note(T.pageLine+' '+hit.label));
   const na=noApplyBlock(extraNo);
   if(na)box.appendChild(na);
   const btns=E('div','mia-btns');
-  btns.appendChild(btn(T.pageOpen+' '+hit.label,hit.url,true));
+  btns.appendChild(btn(T.pageOpen+' '+hit.label,href,true));
   box.appendChild(btns);
-  say(box);
+  say(box,req);
   return true;
 }
-function doUnknown(data){
+function doUnknown(data,req){
+  /* Aquí no hay ni filtros ni enlace, y el aviso de fallo tiene que decirlo:
+     "Filtros: ninguno" y "Enlace: -". Se ponen a cero a mano para que no se
+     queden los de la respuesta anterior. */
+  ST.shareHref=''; ST.shareChips=[];
   const box=E('div');
   box.appendChild(note(T.unknown));
   const na=noApplyBlock((data&&Array.isArray(data.unmatched))?data.unmatched:[]);
   if(na)box.appendChild(na);
-  say(box);
+  say(box,req);
 }
 
 /* ════════════════ PREGUNTA ════════════════ */
@@ -2644,6 +2812,8 @@ function doUnknown(data){
    ESTA página —fila, panel, botón Aa y el texto grande— pero no marcan la
    sesión: la siguiente página vuelve a intentarlo una vez. */
 function fail(off){
+  /* J8: este aviso va SIN número de pregunta a propósito. No es la respuesta a
+     una pregunta: es la caída de Mia, y con él se va la fila entera. */
   if(!downShown){ downShown=true; say(note(T.down)); }
   if(off)setMiaOff();
   hideRow(true);
@@ -2771,24 +2941,37 @@ async function onAsk(){
   if(!INPUT)return;
   const q=String(INPUT.value||'').trim().slice(0,300);
   if(!q)return;
+  /* J8: el número de ESTA pregunta. Todo lo que se pinte después lo lleva; si
+     para entonces hay otra pregunta, o el panel se ha cerrado, no se pinta.
+     El campo y el botón quedan bloqueados hasta que llegue la respuesta. */
+  const my=++REQ;
+  setBusy(true);
   ST.q=q;
   ST.shareHref=''; ST.shareChips=[];   /* J3: cada pregunta empieza sin enlace ni chips */
-  say(note(T.loading));
+  say(note(T.loading),my);
+  try{
+    await answer(q,my);
+  }finally{
+    /* Si ya hay otra pregunta en marcha, el bloqueo lo suelta la suya. */
+    if(my===REQ)setBusy(false);
+  }
+}
+async function answer(q,my){
   let data;
   try{ data=await askWorker(q); }
   catch(e){
     const k=e&&e.miaKind;
     /* La fila se queda: estos tres son problemas de un momento, no una
        caída, y culpar al usuario con "no he entendido" sería mentira. */
-    if(k==='401'){ say(note(T.expired)); return; }
-    if(k==='429'){ say(note(T.busyWait)); return; }
-    if(k==='400'){ say(note(T.badQ)); return; }
-    if(k==='timeout'){ say(note(T.busy)); return; }
+    if(k==='401'){ say(note(T.expired),my); return; }
+    if(k==='429'){ say(note(T.busyWait),my); return; }
+    if(k==='400'){ say(note(T.badQ),my); return; }
+    if(k==='timeout'){ say(note(T.busy),my); return; }
     fail(false); return;   /* red o 5xx: se reintenta en la próxima página */
   }
   if(!data||typeof data!=='object'){ fail(false); return; }
   if(data.enabled===false){ fail(true); return; }   /* apagada a propósito: hasta la próxima sesión */
-  if(data.error==='modelo'||data.error==='ocupado'){ say(note(T.busy)); return; }
+  if(data.error==='modelo'||data.error==='ocupado'){ say(note(T.busy),my); return; }
   const target=String(data.target||'unknown');
   /* Lo que el Worker no supo mapear se dice SIEMPRE, en el camino que sea:
      antes solo salía en la respuesta "no he entendido". */
@@ -2799,23 +2982,21 @@ async function onAsk(){
   try{
     if(target==='bookings'){
       const b=Object.assign({},data.bookings||{});
-      await ensureUsers(b.manager);
       const card=data.answer_card==='state'&&((b.code&&String(b.code).trim())||(b.guest&&String(b.guest).trim()));
-      await doBookings(b,card,um,data.answer_card);
+      await doBookings(b,card,um,data.answer_card,my);
     }
     else if(target==='tasks'){
       const t=Object.assign({},data.tasks||{});
-      await ensureUsers(t.user);
-      await doTasks(t,um);
+      await doTasks(t,um,my);
     }
-    else if(target==='notes')await doNotes(Object.assign({},data.notes||{}),um);
-    else if(target==='availability')doAvailability(Object.assign({},data.availability||{}),um);
-    else if(target==='villa')await doVilla(data.villa||{},um);
+    else if(target==='notes')await doNotes(Object.assign({},data.notes||{}),um,my);
+    else if(target==='availability')doAvailability(Object.assign({},data.availability||{}),um,my);
+    else if(target==='villa')await doVilla(data.villa||{},um,my);
     /* J7: si la clave no es una página del menú de quien pregunta, doPage no
        pinta nada y la respuesta sigue hasta "no he entendido". */
-    else if(FEAT.page&&target==='page'&&doPage(data.page||{},um)){}
-    else doUnknown(data);
-  }catch(e){ dbg('render ko'); say(note(T.unknown)); }
+    else if(FEAT.page&&target==='page'&&doPage(data.page||{},um,my)){}
+    else doUnknown(data,my);
+  }catch(e){ dbg('render ko'); say(note(T.unknown),my); }
 }
 
 /* ════════════════ ARRANQUE ════════════════ */
