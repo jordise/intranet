@@ -31,6 +31,37 @@
 //
 //  Se carga con una sola línea al final de nav-component.js.
 //  Quitar esa línea desactiva Mia en toda la intranet.
+//
+//  HISTORIAL · 2026-09-07 — revisión funcional contra los registros
+//  (nodo mia-functional-review-2026-09-07). Son CORRECCIONES, no
+//  funciones nuevas: ninguna lleva bandera en FEAT.
+//   · R3 resolveVilla — con varias villas candidatas van delante las
+//     que llevan TODAS las palabras escritas ("apartamentos voramar"
+//     da APARTAMENTOS VORAMAR antes que VILLA VORAMAR). El acierto
+//     exacto de una sola villa no cambia.
+//   · R4 doBookingsLink — sin ningún filtro y sin reserva en la
+//     página no hay lista ni botón: se pide un dato (T.noFilter),
+//     igual que en la ficha y en la tarjeta.
+//   · R6 lista de reservas sin fechas — la ventana sigue yendo vacía
+//     a propósito (si no, la página pone encima la fecha guardada del
+//     usuario), pero ahora se dice (T.noDates con villa, T.noDatesAll
+//     sin ella).
+//   · R7 filtro que no se pudo aplicar — si no queda nada que abrir,
+//     no hay botón; si queda algo, el botón dice qué abre de verdad
+//     ("sin villa", "sin fecha", "solo salidas").
+//   · R11 listas de villas (la de elegir villa y la de Tareas) —
+//     cuando el acierto vino del nombre interno y el nombre para
+//     inquilinos no lleva la palabra escrita, el nombre interno se
+//     enseña debajo, en gris.
+//   · R12 tareas automáticas — la fila la decide Tasktype 20, la
+//     misma regla que tareas.html; el nombre de la tarea no decide
+//     nada. La expresión de doTasks se queda: lee la PREGUNTA.
+//   · R13 ficha de estado — la línea de Check-in online lee
+//     Arrivalform_done con la misma degradación que la insignia de
+//     Entradas Equipo (v144 G11: marcado con cero adultos no es
+//     hecho) y con los tres estados de siempre: hecho, pendiente y
+//     sin dato.
+//   · R10 (menú de sales) no es de este archivo: nav.js y auth.js.
 // ================================================================
 
 (function () {
@@ -168,6 +199,16 @@ const TASK_TT = {
   'villa manager':'13',
   interna:'1', internas:'1'
 };
+/* R12 (revisión del 2026-09-07). "Tarea automática" lo decide SIEMPRE el
+   Tasktype de la fila, nunca su nombre: limpieza, welcomepack y cierre
+   comparten Tasktype 20, y hay tareas escritas a mano que se llaman igual.
+   Es la misma comparación que hace tareas.html v86 para esconderlas
+   (String(t.Tasktype||'')!=='20'), así que la lista de Mia y la de la página
+   cuentan lo mismo. Las palabras se siguen leyendo, pero solo en la PREGUNTA
+   (TASK_BT, TASK_TT y la expresión de doTasks): eso es lo que alguien
+   escribió, no lo que la fila es. */
+const TASK_AUTO_TT='20';
+function isAutoTask(r){ return String((r&&r.Tasktype)||'')===TASK_AUTO_TT; }
 
 /* Textos (producción en español) */
 const T = {
@@ -269,7 +310,26 @@ const T = {
   noFilter  :'Dime un código, un nombre o una villa.',
   incAsig   :'Asignada a:',
   noApplyInq:'el inquilino en el enlace: el nombre lleva comillas',
-  rdToday   :'Sin fechas en la pregunta: son las entradas de hoy. Al quitar el chip de fecha vuelve a hoy.'
+  rdToday   :'Sin fechas en la pregunta: son las entradas de hoy. Al quitar el chip de fecha vuelve a hoy.',
+  /* Revisión del 2026-09-07 */
+  /* R6: la ventana vacía es a propósito —con desde= y hasta= vacíos la página
+     no pone encima la ventana guardada del usuario—, pero abre todo el
+     historial de esa villa, así que se dice.
+     ES: Sin fechas: se abre todo el historial de esa villa. Añade "de mañana" o un mes.
+     EN: No dates: this opens that villa's whole history. Add "de mañana" (tomorrow) or a month. */
+  noDates   :'Sin fechas: se abre todo el historial de esa villa. Añade "de mañana" o un mes.',
+  /* S4: la misma nota cuando la pregunta no nombra ninguna villa ("salidas").
+     ES: Sin fechas: se abre todo el historial. Añade "de mañana" o un mes.
+     EN: No dates: this opens the whole history. Add "de mañana" (tomorrow) or a month. */
+  noDatesAll:'Sin fechas: se abre todo el historial. Añade "de mañana" o un mes.',
+  /* R7: lo que el botón abre de verdad cuando un filtro no se pudo aplicar.
+     Etiquetas cortas: el botón va en mayúsculas y en un teléfono.
+     ES: sin villa / sin fecha / solo entradas / solo salidas
+     EN: without villa / without date / arrivals only / departures only */
+  btnNoVilla:'sin villa',
+  btnNoDate :'sin fecha',
+  btnOnlyIn :'solo entradas',
+  btnOnlyOut:'solo salidas'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -1189,6 +1249,14 @@ function noApplyBlock(list){
   const txt=l.join(', ');
   return note(T.noApply+' '+txt+(/[.!?]$/.test(txt)?'':'.'));
 }
+/* R7 · qué abre el botón cuando un filtro no se pudo aplicar. Sin fallos la
+   etiqueta es la de siempre; con un fallo dice entre paréntesis lo que de
+   verdad lleva ("Abrir en Tareas (sin villa)"). Dos apuntes como mucho: el
+   botón va en mayúsculas y tiene que caber en un teléfono. */
+function btnLabel(base,bits){
+  const l=(bits||[]).filter(Boolean).slice(0,2);
+  return l.length?base+' ('+l.join(', ')+')':base;
+}
 function btn(label,href,primary){
   const a=document.createElement('a');
   a.className='mia-btn'+(primary?' mia-primary':'');
@@ -1417,6 +1485,43 @@ function lev(a,b){
   }
   return prev[b.length];
 }
+/* R3 · palabras de lo que se ha escrito, sin acentos y sin signos. */
+function qWords(v){ return fold(v).split(/[^a-z0-9]+/).filter(Boolean); }
+/* R3 · la villa lleva TODAS esas palabras, en el nombre para inquilinos o en
+   el interno, en cualquier orden. */
+function hasAllWords(r,qw){
+  const hay=fold(r&&r.name)+' '+fold(r&&r.alt);
+  for(let i=0;i<qw.length;i++)if(hay.indexOf(qw[i])<0)return false;
+  return true;
+}
+/* R3 · con varias villas candidatas, delante las que llevan todas las
+   palabras escritas: "apartamentos voramar" tiene que dar APARTAMENTOS
+   VORAMAR antes que VILLA VORAMAR, que solo lleva una de las dos. El resto
+   se queda detrás en el mismo orden: no se pierde ninguna villa, solo cambia
+   cuál se lee primero. Con una sola candidata no hay nada que ordenar. */
+function rankVillas(list,qw){
+  if(!qw.length||!list||list.length<2)return list;
+  const yes=[],rest=[];
+  list.forEach(function(r){ (hasAllWords(r,qw)?yes:rest).push(r); });
+  return (yes.length&&rest.length)?yes.concat(rest):list;
+}
+/* R11 · el nombre interno para la lista de elección. Solo se enseña cuando el
+   acierto vino de él: alguna palabra escrita NO está en el nombre para
+   inquilinos y sí está en el interno ("villa son" -> VILLA FERNANDA, interna
+   SON FERNANDA). Si los dos nombres son iguales, no hay nada que añadir. */
+function altHint(h,typed){
+  const qw=qWords(typed);
+  const alt=String((h&&h.alt)||'').trim();
+  if(!qw.length||!alt)return '';
+  const nm=fold(h&&h.name), al=fold(alt);
+  if(!nm||al===nm)return '';
+  let miss=false, inAlt=false;
+  for(let i=0;i<qw.length;i++){
+    if(nm.indexOf(qw[i])<0)miss=true;
+    if(al.indexOf(qw[i])>=0)inAlt=true;
+  }
+  return (miss&&inAlt)?alt:'';
+}
 /* Devuelve {hits:[{id,name}], ok:true, guessed, near:[{id,name}]}, o
    {hits:[], ok:false} si no se pudo leer la lista. El nombre exacto manda (el
    de inquilinos o el interno); si no hay ninguno, valen los que contienen lo
@@ -1456,14 +1561,25 @@ async function resolveVilla(name){
       .sort(function(a,b){ return a.d-b.d||a.r.name.localeCompare(b.r.name); })
       .slice(0,MAX_SUGGEST).map(function(x){ return x.r; });
   }
+  /* R3: el orden de las candidatas lo decide rankVillas; qué villas son
+     candidatas no cambia. */
+  const qw=qWords(q);
   const exact=rows.filter(function(r){ return norm(r.name)===qn||norm(r.alt)===qn; });
-  if(exact.length)return {hits:exact,ok:true,guessed:false,near:exact.length===1?nearest(exact):[]};
+  if(exact.length)return {hits:rankVillas(exact,qw),ok:true,guessed:false,near:exact.length===1?nearest(exact):[]};
   let part=contains(q);
+  /* R3: lo escrito lleva varias palabras y ninguna villa las tiene SEGUIDAS.
+     Antes se iba directo a acortar la pregunta por el final, y "apartamentos
+     voramar" acababa en cualquier villa que empezara por "apartamentos". Aquí
+     valen las villas que llevan TODAS las palabras, en el orden que sea:
+     APARTAMENTOS VORAMAR y VORAMAR APARTAMENTOS son la misma villa, y VILLA
+     VORAMAR no es ninguna de las dos. Solo se mira cuando la búsqueda seguida
+     no ha dado nada, así que ninguna respuesta de antes cambia. */
+  if(!part.length&&qw.length>1)part=rows.filter(function(r){ return hasAllWords(r,qw); });
   if(!part.length&&qn!==q)part=contains(qn);
   let qq=qn;
   let guessed=false;
   while(!part.length&&qq.length>4){ qq=qq.slice(0,-1); part=contains(qq); guessed=!!part.length; }
-  return {hits:part,ok:true,guessed:guessed,near:part.length<=1?nearest(part):[]};
+  return {hits:rankVillas(part,qw),ok:true,guessed:guessed,near:part.length<=1?nearest(part):[]};
 }
 /* Bloque "¿Querías decir…?": un enlace por villa parecida. hrefOf(villa)
    devuelve el enlace o null (sin id no hay enlace, solo el nombre). */
@@ -1693,11 +1809,24 @@ async function renderState(r,ctx,req){
   const sts=E('div','mia-states');
   const stName=String(g(r,'statusNameFormula')||g(r,'status')||'').trim();
   if(stName)sts.appendChild(E('span','mia-st'+(fold(stName).indexOf('cancel')>=0?' bad':''),'· '+stName));
-  const ciRaw=g(r,'checkinPend');
-  const ciPend=Number(ciRaw)===3;
-  const ci=E('span','mia-st'+(ciPend?' pend':(isOk(ciRaw)===true?' ok':'')));
-  ci.textContent=(ciPend?'· ':(isOk(ciRaw)===true?'✓ ':'· '))+'Check-in online';
-  sts.appendChild(ci);
+  /* R13 (revisión del 2026-09-07): la línea del check-in online lee la MISMA
+     casilla que la insignia de la tarjeta de Entradas Equipo, Arrivalform_done
+     (auditoría equipo-card-marks-audit-2026-09-07). Antes leía
+     checkinonline_todo_terminado, que vale 3 mientras el formulario está a
+     medias, y una reserva con el formulario de llegada entregado salía con
+     punto de pendiente.
+     Y con la misma degradación de entradas-equipo v144 (G11, líneas 1921 y
+     2466, función arrivalOk): un formulario marcado con CERO adultos no
+     cuenta como hecho. El número de adultos es el del formulario y, si no
+     trae nada, el de la reserva; el campo llega en la misma vista que el
+     resto de la ficha. La regla solo puede bajar a pendiente, nunca subir a
+     hecho. Tres estados, como el resto de las pastillas (G9): hecho,
+     pendiente y sin dato — una casilla vacía no es un trabajo pendiente. */
+  const afRaw=g(r,'arrivalFormDone');
+  const afNr=r['TaBookings2021_Guest_adults_nr_form'];
+  const afAd=(afNr===undefined||afNr===null||String(afNr).trim()==='')?g(r,'adults'):afNr;
+  const afVal=(isOk(afRaw)===true&&!(parseInt(afAd,10)>=1))?0:afRaw;
+  sts.appendChild(statePill('Check-in online',afVal));
   sts.appendChild(statePill('WelcomePack',g(r,'wellcomePack')));
   sts.appendChild(statePill('Limpieza',g(r,'limpieza')));
   sts.appendChild(statePill('Ecotasa',g(r,'ecotasaCobrada')));
@@ -1851,22 +1980,47 @@ function bookingsPlan(b){
 function doBookingsLink(b,extraNo,pre,req){   /* extraNo = data.unmatched; pre = J2, nota delante */
   const render=function(){
     const plan=bookingsPlan(b); plan.no=plan.no.concat(extraNo||[]);
+    /* Lo que el enlace lleva de verdad. desde= y hasta= vacíos son una marca
+       para la página, no un filtro: no cuentan. */
+    const real=Object.keys(plan.params).filter(function(k){ return plan.params[k]!==EMPTY; });
     const box=E('div');
     if(pre)box.appendChild(pre);
+    /* R4: sin ningún filtro y sin reserva en la página no hay lista que abrir.
+       El botón llevaría a todas las reservas desde 2021, así que no hay botón:
+       se pide el dato que falta, igual que en la ficha y en la tarjeta. */
+    if(!real.length){
+      ST.shareHref=''; ST.shareChips=[];
+      box.appendChild(note(T.noFilter));
+      const na0=noApplyBlock(plan.no);
+      if(na0)box.appendChild(na0);
+      say(box,req);
+      return;
+    }
     const chips=chipsBlock(plan.chips,b,render);
     if(chips)box.appendChild(chips);
     box.appendChild(note(T.usedHere));
+    /* R6: la ventana va vacía a propósito, pero eso abre todo el historial de
+       la villa. Se dice aquí, que es donde pasa. */
+    const sinFecha=plan.params.desde===EMPTY&&plan.params.hasta===EMPTY;
+    /* S4: solo se nombra la villa cuando la pregunta trae una; si no, la nota
+       habla del historial a secas. */
+    if(sinFecha)box.appendChild(note(plan.chips.villa?T.noDates:T.noDatesAll));
     const na=noApplyBlock(plan.no);
     if(na)box.appendChild(na);
     const href=link('entradas',plan.params);
     ST.shareHref=href; ST.shareChips=chipTexts(plan.chips);   /* J3 */
+    /* R7: si algo no se pudo aplicar, el botón dice qué abre de verdad. */
+    const label=btnLabel(T.openEnt,plan.no.length?[
+      plan.params.tipo==='salida'?T.btnOnlyOut:(plan.params.tipo==='entrada'?T.btnOnlyIn:''),
+      sinFecha?T.btnNoDate:''
+    ]:[]);
     const btns=E('div','mia-btns');
     if(curPage()===PAGES.entradas){
-      const go=E('button','mia-btn mia-primary',T.openEnt); go.type='button';
+      const go=E('button','mia-btn mia-primary',label); go.type='button';
       go.addEventListener('click',function(){ location.href=href; });
       btns.appendChild(go);
     }else{
-      btns.appendChild(btn(T.openEnt,href,true));
+      btns.appendChild(btn(label,href,true));
     }
     box.appendChild(btns);
     say(box,req);
@@ -2344,7 +2498,13 @@ async function doTasks(t,extraNo,req){
      Se decide una sola vez, fuera de render: al quitar el chip no vuelve. */
   if(t.noauto===undefined){
     const ty=fold(t.type);
-    const names=!!own(TASK_BT,ty) || /limpiez|welcome|wellcome|cierre/.test(ty);
+    /* R12: esta expresión lee la PREGUNTA, no la fila. Es la palabra que
+       escribió quien pregunta; lo que una fila es lo dice isAutoTask.
+       Una pregunta por incidencias nombra a las automáticas sin decirlo: el
+       parte de incidencia lo rellenan limpieza y cierre, que son Tasktype 20.
+       Si se escondieran, la respuesta sería siempre "no hay tareas con
+       incidencia" y el botón abriría una página igual de vacía. */
+    const names=!!own(TASK_BT,ty) || /limpiez|welcome|wellcome|cierre/.test(ty) || t.incident===true;
     if(!names) t.noauto=true;
   }
   /* J2: si TaUsers no se pudo leer y la pregunta pide un usuario que el mapa
@@ -2382,6 +2542,11 @@ async function doTasks(t,extraNo,req){
         a.className='mia-vmain';
         a.setAttribute('href',link('tareas',tasksPlan(Object.assign({},t,{villa:h.name,villaId:h.id})).params));
         a.appendChild(E('span','mia-n',h.name));
+        /* R11: misma regla que la lista de villas de doVilla. Si esta villa
+           salió por su nombre interno y el nombre para inquilinos no lleva la
+           palabra escrita, el interno va debajo, en gris. */
+        const hint=altHint(h,vName);
+        if(hint)a.appendChild(E('span','mia-m',hint));
         row.appendChild(a);
         list.appendChild(row);
       });
@@ -2460,24 +2625,35 @@ async function doTasks(t,extraNo,req){
   if(FEAT.incid && t.incident===true){ await doTasksIncidents(t,extraNo,topNote,near,req); return; }
   const render=function(){
     const plan=tasksPlan(t); plan.no=plan.no.concat(extraNo||[]);
+    /* R7: lo que el enlace lleva de verdad. auto=0 lo pone Mia sola y u= vacío
+       es una marca para la página: ninguno de los dos es un filtro que alguien
+       haya pedido, así que ninguno cuenta. */
+    const real=Object.keys(plan.params).filter(function(k){ return k!=='auto'&&plan.params[k]!==EMPTY; });
+    const failed=plan.no.length>0;
+    /* R7: con un filtro caído y nada que llevar, el botón abriría TODAS las
+       tareas. No hay botón: la respuesta dice qué falló y ya está. */
+    const noBtn=failed&&!real.length;
     const box=E('div');
     if(topNote)box.appendChild(note(topNote));
     const chips=chipsBlock(plan.chips,t,render);
     if(chips)box.appendChild(chips);
-    box.appendChild(note(T.usedHere));
+    if(!noBtn)box.appendChild(note(T.usedHere));
     const na=noApplyBlock(plan.no);
     if(na)box.appendChild(na);
     const href=link('tareas',plan.params);
-    ST.shareHref=href; ST.shareChips=chipTexts(plan.chips);   /* J3 */
+    ST.shareHref=noBtn?'':href; ST.shareChips=chipTexts(plan.chips);   /* J3 */
+    /* R7: la villa que no se encontró se dice también en el botón, para que
+       nadie lea la lista que se abre como "las tareas de esa villa". */
+    const label=btnLabel(T.openTar,(failed&&vName&&!plan.params.vi&&!plan.params.vid)?[T.btnNoVilla]:[]);
     const btns=E('div','mia-btns');
     if(curPage()===PAGES.tareas){
-      const go=E('button','mia-btn mia-primary',T.openTar); go.type='button';
+      const go=E('button','mia-btn mia-primary',label); go.type='button';
       go.addEventListener('click',function(){ location.href=href; });
       btns.appendChild(go);
     }else{
-      btns.appendChild(btn(T.openTar,href,true));
+      btns.appendChild(btn(label,href,true));
     }
-    box.appendChild(btns);
+    if(!noBtn)box.appendChild(btns);
     /* Villas parecidas: mismo resto de filtros, otra villa. Se calculan una
        vez con la pregunta original; quitar un chip no las cambia. */
     const sg=suggestBlock(near,function(h){
@@ -2642,6 +2818,9 @@ async function doTasksIncidents(t,extraNo,topNote,near,req){
   /* Tope de la consulta alcanzado: puede faltar alguna tarea antigua. */
   const capped=!ko&&rows&&rows.length>=(t._incPlanB?INC_SCAN:INC_FETCH);
   let list=ko?[]:incidentsPick(rows);
+  /* R12: si esta pregunta esconde las automáticas, la lista de Mia las
+     esconde con la MISMA regla que la página: Tasktype 20 en la fila. */
+  if(t.noauto===true)list=list.filter(function(r){ return !isAutoTask(r); });
   if(t.unitId)list=list.filter(function(r){ return String(r.PMSmultiunitID==null?'':r.PMSmultiunitID).trim()===String(t.unitId); });
   const shown=list.slice(0,INC_MAX);
 
@@ -2748,6 +2927,11 @@ async function doVilla(v,extraNo,req){
       const id=String(h.id||'');
       const row=E('div','mia-vrow');
       const nm=String(h.name||'—');
+      /* R11: si la villa salió por su nombre interno y el nombre para
+         inquilinos no lleva la palabra escrita, el interno va debajo, en gris
+         (.mia-m, que en un teléfono ocupa su propia línea). Así se ve por qué
+         está en la lista. */
+      const hint=altHint(h,name);
       /* Mismo criterio que con una sola villa: sin id numérico no hay enlace,
          se enseña el nombre y ya está. */
       if(isId(id)){
@@ -2755,10 +2939,12 @@ async function doVilla(v,extraNo,req){
         a.className='mia-vmain';
         a.setAttribute('href',link('villa',{villa_id:id}));
         a.appendChild(E('span','mia-n',nm));
+        if(hint)a.appendChild(E('span','mia-m',hint));
         row.appendChild(a);
       }else{
         const d=E('div','mia-vmain');
         d.appendChild(E('span','mia-n',nm));
+        if(hint)d.appendChild(E('span','mia-m',hint));
         row.appendChild(d);
       }
       list.appendChild(row);
