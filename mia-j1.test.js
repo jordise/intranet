@@ -182,7 +182,7 @@ console.log('\nregla de inyección');
     !/'tasks'|'availability'|'villa'/.test(linea));
   ok('la inyección va después de la respuesta del Worker y antes de repartirla',
     i > S.indexOf('data=await askWorker(q)') && i < S.indexOf("if(target==='bookings'){"));
-  ok('al Worker no se le manda nada nuevo', /body:JSON\.stringify\(\{ q:q, page:curPage\(\), today:todayISO\(\) \}\)/.test(S));
+  ok('al Worker no se le manda nada nuevo', /body:JSON\.stringify\(askBody\(q\)\)/.test(S) && /q:q, page:curPage\(\), today:todayISO\(\)/.test(S) && /FEAT\.page/.test(S.slice(S.indexOf('function askBody'), S.indexOf('function askBody')+600)));
 })();
 
 /* ─────────── El chip y su cruz ─────────── */
