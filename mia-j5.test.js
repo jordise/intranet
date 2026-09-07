@@ -178,8 +178,8 @@ var BASE = { check_in_from: '2026-09-08', check_in_to: '2026-09-08' };
 
   M.setFetch(function () { return Promise.reject(new Error('red')); });
   await M.ready(Object.assign({}, BASE), []);
-  ok('fallo de lectura: aviso claro y ningun boton',
-    hasNote(M, 'No he podido leer las entradas.') && all(M.body, 'mia-btn').length === 0, notes(M).join(' // '));
+  ok('fallo de lectura: aviso de fallo de lectura (J2) y solo el boton Reintentar',
+    hasNote(M, 'No he podido leer los datos. Vuelve a intentarlo.') && all(M.body, 'mia-btn').length === 1, notes(M).join(' // '));
   ok('fallo de lectura no pinta filas', rows(M).length === 0);
 
   console.log('\n== el interruptor FEAT.ready ==');

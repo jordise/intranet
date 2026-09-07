@@ -43,7 +43,7 @@ ok('mu va atado al id de la villa', /p\.mu=String\(t\.unitId\);/.test(src) && /t
 ok('el chip de la villa dice Villa — Unidad', /chips\.villa=t\.villa\+' — '\+uLbl;/.test(src));
 ok('CHIP_LABELS tiene unit', /unit:'Unidad'/.test(src));
 ok('la unidad sin aplicar se dice', /no\.push\('unidad "'\+t\.unit\+'"'\)/.test(src));
-ok('loadUnits pide TaMultiunits con el mismo proxy', src.indexOf("proxyGet('action=data&table=TaMultiunits&limit=200')") > 0);
+ok('loadUnits pide TaMultiunits con el mismo proxy', src.indexOf("proxyGet('action=data&table=TaMultiunits&limit=500')") > 0);
 
 /* ── 2. Nada sensible se guarda ── */
 ok('stripSensitive borra Keybox', Object.keys(stripSensitive([{ Keybox: 'x', nombre_completo: 'y' }])[0]).indexOf('Keybox') < 0);

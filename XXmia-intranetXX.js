@@ -249,6 +249,7 @@ const T = {
   incKo     :'No he podido leer las tareas.',
   incMore   :'Hay más tareas con incidencia. Ábrelas todas en Tareas.',
   incResp   :'Responsable:',
+  incCap    :'Hay más tareas en esas fechas de las que Mia puede leer de una vez. Acorta las fechas.',
   incDone   :'terminada',
   incPend   :'pendiente',
   incPhoto  :'1 foto',
@@ -1007,7 +1008,7 @@ const CHIP_LABELS = {
   urgent:'Urgente', important:'Importante', pax:'Plazas', pool:'Piscina',
   noauto:'Sin automáticas',
   ctx:T.ctxChip,   /* J1: el código no lo dijo la pregunta, lo dice la página */
-  noauto:'Sin automáticas', unit:'Unidad',
+  unit:'Unidad',
   incident:'Con incidencia'   /* J6 */
 };
 /* Quitar un chip borra su filtro. El de la reserva de la página (J1) borra el
@@ -1844,11 +1845,14 @@ async function doBookingsReady(b,extraNo){
      lo que define esta tarjeta, así que el chip Tipo vuelve si se quita. */
   const bb=Object.assign({},b);
   if(!bb.tipo)bb.tipo='entrada';
+  /* Sin fecha la tarjeta sería "todas las reservas desde 2021": sin fechas
+     es el día de hoy. */
+  if(!isDate(bb.check_in_from)&&!isDate(bb.check_in_to)&&!isDate(bb.stay_on)){ const hoy=todayISO(); bb.check_in_from=hoy; bb.check_in_to=hoy; }
   const plan=bookingsPlan(bb); plan.no=plan.no.concat(extraNo||[]);
   const again=function(){ doBookingsReady(bb,extraNo); };
   let rows;
   try{ rows=await fetchBookings(bb,READY_MAX,F.checkIn+' ASC,'+F.villaName+' ASC'); }
-  catch(e){ say(note(T.rdRead)); return; }
+  catch(e){ if(FEAT.retry){ say(readFailNote(again)); return; } say(note(T.rdRead)); return; }
   rows=rows||[];
   const box=E('div');
   const chips=chipsBlock(plan.chips,bb,again);
@@ -2059,7 +2063,7 @@ async function loadUnits(){
   UNITSP=(async function(){
     let list=null;
     try{
-      const rows=await proxyGet('action=data&table=TaMultiunits&limit=200');
+      const rows=await proxyGet('action=data&table=TaMultiunits&limit=500');
       list=rows.map(unitRow).filter(function(u){ return u.id&&u.villaId&&(u.name||u.short); });
     }catch(e){ dbg('TaMultiunits ko'); }
     if(list)return list;
@@ -2334,9 +2338,14 @@ function incidentsQs(where,limit){
     +'&orderBy='+encodeURIComponent(INC_ORDER)+'&limit='+limit;
 }
 async function incidentsFetch(t,uid){
+  /* Comprobado en vivo el 2026-09-07: caspio-proxy acepta Incidencias=1 y
+     devuelve las mismas tareas que el volcado (22 del verano). El plan B queda
+     por si un día deja de aceptarlo. */
+  t._incPlanB=false;
   try{
     return await proxyGet(incidentsQs(incidentsWhere(t,uid,true),INC_FETCH));
   }catch(e){
+    t._incPlanB=true;
     /* Plan B: el servidor no ha querido la marca Sí/No. Se pide la misma
        ventana sin ella, con el tope de 1000 filas de tareas.html, y las
        tareas con incidencia se separan aquí. */
@@ -2392,23 +2401,32 @@ async function doTasksIncidents(t,extraNo,topNote,near){
   const no=(extraNo||[]).slice();
   if(t.user&&!u.id)no.push('usuario: '+t.user+(u.many?' (varios)':''));
 
+  /* J4: la unidad resuelta en doTasks filtra también aquí; sin resolver, se
+     dice en "No pude aplicar" como en el enlace. */
+  if(t.unit&&!t.unitId)no.push('unidad "'+t.unit+'"');
+
   let rows=null, ko=false;
   try{ rows=await incidentsFetch(t,u.id); }
   catch(e){ ko=true; }
   const names=await villaNames();
-  const list=ko?[]:incidentsPick(rows);
+  /* Tope de la consulta alcanzado: puede faltar alguna tarea antigua. */
+  const capped=!ko&&rows&&rows.length>=(t._incPlanB?INC_SCAN:INC_FETCH);
+  let list=ko?[]:incidentsPick(rows);
+  if(t.unitId)list=list.filter(function(r){ return String(r.PMSmultiunitID==null?'':r.PMSmultiunitID).trim()===String(t.unitId); });
   const shown=list.slice(0,INC_MAX);
 
   /* Quitar el chip de incidencia deja de ser esta pregunta: se responde con la
      tarjeta normal de Tareas. Cualquier otro chip rehace esta misma lista. */
   const again=function(){
+    if(!t.unit){ t.unitId=''; t.unitName=''; }
+    if(!t.villa){ topNote=null; near=[]; }
     if(t.incident!==true){ doTasks(t,extraNo); return; }
     doTasksIncidents(t,extraNo,topNote,near);
   };
 
   const box=E('div');
   if(topNote)box.appendChild(note(topNote));
-  const chips=chipsBlock({incident:true,villa:t.villa,from:t.from,to:t.to,user:t.user},t,again);
+  const chips=chipsBlock({incident:true,villa:t.villa,unit:t.unitId?t.unitName:'',from:t.from,to:t.to,user:t.user},t,again);
   if(chips)box.appendChild(chips);
   /* Siempre, pase lo que pase con la consulta. */
   box.appendChild(note(T.incHead));
@@ -2425,6 +2443,7 @@ async function doTasksIncidents(t,extraNo,topNote,near){
     box.appendChild(l);
     if(list.length>INC_MAX)box.appendChild(note(T.incMore));
   }
+  if(capped)box.appendChild(note(T.incCap));
   /* El enlace abre Tareas con la villa, las fechas y el usuario, pero la
      página no sabe filtrar por incidencia: se dice, para que el botón no
      prometa una lista que no da. */
@@ -2639,7 +2658,7 @@ function pageBookingCode(){
 }
 /* Campos que ya dicen de qué reserva habla la pregunta. Si viene cualquiera
    de ellos, manda la pregunta y la página no pinta nada. */
-const CTX_OWN_KEYS = ['code','guest','villa','check_in_from','check_in_to','stay_on','manager','source','cleaner'];
+const CTX_OWN_KEYS = ['code','guest','villa','check_in_from','check_in_to','stay_on','manager','source','cleaner','tipo'];
 function injectPageBooking(f){
   if(!FEAT.ctx)return false;
   if(!f||typeof f!=='object')return false;
