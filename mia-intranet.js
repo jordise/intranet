@@ -783,6 +783,11 @@ let LAST_KO=null;
    texto del aviso de fallo: el enlace de filtros y los chips que se ven. */
 let ST={ q:'', shareHref:'', shareChips:[] };
 let RPT=null;           // J3: aviso de fallo abierto ahora mismo, si lo hay
+/* J8: foto del estado (pregunta, enlace y chips) de la respuesta que se está
+   viendo. La toma say() al pintar. Una cadena vieja puede escribir en ST
+   antes de que su say se caiga, así que el aviso de fallo lee la foto y no el
+   estado de ahora: dice lo que hay en la pantalla. */
+let SNAP=null;
 let USERS=null;         // mapa UserID → Name (solo como último recurso, para la ficha)
 let downShown=false;
 
@@ -1035,25 +1040,27 @@ function panelHead(){
    una fila leída de Caspio: ahí van nombres de inquilinos. Mia no manda nada
    ni guarda nada; la persona copia el texto o lo abre en WhatsApp y elige
    ella el chat, por eso el enlace de WhatsApp no lleva ningún número. */
-function reportText(){
-  const ch=(ST.shareChips||[]).filter(Boolean).join(', ');
+function reportText(snap){
+  /* snap = la foto de la respuesta que se ve. Sin foto, el estado de ahora. */
+  const s=snap||{q:ST.q,shareHref:ST.shareHref,shareChips:ST.shareChips};
+  const ch=(s.shareChips||[]).filter(Boolean).join(', ');
   return [
     T.rptTitle,
     T.rptPage+' '+curPage(),
-    T.rptQ+' '+String(ST.q||''),
+    T.rptQ+' '+String(s.q||''),
     T.rptChips+' '+(ch||T.rptNone),
-    T.rptLink+' '+(ST.shareHref||'-'),
+    T.rptLink+' '+(s.shareHref||'-'),
     T.rptExpect,
     T.rptGot
   ].join('\n');
 }
 function waHref(txt){ return 'https://wa.me/?text='+encodeURIComponent(String(txt==null?'':txt)); }
-function reportBox(){
+function reportBox(snap){
   const box=E('div','mia-rbox');
   const ta=document.createElement('textarea');
   ta.className='mia-rta'; ta.rows=6;
   ta.setAttribute('aria-label',T.rptLabel);
-  ta.value=reportText();
+  ta.value=reportText(snap);
   box.appendChild(ta);
   const btns=E('div','mia-btns');
   const cp=E('button','mia-btn',T.rptCopy); cp.type='button';
@@ -1083,7 +1090,9 @@ function reportBox(){
   box.appendChild(btns);
   return box;
 }
-function reportBlock(){
+function reportBlock(snap){
+  /* Sin foto por parámetro vale la que acaba de tomar say(). */
+  const snp=snap||SNAP;
   const wrap=E('div','mia-rwrap');
   const b=E('button','mia-report',T.rptOpen);
   b.type='button';
@@ -1091,7 +1100,7 @@ function reportBlock(){
   wrap.appendChild(b);
   b.addEventListener('click',function(){
     if(RPT){ closeReport(); return; }
-    const box=reportBox();
+    const box=reportBox(snp);
     wrap.appendChild(box);
     RPT={box:box,btn:b};
     b.setAttribute('aria-expanded','true');
@@ -1104,6 +1113,8 @@ function say(node,req){
   /* J8: la respuesta de una pregunta anterior no pisa la de ahora, y una que
      llega con el panel ya cerrado no lo vuelve a abrir. */
   if(stale(req))return;
+  /* J8: la foto de ESTA respuesta, antes de pintarla. */
+  SNAP={q:ST.q,shareHref:ST.shareHref,shareChips:(ST.shareChips||[]).slice()};
   /* El panel puede haberse ido entre la pregunta y la respuesta (Worker caído
      y el usuario cierra el aviso). Entonces no hay dónde escribir: se calla. */
   if(!BODY||!PANEL)return;
@@ -1738,7 +1749,10 @@ async function renderState(r,ctx,req){
     }
   }
   if(code){
-    await loadPayments();
+    /* Sin await: la lectura de pagos no puede retener el bloqueo del campo,
+       que no tiene tope de tiempo. Sus propias comprobaciones de respuesta
+       tardía la hacen segura si para entonces hay otra pregunta. */
+    loadPayments();
   }else{
     payBox.textContent='';
   }
@@ -2812,7 +2826,12 @@ function doUnknown(data,req){
    ESTA página —fila, panel, botón Aa y el texto grande— pero no marcan la
    sesión: la siguiente página vuelve a intentarlo una vez. */
 function fail(off){
-  /* J8: este aviso va SIN número de pregunta a propósito. No es la respuesta a
+  /* J8: sube el número ANTES de pintar. Con la fila ya fuera, ninguna cadena
+     que siga viva (otra pregunta en marcha) puede escribir detrás: si lo
+     hiciera, su clearPanel se llevaría este aviso y el botón Aa que hideRow
+     acaba de mudar al panel. */
+  if(FEAT.seq){ REQ++; setBusy(false); }
+  /* Este aviso va SIN número de pregunta a propósito. No es la respuesta a
      una pregunta: es la caída de Mia, y con él se va la fila entera. */
   if(!downShown){ downShown=true; say(note(T.down)); }
   if(off)setMiaOff();
@@ -2948,8 +2967,8 @@ async function onAsk(){
   setBusy(true);
   ST.q=q;
   ST.shareHref=''; ST.shareChips=[];   /* J3: cada pregunta empieza sin enlace ni chips */
-  say(note(T.loading),my);
   try{
+    say(note(T.loading),my);
     await answer(q,my);
   }finally{
     /* Si ya hay otra pregunta en marcha, el bloqueo lo suelta la suya. */

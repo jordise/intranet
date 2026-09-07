@@ -89,6 +89,23 @@ function all(node, cls, out) {
   return out;
 }
 
+/* El primer nodo de una etiqueta, en profundidad */
+function findTag(node, tag) {
+  var kids = (node && node.children) || [];
+  for (var i = 0; i < kids.length; i++) {
+    if (kids[i].tagName === tag) return kids[i];
+    var f = findTag(kids[i], tag);
+    if (f) return f;
+  }
+  return null;
+}
+/* La tecla Escape, por el escuchador que Mia pone en el documento */
+function escape(M) {
+  (M.doc._ls.keydown || []).forEach(function (fn) {
+    fn({ key: 'Escape', target: M.doc.body, preventDefault: function () {}, stopPropagation: function () {} });
+  });
+}
+
 var SRC = fs.readFileSync('mia-intranet.js', 'utf8');
 var WORKER = 'mia-intranet-search';
 
@@ -448,6 +465,71 @@ console.log('mia-intranet.js — barrido del panel (una respuesta por pregunta)'
   ok('doUnknown borra el enlace del aviso', M14.getST().shareHref === '', M14.getST().shareHref);
   ok('doUnknown borra los chips del aviso', M14.getST().shareChips.length === 0);
   ok('y la respuesta dice "No he entendido"', texto(M14).indexOf(M14.T.unknown) >= 0, texto(M14));
+
+  /* -- 14. Mia se cae con otra pregunta en marcha -- */
+  console.log('\n14. La caída de Mia con otra pregunta en marcha');
+  var s15 = mkFetch();
+  var M15 = makeEnv();
+  M15.setEasy(true);
+  pregunta(M15, 'ocupacion A');
+  escape(M15);
+  ok('Escape cierra el panel', M15.els().panel.classList.contains('show') === false);
+  pregunta(M15, 'ocupacion B');
+  s15.worker[0].ko(new Error('red'));
+  await flush();
+  ok('la caída se anuncia', texto(M15).indexOf(M15.T.down) >= 0, texto(M15));
+  ok('la fila de Mia se va', !M15.els().row);
+  s15.worker[1].reply(OCU_B);
+  await flush();
+  ok('la pregunta que seguía viva no borra el aviso de caída', texto(M15).indexOf(M15.T.down) >= 0, texto(M15));
+  ok('y no se pinta con Mia ya retirada', texto(M15).indexOf('22 plazas') < 0, texto(M15));
+  ok('el botón Aa sigue vivo dentro del panel',
+    !!M15.els().aa && M15.els().panel.contains(M15.els().aa) === true);
+  ok('y el texto grande sigue encendido', M15.doc.body.classList.contains('easy') === true);
+
+  /* -- 15. El aviso de fallo describe la respuesta que se ve -- */
+  console.log('\n15. El aviso de fallo describe lo que hay en la pantalla');
+  var s16 = mkFetch();
+  var M16 = makeEnv();
+  pregunta(M16, 'la villa delfi');
+  s16.worker[0].reply({ target: 'villa', villa: { name: 'delfi' } });
+  await flush();
+  ok('la lista de villas se está leyendo', s16.proxy.length === 1, String(s16.proxy.length));
+  escape(M16);
+  pregunta(M16, 'ocupacion B');
+  s16.worker[1].reply(OCU_B);
+  await flush();
+  ok('se ve la respuesta de B', texto(M16).indexOf('22 plazas') >= 0, texto(M16));
+  s16.proxy[0].reply({ Result: [{ villaid: '123', Name_villa_para_inquilinos: 'VILLA DELFIN', Name: 'DELFIN' }] });
+  await flush();
+  ok('la villa que llega tarde no se pinta', texto(M16).indexOf('VILLA DELFIN') < 0, texto(M16));
+  var rbtn = all(M16.body, 'mia-report')[0];
+  ok('la respuesta lleva el botón de avisar de un fallo', !!rbtn);
+  fire(rbtn, 'click');
+  var ta = findTag(M16.body, 'textarea');
+  ok('el aviso nombra la pregunta que se ve',
+    !!ta && ta.value.indexOf('Pregunta: ocupacion B') >= 0, ta && ta.value);
+  ok('el aviso lleva el enlace de la respuesta que se ve',
+    ta.value.indexOf('Enlace: listado-ocupacion.html') >= 0, ta.value);
+  ok('el aviso NO lleva el enlace de la pregunta vieja', ta.value.indexOf('villa.html') < 0, ta.value);
+
+  /* -- 16. El bloqueo del campo no espera a los pagos -- */
+  console.log('\n16. El bloqueo no espera a la lectura de pagos');
+  var s17 = mkFetch();
+  var M17 = makeEnv();
+  M17.setFetchBookings(function () { return Promise.resolve([fila('Casa Uno', 'A. Prueba', 'HA-0001')]); });
+  pregunta(M17, 'estado de la reserva');
+  s17.worker[0].reply({ target: 'bookings', answer_card: 'state', bookings: { code: 'HA-0001' } });
+  await flush();
+  ok('la ficha está pintada y los pagos siguen leyéndose',
+    all(M17.body, 'mcard').length === 1 && s17.proxy.length === 1, String(s17.proxy.length));
+  ok('el campo ya está desbloqueado', M17.els().input.disabled === false);
+  ok('y el botón también', M17.els().go.disabled === false);
+  var pago2 = {};
+  pago2['Ta_payments_Importe'] = '100';
+  s17.proxy[0].reply({ Result: [pago2] });
+  await flush();
+  ok('cuando llegan, los pagos se pintan', all(M17.body, 'mia-pay').length === 1);
 
   console.log('');
   console.log('PASS ' + pass + '  FAIL ' + fail);
