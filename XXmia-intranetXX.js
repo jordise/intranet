@@ -87,7 +87,8 @@ const FEAT = {
   report:1,   /* J3: "Avisar de un fallo" al pie de cada respuesta */
   unit  :1,   /* J4: unidad (apartamento) dentro de una villa en Tareas */
   ready :1,   /* J5: tarjeta "qué falta" para las entradas de un día */
-  incid :1    /* J6: tareas con incidencia reportada por limpieza */
+  incid :1,   /* J6: tareas con incidencia reportada por limpieza */
+  page  :1    /* J7: abrir una página del menú de quien pregunta, por su nombre */
 };
 const K_EASY         = '3v_easy';      // localStorage: texto más legible
 const K_OFF          = '3v_mia_off';   // sessionStorage: Mia apagada esta sesión
@@ -256,7 +257,10 @@ const T = {
   incPhotos :'fotos',
   incNoPhoto:'sin fotos',
   incOpen   :'Abrir tarea',
-  incNoLink :'El enlace de Tareas no filtra por incidencia: ese filtro solo lo aplico yo aquí.'
+  incNoLink :'El enlace de Tareas no filtra por incidencia: ese filtro solo lo aplico yo aquí.',
+  /* J7 */
+  pageOpen  :'Abrir',
+  pageLine  :'Esta página del menú:'
 };
 
 /* Marca de Mia (SVG en línea; no se usa <use> por el <base href> de varias páginas) */
@@ -391,6 +395,61 @@ function hasSession(){
 }
 function miaOff(){ try{ return sessionStorage.getItem(K_OFF)==='1'; }catch(e){ return false; } }
 function setMiaOff(){ try{ sessionStorage.setItem(K_OFF,'1'); }catch(e){} }
+
+/* ════════════════ J7 · LAS PÁGINAS DEL MENÚ DE QUIEN PREGUNTA ════════════════ */
+/* El menú lo define nav.js, que carga todas las páginas del intranet:
+   NAV_MENUS[rol] es una lista de {label,url,icon,children}. Mia la aplana y
+   manda al Worker solo el nombre y la clave de cada página INTERNA, para que
+   el Worker pueda decir "esta pregunta es el nombre de esta página".
+   Reglas, en este orden:
+    · Solo páginas del propio intranet: la URL acaba en .html y no lleva "://"
+      (fuera los enlaces a Google Docs del bloque Equipo).
+    · La clave es el nombre del archivo sin .html y solo minúsculas, cifras y
+      guiones: eso deja fuera las páginas de prueba (XXtest1XX y compañía).
+    · Login no se manda: no es una respuesta a ninguna pregunta.
+    · Sin repetidas y con tope, para que la pregunta no engorde.
+   Es la lista de ESTE rol: una página que su menú no tiene nunca se envía y
+   por tanto nunca se enlaza. */
+const PAGE_KEY_RE = /^[a-z0-9-]{1,40}$/;
+const PAGE_MAX    = 40;
+const PAGE_DEPTH  = 4;   /* menús anidados: tope para no caminar en círculos */
+const PAGE_SKIP   = ['login'];
+function navMenus(){
+  try{ if(window&&window.NAV_MENUS)return window.NAV_MENUS; }catch(e){}
+  try{ if(typeof NAV_MENUS!=='undefined')return NAV_MENUS; }catch(e){}
+  return null;
+}
+function menuPages(){
+  if(!FEAT.page)return [];
+  try{
+    const menus=navMenus();
+    if(!menus||typeof menus!=='object')return [];
+    const menu=menus[myRole()];
+    if(!Array.isArray(menu))return [];
+    const out=[],seen={};
+    const walk=function(items,depth){
+      if(!Array.isArray(items)||depth>PAGE_DEPTH)return;
+      for(let i=0;i<items.length;i++){
+        const it=items[i];
+        if(!it||typeof it!=='object')continue;
+        if(out.length<PAGE_MAX){
+          const url=String(it.url||'').trim();
+          const label=String(it.label||'').trim();
+          if(label&&url&&url.indexOf('://')<0&&/\.html$/.test(url)){
+            const key=url.split('/').pop().replace(/\.html$/,'');
+            if(PAGE_KEY_RE.test(key)&&PAGE_SKIP.indexOf(key)<0&&!own(seen,key)){
+              seen[key]=1;
+              out.push({key:key,label:label,url:url});
+            }
+          }
+        }
+        walk(it.children,depth+1);
+      }
+    };
+    walk(menu,1);
+    return out.slice(0,PAGE_MAX);
+  }catch(e){ return []; }
+}
 
 /* ════════════════ CSS (solo lo nuevo — add-only) ════════════════ */
 /* La fila NO es sticky: es un bloque normal debajo de la cabecera y se va con
@@ -2545,6 +2604,29 @@ function sayWithNo(el,extraNo){
   box.appendChild(na);
   say(box);
 }
+/* J7 · abrir una página del menú por su nombre. El Worker solo devuelve una
+   clave; el nombre y el enlace salen de la lista que se le mandó, que es la
+   del menú de quien pregunta. Si la clave no está en esa lista (Worker viejo,
+   respuesta rara), no se inventa nada: devuelve false y la respuesta pasa a
+   "no he entendido". Sin chips: aquí no hay ningún filtro. */
+function doPage(p,extraNo){
+  const key=String((p&&p.key)||'').trim().toLowerCase();
+  if(!key)return false;
+  const list=menuPages();
+  let hit=null;
+  for(let i=0;i<list.length;i++){ if(list[i].key===key){ hit=list[i]; break; } }
+  if(!hit)return false;
+  ST.shareHref=hit.url; ST.shareChips=[];   /* J3 */
+  const box=E('div');
+  box.appendChild(note(T.pageLine+' '+hit.label));
+  const na=noApplyBlock(extraNo);
+  if(na)box.appendChild(na);
+  const btns=E('div','mia-btns');
+  btns.appendChild(btn(T.pageOpen+' '+hit.label,hit.url,true));
+  box.appendChild(btns);
+  say(box);
+  return true;
+}
 function doUnknown(data){
   const box=E('div');
   box.appendChild(note(T.unknown));
@@ -2567,6 +2649,18 @@ function fail(off){
   hideRow(true);
 }
 function kind(k){ const e=new Error(k); e.miaKind=k; return e; }
+/* Lo que viaja con la pregunta. J7 añade "pages": las páginas del menú de
+   quien pregunta, con su nombre tal como lo pone el menú (texto del menú, no
+   texto de la persona). Si no hay ninguna —bandera apagada, sin nav.js, rol
+   sin menú— no se manda la clave y el Worker se comporta como siempre. */
+function askBody(q){
+  const b={ q:q, page:curPage(), today:todayISO() };
+  if(FEAT.page){
+    const pages=menuPages();
+    if(pages.length)b.pages=pages.map(function(p){ return {key:p.key,label:String(p.label).slice(0,40)}; });
+  }
+  return b;
+}
 async function askWorker(q){
   const ctl=new AbortController();
   const to=setTimeout(function(){ ctl.abort(); },TIMEOUT_MS);
@@ -2575,7 +2669,7 @@ async function askWorker(q){
     res=await fetch(MIA_WORKER_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+Auth.token()},
-      body:JSON.stringify({ q:q, page:curPage(), today:todayISO() }),
+      body:JSON.stringify(askBody(q)),
       signal:ctl.signal
     });
   }catch(e){
@@ -2717,6 +2811,9 @@ async function onAsk(){
     else if(target==='notes')await doNotes(Object.assign({},data.notes||{}),um);
     else if(target==='availability')doAvailability(Object.assign({},data.availability||{}),um);
     else if(target==='villa')await doVilla(data.villa||{},um);
+    /* J7: si la clave no es una página del menú de quien pregunta, doPage no
+       pinta nada y la respuesta sigue hasta "no he entendido". */
+    else if(FEAT.page&&target==='page'&&doPage(data.page||{},um)){}
     else doUnknown(data);
   }catch(e){ dbg('render ko'); say(note(T.unknown)); }
 }
