@@ -29,5 +29,10 @@ ok('salto de linea dentro de javascript: -> entradas.html', sanitizeRedirect('ja
 ok('barra invertida -> entradas.html', sanitizeRedirect('\\\\x.com') === 'entradas.html', sanitizeRedirect('\\\\x.com'));
 ok('/intranet/../ -> entradas.html', sanitizeRedirect('/intranet/../admin/') === 'entradas.html', sanitizeRedirect('/intranet/../admin/'));
 
+ok('esquema con + -> entradas.html', sanitizeRedirect('web+x:foo') === 'entradas.html', sanitizeRedirect('web+x:foo'));
+ok('esquema con - -> entradas.html', sanitizeRedirect('ms-excel:ofe|u|https://x.com') === 'entradas.html', sanitizeRedirect('ms-excel:ofe|u|https://x.com'));
+ok('%2e%2e codificado -> entradas.html', sanitizeRedirect('%2e%2e/x') === 'entradas.html', sanitizeRedirect('%2e%2e/x'));
+ok('/intranet/%2E%2E/x -> entradas.html', sanitizeRedirect('/intranet/%2E%2E/x') === 'entradas.html', sanitizeRedirect('/intranet/%2E%2E/x'));
+
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

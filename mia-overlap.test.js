@@ -318,7 +318,7 @@ console.log('mia-intranet.js — barrido del panel (una respuesta por pregunta)'
   ok('con código sí hay WHERE, y la condición de canceladas sigue estando',
     makeEnv().bookingsWhere({ code: 'HA-0001' }).indexOf("<>'cancelled'") >= 0);
   ok('un código numérico no revienta (G11)',
-    makeEnv().bookingsWhere({ code: 56120018 }).indexOf('56120018') > 0);
+    makeEnv().bookingsWhere({ code: 10000001 }).indexOf('10000001') > 0);
   var s8 = mkFetch();
   var M8 = makeEnv();
   pregunta(M8, 'la reserva HA-0001');
