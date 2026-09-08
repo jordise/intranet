@@ -163,7 +163,7 @@ const PAY_CONCEPTS = [
   ['Ta_payments_Pago_Linea1','Extra 1'],
   ['Ta_payments_Pago_Linea2','Extra 2'],
   ['Ta_payments_Pago_Linea3','Extra 3'],
-  ['Ta_payments_Pago_deposito_seguridad','Depósito'],
+  ['Ta_payments_Pago_deposito_seguridad','Fianza'] /* v145 */,
   ['Ta_payments_Pago_deposit_waiver','Waiver']
 ];
 
