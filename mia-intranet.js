@@ -285,8 +285,8 @@ const T = {
   rdNa      :'sin dato',
   rdArrival :'Arrival form',
   rdPolice  :'Policía',
-  rdPaso4   :'Paso 4 (ecotasa/depósito)',
-  rdDeposit :'Depósito',
+  rdPaso4   :'Ecotasa',        /* v145 (Toni 08/09/2026): solo la ecotasa, como en Entradas Equipo */
+  rdDeposit :'Fianza/Waiver',  /* v145: fianza cobrada o waiver cobrado, no "paso 3 cerrado" */
   rdClean   :'Limpieza',
   rdWp      :'Welcome pack',
   /* J6 */
@@ -1829,9 +1829,9 @@ async function renderState(r,ctx,req){
   sts.appendChild(statePill('Check-in online',afVal));
   sts.appendChild(statePill('WelcomePack',g(r,'wellcomePack')));
   sts.appendChild(statePill('Limpieza',g(r,'limpieza')));
-  sts.appendChild(statePill('Ecotasa',g(r,'ecotasaCobrada')));
+  sts.appendChild(statePill('Ecotasa',ecotasaVal(r)));       /* v145: solo Ecotasa_cobrada */
   sts.appendChild(statePill('Policía',g(r,'policeDone')));
-  sts.appendChild(statePill('Depósito',g(r,'depositDone')));
+  sts.appendChild(statePill('Fianza/Waiver',fianzaVal(r)));  /* v145: el dinero, no el paso 3 */
   sts.appendChild(statePill('Cierre',g(r,'cierre')));
   secSt.appendChild(sts);
   body.appendChild(secSt);
@@ -2153,14 +2153,34 @@ async function doBookingsStay(b,extraNo,req){
    buena: un campo nulo o vacío dice "sin dato", nunca "hecho". Las marcas son
    las de Entradas Equipo (la tabla de reservas): dicen lo que alguien apuntó,
    no lo que Mia haya comprobado. */
+/* v145: las dos marcas de cobro son las mismas que pinta Entradas Equipo v145 (ecotasaOk y
+   fianzaOk de esa pagina, copiadas aqui): Ecotasa mira solo Ecotasa_cobrada; Fianza/Waiver mira
+   la fianza (opcion 2) o el waiver (opcion 1) cobrados, y sin opcion el paso 3 cerrado.
+   Devuelven 1, 0 o null para que readyPill e isOk los traten como cualquier otra marca. */
+function ecotasaVal(r){
+  if(!r)return null;
+  const ok=isOk(r['TaBookings2021_Ecotasa_cobrada']);
+  return ok===null?null:(ok?1:0);
+}
+function fianzaVal(r){
+  if(!r)return null;
+  const b1=v=>String(v)==='1'||v===1||v===true;
+  const opt=parseInt(r['TaBookings2021_Security_deposit_options'])||0;
+  if(opt===2)return b1(r['TaBookings2021_Security_deposit_cobrado'])?1:0;
+  if(opt===1)return(b1(r['TaBookings2021_Deposit_waver_cobrado'])||!b1(r['TaBookings2021_Se_permite_waver']))?1:0;
+  const d=isOk(r['TaBookings2021_Security_deposit_terminado']);
+  return d===null?null:(d?1:0);
+}
 const READY_FLAGS = [
   [T.rdArrival,'arrivalFormDone'],
   [T.rdPolice ,'policeDone'],
-  [T.rdPaso4  ,'ecotasaCobrada'],
-  [T.rdDeposit,'depositDone'],
+  [T.rdPaso4  ,ecotasaVal],
+  [T.rdDeposit,fianzaVal],
   [T.rdClean  ,'limpieza'],
   [T.rdWp     ,'wellcomePack']
 ];
+/* v145: una marca puede ser un campo (texto) o una funcion que la calcula */
+function readyVal(r,f){ return typeof f==='function'?f(r):g(r,f); }
 /* Tres estados de verdad: hecho, pendiente y sin dato. isOk() devuelve null
    cuando el campo es nulo o está vacío, y ese null NO se convierte en hecho. */
 function readyPill(label,val){
@@ -2173,7 +2193,7 @@ function readyPill(label,val){
 /* Pendiente = cualquiera de las seis que no esté hecha, y "sin dato" cuenta.
    Si no contara, un día entero sin apuntar saldría como día resuelto. */
 function readyPending(r){
-  return READY_FLAGS.some(function(f){ return isOk(g(r,f[1]))!==true; });
+  return READY_FLAGS.some(function(f){ return isOk(readyVal(r,f[1]))!==true; });
 }
 function readyRow(r){
   const row=E('div','mia-rdrow');
@@ -2183,7 +2203,7 @@ function readyRow(r){
     .filter(Boolean).join(' · ');
   row.appendChild(E('div','mia-rd-m',meta));
   const sts=E('div','mia-states');
-  READY_FLAGS.forEach(function(f){ sts.appendChild(readyPill(f[0],g(r,f[1]))); });
+  READY_FLAGS.forEach(function(f){ sts.appendChild(readyPill(f[0],readyVal(r,f[1]))); });
   row.appendChild(sts);
   return row;
 }

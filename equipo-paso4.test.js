@@ -33,7 +33,9 @@ function makeEnv() {
     fnSource('calcPaymentItems'), fnSource('paymentsLineHTML'), fnSource('_lvBdg'),
     fnSource('paso4Local'), fnSource('paso4Falta'), fnSource('paso4Label'),
     fnSource('arrivalOk'), fnSource('checkinPendiente'), fnSource('_lvBdgEco'),
+    fnSource('ecotasaOk'), fnSource('fianzaFalta'), fnSource('fianzaOk'), fnSource('fianzaLabel'), fnSource('_lvBdgFianza'),
     'return {paso4Local:paso4Local,paso4Falta:paso4Falta,paso4Label:paso4Label,' +
+    'ecotasaOk:ecotasaOk,fianzaFalta:fianzaFalta,fianzaOk:fianzaOk,fianzaLabel:fianzaLabel,_lvBdgFianza:_lvBdgFianza,' +
     'arrivalOk:arrivalOk,checkinPendiente:checkinPendiente,_lvBdgEco:_lvBdgEco,' +
     'paymentsLineHTML:paymentsLineHTML,calcPaymentItems:calcPaymentItems,isOk:isOk};'
   ].join('\n');
@@ -108,7 +110,7 @@ ok('nunca salen deposito y waiver a la vez (dependen de la opcion)',
     JSON.stringify(E.paso4Falta(r)) + ' / ' + E.paso4Local(r));
 });
 
-console.log('\n== G2: el texto de la insignia (paso4Label) ==');
+console.log('\n== G2: el texto de la insignia (paso4Label; desde v145 solo referencia, no se pinta) ==');
 
 ok('en verde la insignia solo dice Paso 4', E.paso4Label(conWaiver('0'), true) === 'Paso 4');
 ok('sin dato la insignia solo dice Paso 4', E.paso4Label(conWaiver('0'), null) === 'Paso 4');
@@ -127,15 +129,61 @@ ok('en rojo siempre hay motivo: lista vacia solo cuando la regla local da verde'
 ok('el texto nunca lleva la palabra Ecotasa con mayuscula (esa es la linea de PAGOS)',
   E.paso4Label(res({ TaBookings2021_Ecotasa_cobrada: '0' }), false).indexOf('Ecotasa') === -1);
 
-console.log('\n== G2: la insignia del listado (_lvBdgEco) ==');
+console.log('\n== la insignia Ecotasa del listado (_lvBdgEco) ==');
 
-var bdgVerde = E._lvBdgEco(res({ TaBookings2021_Paso4_terminado: '1' }), 'u');
-ok('la insignia verde dice Paso 4', bdgVerde.indexOf('Paso 4') > 0, bdgVerde);
-ok('  ...y ya no dice Ecotasa', bdgVerde.indexOf('Ecotasa') === -1, bdgVerde);
-ok('  ...y sigue en verde (lv-ok)', bdgVerde.indexOf('lv-ok') > 0, bdgVerde);
-var bdgRojo = E._lvBdgEco(conWaiver('0', { TaBookings2021_Paso4_terminado: '0' }), 'u');
-ok('la insignia roja dice el motivo', bdgRojo.indexOf('Paso 4: falta waiver') > 0, bdgRojo);
-ok('  ...y sigue en rojo (lv-no)', bdgRojo.indexOf('lv-no') > 0, bdgRojo);
+/* v145: la insignia del listado vuelve a decir Ecotasa y mira solo Ecotasa_cobrada */
+var bdgVerde = E._lvBdgEco(res({ TaBookings2021_Paso4_terminado: '0' }), 'u');
+ok('la insignia verde dice Ecotasa (v145)', bdgVerde.indexOf('> Ecotasa') > 0 || bdgVerde.indexOf(' Ecotasa<') > 0, bdgVerde);
+ok('  ...y ya no dice Paso 4', bdgVerde.indexOf('Paso 4') === -1, bdgVerde);
+ok('  ...y esta en verde aunque la formula Paso4_terminado diga 0 (lv-ok)', bdgVerde.indexOf('lv-ok') > 0, bdgVerde);
+var bdgRojo = E._lvBdgEco(res({ TaBookings2021_Ecotasa_cobrada: '0', TaBookings2021_Paso4_terminado: '1' }), 'u');
+ok('la ecotasa sin cobrar sale en rojo aunque la formula diga 1', bdgRojo.indexOf('lv-no') > 0, bdgRojo);
+ok('  ...y el waiver sin cobrar NO pone la ecotasa en rojo',
+  E._lvBdgEco(conWaiver('0'), 'u').indexOf('lv-ok') > 0, E._lvBdgEco(conWaiver('0'), 'u'));
+ok('sin dato de ecotasa la insignia es gris (lv-na)',
+  E._lvBdgEco(res({ TaBookings2021_Ecotasa_cobrada: '' }), 'u').indexOf('lv-na') > 0);
+ok('la sincronizacion de Stripe pone la etiqueta (Stripe) solo en verde',
+  E._lvBdgEco(res({ TaBookings2021_Ecotasa_cobrada: 1, __pagoOk: true, __stripe: { Ecotasa: true } }), 'u').indexOf('Ecotasa (Stripe)') > 0);
+
+console.log('\n== v145: la insignia Fianza/Waiver (fianzaFalta, fianzaOk, fianzaLabel) ==');
+
+ok('opcion 2 con la fianza cobrada: verde', E.fianzaOk(conDeposito('1')) === true);
+ok('opcion 2 con la fianza sin cobrar: rojo, falta fianza',
+  E.fianzaOk(conDeposito('0')) === false && E.fianzaFalta(conDeposito('0')) === 'fianza');
+ok('opcion 1 con el waiver cobrado: verde', E.fianzaOk(conWaiver('1')) === true);
+ok('opcion 1 con el waiver sin cobrar: rojo, falta waiver',
+  E.fianzaOk(conWaiver('0')) === false && E.fianzaFalta(conWaiver('0')) === 'waiver');
+ok('opcion 1 con waiver NO permitido (20): verde, no hay nada que cobrar', E.fianzaOk(res()) === true);
+ok('sin opcion y paso 3 cerrado: verde',
+  E.fianzaOk(res({ TaBookings2021_Security_deposit_options: '0', TaBookings2021_Security_deposit_terminado: '1' })) === true);
+ok('sin opcion y paso 3 sin cerrar: rojo, sin elegir',
+  E.fianzaOk(res({ TaBookings2021_Security_deposit_options: '0', TaBookings2021_Security_deposit_terminado: '0' })) === false &&
+  E.fianzaFalta(res({ TaBookings2021_Security_deposit_options: '0', TaBookings2021_Security_deposit_terminado: '0' })) === 'elegir');
+ok('sin opcion y sin dato del paso 3: gris (null)',
+  E.fianzaOk(res({ TaBookings2021_Security_deposit_options: '' })) === null);
+ok('la ecotasa no entra en la insignia Fianza/Waiver',
+  E.fianzaOk(conDeposito('1', { TaBookings2021_Ecotasa_cobrada: '0' })) === true);
+ok('sin registro: null', E.fianzaOk(null) === null && E.fianzaFalta(null) === '');
+ok('en verde el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), true) === 'Fianza/Waiver');
+ok('sin dato el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), null) === 'Fianza/Waiver');
+ok('en rojo: Fianza/Waiver: falta waiver', E.fianzaLabel(conWaiver('0'), false) === 'Fianza/Waiver: falta waiver');
+ok('en rojo: Fianza/Waiver: falta fianza', E.fianzaLabel(conDeposito('0'), false) === 'Fianza/Waiver: falta fianza');
+ok('en rojo: Fianza/Waiver: sin elegir',
+  E.fianzaLabel(res({ TaBookings2021_Security_deposit_options: '0', TaBookings2021_Security_deposit_terminado: '0' }), false) === 'Fianza/Waiver: sin elegir');
+ok('el texto nunca dice Deposito ni decidido',
+  ['fianza', 'waiver', 'elegir'].every(function (k) {
+    var r = k === 'fianza' ? conDeposito('0') : k === 'waiver' ? conWaiver('0') : res({ TaBookings2021_Security_deposit_options: '0', TaBookings2021_Security_deposit_terminado: '0' });
+    return !/dep[oó]sito|decidido/i.test(E.fianzaLabel(r, false));
+  }));
+var fzL = E._lvBdgFianza(conDeposito('0'), 'u');
+ok('la insignia del listado pinta el motivo en rojo', fzL.indexOf('lv-no') > 0 && fzL.indexOf('Fianza/Waiver: falta fianza') > 0, fzL);
+ok('  ...y en verde solo el nombre', E._lvBdgFianza(conDeposito('1'), 'u').indexOf('✓ Fianza/Waiver<') > 0, E._lvBdgFianza(conDeposito('1'), 'u'));
+/* la regla de la formula de Caspio: ecotasa Y fianza/waiver equivale a paso4Local */
+[res(), conWaiver('0'), conWaiver('1'), conDeposito('0'), conDeposito('1'),
+ res({ TaBookings2021_Ecotasa_cobrada: '0' })].forEach(function (r, i) {
+  ok('ecotasaOk Y fianzaOk equivale a paso4Local (caso ' + (i + 1) + ')',
+    (E.ecotasaOk(r) === true && E.fianzaOk(r) === true) === (E.paso4Local(r) === true));
+});
 ok('la linea de PAGOS si conserva la etiqueta Ecotasa',
   E.paymentsLineHTML(res({ TaBookings2021_Ecotasa_cobrada: '0' })).indexOf('Ecotasa 30.00') > 0,
   E.paymentsLineHTML(res({ TaBookings2021_Ecotasa_cobrada: '0' })));
@@ -197,7 +245,10 @@ tabla.forEach(function (c) {
 var casoToni = {
   TaBookings2021_Arrivalform_done: '1', TaBookings2021_Guest_adults_nr_form: '2',
   TaBookings2021_Registro_policia_done: '1', TaBookings2021_Security_deposit_terminado: '1',
-  TaBookings2021_Ecotasa_cobrada: '1', TaBookings2021_Paso4_terminado: '0'
+  TaBookings2021_Ecotasa_cobrada: '1', TaBookings2021_Paso4_terminado: '0',
+  /* v145: el filtro lee los campos del waiver, no la formula */
+  TaBookings2021_Security_deposit_options: '1', TaBookings2021_Se_permite_waver: '1',
+  TaBookings2021_Deposit_waver_EUR: '40', TaBookings2021_Deposit_waver_cobrado: '0'
 };
 ok('con la ecotasa cobrada y el waiver sin cobrar la formula vieja decia "completa"',
   viejaFormulaPendiente(casoToni) === false);
@@ -220,36 +271,44 @@ var casoSync = {
 ok('si la sincronizacion de Stripe ha cerrado el paso 4, ya no esta pendiente',
   E.checkinPendiente(casoSync) === false);
 ok('sin registro se considera pendiente', E.checkinPendiente(null) === true);
+/* v145: una fianza cobrada cuenta aunque el paso 3 no este marcado (el dinero manda) */
+var casoFianzaCobrada = {
+  TaBookings2021_Arrivalform_done: '1', TaBookings2021_Guest_adults_nr_form: '2',
+  TaBookings2021_Registro_policia_done: '1', TaBookings2021_Security_deposit_terminado: '0',
+  TaBookings2021_Ecotasa_cobrada: '1', TaBookings2021_Security_deposit_options: '2',
+  TaBookings2021_Security_deposit_EUR: '500', TaBookings2021_Security_deposit_cobrado: '1'
+};
+ok('v145: fianza cobrada con el paso 3 sin marcar no esta pendiente', E.checkinPendiente(casoFianzaCobrada) === false);
 
 console.log('\n== la pagina (HTML) ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v144', /VERSIÓN ACTUAL: v144/.test(linea3), linea3);
-ok('PAGE_VERSION dice v144', /const PAGE_VERSION='v144';/.test(SRC));
-ok('el titulo dice v144', /<title>Entradas Equipo v144/.test(SRC));
-ok('el historial recoge v144 y conserva v143', /<!-- HISTORIAL: v144 - /.test(SRC) && /\| v143 - /.test(SRC));
-ok('el historial nombra los seis arreglos',
+ok('la cabecera dice VERSION ACTUAL v145', /VERSIÓN ACTUAL: v145/.test(linea3), linea3);
+ok('PAGE_VERSION dice v145', /const PAGE_VERSION='v145';/.test(SRC));
+ok('el titulo dice v145', /<title>Entradas Equipo v145/.test(SRC));
+ok('el historial recoge v145 y conserva v144 y v143', /<!-- HISTORIAL: v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
-    return SRC.indexOf('HISTORIAL: v144') > 0 && SRC.slice(SRC.indexOf('HISTORIAL: v144')).indexOf(gg) > 0;
+    return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
   }));
+ok('el historial de v145 cita a Toni y los dos nombres', /HISTORIAL: v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
 
 var CARD = fnSource('buildCard');
 ok('el bloque de buildCard se ha leido entero', CARD.indexOf('c-body-wrap') > 0 && CARD.length > 4000);
 
-console.log('\n== G2 y G7 en la ficha y en el listado ==');
+console.log('\n== v145: Ecotasa y Fianza/Waiver en la ficha y en el listado ==');
 
-ok('la ficha pinta la insignia con paso4Label', CARD.indexOf('${paso4Label(r,ecOk)}') > 0);
-ok('  ...y ya no escribe Ecotasa como etiqueta de la insignia',
-  CARD.indexOf('${ecIco} Ecotasa') === -1);
+ok('la ficha pinta la insignia Ecotasa con su nombre', CARD.indexOf('${ecIco} Ecotasa') > 0);
+ok('  ...y ya no usa paso4Label', CARD.indexOf('paso4Label(') === -1);
 ok('  ...conservando el importe y el lapiz (ecExtra)', CARD.indexOf('${ecExtra}</a>') > 0);
 ok('  ...y la etiqueta (Stripe) de v143', CARD.indexOf("${ecStripe?' (Stripe)':''}") > 0);
-ok('el color de la insignia sigue la regla de v143 (la regla local solo pone verde)',
-  SRC.indexOf('const ecOk=(r.__pagoOk&&paso4Local(r))?true:isOk(ecRaw);') > 0);
-ok('la insignia del listado usa paso4Label', fnSource('_lvBdgEco').indexOf('paso4Label(r,isOk(val))') > 0);
-ok('la ficha dice "Depósito decidido"', CARD.indexOf("mkBadge('Depósito decidido'") > 0);
-ok('el listado dice "Depósito decidido"', SRC.indexOf("_lvBdg('Depósito decidido'") > 0);
-ok('ya no queda la etiqueta "Depósito" a secas',
-  SRC.indexOf("mkBadge('Depósito',") === -1 && SRC.indexOf("_lvBdg('Depósito',") === -1);
+ok('el color de la insignia Ecotasa sale de ecotasaOk', CARD.indexOf('const ecOk=ecotasaOk(r);') > 0);
+ok('la insignia del listado usa ecotasaOk', fnSource('_lvBdgEco').indexOf('ecotasaOk(r)') > 0 && fnSource('_lvBdgEco').indexOf('paso4') === -1);
+ok('la ficha pinta Fianza/Waiver con fianzaLabel', CARD.indexOf('mkBadge(fianzaLabel(r,fzOk)') > 0 && CARD.indexOf('const fzOk=fianzaOk(r);') > 0);
+ok('el listado pinta Fianza/Waiver', SRC.indexOf('html+=_lvBdgFianza(r,urlDep);') > 0);
+ok('ya no queda "Depósito decidido" ni "Paso 4" pintado en la pagina (solo en el historial y en las funciones de referencia)',
+  SRC.indexOf("mkBadge('Depósito decidido'") === -1 && SRC.indexOf("_lvBdg('Depósito decidido'") === -1 &&
+  SRC.indexOf("mkBadge('Depósito',") === -1 && SRC.indexOf("_lvBdg('Depósito',") === -1 && CARD.indexOf('Paso 4') === -1);
 
 console.log('\n== G4: la linea de PAGOS en la ficha ==');
 
@@ -258,7 +317,7 @@ ok('  ...solo si devuelve algo', /const _pagosLinea=paymentsLineHTML\(r\);\s*\n\
 ok('  ...fuera del detalle plegado (antes de c-body-wrap)',
   CARD.indexOf('paymentsLineHTML(r)') < CARD.indexOf('c-body-wrap'));
 ok('  ...justo despues de la fila de insignias',
-  CARD.indexOf('paymentsLineHTML(r)') > CARD.indexOf("mkBadge('Depósito decidido'"));
+  CARD.indexOf('paymentsLineHTML(r)') > CARD.indexOf('mkBadge(fianzaLabel(r,fzOk)'));
 ok('la vista listado la sigue pintando', SRC.indexOf("html+=paymentsLineHTML(r);") > 0);
 ok('hay un estilo propio de la ficha para esa linea', /\.card \.lv-payments\{/.test(SRC));
 ok('una reserva sin conceptos con importe no pinta nada',

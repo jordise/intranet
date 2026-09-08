@@ -83,6 +83,9 @@ var FLD = {
   guest: 'TaBookings2021_Guest_Full_Name', ci: 'TaBookings2021_Checkin', co: 'TaBookings2021_Checkout',
   arr: 'TaBookings2021_Arrivalform_done', pol: 'TaBookings2021_Registro_policia_done',
   paso4: 'TaBookings2021_Paso4_terminado', dep: 'TaBookings2021_Security_deposit_terminado',
+  /* v145: las marcas Ecotasa y Fianza/Waiver leen estos campos, no la formula ni el paso 3 */
+  eco: 'TaBookings2021_Ecotasa_cobrada', opt: 'TaBookings2021_Security_deposit_options',
+  waiverOk: 'TaBookings2021_Se_permite_waver', waiverCob: 'TaBookings2021_Deposit_waver_cobrado',
   lim: 'TaBookings2021_LimpiezaTerminada', wp: 'TaBookings2021_Welcomepackentregado'
 };
 function row(villa, guest, code, over) {
@@ -90,6 +93,7 @@ function row(villa, guest, code, over) {
   r[FLD.villa] = villa; r[FLD.guest] = guest; r[FLD.code] = code;
   r[FLD.ci] = '2026-09-08T00:00:00'; r[FLD.co] = '2026-09-15T00:00:00';
   r[FLD.arr] = 1; r[FLD.pol] = 1; r[FLD.paso4] = 1; r[FLD.dep] = 1; r[FLD.lim] = 1; r[FLD.wp] = 1;
+  r[FLD.eco] = 1; r[FLD.opt] = 1; r[FLD.waiverOk] = 1; r[FLD.waiverCob] = 1; /* v145: ecotasa y waiver cobrados */
   for (var k in (over || {})) r[k] = over[k];
   return r;
 }
@@ -128,7 +132,7 @@ var BASE = { check_in_from: '2026-09-08', check_in_to: '2026-09-08' };
   var r0 = rows(M)[0];
   ok('una fila', rows(M).length === 1);
   ok('seis pastillas en orden',
-    pills(r0).join(' | ') === '✓ Arrival form | ✓ Policía | ✓ Paso 4 (ecotasa/depósito) | ✓ Depósito | ✓ Limpieza | ✓ Welcome pack',
+    pills(r0).join(' | ') === '✓ Arrival form | ✓ Policía | ✓ Ecotasa | ✓ Fianza/Waiver | ✓ Limpieza | ✓ Welcome pack',
     pills(r0).join(' | '));
   ok('la fila dice villa, inquilino, codigo y fecha de entrada',
     r0.textContent.indexOf('Casa Uno') >= 0 && r0.textContent.indexOf('A. Prueba') >= 0

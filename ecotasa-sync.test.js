@@ -45,11 +45,11 @@ function makeEnv(auth) {
     fnSource('isOk'),
     fnSource('_ecoCodigoValido'), fnSource('pagosPendientes'), fnSource('pagosWhere'),
     fnSource('pagosStripeMerge'), fnSource('decidirReparacion'), fnSource('aplicarCandidato'), fnSource('paso4Falta'), fnSource('paso4Label'),
-    fnSource('marcaSelloStripe'), fnSource('paso4Local'), fnSource('_lvBdgEco'),
+    fnSource('marcaSelloStripe'), fnSource('paso4Local'), fnSource('_lvBdgEco'), fnSource('ecotasaOk'), fnSource('fianzaFalta'), fnSource('fianzaOk'), fnSource('fianzaLabel'), fnSource('_lvBdgFianza'), /* v145 */
     'return {pagosPendientes:pagosPendientes,pagosWhere:pagosWhere,pagosStripeMerge:pagosStripeMerge,' +
     'decidirReparacion:decidirReparacion,aplicarCandidato:aplicarCandidato,paso4Local:paso4Local,' +
     'calcPaymentItems:calcPaymentItems,paymentsLineHTML:paymentsLineHTML,marcaSelloStripe:marcaSelloStripe,' +
-    '_lvBdgEco:_lvBdgEco};'
+    '_lvBdgEco:_lvBdgEco,_lvBdgFianza:_lvBdgFianza,ecotasaOk:ecotasaOk,fianzaOk:fianzaOk};'
   ].join('\n');
   return new Function('Auth', body)(auth || { name: function () { return 'Toni Segui'; } });
 }
@@ -333,7 +333,7 @@ console.log('\n== orden de trabajo (syncPagosStripe con dobles) ==');
   ok('  ...la linea de pagos muestra el cobro con etiqueta (Stripe)',
     /\(Stripe\)/.test(E.paymentsLineHTML(recsA[0])), E.paymentsLineHTML(recsA[0]));
   ok('  ...y la insignia del listado sale verde con etiqueta (Stripe)',
-    E._lvBdgEco(recsA[0], 'u').indexOf('lv-ok') > 0 && E._lvBdgEco(recsA[0], 'u').indexOf('Paso 4 (Stripe)') > 0, E._lvBdgEco(recsA[0], 'u'));
+    E._lvBdgEco(recsA[0], 'u').indexOf('lv-ok') > 0 && E._lvBdgEco(recsA[0], 'u').indexOf('Ecotasa (Stripe)') > 0, E._lvBdgEco(recsA[0], 'u'));
 
   /* caso "no": ecotasa anulada a proposito */
   var B = makeSyncEnv({ payments: [fila('X2')], live: { 'X2': { Ecotasa_cobrada: '0', Ecotasa_comentarios: 'Anulada ecotasa porque no vinieron' } } });
@@ -358,9 +358,12 @@ console.log('\n== orden de trabajo (syncPagosStripe con dobles) ==');
   var D2 = makeSyncEnv({ payments: [fila('X10')], live: { 'X10': { Ecotasa_cobrada: '0' } } });
   var recsD2 = [resEco('X10', '0', { TaBookings2021_Security_deposit_options: 2, TaBookings2021_Security_deposit_cobrado: '0' })];
   await D2.sync(recsD2, [], {}, 1);
-  ok('con el deposito pendiente la insignia NO se pone verde (vuelve a lo que diga la vista)', E._lvBdgEco(recsD2[0], 'u').indexOf('lv-ok') < 0, E._lvBdgEco(recsD2[0], 'u'));
+  /* v145: la insignia Ecotasa mide solo la ecotasa; el deposito pendiente vive en Fianza/Waiver */
+  ok('v145: con el deposito pendiente la insignia Ecotasa SI se pone verde (la ecotasa esta cobrada)', E._lvBdgEco(recsD2[0], 'u').indexOf('lv-ok') > 0, E._lvBdgEco(recsD2[0], 'u'));
+  ok('  ...y la insignia Fianza/Waiver queda en rojo diciendo que falta la fianza',
+    E._lvBdgFianza(recsD2[0], 'u').indexOf('lv-no') > 0 && E._lvBdgFianza(recsD2[0], 'u').indexOf('falta fianza') > 0, E._lvBdgFianza(recsD2[0], 'u'));
   recsD2[0].TaBookings2021_Paso4_terminado = '1';
-  ok('la regla local nunca quita el verde que ya da la formula de Caspio', E._lvBdgEco(recsD2[0], 'u').indexOf('lv-ok') > 0, E._lvBdgEco(recsD2[0], 'u'));
+  ok('la formula Paso4_terminado ya no pinta la insignia Ecotasa', E._lvBdgEco(recsD2[0], 'u').indexOf('lv-ok') > 0, E._lvBdgEco(recsD2[0], 'u'));
 
   /* si falla la lectura de la reserva no se toca nada */
   var D = makeSyncEnv({ payments: [fila('X4')], failBooking: true });
@@ -471,9 +474,9 @@ function finalizar() {
   console.log('\n== la pagina (HTML) ==');
 
   var linea3 = SRC.split('\n')[2];
-  ok('la cabecera dice VERSION ACTUAL v144', /VERSIÓN ACTUAL: v144/.test(linea3), linea3);
-  ok('PAGE_VERSION dice v144', /const PAGE_VERSION='v144';/.test(SRC));
-  ok('el titulo dice v144', /<title>Entradas Equipo v144/.test(SRC));
+  ok('la cabecera dice VERSION ACTUAL v145', /VERSIÓN ACTUAL: v145/.test(linea3), linea3);
+  ok('PAGE_VERSION dice v145', /const PAGE_VERSION='v145';/.test(SRC));
+  ok('el titulo dice v145', /<title>Entradas Equipo v145/.test(SRC));
 
   ok('existe el interruptor ECO_SYNC', /var ECO_SYNC=1;/.test(SRC));
   ok('existe el interruptor ECO_SYNC_WRITE', /var ECO_SYNC_WRITE=1;/.test(SRC));
@@ -484,12 +487,12 @@ function finalizar() {
   ok('doSearch lanza syncPagosStripe justo despues de pintar',
     /renderCards\(records,_allVillaIds,_muVillaMap\);\s*\n\s*syncPagosStripe\(records,_allVillaIds,_muVillaMap,mySearchId\)/.test(SRC));
   ok('la vista listado usa la insignia con regla de Stripe', SRC.indexOf('_lvBdgEco(r,urlEc)') > 0);
-  ok('la ficha usa paso4Local solo si la sincronizacion ha tocado la reserva',
-    SRC.indexOf('const ecOk=(r.__pagoOk&&paso4Local(r))?true:isOk(ecRaw);') > 0);
+  ok('v145: la ficha pinta la insignia Ecotasa con ecotasaOk (el flag que la sincronizacion repara)',
+    SRC.indexOf('const ecOk=ecotasaOk(r);') > 0);
   ok('ya no queda rastro de la regla vieja ecotasaStripeOk', SRC.indexOf('ecotasaStripeOk') === -1);
   ok('la escritura va por action=save con method=PUT sobre TaBookings2021',
     /action=save&table=TaBookings2021&where=/.test(SRC));
-  ok('el historial recoge v144 y v143', /<!-- HISTORIAL: v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+  ok('el historial recoge v145, v144 y v143', /<!-- HISTORIAL: v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
   ok('el historial explica la regla del importe y la puerta de rol',
     /margen de 0,05 euros/.test(SRC) && /admin, manager o staff/.test(SRC));
 
