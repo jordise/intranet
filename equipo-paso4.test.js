@@ -164,6 +164,27 @@ ok('sin opcion y sin dato del paso 3: gris (null)',
 ok('la ecotasa no entra en la insignia Fianza/Waiver',
   E.fianzaOk(conDeposito('1', { TaBookings2021_Ecotasa_cobrada: '0' })) === true);
 ok('sin registro: null', E.fianzaOk(null) === null && E.fianzaFalta(null) === '');
+/* opcion 3 (fianza por transferencia) y opcion 4 (Airbnb sin waiver), hallazgo del checker */
+function conTransferencia(cobrado, extra) {
+  return res(Object.assign({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '500',
+    TaBookings2021_Security_deposit_cobrado: cobrado, TaBookings2021_Security_deposit_terminado: '1' }, extra || {}));
+}
+ok('opcion 3 con la transferencia marcada cobrada: verde', E.fianzaOk(conTransferencia('1')) === true);
+ok('opcion 3 sin marcar: rojo, falta fianza (aunque el paso 3 este cerrado)',
+  E.fianzaOk(conTransferencia('0')) === false && E.fianzaLabel(conTransferencia('0'), false) === 'Fianza/Waiver: falta fianza');
+ok('  ...y ahi se aparta a proposito de la formula de Caspio (paso4Local la da por resuelta)',
+  E.paso4Local(conTransferencia('0')) === true && E.fianzaOk(conTransferencia('0')) === false);
+ok('opcion 3 con importe 0: nada que cobrar, verde',
+  E.fianzaOk(conTransferencia('0', { TaBookings2021_Security_deposit_EUR: '0' })) === true);
+ok('opcion 4 (Airbnb sin waiver): verde sin mirar nada mas',
+  E.fianzaOk(res({ TaBookings2021_Security_deposit_options: '4', TaBookings2021_Security_deposit_terminado: '0' })) === true);
+ok('opcion 2 con importe 0: nada que cobrar, verde',
+  E.fianzaOk(conDeposito('0', { TaBookings2021_Security_deposit_EUR: '0' })) === true);
+ok('opcion 1 con waiver permitido pero importe 0: nada que cobrar, verde',
+  E.fianzaOk(conWaiver('0', { TaBookings2021_Deposit_waver_EUR: '0' })) === true);
+ok('opcion 2 como numero (2) y no texto: misma regla', E.fianzaOk(conDeposito('0', { TaBookings2021_Security_deposit_options: 2 })) === false);
+ok('opcion 3 pendiente deja la reserva en el filtro de pendientes',
+  E.checkinPendiente(Object.assign(conTransferencia('0'), { TaBookings2021_Arrivalform_done: '1', TaBookings2021_Guest_adults_nr_form: '2', TaBookings2021_Registro_policia_done: '1' })) === true);
 ok('en verde el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), true) === 'Fianza/Waiver');
 ok('sin dato el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), null) === 'Fianza/Waiver');
 ok('en rojo: Fianza/Waiver: falta waiver', E.fianzaLabel(conWaiver('0'), false) === 'Fianza/Waiver: falta waiver');
@@ -178,7 +199,8 @@ ok('el texto nunca dice Deposito ni decidido',
 var fzL = E._lvBdgFianza(conDeposito('0'), 'u');
 ok('la insignia del listado pinta el motivo en rojo', fzL.indexOf('lv-no') > 0 && fzL.indexOf('Fianza/Waiver: falta fianza') > 0, fzL);
 ok('  ...y en verde solo el nombre', E._lvBdgFianza(conDeposito('1'), 'u').indexOf('✓ Fianza/Waiver<') > 0, E._lvBdgFianza(conDeposito('1'), 'u'));
-/* la regla de la formula de Caspio: ecotasa Y fianza/waiver equivale a paso4Local */
+/* la regla de la formula de Caspio: ecotasa Y fianza/waiver equivale a paso4Local en las opciones 1 y 2
+   (la opcion 3 se aparta a proposito, probado arriba) */
 [res(), conWaiver('0'), conWaiver('1'), conDeposito('0'), conDeposito('1'),
  res({ TaBookings2021_Ecotasa_cobrada: '0' })].forEach(function (r, i) {
   ok('ecotasaOk Y fianzaOk equivale a paso4Local (caso ' + (i + 1) + ')',

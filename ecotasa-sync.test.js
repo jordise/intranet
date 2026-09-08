@@ -356,7 +356,7 @@ console.log('\n== orden de trabajo (syncPagosStripe con dobles) ==');
 
   /* la insignia respeta el deposito pendiente aunque la ecotasa se haya reparado */
   var D2 = makeSyncEnv({ payments: [fila('X10')], live: { 'X10': { Ecotasa_cobrada: '0' } } });
-  var recsD2 = [resEco('X10', '0', { TaBookings2021_Security_deposit_options: 2, TaBookings2021_Security_deposit_cobrado: '0' })];
+  var recsD2 = [resEco('X10', '0', { TaBookings2021_Security_deposit_options: 2, TaBookings2021_Security_deposit_EUR: '500', TaBookings2021_Security_deposit_cobrado: '0' })]; /* v145: con importe, si no no hay nada que cobrar */
   await D2.sync(recsD2, [], {}, 1);
   /* v145: la insignia Ecotasa mide solo la ecotasa; el deposito pendiente vive en Fianza/Waiver */
   ok('v145: con el deposito pendiente la insignia Ecotasa SI se pone verde (la ecotasa esta cobrada)', E._lvBdgEco(recsD2[0], 'u').indexOf('lv-ok') > 0, E._lvBdgEco(recsD2[0], 'u'));

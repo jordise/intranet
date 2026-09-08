@@ -134,6 +134,19 @@ var BASE = { check_in_from: '2026-09-08', check_in_to: '2026-09-08' };
   ok('seis pastillas en orden',
     pills(r0).join(' | ') === '✓ Arrival form | ✓ Policía | ✓ Ecotasa | ✓ Fianza/Waiver | ✓ Limpieza | ✓ Welcome pack',
     pills(r0).join(' | '));
+  /* v145: la ecotasa y la fianza se leen de sus campos, no de la formula ni del paso 3 */
+  var ovr = {}; ovr[FLD.eco] = 0; ovr[FLD.paso4] = 1;
+  withRows([row('Casa Dos', 'B. Prueba', 'HA-0002', ovr)]);
+  await M.ready(Object.assign({}, BASE), []);
+  ok('v145: ecotasa sin cobrar sale pendiente aunque la formula diga 1',
+    pills(rows(M)[0]).join(' | ').indexOf('· Ecotasa pendiente') >= 0, pills(rows(M)[0]).join(' | '));
+  var ovr3 = {}; ovr3[FLD.opt] = 3; ovr3['TaBookings2021_Security_deposit_EUR'] = 500; ovr3['TaBookings2021_Security_deposit_cobrado'] = 0;
+  withRows([row('Casa Tres', 'C. Prueba', 'HA-0003', ovr3)]);
+  await M.ready(Object.assign({}, BASE), []);
+  ok('v145: fianza por transferencia sin marcar sale pendiente aunque el paso 3 este cerrado',
+    pills(rows(M)[0]).join(' | ').indexOf('· Fianza/Waiver pendiente') >= 0, pills(rows(M)[0]).join(' | '));
+  withRows([row('Casa Uno', 'A. Prueba', 'HA-0001')]);
+  await M.ready(Object.assign({}, BASE), []);
   ok('la fila dice villa, inquilino, codigo y fecha de entrada',
     r0.textContent.indexOf('Casa Uno') >= 0 && r0.textContent.indexOf('A. Prueba') >= 0
     && r0.textContent.indexOf('#HA-0001') >= 0 && r0.textContent.indexOf('08/09/2026') >= 0,

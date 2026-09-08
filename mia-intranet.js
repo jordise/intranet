@@ -2165,9 +2165,12 @@ function ecotasaVal(r){
 function fianzaVal(r){
   if(!r)return null;
   const b1=v=>String(v)==='1'||v===1||v===true;
+  const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n;};
   const opt=parseInt(r['TaBookings2021_Security_deposit_options'])||0;
-  if(opt===2)return b1(r['TaBookings2021_Security_deposit_cobrado'])?1:0;
-  if(opt===1)return(b1(r['TaBookings2021_Deposit_waver_cobrado'])||!b1(r['TaBookings2021_Se_permite_waver']))?1:0;
+  /* opciones del paso 3: 1 waiver, 2 fianza tarjeta, 3 fianza transferencia, 4 Airbnb sin waiver */
+  if(opt===2||opt===3)return(b1(r['TaBookings2021_Security_deposit_cobrado'])||num(r['TaBookings2021_Security_deposit_EUR'])<=0)?1:0;
+  if(opt===1)return(b1(r['TaBookings2021_Deposit_waver_cobrado'])||!b1(r['TaBookings2021_Se_permite_waver'])||num(r['TaBookings2021_Deposit_waver_EUR'])<=0)?1:0;
+  if(opt===4)return 1;
   const d=isOk(r['TaBookings2021_Security_deposit_terminado']);
   return d===null?null:(d?1:0);
 }
