@@ -312,17 +312,25 @@ ok('v147: esPropietario reconoce ownerStay en cualquier mayuscula', E.esPropieta
 console.log('\n== la pagina (HTML) ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v147', /VERSIÓN ACTUAL: v147/.test(linea3), linea3);
-ok('PAGE_VERSION dice v147', /const PAGE_VERSION='v147';/.test(SRC));
-ok('el titulo dice v147', /<title>Entradas Equipo v147/.test(SRC));
-ok('el historial recoge v147 y conserva v146, v145, v144 y v143', /<!-- HISTORIAL: v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+/* v148: la linea de PAGOS y la fianza por transferencia (Toni 09/09/2026, reserva 65513925) */
+function _dep(items){ return items.filter(function(i){ return i.key==='Deposito'; })[0]; }
+ok('v148: transferencia con Terminado y sin flag de cobro sale PAGADA en PAGOS', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' }))).paid === true);
+ok('v148: transferencia sin Terminado y sin flag sigue pendiente en PAGOS', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'No' }))).paid === false);
+ok('v148: transferencia con el flag de cobro sale pagada', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '1', TaBookings2021_Security_deposit_terminado: 'No' }))).paid === true);
+ok('v148: la tarjeta (opcion 2) con solo Terminado NO sale pagada', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '2', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' }))).paid === false);
+ok('v148: PAGOS y la insignia cuentan lo mismo para la 65513925', E.fianzaFalta(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' })) === '');
+
+ok('la cabecera dice VERSION ACTUAL v148', /VERSIÓN ACTUAL: v148/.test(linea3), linea3);
+ok('PAGE_VERSION dice v148', /const PAGE_VERSION='v148';/.test(SRC));
+ok('el titulo dice v148', /<title>Entradas Equipo v148/.test(SRC));
+ok('el historial recoge v148 y conserva v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
   }));
 ok('el historial de v145 cita a Toni y los dos nombres', /\| v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
 ok('el historial de v146 explica la regla de la transferencia (Terminado)', /\| v146 - [^|]*Terminado[^|]*Security_deposit_terminado/.test(SRC));
-ok('el historial de v147 explica la estancia del propietario', /HISTORIAL: v147 - [^|]*propietario[^|]*ownerStay/.test(SRC));
+ok('el historial de v147 explica la estancia del propietario', /\| v147 - [^|]*propietario[^|]*ownerStay/.test(SRC));
 
 var CARD = fnSource('buildCard');
 ok('el bloque de buildCard se ha leido entero', CARD.indexOf('c-body-wrap') > 0 && CARD.length > 4000);
