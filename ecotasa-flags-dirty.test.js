@@ -162,8 +162,8 @@ console.log('\n== checkin-testear-reserva.html (soloCambiados) ==');
 /* ── 4. Version de cada pagina y llamada dentro del guardado ── */
 console.log('\n== las tres paginas (HTML) ==');
 [
-  ['notas-equipo-reservas.html', 73, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
-  ['notas-villamanager.html', 36, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-equipo-reservas.html', 74, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-villamanager.html', 37, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
   ['checkin-testear-reserva.html', 10, 'async function saveAll(){', 'soloCambiados(fields,_booking,']
 ].forEach(function (t) {
   var file = t[0], ver = t[1], cabecera = t[2], llamada = t[3];
@@ -201,7 +201,7 @@ function recordDep(v) {
 var DEPC = ['Security_deposit_options', 'Se_permite_waver', 'Security_deposit_EUR', 'Deposit_waver_EUR', 'Gasto_tarjeta_deposito_seguridad'];
 function ningunaDep(r) { return DEPC.every(function (k) { return !(k in r); }); }
 
-[['notas-equipo-reservas.html', 'v73'], ['notas-villamanager.html', 'v36']].forEach(function (par) {
+[['notas-equipo-reservas.html', 'v74'], ['notas-villamanager.html', 'v37']].forEach(function (par) {
   var P = par[0];
   console.log('\n== ' + P + ' (depCambiados) ==');
   var api = cargar(P, ['depNum', 'depCambiados', 'waverCargado']);
