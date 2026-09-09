@@ -32,11 +32,11 @@ function makeEnv() {
     fnSource('g'), fnSource('isOk'), fnSource('_lvNum'), fnSource('_lvBool1'),
     fnSource('calcPaymentItems'), fnSource('paymentsLineHTML'), fnSource('_lvBdg'),
     fnSource('paso4Local'), fnSource('paso4Falta'), fnSource('paso4Label'),
-    fnSource('arrivalOk'), fnSource('checkinPendiente'), fnSource('_lvBdgEco'),
+    fnSource('esPropietario'), "var PROPIETARIO_BADGE='Check-in online: no aplica (propietario)';", fnSource('arrivalOk'), fnSource('checkinPendiente'), fnSource('_lvBdgEco'),
     fnSource('ecotasaOk'), fnSource('fianzaFalta'), fnSource('fianzaOk'), fnSource('fianzaLabel'), fnSource('_lvBdgFianza'),
     'return {paso4Local:paso4Local,paso4Falta:paso4Falta,paso4Label:paso4Label,' +
     'ecotasaOk:ecotasaOk,fianzaFalta:fianzaFalta,fianzaOk:fianzaOk,fianzaLabel:fianzaLabel,_lvBdgFianza:_lvBdgFianza,' +
-    'arrivalOk:arrivalOk,checkinPendiente:checkinPendiente,_lvBdgEco:_lvBdgEco,' +
+    'arrivalOk:arrivalOk,checkinPendiente:checkinPendiente,_lvBdgEco:_lvBdgEco,esPropietario:esPropietario,' +
     'paymentsLineHTML:paymentsLineHTML,calcPaymentItems:calcPaymentItems,isOk:isOk};'
   ].join('\n');
   return new Function(body)();
@@ -303,20 +303,26 @@ var casoFianzaCobrada = {
   TaBookings2021_Security_deposit_EUR: '500', TaBookings2021_Security_deposit_cobrado: '1'
 };
 ok('v145: fianza cobrada con el paso 3 sin marcar no esta pendiente', E.checkinPendiente(casoFianzaCobrada) === false);
+/* v147: estancia del propietario */
+ok('v147: ownerStay no esta pendiente aunque todo este a 0', E.checkinPendiente(res({ TaBookings2021_BookingStatus: 'ownerStay', TaBookings2021_Arrivalform_done: '0', TaBookings2021_Registro_policia_done: '0', TaBookings2021_Ecotasa_cobrada: '0', TaBookings2021_Security_deposit_options: '0' })) === false);
+ok('v147: huesped "Propietario" tampoco esta pendiente', E.checkinPendiente(res({ TaBookings2021_Guest_Full_Name: 'Propietario', TaBookings2021_Arrivalform_done: '0' })) === false);
+ok('v147: una reserva normal con todo a 0 sigue pendiente', E.checkinPendiente(res({ TaBookings2021_BookingStatus: 'new', TaBookings2021_Arrivalform_done: '0' })) === true);
+ok('v147: esPropietario reconoce ownerStay en cualquier mayuscula', E.esPropietario(res({ TaBookings2021_BookingStatus: 'OwnerStay' })) === true && E.esPropietario(res({ TaBookings2021_BookingStatus: 'modified' })) === false);
 
 console.log('\n== la pagina (HTML) ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v146', /VERSIÓN ACTUAL: v146/.test(linea3), linea3);
-ok('PAGE_VERSION dice v146', /const PAGE_VERSION='v146';/.test(SRC));
-ok('el titulo dice v146', /<title>Entradas Equipo v146/.test(SRC));
-ok('el historial recoge v146 y conserva v145, v144 y v143', /<!-- HISTORIAL: v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v147', /VERSIÓN ACTUAL: v147/.test(linea3), linea3);
+ok('PAGE_VERSION dice v147', /const PAGE_VERSION='v147';/.test(SRC));
+ok('el titulo dice v147', /<title>Entradas Equipo v147/.test(SRC));
+ok('el historial recoge v147 y conserva v146, v145, v144 y v143', /<!-- HISTORIAL: v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
   }));
 ok('el historial de v145 cita a Toni y los dos nombres', /\| v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
-ok('el historial de v146 explica la regla de la transferencia (Terminado)', /HISTORIAL: v146 - [^|]*Terminado[^|]*Security_deposit_terminado/.test(SRC));
+ok('el historial de v146 explica la regla de la transferencia (Terminado)', /\| v146 - [^|]*Terminado[^|]*Security_deposit_terminado/.test(SRC));
+ok('el historial de v147 explica la estancia del propietario', /HISTORIAL: v147 - [^|]*propietario[^|]*ownerStay/.test(SRC));
 
 var CARD = fnSource('buildCard');
 ok('el bloque de buildCard se ha leido entero', CARD.indexOf('c-body-wrap') > 0 && CARD.length > 4000);

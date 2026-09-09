@@ -2197,7 +2197,15 @@ function readyPill(label,val){
 }
 /* Pendiente = cualquiera de las seis que no esté hecha, y "sin dato" cuenta.
    Si no contara, un día entero sin apuntar saldría como día resuelto. */
+/* v147 de entradas-equipo (Toni, 09/09/2026): la estancia del propietario no hace check-in online */
+function esPropietario(r){
+  if(!r)return false;
+  const st=String(r['TaBookings2021_BookingStatus']||'').trim().toLowerCase();
+  const gn=String(r['TaBookings2021_Guest_Full_Name']||'').trim().toLowerCase();
+  return st==='ownerstay'||gn==='propietario';
+}
 function readyPending(r){
+  if(esPropietario(r))return false;
   return READY_FLAGS.some(function(f){ return isOk(readyVal(r,f[1]))!==true; });
 }
 function readyRow(r){
@@ -2208,7 +2216,8 @@ function readyRow(r){
     .filter(Boolean).join(' · ');
   row.appendChild(E('div','mia-rd-m',meta));
   const sts=E('div','mia-states');
-  READY_FLAGS.forEach(function(f){ sts.appendChild(readyPill(f[0],readyVal(r,f[1]))); });
+  if(esPropietario(r)){ sts.appendChild(readyPill('Propietario, sin check-in online',null)); }
+  else READY_FLAGS.forEach(function(f){ sts.appendChild(readyPill(f[0],readyVal(r,f[1]))); });
   row.appendChild(sts);
   return row;
 }
