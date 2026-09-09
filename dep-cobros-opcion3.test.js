@@ -110,7 +110,7 @@ console.log('notas-equipo-reservas.html: v74 desmarcar (solo admin) + aviso');
   ok('interruptor desconocido (null): no hay fila', a(null, ['[x]'], '1', 'V', 'p', 'u') === null);
   ok('sin lineas nuevas: no hay fila', a(true, [], '1', 'V', 'p', 'u') === null);
   var fila = a(true, ['[Deposito cobrado por transferencia 09/09/2026 10:00 - Toni Seguí]'], '65182346', 'Villa 18 B', 'notas-equipo-reservas v74', 'Toni Seguí');
-  ok('con interruptor y lineas: fila con reserva, villa, usuario y enlace', fila && fila.FS_confirmation_code === '65182346' && fila.Villa === 'Villa 18 B' && fila.Usuario === 'Toni Seguí' && fila.Lineas.indexOf('cobrado por transferencia') > 0 && fila.Enlace.indexOf('65182346') > 0);
+  ok('con interruptor y lineas: fila con fecha, reserva, villa, usuario y enlace', fila && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(fila.Fecha) && fila.FS_confirmation_code === '65182346' && fila.Villa === 'Villa 18 B' && fila.Usuario === 'Toni Seguí' && fila.Lineas.indexOf('cobrado por transferencia') > 0 && fila.Enlace.indexOf('65182346') > 0);
   ok('el aviso se dispara despues del Guardado y nunca dentro del record', src.indexOf("toast('✅ Guardado','ok')") < src.indexOf('avisarMarcas(_mn);') && src.indexOf('avisarMarcas(_mn);') < src.indexOf('setTimeout(function(){history.back();},1200);'));
   ok('notas-villamanager tambien avisa tras guardar', fs.readFileSync('notas-villamanager.html', 'utf8').indexOf('avisarMarcas(_mn);') > 0);
 })();
