@@ -170,10 +170,12 @@ function conTransferencia(cobrado, extra) {
     TaBookings2021_Security_deposit_cobrado: cobrado, TaBookings2021_Security_deposit_terminado: '1' }, extra || {}));
 }
 ok('opcion 3 con la transferencia marcada cobrada: verde', E.fianzaOk(conTransferencia('1')) === true);
-ok('opcion 3 sin marcar: rojo, falta fianza (aunque el paso 3 este cerrado)',
-  E.fianzaOk(conTransferencia('0')) === false && E.fianzaLabel(conTransferencia('0'), false) === 'Fianza/Waiver: falta fianza');
-ok('  ...y ahi se aparta a proposito de la formula de Caspio (paso4Local la da por resuelta)',
-  E.paso4Local(conTransferencia('0')) === true && E.fianzaOk(conTransferencia('0')) === false);
+ok('v146: opcion 3 sin flag de cobro pero con el paso 3 cerrado (Terminado): verde, la marca de siempre de administracion',
+  E.fianzaOk(conTransferencia('0')) === true && E.fianzaFalta(conTransferencia('0')) === '');
+ok('v146: opcion 3 sin flag de cobro y sin Terminado: rojo, falta fianza',
+  E.fianzaOk(conTransferencia('0', { TaBookings2021_Security_deposit_terminado: '0' })) === false && E.fianzaLabel(conTransferencia('0', { TaBookings2021_Security_deposit_terminado: '0' }), false) === 'Fianza/Waiver: falta fianza');
+ok('v146: opcion 2 (tarjeta) con Terminado pero sin cobro sigue en rojo',
+  E.fianzaOk(conDeposito('0', { TaBookings2021_Security_deposit_terminado: '1' })) === false);
 ok('opcion 3 con importe 0: nada que cobrar, verde',
   E.fianzaOk(conTransferencia('0', { TaBookings2021_Security_deposit_EUR: '0' })) === true);
 ok('opcion 4 (Airbnb sin waiver): verde sin mirar nada mas',
@@ -183,8 +185,8 @@ ok('opcion 2 con importe 0: nada que cobrar, verde',
 ok('opcion 1 con waiver permitido pero importe 0: nada que cobrar, verde',
   E.fianzaOk(conWaiver('0', { TaBookings2021_Deposit_waver_EUR: '0' })) === true);
 ok('opcion 2 como numero (2) y no texto: misma regla', E.fianzaOk(conDeposito('0', { TaBookings2021_Security_deposit_options: 2 })) === false);
-ok('opcion 3 pendiente deja la reserva en el filtro de pendientes',
-  E.checkinPendiente(Object.assign(conTransferencia('0'), { TaBookings2021_Arrivalform_done: '1', TaBookings2021_Guest_adults_nr_form: '2', TaBookings2021_Registro_policia_done: '1' })) === true);
+ok('opcion 3 pendiente (sin cobro ni Terminado) deja la reserva en el filtro de pendientes',
+  E.checkinPendiente(Object.assign(conTransferencia('0', { TaBookings2021_Security_deposit_terminado: '0' }), { TaBookings2021_Arrivalform_done: '1', TaBookings2021_Guest_adults_nr_form: '2', TaBookings2021_Registro_policia_done: '1' })) === true);
 ok('en verde el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), true) === 'Fianza/Waiver');
 ok('sin dato el texto es Fianza/Waiver', E.fianzaLabel(conWaiver('0'), null) === 'Fianza/Waiver');
 ok('en rojo: Fianza/Waiver: falta waiver', E.fianzaLabel(conWaiver('0'), false) === 'Fianza/Waiver: falta waiver');
@@ -305,15 +307,16 @@ ok('v145: fianza cobrada con el paso 3 sin marcar no esta pendiente', E.checkinP
 console.log('\n== la pagina (HTML) ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v145', /VERSIÓN ACTUAL: v145/.test(linea3), linea3);
-ok('PAGE_VERSION dice v145', /const PAGE_VERSION='v145';/.test(SRC));
-ok('el titulo dice v145', /<title>Entradas Equipo v145/.test(SRC));
-ok('el historial recoge v145 y conserva v144 y v143', /<!-- HISTORIAL: v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v146', /VERSIÓN ACTUAL: v146/.test(linea3), linea3);
+ok('PAGE_VERSION dice v146', /const PAGE_VERSION='v146';/.test(SRC));
+ok('el titulo dice v146', /<title>Entradas Equipo v146/.test(SRC));
+ok('el historial recoge v146 y conserva v145, v144 y v143', /<!-- HISTORIAL: v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
   }));
-ok('el historial de v145 cita a Toni y los dos nombres', /HISTORIAL: v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
+ok('el historial de v145 cita a Toni y los dos nombres', /\| v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
+ok('el historial de v146 explica la regla de la transferencia (Terminado)', /HISTORIAL: v146 - [^|]*Terminado[^|]*Security_deposit_terminado/.test(SRC));
 
 var CARD = fnSource('buildCard');
 ok('el bloque de buildCard se ha leido entero', CARD.indexOf('c-body-wrap') > 0 && CARD.length > 4000);

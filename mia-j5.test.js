@@ -140,11 +140,16 @@ var BASE = { check_in_from: '2026-09-08', check_in_to: '2026-09-08' };
   await M.ready(Object.assign({}, BASE), []);
   ok('v145: ecotasa sin cobrar sale pendiente aunque la formula diga 1',
     pills(rows(M)[0]).join(' | ').indexOf('· Ecotasa pendiente') >= 0, pills(rows(M)[0]).join(' | '));
-  var ovr3 = {}; ovr3[FLD.opt] = 3; ovr3['TaBookings2021_Security_deposit_EUR'] = 500; ovr3['TaBookings2021_Security_deposit_cobrado'] = 0;
+  var ovr3 = {}; ovr3[FLD.opt] = 3; ovr3['TaBookings2021_Security_deposit_EUR'] = 500; ovr3['TaBookings2021_Security_deposit_cobrado'] = 0; ovr3[FLD.dep] = 0; /* v146: sin Terminado */
   withRows([row('Casa Tres', 'C. Prueba', 'HA-0003', ovr3)]);
   await M.ready(Object.assign({}, BASE), []);
-  ok('v145: fianza por transferencia sin marcar sale pendiente aunque el paso 3 este cerrado',
+  ok('v146: fianza por transferencia sin cobro ni paso 3 cerrado sale pendiente',
     pills(rows(M)[0]).join(' | ').indexOf('· Fianza/Waiver pendiente') >= 0, pills(rows(M)[0]).join(' | '));
+  var ovr3b = Object.assign({}, ovr3); ovr3b['TaBookings2021_Security_deposit_terminado'] = 1;
+  withRows([row('Casa Tres', 'C. Prueba', 'HA-0003', ovr3b)]);
+  await M.ready(Object.assign({}, BASE), []);
+  ok('v146: fianza por transferencia con el paso 3 cerrado (Terminado) NO sale pendiente',
+    pills(rows(M)[0]).join(' | ').indexOf('· Fianza/Waiver pendiente') < 0, pills(rows(M)[0]).join(' | '));
   withRows([row('Casa Uno', 'A. Prueba', 'HA-0001')]);
   await M.ready(Object.assign({}, BASE), []);
   ok('la fila dice villa, inquilino, codigo y fecha de entrada',
