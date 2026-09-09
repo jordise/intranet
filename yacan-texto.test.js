@@ -115,8 +115,8 @@ console.log('entradas-primer-contacto-whatsapp.html');
   var f = 'entradas-primer-contacto-whatsapp.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   ok('F.yacan apunta a TaVillas_Yacan', /yacan:\s*'TaVillas_Yacan'/.test(s));
-  ok('rowToModalData devuelve yacan', /var yacan=_isYes\(r\[F\.yacan\]\);/.test(fnSource(f, 'rowToModalData')) && /mgrN:mgrN,yacan:yacan\}/.test(fnSource(f, 'rowToModalData')));
-  var ctx = { isEs: function (ph) { return ph === 'ES'; } };
+  ok('rowToModalData devuelve yacan', /var yacan=_isYes\(r\[F\.yacan\]\);/.test(fnSource(f, 'rowToModalData')) && /mgrN:mgrN,yacan:yacan,place:place\}/.test(fnSource(f, 'rowToModalData'))); /* v17: place (lugar de la villa) va detras de yacan */
+  var ctx = { isEs: function (ph) { return ph === 'ES'; }, placeName: function () { return 'Menorca'; } }; /* v17: placeName (lugar) se prueba en lugar-villa.test.js */
   vm.runInNewContext(fnSource(f, 'buildMsg') + '\nthis.b=buildMsg;', ctx);
   var base = { name: 'X', ciTime: '16:00', code: '0' };
   var esY = ctx.b(Object.assign({}, base, { phHost: 'ES', yacan: true }), 'M', false);
@@ -129,7 +129,7 @@ console.log('entradas-primer-contacto-whatsapp.html');
   ok('EN sin yacan: párrafo del keybox de siempre', /place the key in the designated keybox/.test(enN) && !/electronic lock/.test(enN));
   ok('ES: el resto del mensaje es idéntico', esY.replace(/🚪[^\n]*/, '') === esN.replace(/🔑 Asimismo[^\n]*/, ''));
   ok('EN: el resto del mensaje es idéntico', enY.replace(/🚪[^\n]*/, '') === enN.replace(/🔑 Additionally[^\n]*/, ''));
-  ok('versión v16 en cabecera, título e historial', /VERSIÓN ACTUAL: v16 \|/.test(s) && /<title>Primer Contacto v16/.test(s) && /<!-- HISTORIAL: v16 - /.test(s));
+  ok('versión v17 en cabecera, título e historial (v16 = Yacan, v17 = lugar de la villa)', /VERSIÓN ACTUAL: v17 \|/.test(s) && /<title>Primer Contacto v17/.test(s) && /<!-- HISTORIAL: v17 - /.test(s) && / \| v16 - Cerraduras Yacan/.test(s));
 })();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
