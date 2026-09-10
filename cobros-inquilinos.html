@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v32 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v33 | Historial completo al final de este archivo -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Cobros Inquilinos v32 — 3Villas</title>
+  <title>Control Cobros Inquilinos v33 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- PWA -->
@@ -107,6 +107,14 @@
     .b-pend{background:var(--orange-light);color:var(--orange)}
     .b-na{background:var(--gray-2);color:var(--gray-4)}
     .b-blue{background:var(--blue-light);color:var(--blue)}
+
+    /* ── v33: devolución de la fianza en dos pasos ── */
+    .dev-linea{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .dev-btn{padding:3px 9px;border-radius:8px;border:1.5px solid var(--gray-3);background:#fff;color:var(--gray-5);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;white-space:nowrap}
+    .dev-btn:hover{border-color:var(--green);color:var(--green)}
+    .dev-undo{padding:2px 7px;border-radius:8px;border:1.5px solid var(--red);background:#fff;color:var(--red);font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+    .dev-btn[disabled],.dev-undo[disabled]{border-color:var(--gray-2);background:var(--gray-1);color:var(--gray-3);cursor:default}
+    .dev-sello{margin-top:3px;font-size:11px;color:var(--gray-4);font-family:monospace;line-height:1.4}
 
     /* ── Inline edit ── */
     .inline-sel{height:28px;border:1.5px solid var(--gray-2);border-radius:6px;padding:0 6px;font-size:12px;color:var(--gray-5);background:#fff;outline:none;cursor:pointer;transition:border-color .15s}
@@ -235,6 +243,8 @@
       <div class="pill-opts" id="pillDevGroup">
         <button class="pill-opt on" data-val="" onclick="setPillDev(this);doSearch()">Todos</button>
         <button class="pill-opt" data-val="0" onclick="setPillDev(this);doSearch()">Pendiente</button>
+        <!-- v33: paso 1 de la devolución (transferencias hechas, falta la firma) -->
+        <button class="pill-opt" data-val="2" onclick="setPillDev(this);doSearch()">Enviado a firmar</button>
         <button class="pill-opt" data-val="1" onclick="setPillDev(this);doSearch()">Devuelto</button>
       </div>
     </div>
@@ -297,6 +307,8 @@
 <div id="statsBar">
   <div class="stat"><strong id="statTotal">0</strong> registros</div>
   <div class="stat"><strong id="statDev">0</strong> devueltos</div>
+  <!-- v33: paso 1 de la devolución -->
+  <div class="stat"><strong id="statFirmar">0</strong> enviados a firmar</div>
   <div class="stat"><strong id="statPend">0</strong> pendientes devolver</div>
   <!-- v31: interruptor del aviso por email de marcas manuales, solo admin -->
   <div class="stat" id="avisoMarcasWrap" style="display:none">Aviso por email de marcas manuales: <button type="button" id="avisoMarcasBtn" onclick="toggleAvisoMarcas()" style="margin-left:4px;padding:3px 9px;border-radius:8px;border:1.5px solid var(--gray-3);background:#fff;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;cursor:pointer">…</button></div>
@@ -329,6 +341,9 @@
     <div style="font-family:Montserrat,sans-serif;font-size:15px;font-weight:700;color:var(--gray-5);margin-bottom:6px">Sin resultados</div>
     <div style="font-size:13px;color:var(--gray-4)">Prueba con otros filtros</div>
   </div>
+
+  <!-- v33: aviso de lista cortada (la vista se pide con limit=1000) -->
+  <div id="avisoCorteWrap" style="display:none;margin:0 0 10px;padding:8px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;font-weight:700;color:#b45309"></div>
 
   <!-- Tabla -->
   <!-- Grid fichas -->
@@ -410,15 +425,18 @@ function pintarAvisoMarcas(){
   b.style.borderColor = _avisoMarcas ? 'var(--green)' : 'var(--red)';
   b.style.color = _avisoMarcas ? 'var(--green)' : 'var(--red)';
 }
+/* v33: el valor se lee siempre (lo usa el aviso de las marcas de devolución de la
+   fianza, que cualquier usuario puede dejar); el botón de cambiarlo sigue siendo
+   solo del rol admin. Una sola lectura de TaConfig_intranet en toda la página. */
 async function cargarAvisoMarcasSwitch(){
   try{
-    const role = (Auth.role ? String(Auth.role()||'') : '').toLowerCase();
-    if(role !== 'admin') return;
     const r = await fetch(Auth.url(`${WORKER}?action=data&table=TaConfig_intranet&where=${encodeURIComponent("Clave='aviso_marcas_email'")}&limit=1`));
     if(!r.ok) return;
     const j = await r.json(); const rs = (j && j.Result) || [];
     if(!rs.length) return;
     _avisoMarcas = String(rs[0].Valor).trim() === '1';
+    const role = (Auth.role ? String(Auth.role()||'') : '').toLowerCase();
+    if(role !== 'admin') return;
     document.getElementById('avisoMarcasWrap').style.display = '';
     pintarAvisoMarcas();
   }catch(e){}
@@ -507,6 +525,7 @@ async function doSearch(){
   $('statsBar').style.display = 'none';
   $('tableWrap').style.display = 'none';
   $('pagination').style.display = 'none';
+  if($('avisoCorteWrap')) $('avisoCorteWrap').style.display = 'none';   /* v33 */
   if($('hCount')) $('hCount').textContent = '';
 
   try {
@@ -544,7 +563,10 @@ async function doSearch(){
 
     // Depósito devuelto
     if(_devFilter === '1') clauses.push(`TaBookings2021_Security_deposit_devuelto=1`);
-    else if(_devFilter === '0') clauses.push(`(TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL)`);
+    /* v33: Pendiente = ninguna de las dos marcas, igual que el contador de la barra */
+    else if(_devFilter === '0') clauses.push(`(TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL) AND (TaBookings2021_Security_deposit_devolver_firmar=0 OR TaBookings2021_Security_deposit_devolver_firmar IS NULL)`);
+    /* v33: paso 1 de la devolución — enviado a firmar y todavía no devuelto */
+    else if(_devFilter === '2') clauses.push(`TaBookings2021_Security_deposit_devolver_firmar=1 AND (TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL)`);
 
     // Deposit options
     const depOpt = $('fDepOptions').value;
@@ -569,10 +591,15 @@ async function doSearch(){
     const where = clauses.join(' AND ');
     console.log('[cobros WHERE]', where);
 
+    /* v33: en el trabajo de devolución (Pendiente o Enviado a firmar) la lista se
+       ordena por check-in. Las fianzas por transferencia no tienen fila de cobro,
+       así que con la fecha de cobro caían al final y el corte de 1000 se las comía. */
+    const orden = (_devFilter === '0' || _devFilter === '2') ? 'TaBookings2021_Checkin DESC' : 'Ta_payments_Transactiaon_date DESC';
+
     const url = Auth.url(
       `${WORKER}?action=view&view=${VIEW}&limit=1000` +
       (where ? '&where=' + encodeURIComponent(where) : '') +
-      `&orderBy=${encodeURIComponent('Ta_payments_Transactiaon_date DESC')}`
+      `&orderBy=${encodeURIComponent(orden)}`
     );
 
     const res  = await fetch(url);
@@ -581,10 +608,23 @@ async function doSearch(){
 
     if(!_allRecs.length){ show('stEmpty'); return; }
 
+    /* v33: si vuelven 1000 filas la lista está cortada y puede faltar trabajo */
+    const corte = avisoCorte(_allRecs.length);
+    const cw = $('avisoCorteWrap');
+    if(cw){ cw.textContent = corte; cw.style.display = corte ? 'block' : 'none'; }
+
     _curPage = 1;
+    _marcasReady = false;
     renderTable();
     updateStats();
     setView(_viewMode);
+
+    /* v33: los sellos de las marcas manuales se leen de la tabla después de
+       pintar la lista (Marcas_manuales no viene en la vista) y no bloquean.
+       Hasta que ese lote termina, los botones de marcar están desactivados. */
+    cargarMarcasDevolucion(codigosConDevolucion())
+      .catch(()=>{})
+      .then(() => { _marcasReady = true; pintarTodasDevoluciones(); });
 
   } catch(err){
     show('stErr');
@@ -601,8 +641,10 @@ function renderTable(){
       va = a['Ta_payments_Transactiaon_date'] || '';
       vb = b['Ta_payments_Transactiaon_date'] || '';
     } else if(_sortField === 'devuelto'){
-      va = a['TaBookings2021_Security_deposit_devuelto'] ? 1 : 0;
-      vb = b['TaBookings2021_Security_deposit_devuelto'] ? 1 : 0;
+      /* v33: pendiente < enviado a firmar < devuelto */
+      const paso = { pendiente:0, firmar:1, devuelto:2 };
+      va = paso[estadoDevolucion(a['TaBookings2021_Security_deposit_devolver_firmar'], a['TaBookings2021_Security_deposit_devuelto'])];
+      vb = paso[estadoDevolucion(b['TaBookings2021_Security_deposit_devolver_firmar'], b['TaBookings2021_Security_deposit_devuelto'])];
     } else if(_sortField === 'villa'){
       va = a['TaBookings2021_Property_Title'] || '';
       vb = b['TaBookings2021_Property_Title'] || '';
@@ -637,7 +679,7 @@ function renderTable(){
       tbody.appendChild(gr);
     }
 
-    const devuelto  = isTruthy(r['TaBookings2021_Security_deposit_devuelto']);
+    /* v33: el estado de la devolución lo pinta devolucionHTML (dos pasos) */
     const depCobr   = r['TaBookings2021_Security_deposit_cobrado'];
     const rowId     = r['Ta_payments_Transaction_ID'] || r['Ta_payments_ID'] || Math.random();
     const bookCode  = r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '';
@@ -659,11 +701,7 @@ function renderTable(){
     tr.innerHTML = `
       <td style="white-space:nowrap;font-size:12px">${txDate || '—'}</td>
       <td>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" class="inline-check" ${devuelto ? 'checked' : ''}
-            onchange="saveDevuelto(this, '${esc(bookCode)}')">
-          <span class="bdg ${devuelto ? 'b-ok' : 'b-no'}">${devuelto ? '✓ Devuelto' : '✗ Pendiente'}</span>
-        </label>
+        <span class="dev-wrap" data-code="${esc(bookCode)}" data-botones="1">${devolucionHTML(r, true)}</span>
       </td>
       <td><span class="bdg ${badgeStatus(r['TaBookings2021_BookingStatus'])}">${r['TaBookings2021_BookingStatus']||'—'}</span></td>
       <td style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">${villa}</td>
@@ -736,35 +774,312 @@ function renderTable(){
 }
 
 // ── Stats ────────────────────────────────────────────────────
+/* v33: tres contadores — devueltos, enviados a firmar y pendientes (ni una marca ni la otra) */
 function updateStats(){
-  const devueltos = _allRecs.filter(r => isTruthy(r['TaBookings2021_Security_deposit_devuelto'])).length;
+  let devueltos = 0, firmar = 0, pendientes = 0;
+  _allRecs.forEach(r => {
+    const est = estadoDevolucion(r['TaBookings2021_Security_deposit_devolver_firmar'], r['TaBookings2021_Security_deposit_devuelto']);
+    if(est === 'devuelto')     devueltos++;
+    else if(est === 'firmar')  firmar++;
+    else                       pendientes++;
+  });
   $('statTotal').textContent  = _allRecs.length;
   $('statDev').textContent    = devueltos;
-  $('statPend').textContent   = _allRecs.length - devueltos;
+  if($('statFirmar')) $('statFirmar').textContent = firmar;
+  $('statPend').textContent   = pendientes;
   $('statsBar').style.display = 'flex';
 }
 
-// ── Guardado inline ──────────────────────────────────────────
-async function saveDevuelto(chk, bookCode){
-  const val = chk.checked;
-  // Actualizar badge visualmente
-  const bdg = chk.nextElementSibling;
-  if(bdg){ bdg.className = 'bdg ' + (val ? 'b-ok' : 'b-no'); bdg.textContent = val ? '✓ Devuelto' : '✗ Pendiente'; }
-  try {
-    const where = `TaBookings2021_FS_confirmation_code='${esc(bookCode)}'`;
-    const url   = Auth.url(`${WORKER}?action=save&table=TaBookings2021&method=PUT&where=${encodeURIComponent(where)}`);
-    await fetch(url, {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ Security_deposit_devuelto: val ? true : false })
-    });
-    // Actualizar en memoria
-    const rec = _allRecs.find(r => (r['Ta_payments_HS_confirmation_code']||r['TaBookings2021_FS_confirmation_code']||'') === bookCode);
-    if(rec) rec['TaBookings2021_Security_deposit_devuelto'] = val;
-    updateStats();
-  } catch(e){ console.error('saveDevuelto:', e); }
+/* ══ v33: DEVOLUCIÓN DE LA FIANZA EN DOS PASOS (petición de Toni Seguí, 10/09/2026) ══
+   Paso 1 "Enviado a firmar" (Security_deposit_devolver_firmar): las transferencias
+   están hechas y esperan la autorización. Paso 2 "Devuelto"
+   (Security_deposit_devuelto): la transferencia está firmada y contabilizada.
+   Cada marca deja su sello con nombre y hora en Marcas_manuales de TaBookings2021
+   (mismo formato que notas-equipo-reservas v70+) y añade una fila en
+   TaAvisos_marcas_manuales para el aviso por email. Sustituye a saveDevuelto (v1),
+   que escribía la casilla "Devuelto" sin nombre, sin hora y sin aviso. */
+
+/* Estado de la devolución. Función pura: devuelto manda sobre enviado a firmar, y
+   un campo que la vista no trae (undefined) cuenta como sin marcar. */
+function estadoDevolucion(firmar, devuelto){
+  if(isTruthy(devuelto)) return 'devuelto';
+  if(isTruthy(firmar))   return 'firmar';
+  return 'pendiente';
 }
 
+/* La línea del sello, igual que marcaSello de notas-equipo-reservas:
+   [Fianza enviada a firmar 10/09/2026 17:40 - Nombre]. Las etiquetas van escritas
+   aquí a propósito para que la función no dependa de nada del DOM. Función pura. */
+function lineaMarcaDevolucion(tipo, desmarcar, nombre, fecha){
+  var p = function(n){ return (n < 10 ? '0' : '') + n; };
+  var d = fecha || new Date();
+  var etiqueta = (tipo === 'devuelto') ? 'Fianza devuelta' : 'Fianza enviada a firmar';
+  var quien = String(nombre || '').trim() || 'equipo';
+  return '[' + etiqueta + (desmarcar ? ' DESMARCADA' : '') + ' ' +
+    p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+    p(d.getHours()) + ':' + p(d.getMinutes()) + ' - ' + quien + ']';
+}
+
+/* El sello que se pinta bajo la etiqueta: la ÚLTIMA línea de ese tipo que no sea
+   una desmarca. Una línea DESMARCADA posterior lo anula. La fecha lleva el año,
+   porque una devolución se mira meses después. Función pura. */
+function selloDevolucion(marcasTexto, tipo){
+  var etiqueta = (tipo === 'devuelto') ? 'Fianza devuelta' : 'Fianza enviada a firmar';
+  var re = new RegExp('^\\[' + etiqueta + ' (\\d{2}\\/\\d{2}\\/\\d{4} \\d{2}:\\d{2}) - (.+)\\]$');
+  var lineas = String(marcasTexto || '').split('\n');
+  var sello = null;
+  for(var i = 0; i < lineas.length; i++){
+    var l = lineas[i].trim();
+    if(l.indexOf('[' + etiqueta + ' DESMARCADA ') === 0){ sello = null; continue; }
+    var m = l.match(re);
+    if(m) sello = { fecha: m[1], nombre: m[2] };
+  }
+  return sello;
+}
+
+/* Qué dice el confirm al deshacer una marca: quitar "Devuelto" solo vuelve a
+   "Enviado a firmar" si esa marca está puesta; si no, vuelve a Pendiente.
+   Función pura. */
+function textoDesmarcar(estado, firmarFlag){
+  if(estado === 'devuelto') return isTruthy(firmarFlag) ? 'Vuelve a "Enviado a firmar".' : 'Vuelve a "Pendiente".';
+  if(estado === 'firmar')   return 'Vuelve a "Pendiente".';
+  return '';
+}
+
+/* La vista se pide con limit=1000: si vuelven 1000 filas, la lista está cortada y
+   puede faltar trabajo de devolución. Función pura. */
+function avisoCorte(n){
+  return (parseInt(n) >= 1000) ? 'Lista cortada a 1000 reservas: ajusta las fechas o los filtros.' : '';
+}
+
+/* Comilla simple para los WHERE de Caspio (esc() es para HTML, no para SQL). */
+function sqlq(v){ return String(v == null ? '' : v).replace(/'/g, "''"); }
+
+/* Añade la línea al rastro, quita las líneas en blanco y suelta las más viejas
+   cuando pasa del tope (3800, igual que notas-equipo-reservas). Función pura. */
+function marcasConLinea(marcasTexto, linea, max){
+  var tope = max || 3800;
+  var ls = [], viejas = String(marcasTexto || '').split('\n');
+  for(var i = 0; i < viejas.length; i++){ if(viejas[i].trim()) ls.push(viejas[i]); }
+  ls.push(linea);
+  while(ls.join('\n').length > tope && ls.length > 1) ls.shift();
+  return ls.join('\n');
+}
+
+/* Copiada tal cual de notas-equipo-reservas.html v74 (misma tabla de avisos). */
+function avisoMarcasFila(activo,lineas,code,villa,pagina,usuario){
+  if(activo!==true||!lineas||!lineas.length)return null;
+  var d=new Date(),p=function(n){return(n<10?'0':'')+n;};
+  var fecha=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  return {Fecha:fecha,FS_confirmation_code:String(code||''),Villa:String(villa||'').slice(0,250),Pagina:pagina,Usuario:String(usuario||'equipo').slice(0,250),
+    Lineas:lineas.join('\n').slice(0,60000),Enlace:'https://3villas.com/intranet/notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code='+encodeURIComponent(String(code||''))};
+}
+
+/* Solo administración deshace una marca (misma regla que puedeDesmarcarCobro de
+   notas-equipo-reservas v74). Función pura. */
+function puedeDesmarcarDevolucion(){var r=(typeof Auth!=='undefined'&&Auth.role)?String(Auth.role()||'').toLowerCase():'';return r==='admin';}
+
+/* ── Rastro de marcas: se lee de la TABLA, no de la vista ──
+   Marcas_manuales no está en ninguna vista. _marcas[code] = texto leído o null
+   (null = no se ha podido leer). El lote inicial es SOLO para pintar los sellos;
+   antes de cada marca se vuelve a leer el rastro de esa reserva, para no pisar una
+   línea que otra persona haya escrito mientras la lista estaba abierta. */
+let _marcas = {};
+let _marcasReady = false;   // los botones no se pueden pulsar hasta que el lote inicial termina
+const _busy = {};           // codigo -> true mientras su guardado esta en curso (evita una segunda marca que pise la linea)
+
+function codigosConDevolucion(){
+  const out = [];
+  _allRecs.forEach(r => {
+    const code = r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '';
+    if(!code || out.indexOf(code) >= 0) return;
+    if(estadoDevolucion(r['TaBookings2021_Security_deposit_devolver_firmar'], r['TaBookings2021_Security_deposit_devuelto']) !== 'pendiente') out.push(code);
+  });
+  return out;
+}
+
+async function cargarMarcasDevolucion(codes){
+  const pend = (codes || []).filter(c => c && !(c in _marcas));
+  for(let i = 0; i < pend.length; i += 40){
+    const lote = pend.slice(i, i + 40);
+    lote.forEach(c => { _marcas[c] = null; });   // por defecto: no leído
+    try {
+      const where = lote.map(c => `FS_confirmation_code='${sqlq(c)}'`).join(' OR ');
+      const res = await fetch(Auth.url(`${WORKER}?action=data&table=TaBookings2021&where=${encodeURIComponent(where)}&limit=${lote.length}`));
+      if(!res.ok) continue;
+      const json = await res.json();
+      (json.Result || json.result || []).forEach(row => {
+        const c = row['FS_confirmation_code'];
+        if(c != null && ('Marcas_manuales' in row)) _marcas[String(c)] = String(row.Marcas_manuales || '');
+      });
+    } catch(e){ /* se queda como no leído */ }
+  }
+}
+
+/* Lee el rastro de UNA reserva justo antes de escribir. Devuelve el texto o null
+   si no se ha podido leer; con null no se escribe nada (ni el flag). */
+async function leerMarcasUna(code){
+  try {
+    const where = `FS_confirmation_code='${sqlq(code)}'`;
+    const res = await fetch(Auth.url(`${WORKER}?action=data&table=TaBookings2021&where=${encodeURIComponent(where)}&limit=1`));
+    if(!res.ok) return null;
+    const json = await res.json();
+    const rows = json.Result || json.result || [];
+    if(!rows.length || !('Marcas_manuales' in rows[0])) return null;
+    return String(rows[0].Marcas_manuales || '');
+  } catch(e){ return null; }
+}
+
+function recsPorCodigo(code){
+  return _allRecs.filter(r => (r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '') === code);
+}
+
+/* Pinta el control de la celda: etiqueta de tres estados, sello y, en la lista,
+   el botón del paso siguiente y el Desmarcar de administración. */
+function devolucionHTML(r, conBotones){
+  const code   = r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '';
+  const estado = estadoDevolucion(r['TaBookings2021_Security_deposit_devolver_firmar'], r['TaBookings2021_Security_deposit_devuelto']);
+  const marcas = _marcas[code];
+  const sello  = (estado !== 'pendiente' && marcas) ? selloDevolucion(marcas, estado) : null;
+  const bdg = estado === 'devuelto' ? '<span class="bdg b-ok">✓ Devuelto</span>'
+            : estado === 'firmar'   ? '<span class="bdg b-pend">Enviado a firmar</span>'
+                                    : '<span class="bdg b-no">✗ Pendiente</span>';
+  /* hasta que el rastro de la lista está leído, los botones se ven pero no se pueden pulsar */
+  const _codeBusy = String(r['TaBookings2021_FS_confirmation_code'] || r['Ta_payments_HS_confirmation_code'] || '');
+  const espera = !_marcasReady ? ' disabled title="Cargando el historial de marcas…"' : (_busy[_codeBusy] ? ' disabled title="Guardando…"' : '');
+  let botones = '';
+  if(conBotones && estado === 'pendiente')
+    botones += `<button type="button" class="dev-btn"${espera} onclick="marcarDevolucion('${esc(code)}','firmar')">Marcar enviado a firmar</button>`;
+  if(conBotones && estado === 'firmar')
+    botones += `<button type="button" class="dev-btn"${espera} onclick="marcarDevolucion('${esc(code)}','devuelto')">Marcar devuelto</button>`;
+  if(conBotones && estado !== 'pendiente' && puedeDesmarcarDevolucion())
+    botones += `<button type="button" class="dev-undo"${espera} onclick="desmarcarDevolucion('${esc(code)}')">Desmarcar</button>`;
+  const selloHTML = sello ? `<div class="dev-sello">${esc(sello.fecha)} · ${esc(sello.nombre)}</div>` : '';
+  return `<div class="dev-linea">${bdg}${botones}</div>${selloHTML}`;
+}
+
+function pintarDevolucion(code){
+  document.querySelectorAll('.dev-wrap').forEach(el => {
+    if(el.dataset.code !== code) return;
+    const recs = recsPorCodigo(code);
+    if(recs.length) el.innerHTML = devolucionHTML(recs[0], el.dataset.botones === '1');
+  });
+}
+
+function pintarTodasDevoluciones(){
+  document.querySelectorAll('.dev-wrap').forEach(el => {
+    const recs = recsPorCodigo(el.dataset.code || '');
+    if(recs.length) el.innerHTML = devolucionHTML(recs[0], el.dataset.botones === '1');
+  });
+}
+
+/* El aviso por email nunca bloquea ni rompe el guardado. Interruptor: el mismo
+   valor de TaConfig_intranet que ya lee la v31 (_avisoMarcas). */
+function avisarMarcasDevolucion(lineas, code, villa){
+  try{
+    const fila = avisoMarcasFila(_avisoMarcas === true, lineas, code, villa, 'cobros-inquilinos v33',
+      (typeof Auth !== 'undefined' && Auth.name && Auth.name()) || '');
+    if(!fila) return;
+    /* el enlace del email lleva a ESTA página (vista fichas de esa reserva), que es
+       donde se marca la devolución; avisoMarcasFila es la copia literal de la
+       página de notas y apunta allí por defecto */
+    fila.Enlace = 'https://3villas.com/intranet/cobros-inquilinos.html?code=' + encodeURIComponent(String(code || ''));
+    fetch(Auth.url(`${WORKER}?action=create&table=TaAvisos_marcas_manuales`),
+      { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fila) }).catch(()=>{});
+  }catch(e){}
+}
+
+async function marcarDevolucion(code, tipo){
+  const recs = recsPorCodigo(code);
+  if(!recs.length) return;
+  const villa = recs[0]['TaBookings2021_Property_Title'] || 'esta reserva';
+  const pregunta = tipo === 'devuelto'
+    ? `¿Marcar la fianza de ${villa} como devuelta?`
+    : `¿Marcar la fianza de ${villa} como enviada a firmar?`;
+  if(!confirm(pregunta)) return;
+  const campo  = tipo === 'devuelto' ? 'Security_deposit_devuelto' : 'Security_deposit_devolver_firmar';
+  await guardarDevolucion(code, tipo, false, campo, true);
+}
+
+async function desmarcarDevolucion(code){
+  if(!puedeDesmarcarDevolucion()){ alert('Solo administración puede desmarcar la devolución de la fianza'); return; }
+  const recs = recsPorCodigo(code);
+  if(!recs.length) return;
+  const villa  = recs[0]['TaBookings2021_Property_Title'] || 'esta reserva';
+  const estado = estadoDevolucion(recs[0]['TaBookings2021_Security_deposit_devolver_firmar'], recs[0]['TaBookings2021_Security_deposit_devuelto']);
+  if(estado === 'pendiente') return;
+  const vuelve = textoDesmarcar(estado, recs[0]['TaBookings2021_Security_deposit_devolver_firmar']);
+  if(estado === 'devuelto'){
+    if(!confirm(`¿Desmarcar la fianza devuelta de ${villa}?\n\n${vuelve}`)) return;
+    await guardarDevolucion(code, 'devuelto', true, 'Security_deposit_devuelto', false);
+  } else {
+    if(!confirm(`¿Desmarcar "Enviado a firmar" de la fianza de ${villa}?\n\n${vuelve}`)) return;
+    await guardarDevolucion(code, 'firmar', true, 'Security_deposit_devolver_firmar', false);
+  }
+}
+
+/* Un solo PUT a TaBookings2021 con el flag que cambia (1 o 0, como en la página de
+   notas) y el rastro de marcas. El rastro se vuelve a leer de la tabla JUSTO antes
+   de escribir, para no pisar una línea que otra persona haya dejado mientras la
+   lista estaba abierta; si esa lectura falla no se escribe nada, porque una marca
+   sin nombre ni hora es justo lo que esta versión viene a quitar. */
+async function guardarDevolucion(code, tipo, desmarcar, campo, valor){
+  const recs = recsPorCodigo(code);
+  if(!recs.length) return;
+  const vista = 'TaBookings2021_' + campo;
+  const previo = recs[0][vista];
+  const marcasPrev = _marcas[code];
+  const nuevo = valor ? 1 : 0;
+  if(_busy[code]) return;          // un guardado de esta reserva ya esta en curso
+  _busy[code] = true;
+
+  // Pintar ya, sin recargar la lista (los botones quedan bloqueados hasta que termine el guardado)
+  recs.forEach(r => { r[vista] = nuevo; });
+  pintarDevolucion(code);
+  updateStats();
+
+  /* al deshacer se vuelve al rastro leído en este intento si lo hubo, y si no al
+     que tenía la lista (undefined = nunca leído = sin sello) */
+  let marcasBuenas = marcasPrev;
+  const deshacer = () => {
+    delete _busy[code];
+    recs.forEach(r => { r[vista] = previo; });
+    _marcas[code] = marcasBuenas === undefined ? null : marcasBuenas;
+    pintarDevolucion(code);
+    updateStats();
+  };
+
+  const marcas = await leerMarcasUna(code);
+  if(marcas !== null) marcasBuenas = marcas;
+  if(marcas === null){
+    deshacer();
+    alert('No se ha podido leer el historial de marcas. Inténtalo de nuevo.');
+    return;
+  }
+
+  const linea = lineaMarcaDevolucion(tipo, desmarcar, (typeof Auth !== 'undefined' && Auth.name && Auth.name()) || '', new Date());
+  const body  = {};
+  body[campo] = nuevo;
+  body.Marcas_manuales = marcasConLinea(marcas, linea, 3800);
+  _marcas[code] = body.Marcas_manuales;
+  pintarDevolucion(code);
+
+  try {
+    const where = `FS_confirmation_code='${sqlq(code)}'`;
+    const url   = Auth.url(`${WORKER}?action=save&table=TaBookings2021&method=PUT&where=${encodeURIComponent(where)}`);
+    const res   = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+  } catch(e){
+    deshacer();
+    alert('No se pudo guardar la marca de la fianza: ' + e.message);
+    return;
+  }
+  avisarMarcasDevolucion([linea], code, recs[0]['TaBookings2021_Property_Title'] || '');
+  delete _busy[code];
+  pintarDevolucion(code);
+}
+
+// ── Guardado inline ──────────────────────────────────────────
 async function saveField(input, bookCode, field){
   const val   = input.value.trim();
   const rowId = input.closest('tr').dataset.txId;
@@ -998,13 +1313,26 @@ function renderCards(){
         ${fmtPendientes(r)}
         ${showDevuelto ? `<div class="ficha-row">
           <span class="ficha-lbl">Fianza devuelta</span>
-          <span class="bdg ${devuelto ? 'b-ok' : 'b-no'}">${devuelto ? '✓ Devuelto' : '✗ Pendiente'}</span>
+          <span class="dev-wrap" data-code="${esc(bookCode)}" data-botones="1">${devolucionHTML(r, true)}</span>
         </div>` : ''}
+        ${fmtCuentaDevolucion(r)}
         ${comentDev ? `<div style="margin-top:5px;font-size:11px;color:var(--gray-4);padding:4px 8px;background:#fff;border-radius:6px;border-left:2px solid var(--gray-3)">${esc(comentDev)}</div>` : ''}
       </div>
 
     </div>`;
   }).join('');
+}
+
+/* v33: con la opción 3 (transferencia) la devolución se hace a la cuenta del
+   huésped — la lista vieja de Caspio la enseñaba y sin ella no se puede transferir.
+   Solo en la ficha, solo con la opción 3 y solo si hay datos. */
+function fmtCuentaDevolucion(r){
+  if(String(r['TaBookings2021_Security_deposit_options']) !== '3') return '';
+  const iban = String(r['TaBookings2021_Numero_cuenta_bancaria_guest'] || '').trim();
+  const bic  = String(r['TaBookings2021_Numero_swift_bic_bancario_guest'] || '').trim();
+  if(!iban && !bic) return '';
+  const val = [iban, bic].filter(Boolean).map(v => esc(v)).join(' · ');
+  return `<div class="ficha-row"><span class="ficha-lbl">Cuenta para la devolución</span><span class="ficha-val" style="font-family:monospace;font-size:11.5px;text-align:right">${val}</span></div>`;
 }
 
 function badgeStatus(v){
@@ -1053,7 +1381,7 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- HISTORIAL: v32 - Pareja de entradas-equipo v146 (Toni, 09/09/2026): en la opcion 3 (transferencia) la fianza sale como Recibida si Security_deposit_cobrado es 1 O Security_deposit_terminado es 1, que es como administracion marca desde siempre la transferencia recibida. Opcion 2 sigue midiendo solo el cobro de Stripe. | v31 - Interruptor del aviso por email de marcas manuales (idea de Toni Segui, 07/09/2026; paginas notas-equipo-reservas v74 y notas-villamanager v37): en la barra de totales, solo para el rol admin, un boton que muestra y cambia TaConfig_intranet.aviso_marcas_email (Activado/Desactivado) con confirm; guarda tambien quien lo cambio. Si la tabla no existe, el boton no aparece. | v30 - Pedido de Toni Segui (09/09/2026 08:51): en la ficha, la fianza (y el waiver y los gastos de tarjeta) ya cobrados salen en verde como "Recibido" con su importe, no solo desaparecen de la lista de pendientes; y la palabra Deposito pasa a Fianza en filtros, columnas y ficha. Campos de Caspio sin cambios. | v29 - Ficha, BOX 2 'Otros importes' rediseñado a IMPORTES PENDIENTES (pedido por Jordi): fuera las filas informativas fijas 'Importe deposito' y 'Deposit waver' (y la fila 'Waiver cobrado' de la v28, absorbida por la nueva logica). Nueva fmtPendientes(r): (a) Ecotasa pendiente con su importe (Ecotasa_final>0 y no cobrada); (b) segun Security_deposit_options del paso 3 de checkin-pasos: opcion 1 -> Waiver pendiente; opcion 2 -> Deposito y Gastos tarjeta pendientes; opcion 3 -> Deposito (transferencia) pendiente; opcion 4 (airbnb) -> nada; (c) si NO hay opcion seleccionada (0/vacio) -> aviso ambar 'Todavia no se ha seleccionado ninguna opcion en checkin-pasos'; (d) Extras pendientes: Upselling1-3 con importe >0 y no cobrados, con su texto (Upselling*_text) e importe; (e) si no hay nada pendiente -> 'OK Nada pendiente'. Comprobaciones de cobrado con isTruthy (robusto con booleanos) y defensivas: si la vista Vi_bookingsall_and_paymen_editb no trae algun campo, esa linea no se muestra (si faltan lineas, anadir a la vista: Ecotasa_final, Ecotasa_cobrada, Deposit_waver_EUR/cobrado, Security_deposit_EUR/cobrado, Gasto_tarjeta_deposito_seguridad/Gasto_tarjeta_dep_seguri_cobrado, Upselling1-3_EUR/_cobrado/_text). Se mantienen la fila 'El cliente ha seleccionado', la regla v28 de 'Deposito devuelto' y los comentarios de devolucion. Limpieza: consts huerfanas depEUR, waverEUR y waverCob eliminadas de la ficha (la tabla no se toca). | v28 - Ficha (BOX 2 'Otros importes'), caso waiver (caso real reserva 58812697): con Security_deposit_options=1 (waiver) la fila 'Deposito devuelto: X Pendiente' se pintaba siempre y hacia parecer que los 900 EUR estaban pendientes de devolver — con waiver el deposito NO se cobra ni se retiene, no hay devolucion. AHORA: (a) la fila 'Deposito devuelto' solo se muestra si la opcion NO es waiver, o si el deposito consta como devuelto (historico, p. ej. se cobro antes de cambiar a waiver — no se pierde informacion); (b) con waiver seleccionado se muestra en su lugar la fila 'Waiver cobrado' con badge Cobrado/Pendiente segun Deposit_waver_cobrado — lo que realmente esta pendiente en ese caso. Los importes informativos (Importe deposito y Deposit waver) se siguen mostrando igual. La tabla/listado y sus filtros de 'Deposito devuelto' NO se tocan. Sin llamadas API nuevas. RETROFIT obligatorio en esta misma version: anadido el favicon estandar al <head> (no habia ninguno); el spinner ya era el estandar (img base64) y no se toca. | v27 - Fix botón volver: window.history.back(); spinner corazón 3Villas igual que entradas-equipo | v26 - Botón Volver fijo abajo izquierda (history.back()) | v25 - Fichas rediseñadas: cabecera con código gris+copiar; box0 resumen reserva; box1 verde cobro Stripe con copiar txId; box2 gris otros importes | v24 - Cobros default Todos; orden pills Todos/Con/Sin; vista default fichas; selector vista en filtros antes de Buscar; sin iconos en título y botón | v23 - Parámetro URL ?code=RESERVA: precarga el código, quita filtro fechas y cobros, abre vista fichas | v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
+<!-- HISTORIAL: v33 - Toni Segui (10/09/2026 17:40, WhatsApp): la devolucion de la fianza pasa a hacerse en dos pasos, como en las listas viejas de Caspio, pero aqui con nombre, hora y aviso. Paso 1 "Enviado a firmar" (Security_deposit_devolver_firmar): las transferencias estan hechas y esperan la autorizacion. Paso 2 "Devuelto" (Security_deposit_devuelto): la transferencia esta firmada y contabilizada. La casilla unica de la v1 (saveDevuelto), que escribia el flag sin nombre, sin hora y sin aviso, desaparece. Cada marca y cada desmarca dejan su linea en Marcas_manuales de TaBookings2021 con el formato de notas-equipo-reservas v70+ ([Fianza enviada a firmar 10/09/2026 17:40 - Nombre], [Fianza devuelta ...], y DESMARCADA al deshacer), con el tope de 3800 caracteres que suelta las lineas mas viejas; el rastro se lee de la TABLA porque la vista no lo trae, y si esa lectura falla no se escribe nada, ni el flag. Cada marca anade ademas una fila en TaAvisos_marcas_manuales (el trigger de Caspio manda el email a admin@3villas.com) con Pagina "cobros-inquilinos v33"; manda el mismo interruptor TaConfig_intranet.aviso_marcas_email de la v31, que ahora se lee para todos los roles (el boton de cambiarlo sigue siendo solo de admin) y el aviso nunca bloquea ni rompe el guardado. En la lista, la celda muestra la etiqueta de tres estados (Pendiente / Enviado a firmar / Devuelto), el sello dia/mes/ano hora - nombre debajo, y el boton del paso siguiente con confirm en cada marca; el enlace Desmarcar solo lo ve el rol admin y vuelve un paso atras (Devuelto -> Enviado a firmar, Enviado a firmar -> Pendiente). El guardado es un solo PUT a TaBookings2021 con el flag que cambia y el rastro; si falla, la etiqueta vuelve a su sitio y se avisa. Nuevo valor 2 "Enviado a firmar" en las pastillas de Fianza devuelta (el valor 1, Devuelto, no cambia) y contador nuevo "enviados a firmar" en la barra de totales, donde pendientes = sin ninguna de las dos marcas. La ficha muestra el mismo estado de tres valores con su sello. Security_deposit_devolver_firmar se lee de forma defensiva: si la vista no lo trae, la reserva sale como pendiente. Cuando esto este en marcha se bloquean las marcas equivalentes de las listas viejas de Caspio. Funciones puras nuevas: estadoDevolucion, lineaMarcaDevolucion, selloDevolucion, textoDesmarcar, avisoCorte, marcasConLinea, puedeDesmarcarDevolucion y avisoMarcasFila (copiada de notas-equipo-reservas v74). REPASO de dos revisores, aplicado en esta misma version: los botones de marcar tambien salen en las FICHAS (la vista por defecto y la del enlace ?code=, que es por donde entra administracion), y con la opcion 3 la ficha ensena la fila 'Cuenta para la devolucion' con el IBAN y el BIC del huesped, que es lo que hace falta para hacer la transferencia y que ensenaba la lista vieja de Caspio; antes de CADA marca se vuelve a leer el historial de esa reserva de la tabla, y si esa lectura falla no se escribe nada y se avisa ('No se ha podido leer el historial de marcas'), asi que una marca de esta pagina nunca entra sin su linea; los botones estan desactivados hasta que termina la lectura de la lista; los flags se escriben como 1 y 0, como en la pagina de notas; la pastilla Pendiente pasa a ser 'ninguna de las dos marcas', igual que el contador; con Pendiente o Enviado a firmar la lista se ordena por check-in (las fianzas por transferencia no tienen fila de cobro y con la fecha de cobro caian fuera del corte) y, si vuelven 1000 filas, sale el aviso de lista cortada; la ordenacion de la columna Devuelto va pendiente, enviado a firmar, devuelto; el sello lleva el ano; y el enlace del email del aviso apunta a esta pagina. Pruebas: cobros-devolucion-fianza.test.js. | v32 - Pareja de entradas-equipo v146 (Toni, 09/09/2026): en la opcion 3 (transferencia) la fianza sale como Recibida si Security_deposit_cobrado es 1 O Security_deposit_terminado es 1, que es como administracion marca desde siempre la transferencia recibida. Opcion 2 sigue midiendo solo el cobro de Stripe. | v31 - Interruptor del aviso por email de marcas manuales (idea de Toni Segui, 07/09/2026; paginas notas-equipo-reservas v74 y notas-villamanager v37): en la barra de totales, solo para el rol admin, un boton que muestra y cambia TaConfig_intranet.aviso_marcas_email (Activado/Desactivado) con confirm; guarda tambien quien lo cambio. Si la tabla no existe, el boton no aparece. | v30 - Pedido de Toni Segui (09/09/2026 08:51): en la ficha, la fianza (y el waiver y los gastos de tarjeta) ya cobrados salen en verde como "Recibido" con su importe, no solo desaparecen de la lista de pendientes; y la palabra Deposito pasa a Fianza en filtros, columnas y ficha. Campos de Caspio sin cambios. | v29 - Ficha, BOX 2 'Otros importes' rediseñado a IMPORTES PENDIENTES (pedido por Jordi): fuera las filas informativas fijas 'Importe deposito' y 'Deposit waver' (y la fila 'Waiver cobrado' de la v28, absorbida por la nueva logica). Nueva fmtPendientes(r): (a) Ecotasa pendiente con su importe (Ecotasa_final>0 y no cobrada); (b) segun Security_deposit_options del paso 3 de checkin-pasos: opcion 1 -> Waiver pendiente; opcion 2 -> Deposito y Gastos tarjeta pendientes; opcion 3 -> Deposito (transferencia) pendiente; opcion 4 (airbnb) -> nada; (c) si NO hay opcion seleccionada (0/vacio) -> aviso ambar 'Todavia no se ha seleccionado ninguna opcion en checkin-pasos'; (d) Extras pendientes: Upselling1-3 con importe >0 y no cobrados, con su texto (Upselling*_text) e importe; (e) si no hay nada pendiente -> 'OK Nada pendiente'. Comprobaciones de cobrado con isTruthy (robusto con booleanos) y defensivas: si la vista Vi_bookingsall_and_paymen_editb no trae algun campo, esa linea no se muestra (si faltan lineas, anadir a la vista: Ecotasa_final, Ecotasa_cobrada, Deposit_waver_EUR/cobrado, Security_deposit_EUR/cobrado, Gasto_tarjeta_deposito_seguridad/Gasto_tarjeta_dep_seguri_cobrado, Upselling1-3_EUR/_cobrado/_text). Se mantienen la fila 'El cliente ha seleccionado', la regla v28 de 'Deposito devuelto' y los comentarios de devolucion. Limpieza: consts huerfanas depEUR, waverEUR y waverCob eliminadas de la ficha (la tabla no se toca). | v28 - Ficha (BOX 2 'Otros importes'), caso waiver (caso real reserva 58812697): con Security_deposit_options=1 (waiver) la fila 'Deposito devuelto: X Pendiente' se pintaba siempre y hacia parecer que los 900 EUR estaban pendientes de devolver — con waiver el deposito NO se cobra ni se retiene, no hay devolucion. AHORA: (a) la fila 'Deposito devuelto' solo se muestra si la opcion NO es waiver, o si el deposito consta como devuelto (historico, p. ej. se cobro antes de cambiar a waiver — no se pierde informacion); (b) con waiver seleccionado se muestra en su lugar la fila 'Waiver cobrado' con badge Cobrado/Pendiente segun Deposit_waver_cobrado — lo que realmente esta pendiente en ese caso. Los importes informativos (Importe deposito y Deposit waver) se siguen mostrando igual. La tabla/listado y sus filtros de 'Deposito devuelto' NO se tocan. Sin llamadas API nuevas. RETROFIT obligatorio en esta misma version: anadido el favicon estandar al <head> (no habia ninguno); el spinner ya era el estandar (img base64) y no se toca. | v27 - Fix botón volver: window.history.back(); spinner corazón 3Villas igual que entradas-equipo | v26 - Botón Volver fijo abajo izquierda (history.back()) | v25 - Fichas rediseñadas: cabecera con código gris+copiar; box0 resumen reserva; box1 verde cobro Stripe con copiar txId; box2 gris otros importes | v24 - Cobros default Todos; orden pills Todos/Con/Sin; vista default fichas; selector vista en filtros antes de Buscar; sin iconos en título y botón | v23 - Parámetro URL ?code=RESERVA: precarga el código, quita filtro fechas y cobros, abre vista fichas | v22 - Fix "Todos": fecha cobro aplica rango OR NULL; cabecera ficha verde (con cobro) / naranja (sin cobro) | v21 - Fix devuelto: Yes/No usa 1/0 en q.where Caspio (no true/false); fechas checkin confirmadas fuera del bloque cobros | v20 - Fix filtro devuelto: Yes/No usa true/false en REST API Caspio (no -1/0); pendiente incluye IS NULL | v19 - Fix filtro cobros/fechas: fechas de cobro solo se aplican con "Con cobros"; detección sin cobros por Transactiaon_date IS NULL | v18 - Fix pills: setPillDev y setPillCobros solo actúan en su propio grupo (parentElement); clearFilters usa IDs de grupo | v17 - Filtros reactivos: pills y selects lanzan doSearch() automáticamente; inputs fecha onchange; inputs texto onblur | v16 - Vista fichas (selector tabla/fichas en nav); filtro Sin cobros (IS NULL/IS NOT NULL en Ta_payments_Payment_ID); renderCards con toda la info estructurada | v15 - Columnas: Total cobrado (Ta_payments_Importe), desglose por concepto (ecotasa/extras/waver/depósito), opción depósito seleccionada por cliente | v14 - Fix filtro devuelto: OR con -1/true y 0/false/NULL | v13 - Fix filtro fechas datetime: añadido T00:00:00/T23:59:59 para cubrir todo el día | v12 - Simplificado: sin paginación, limit=1000, filtro devuelto reactivado con -1/0, console.log WHERE para debug | v11 - Fix fechas por defecto: setDefaultDates ejecutada en load event; clearFilters restaura fechas al año en curso en lugar de vaciarlas | v10 - Campo código → TaBookings2021_FS_confirmation_code; columna Estado (BookingStatus) en tabla con badge de color | v9 - Filtro devuelto desactivado temporalmente para debug | v8 - Filtro check-in desde/hasta (TaBookings2021_Checkin); fechas por defecto año en curso | v7 - Filtro BookingStatus: todos los valores + opción "No canceladas" por defecto (<>cancelled) | v6 - Paginación Caspio: 4 llamadas × 1000 registros = hasta 4000 total; contador progresivo durante carga | v5 - Límite subido a 1000; booleano devuelto usa -1/0 en lugar de true/false; isTruthy mejorado | v4 - Fix: campo búsqueda restaurado a Ta_payments_HS_confirmation_code; eliminado console.log debug | v3 - Fix búsqueda: campo código → TaBookings2021_FS_confirmation_code; depCobrado default Todos; console.log del where para debug | v2 - Vista cambiada a Vi_bookingsall_and_paymen_editb; fechas por defecto 1 ene – 31 dic año en curso | v1 - Página inicial: tabla control cobros inquilinos basada en Vi_bookings_and_payments_editboo; filtros código reserva/transaction ID/fechas/dep cobrado/dep devuelto/dep options; edición inline devuelto+comentarios+token; agrupación por fecha; stats bar; paginación 24 registros; mismo diseño/auth que entradas-equipo -->
   <button class="btn-back" onclick="window.history.back()">← Volver</button>
 </body>
 </html>
