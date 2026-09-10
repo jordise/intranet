@@ -204,14 +204,16 @@ console.log('cobros-inquilinos.html: filtro, contador y guardado');
     SRC.indexOf('body.Marcas_manuales = marcasConLinea(marcas, linea, 3800);') > 0);
   ok('los flags se escriben como 1 y 0, no como booleanos',
     /const nuevo = valor \? 1 : 0;/.test(SRC) && /body\[campo\] = nuevo;/.test(SRC) &&
-    fnSource(F, 'guardarDevolucion').indexOf('true') < 0);
+    !/(nuevo|body\[campo\]) = (true|false)/.test(fnSource(F, 'guardarDevolucion')));
   ok('los tres WHERE de la v33 escapan la comilla con sqlq, no con esc (esc es para HTML)',
     ['guardarDevolucion', 'leerMarcasUna', 'cargarMarcasDevolucion'].every(function (nm) {
       var f = fnSource(F, nm);
       return f.indexOf('sqlq(') > 0 && f.indexOf("='${esc(") < 0;
     }) && new Function(fnSource(F, 'sqlq') + "\nreturn sqlq(\"O'Brien\");")() === "O''Brien");
   ok('los botones no se pueden pulsar hasta que el lote inicial termina',
-    /_marcasReady \? '' : ' disabled/.test(SRC) && /_marcasReady = true; pintarTodasDevoluciones\(\)/.test(SRC));
+    /!_marcasReady \? ' disabled/.test(SRC) && /_marcasReady = true; pintarTodasDevoluciones\(\)/.test(SRC));
+  ok('mientras se guarda una reserva sus botones quedan bloqueados (no hay segunda marca que pise la linea)',
+    /_busy\[_codeBusy\] \? ' disabled/.test(SRC) && /_busy\[code\] = true;/.test(fnSource(F, 'guardarDevolucion')) && /delete _busy\[code\];/.test(fnSource(F, 'guardarDevolucion')));
   ok('cada marca pregunta con confirm', /confirm\(pregunta\)/.test(SRC) && /como enviada a firmar\?/.test(SRC) && /como devuelta\?/.test(SRC));
   ok('el aviso se manda despues del guardado, nunca antes',
     SRC.indexOf("throw new Error('HTTP ' + res.status)") < SRC.indexOf('avisarMarcasDevolucion([linea], code,'));
