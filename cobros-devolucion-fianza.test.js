@@ -1,5 +1,7 @@
 /* Pruebas de la peticion de Toni Segui (10/09/2026 17:40, WhatsApp): la devolucion
-   de la fianza en dos pasos (Enviado a firmar -> Devuelto) en Control Cobros v33.
+   de la fianza en dos pasos (Enviado a firmar -> Devuelto) en Control Cobros v33,
+   y del preset "Devoluciones pendientes" que pidio a las 18:43 (v34, y su entrada
+   de menu en nav.js v11).
    node cobros-devolucion-fianza.test.js
 
    Como dep-cobros-opcion3.test.js: NO copia el codigo de las paginas. Extrae el
@@ -229,19 +231,127 @@ console.log('cobros-inquilinos.html: filtro, contador y guardado');
     SRC.indexOf('${fmtCuentaDevolucion(r)}') > 0);
   ok('la ordenacion de la columna Devuelto usa los tres estados',
     /paso\[estadoDevolucion\(a\['TaBookings2021_Security_deposit_devolver_firmar'\]/.test(SRC));
-  ok('con Pendiente o Enviado a firmar la lista se ordena por check-in',
-    SRC.indexOf("const orden = (_devFilter === '0' || _devFilter === '2') ? 'TaBookings2021_Checkin DESC' : 'Ta_payments_Transactiaon_date DESC';") > 0);
+  ok('con Pendiente o Enviado a firmar la lista se ordena por check-in', /_devFilter === '0' \|\| _devFilter === '2'( \|\| _devFilter === '3')?\) \? 'TaBookings2021_Checkin DESC'/.test(SRC));
   ok('el aviso de lista cortada se pinta encima de la lista', SRC.indexOf('id="avisoCorteWrap"') > 0 && SRC.indexOf('const corte = avisoCorte(_allRecs.length);') > 0);
+})();
+
+/* ── v34: fechaLimiteDevolucion(hoy) ── */
+console.log('cobros-inquilinos.html: fechaLimiteDevolucion');
+(function () {
+  var lim = fn('fechaLimiteDevolucion');
+  ok('hoy menos 3 dias', lim(new Date(2026, 8, 10)) === '2026-09-07');
+  ok('cambio de mes', lim(new Date(2026, 8, 2)) === '2026-08-30');
+  ok('cambio de ano', lim(new Date(2026, 0, 2)) === '2025-12-30');
+  ok('mes y dia con dos digitos', lim(new Date(2026, 0, 5)) === '2026-01-02');
+  ok('31 de marzo: mes de 28 dias detras no molesta', lim(new Date(2026, 2, 2)) === '2026-02-27');
+  ok('fecha local, no UTC (00:30 en Espana sigue siendo el mismo dia)',
+    lim(new Date(2026, 8, 10, 0, 30)) === '2026-09-07');
+  ok('no toca la fecha que recibe', (function () {
+    var d = new Date(2026, 8, 10); lim(d); return d.getDate() === 10;
+  })());
+  ok('sin argumento usa la de hoy y devuelve el mismo formato', /^\d{4}-\d{2}-\d{2}$/.test(lim()));
+})();
+
+/* ── v34: whereDevolucionesPendientes(fechaLimite) ── */
+console.log('cobros-inquilinos.html: whereDevolucionesPendientes');
+(function () {
+  var w = fn('whereDevolucionesPendientes');
+  var q = w('2026-09-07');
+  ok('el checkout va hasta la fecha limite, con el dia entero',
+    q.indexOf("TaBookings2021_Checkout<='2026-09-07T23:59:59'") === 0);
+  ok('fianza sin devolver: 0 o vacia',
+    q.indexOf('(TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL)') > 0);
+  ok('las enviadas a firmar siguen dentro (no se mira el paso 1)',
+    q.indexOf('Security_deposit_devolver_firmar') < 0);
+  ok('solo las opciones con fianza que devolver: 2 y 3',
+    q.indexOf('(TaBookings2021_Security_deposit_options=2 OR TaBookings2021_Security_deposit_options=3)') > 0);
+  ok('el waiver (opcion 1) no entra', q.indexOf('_options=1') < 0);
+  ok('las tres partes van unidas con AND', q.split(' AND (').length === 3);
+  ok('nada de check-in: escondia las reservas viejas', q.indexOf('TaBookings2021_Checkin') < 0);
+  ok('nada de fecha de cobro: las transferencias no tienen fila de cobro',
+    q.indexOf('Ta_payments_Transactiaon_date') < 0 && q.indexOf('Ta_payments_') < 0);
+  ok('la fecha que recibe es la que sale', w('2025-12-30').indexOf('2025-12-30T23:59:59') > 0);
+})();
+
+/* ── v34: la pagina (preset y rango de checkout) ── */
+console.log('cobros-inquilinos.html: preset Devoluciones pendientes');
+(function () {
+  ok('boton del preset arriba de la barra de filtros',
+    /<button type="button" class="btn-preset" id="btnPresetDev" onclick="aplicarPresetDevoluciones\(\)">.*Devoluciones pendientes<\/button>/.test(SRC));
+  ok('enlace ?preset=devoluciones leido al cargar, como el ?code=',
+    SRC.indexOf("const _urlPreset = _urlParams.get('preset') || '';") > 0 &&
+    SRC.indexOf("if(_urlPreset === 'devoluciones'){") > 0 &&
+    SRC.indexOf('setTimeout(aplicarPresetDevoluciones, 400);') > 0);
+  ok('doSearch usa el WHERE del preset cuando esta puesto',
+    SRC.indexOf("clauses.push(whereDevolucionesPendientes($('fCheckoutTo').value || fechaLimiteDevolucion(new Date())));") > 0);
+  ok('con el preset la lista se pide por checkout ascendente (las mas atrasadas primero)',
+    SRC.indexOf("const ordenFinal = (_preset === 'devoluciones') ? 'TaBookings2021_Checkout ASC' : orden;") > 0 &&
+    SRC.indexOf('&orderBy=${encodeURIComponent(ordenFinal)}') > 0);
+  ok('el aviso de lista cortada de la v33 sigue',
+    SRC.indexOf('const corte = avisoCorte(_allRecs.length);') > 0);
+  ok('el preset vacia el check-in y la fecha de cobro',
+    /\$\('fDateFrom'\).value     = '';/.test(SRC) && /\$\('fCheckinFrom'\).value  = '';/.test(SRC));
+  ok('el preset deja la vista de lista', /_preset = 'devoluciones';/.test(SRC) && /setView\('table'\);/.test(SRC));
+  ok('y ordena por checkout ascendente en la lista pintada',
+    /_sortField = 'checkout';/.test(SRC) && /_sortDir   = 'asc';/.test(SRC));
+  ok('pastilla nueva "Sin devolver" con valor 3', /data-val="3"[^>]*>Sin devolver</.test(SRC));
+  ok('la pastilla 3 funciona sola (fianza sin devolver)',
+    SRC.indexOf("else if(_devFilter === '3') clauses.push(`(TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL)`)") > 0);
+  ok('tocar una pastilla a mano apaga el preset', /_devFilter = btn.dataset.val;\n  presetOff\(\);/.test(SRC));
+  ok('la linea de encima de la lista dice lo que esta aplicado, con enlace Quitar',
+    SRC.indexOf("'Devoluciones pendientes: checkout hasta ' + esc(fmtDate(lim)) +") > 0 &&
+    SRC.indexOf('quitarPresetDevoluciones();return false;') > 0);
+  ok('Quitar devuelve la pagina a sus valores por defecto',
+    /function quitarPresetDevoluciones\(\)\{[\s\S]*clearFilters\(\);[\s\S]*setView\('cards'\);/.test(SRC));
+  ok('rango de checkout como los de check-in (dia entero)',
+    SRC.indexOf("if(kfrom) clauses.push(`TaBookings2021_Checkout>='${kfrom}T00:00:00'`)") > 0 &&
+    SRC.indexOf("if(kto && _preset !== 'devoluciones') clauses.push(`TaBookings2021_Checkout<='${kto}T23:59:59'`)") > 0);
+  ok('los dos campos de checkout, vacios por defecto y vaciados por Limpiar',
+    SRC.indexOf('id="fCheckoutFrom" type="date"') > 0 && SRC.indexOf('id="fCheckoutTo" type="date"') > 0 &&
+    /\$\('fCheckoutFrom'\).value = '';/.test(SRC) && SRC.indexOf("$('fCheckoutTo').value   = '';") > 0);
+  ok('columna Checkout en la lista, detras de Check-in y ordenable',
+    SRC.indexOf('sortBy(\'checkout\')') > 0 && SRC.indexOf('id="si-checkout"') > 0 &&
+    SRC.indexOf("['date','devuelto','villa','checkin','checkout'].forEach") > 0 &&
+    SRC.indexOf('${esc(checkout)}') > 0);
+  ok('la fila de agrupacion cuenta la columna nueva', SRC.indexOf('colspan="20"') > 0 && SRC.indexOf('colspan="19"') < 0);
 })();
 
 /* ── version ── */
 console.log('cobros-inquilinos.html: version');
 (function () {
-  ok('cabecera v33', /VERSIÓN ACTUAL: v33 \|/.test(SRC));
-  ok('titulo v33', /<title>Control Cobros Inquilinos v33 — 3Villas<\/title>/.test(SRC));
-  ok('el historial empieza en v33', /<!-- HISTORIAL: v33 - Toni Segui \(10\/09\/2026 17:40, WhatsApp\)/.test(SRC));
-  ok('y conserva la v32 y la v31', / \| v32 - /.test(SRC) && / \| v31 - /.test(SRC));
+  ok('cabecera v34', /VERSIÓN ACTUAL: v34 \|/.test(SRC));
+  ok('titulo v34', /<title>Control Cobros Inquilinos v34 — 3Villas<\/title>/.test(SRC));
+  ok('el historial empieza en v34', /<!-- HISTORIAL: v34 - Toni Segui \(10\/09\/2026 18:43, WhatsApp\)/.test(SRC));
+  ok('y conserva la v33 y la v32', / \| v33 - /.test(SRC) && / \| v32 - /.test(SRC));
 })();
+
+/* ── nav.js v11: la entrada de menu del preset ── */
+console.log('nav.js: v11');
+(function () {
+  var NAV = fs.readFileSync('nav.js', 'utf8');
+  ok('cabecera v11', /nav\.js — MENÚS POR ROL  3Villas  v11/.test(NAV) && /VERSIÓN ACTUAL: v11 \|/.test(NAV));
+  ok('NAV_VERSION 11 (la auto-deteccion mira este numero)',
+    NAV.indexOf('var NAV_VERSION = 11;') > 0 && NAV.indexOf('var NAV_VERSION = 10;') < 0);
+  ok('Control Cobros sigue en Administracion', NAV.indexOf("{ label: 'Control Cobros',      url: 'cobros-inquilinos.html',          icon: '💶' },") > 0);
+  ok('y debajo la entrada nueva Devoluciones pendientes',
+    NAV.indexOf("{ label: 'Devoluciones pendientes', url: 'cobros-inquilinos.html?preset=devoluciones', icon: '↩️' },") >
+    NAV.indexOf("{ label: 'Control Cobros',      url: 'cobros-inquilinos.html',          icon: '💶' },"));
+  ok('la entrada esta una sola vez y solo en el menu de admin y manager (_menuAdmin)',
+    (function () {
+      var codigo = NAV.split('// HISTORIAL:')[0];   /* el historial nombra la URL: no cuenta */
+      return codigo.indexOf('cobros-inquilinos.html?preset=devoluciones') < codigo.indexOf('var _menuStaff') &&
+        codigo.split('cobros-inquilinos.html?preset=devoluciones').length - 1 === 1;
+    })());
+  ok('el historial empieza en v11', /\/\/ HISTORIAL: v11 - Toni Segui \(10\/09\/2026 18:43, WhatsApp\)/.test(NAV));
+  ok('y conserva la v10', / \| v10 - /.test(NAV));
+})();
+
+/* v34 revision tras el checker */
+console.log('cobros-inquilinos.html: v34 revision');
+ok('la pastilla Sin devolver (3) tambien ordena por check-in (corte de 1000)', /_devFilter === '0' \|\| _devFilter === '2' \|\| _devFilter === '3'\) \? 'TaBookings2021_Checkin DESC'/.test(SRC));
+ok('la linea del preset cae al limite por defecto si Checkout hasta esta vacio', /const lim = \(\$\('fCheckoutTo'\) && \$\('fCheckoutTo'\)\.value\) \|\| fechaLimiteDevolucion\(new Date\(\)\);/.test(SRC));
+ok('la pastilla de Cobros apaga el preset', /function setPillCobros\(btn\)\{\s*presetOff\(\);/.test(SRC));
+ok('un filtro tocado a mano apaga el preset, salvo el rango de checkout', /fp\.addEventListener\('change'/.test(SRC) && /if\(id === 'fCheckoutTo' \|\| id === 'fCheckoutFrom'\) return;\s*presetOff\(\);/.test(SRC));
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
