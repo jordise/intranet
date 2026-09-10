@@ -122,7 +122,7 @@ const Auth = (function () {
     'generar'               : ['admin', 'manager'],
 
     // ── TEST ───────────────────────────────────────────────────
-    'checkin-test-reserva'                  : ['admin', 'manager'],
+    'checkin-test-reserva'                  : ['admin'],  // 10/09/2026: solo admin; la pagina escribe las marcas de fianza, ecotasa y policia sin nombre ni aviso (Toni: solo desde la intranet nueva, con nombre)
     'hostaway-comprobar-fechas-reservas'    : ['admin', 'manager'],
     'hostaway-comprobar-multiunits'         : ['admin', 'manager'],
     
