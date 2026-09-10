@@ -474,9 +474,9 @@ function finalizar() {
   console.log('\n== la pagina (HTML) ==');
 
   var linea3 = SRC.split('\n')[2];
-  ok('la cabecera dice VERSION ACTUAL v148', /VERSIÓN ACTUAL: v148/.test(linea3), linea3);
-  ok('PAGE_VERSION dice v148', /const PAGE_VERSION='v148';/.test(SRC));
-  ok('el titulo dice v148', /<title>Entradas Equipo v148/.test(SRC));
+  ok('la cabecera dice VERSION ACTUAL v149', /VERSIÓN ACTUAL: v149/.test(linea3), linea3);
+  ok('PAGE_VERSION dice v149', /const PAGE_VERSION='v149';/.test(SRC));
+  ok('el titulo dice v149', /<title>Entradas Equipo v149/.test(SRC));
 
   ok('existe el interruptor ECO_SYNC', /var ECO_SYNC=1;/.test(SRC));
   ok('existe el interruptor ECO_SYNC_WRITE', /var ECO_SYNC_WRITE=1;/.test(SRC));
@@ -492,7 +492,7 @@ function finalizar() {
   ok('ya no queda rastro de la regla vieja ecotasaStripeOk', SRC.indexOf('ecotasaStripeOk') === -1);
   ok('la escritura va por action=save con method=PUT sobre TaBookings2021',
     /action=save&table=TaBookings2021&where=/.test(SRC));
-  ok('el historial recoge v148 y conserva v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+  ok('el historial recoge v149 y conserva v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
   ok('el historial explica la regla del importe y la puerta de rol',
     /margen de 0,05 euros/.test(SRC) && /admin, manager o staff/.test(SRC));
 

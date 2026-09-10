@@ -320,16 +320,18 @@ ok('v148: transferencia con el flag de cobro sale pagada', _dep(E.calcPaymentIte
 ok('v148: la tarjeta (opcion 2) con solo Terminado NO sale pagada', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '2', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' }))).paid === false);
 ok('v148: PAGOS y la insignia cuentan lo mismo para la 65513925', E.fianzaFalta(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' })) === '');
 
-ok('la cabecera dice VERSION ACTUAL v148', /VERSIÓN ACTUAL: v148/.test(linea3), linea3);
-ok('PAGE_VERSION dice v148', /const PAGE_VERSION='v148';/.test(SRC));
-ok('el titulo dice v148', /<title>Entradas Equipo v148/.test(SRC));
-ok('el historial recoge v148 y conserva v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v149', /VERSIÓN ACTUAL: v149/.test(linea3), linea3);
+ok('PAGE_VERSION dice v149', /const PAGE_VERSION='v149';/.test(SRC));
+ok('el titulo dice v149', /<title>Entradas Equipo v149/.test(SRC));
+ok('el historial recoge v149 y conserva v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
   }));
 ok('el historial de v145 cita a Toni y los dos nombres', /\| v145 - [^|]*Toni[^|]*Fianza\/Waiver/.test(SRC));
 ok('el historial de v146 explica la regla de la transferencia (Terminado)', /\| v146 - [^|]*Terminado[^|]*Security_deposit_terminado/.test(SRC));
+ok('v149: el lapiz de ecotasa abre la pagina de notas, no la DataPage antigua', /urlEcFix=`notas-equipo-reservas\.html\?TaBookings2021_FS_confirmation_code=\$\{encodeURIComponent\(code\)\}&ci=ecotasa`/.test(SRC) && !/dp\/353f70000f4226a745cb49129831/.test(SRC));
+ok('el historial de v149 explica el lapiz y la intranet antigua', /<!-- HISTORIAL: v149 - [^|]*intranet antigua[^|]*notas-equipo-reservas\.html/.test(SRC));
 ok('el historial de v147 explica la estancia del propietario', /\| v147 - [^|]*propietario[^|]*ownerStay/.test(SRC));
 
 var CARD = fnSource('buildCard');
