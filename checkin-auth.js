@@ -1,4 +1,21 @@
-/* checkin-auth.js v21 — Autenticación huéspedes 3Villas
+/* checkin-auth.js v22 — Autenticación huéspedes 3Villas
+   CAMBIOS v22 (sobre v21):
+   - Sesión hasta el final de la estancia: la sesión del huésped ya no dura
+     siempre 30 días naturales, sino hasta la medianoche de Checkout + EXPIRE_DAYS
+     (3) + 1 día, que es justo el día en que _isExpired cierra la reserva. Así el
+     huésped no vuelve a introducir un código en ese dispositivo durante su
+     estancia, y la sesión no sobrevive a la reserva. Función nueva y pura
+     _sessionExpiry(booking, nowMs); SESSION_TTL queda como respaldo (reservas sin
+     fecha de checkout legible o con checkout ya pasado).
+   - Botón "Ya tengo un código" (caHaveCode) en el paso del email: el equipo puede
+     generar un código desde notas-equipo-reservas v76 y dárselo al huésped por
+     WhatsApp, y el huésped necesitaba una forma de escribirlo sin pedir otro OTP.
+     Lleva al paso del código en modo normal (_pinDirectUI(false)). Se oculta en el
+     modo sin email, que ya salta solo a esa pantalla.
+   - Botón de salir (caLogoutBtn) junto al selector de idioma de la página
+     (#langWrap) cuando hay sesión: borra la sesión y la caché y recarga. Pedido
+     de Jordi (03/09/2026 19:45) por el caso del ordenador compartido.
+   - i18n: claves nuevas have_code, have_code_hint y logout en los 8 idiomas.
    CAMBIOS v21 (sobre v20):
    - lbl_alt_code ("Código especial de acceso") traducido a los 5 idiomas que
      faltaban (es/fr/nl/pt/ca); desde la v10 solo existía en en/de/it y el resto
@@ -63,7 +80,9 @@ const CheckinAuth = (function(){
 
   const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
   const SESSION_KEY = '3v_checkin_auth';
-  const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 días (login recordado 1 mes)
+  const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // v22: RESPALDO (30 días). La sesión
+                                                 // normal caduca en Checkout + EXPIRE_DAYS
+                                                 // + 1 día (ver _sessionExpiry)
   const MAX_ATT     = 5;
   const CHECKIN_MAIN = 'checkin-online.html'; // página principal
   const EXPIRE_DAYS  = 3; // días tras el Checkout a partir de los cuales se bloquea
@@ -105,6 +124,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Go to Check-in',
       expired_title:'This booking has ended',
       expired_sub:'The check-in for this booking is no longer available. If you need help, please contact us.',
+      /* v22 */ have_code:'I already have a code', have_code_hint:'Enter the code the 3Villas team gave you.',
+      logout:'Log out',
     },
     es:{
       title_email:'Check-in Online',
@@ -137,6 +158,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Ir al Check-in',
       expired_title:'Esta reserva ha finalizado',
       expired_sub:'El check-in de esta reserva ya no est\u00e1 disponible. Si necesitas ayuda, cont\u00e1ctanos.',
+      /* v22 */ have_code:'Ya tengo un c\u00f3digo', have_code_hint:'Introduce el c\u00f3digo que te ha dado el equipo de 3Villas.',
+      logout:'Salir',
     },
     fr:{
       title_email:'Check-in Online',
@@ -169,6 +192,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Aller au Check-in',
       expired_title:'Cette r\u00e9servation est termin\u00e9e',
       expired_sub:'Le check-in de cette r\u00e9servation n\u2019est plus disponible. Besoin d\u2019aide ? Contactez-nous.',
+      /* v22 */ have_code:'J\u2019ai d\u00e9j\u00e0 un code', have_code_hint:'Saisissez le code que l\u2019\u00e9quipe 3Villas vous a communiqu\u00e9.',
+      logout:'D\u00e9connexion',
     },
     de:{
       title_email:'Check-in Online',
@@ -202,6 +227,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Zum Check-in',
       expired_title:'Diese Buchung ist beendet',
       expired_sub:'Der Check-in f\u00fcr diese Buchung ist nicht mehr verf\u00fcgbar. Bei Fragen kontaktieren Sie uns.',
+      /* v22 */ have_code:'Ich habe bereits einen Code', have_code_hint:'Geben Sie den Code ein, den Ihnen das 3Villas-Team gegeben hat.',
+      logout:'Abmelden',
     },
     it:{
       title_email:'Check-in Online',
@@ -235,6 +262,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Vai al Check-in',
       expired_title:'Questa prenotazione \u00e8 terminata',
       expired_sub:'Il check-in di questa prenotazione non \u00e8 pi\u00f9 disponibile. Per assistenza, contattaci.',
+      /* v22 */ have_code:'Ho gi\u00e0 un codice', have_code_hint:'Inserisci il codice che ti ha dato il team di 3Villas.',
+      logout:'Esci',
     },
     nl:{
       title_email:'Check-in Online',
@@ -267,6 +296,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Naar Check-in',
       expired_title:'Deze boeking is be\u00ebindigd',
       expired_sub:'De check-in voor deze boeking is niet meer beschikbaar. Hulp nodig? Neem contact op.',
+      /* v22 */ have_code:'Ik heb al een code', have_code_hint:'Voer de code in die het 3Villas-team je heeft gegeven.',
+      logout:'Uitloggen',
     },
     pt:{
       title_email:'Check-in Online',
@@ -299,6 +330,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Ir ao Check-in',
       expired_title:'Esta reserva terminou',
       expired_sub:'O check-in desta reserva j\u00e1 n\u00e3o est\u00e1 dispon\u00edvel. Se precisar de ajuda, contacte-nos.',
+      /* v22 */ have_code:'J\u00e1 tenho um c\u00f3digo', have_code_hint:'Introduza o c\u00f3digo que a equipa da 3Villas lhe deu.',
+      logout:'Sair',
     },
     ca:{
       title_email:'Check-in Online',
@@ -331,6 +364,8 @@ const CheckinAuth = (function(){
       redirect_btn:'Anar al Check-in',
       expired_title:'Aquesta reserva ha finalitzat',
       expired_sub:"El check-in d\u2019aquesta reserva ja no est\u00e0 disponible. Si necessites ajuda, contacta\u2019ns.",
+      /* v22 */ have_code:'Ja tinc un codi', have_code_hint:'Introdueix el codi que t\u2019ha donat l\u2019equip de 3Villas.',
+      logout:'Sortir',
     },
   };
 
@@ -388,9 +423,12 @@ const CheckinAuth = (function(){
       return obj;
     } catch(e){ return null; }
   }
-  function setSession(code, pin, email, token){
+  function setSession(code, pin, email, token, booking){
+    /* v22: la sesión dura hasta el final de la reserva (ver _sessionExpiry), no
+       30 días fijos. Sin booking (o sin fecha legible) se usa el respaldo. */
     localStorage.setItem(SESSION_KEY, JSON.stringify({
-      code, pin, email: email || '', token: token || '', expires: Date.now() + SESSION_TTL
+      code, pin, email: email || '', token: token || '',
+      expires: _sessionExpiry(booking || null, Date.now())
     }));
   }
 
@@ -469,7 +507,7 @@ const CheckinAuth = (function(){
     if(j && j.booking){
       /* Si el Worker devolvió un nuevo checkin-token, refrescarlo en la sesión (72h) */
       if(j.checkinToken){
-        try{ const _s = getSession(code); if(_s) setSession(_s.code, _s.pin, _s.email, j.checkinToken); }catch(e){}
+        try{ const _s = getSession(code); if(_s) setSession(_s.code, _s.pin, _s.email, j.checkinToken, j.booking); }catch(e){}
       }
       setCachedBooking(code, j.booking);
       return j.booking;
@@ -506,6 +544,23 @@ const CheckinAuth = (function(){
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);         // MM/DD/YYYY (Caspio US)
     if(m) return new Date(+m[3], +m[1]-1, +m[2]);
     return null;
+  }
+
+  /* ── v22: caducidad de la sesión del huésped ──
+     La sesión vale hasta la medianoche del día siguiente al último día de acceso
+     (Checkout + EXPIRE_DAYS), que es justo cuando _isExpired cierra la reserva:
+     durante la estancia el huésped no tiene que escribir ningún código otra vez,
+     y la sesión no sobrevive a la reserva. Respaldo (sin fecha legible, o con un
+     checkout ya pasado): SESSION_TTL. Función pura, con pruebas
+     (checkin-sesion.test.js). */
+  function _sessionExpiry(booking, nowMs){
+    var raw = booking ? (booking['TaBookings2021_Checkout'] || booking['TaBookings2021_Checkount'] || '') : '';
+    var co  = _parseCheckout(raw);
+    if(co){
+      var lim = new Date(co.getFullYear(), co.getMonth(), co.getDate() + EXPIRE_DAYS + 1).getTime();
+      if(lim > nowMs) return lim;
+    }
+    return nowMs + SESSION_TTL;
   }
 
   function _isExpired(booking, email){
@@ -644,6 +699,7 @@ const CheckinAuth = (function(){
             </label>
           </div>
           <button class="ca-btn" id="caBtnEmail" onclick="CheckinAuth._send()">Send access code</button>
+          <button class="ca-back" id="caHaveCode" onclick="CheckinAuth._haveCode()" data-ca-i18n="have_code">I already have a code</button>
           <div class="ca-contact">
             <span data-ca-i18n="need_help">Need help?</span>
             <a href="https://api.whatsapp.com/send?phone=34659933434" target="_blank">WhatsApp</a>
@@ -719,6 +775,7 @@ const CheckinAuth = (function(){
           const cb = document.getElementById('caNoEmail');
           if(cb){ cb.checked = true; _noEmailMode = true; }
           _pinDirectUI(true);
+          _haveCodeBtn(false);          /* v22: en modo sin email no aplica */
           document.getElementById('caPinSub').textContent = _t('no_email_hint');
           step('Pin');
         }
@@ -774,8 +831,62 @@ const CheckinAuth = (function(){
 
   let _noEmailMode = false;
 
+  /* ── v22: "Ya tengo un código" ──
+     El equipo genera un código desde notas-equipo-reservas v76 y se lo pasa al
+     huésped por WhatsApp; este botón le lleva a la pantalla del código sin pedir
+     otro OTP. El email escrito (si lo hay) se guarda para la excepción
+     @3villas.com del bloqueo por reserva finalizada; puede quedar vacío. */
+  function _haveCodeBtn(on){
+    const b = document.getElementById('caHaveCode');
+    if(b) b.style.display = on ? 'block' : 'none';
+  }
+  let _haveCodeMode = false;
+  function _haveCodeUI(on){
+    /* En modo "ya tengo un código" el paso PIN no habla de email: título neutro
+       y sin el pie "¿No lo has recibido? Revisa el spam". Se restaura en back(). */
+    const t = document.querySelector('#caStepPin .ca-title');
+    if(t){ t.setAttribute('data-ca-i18n', on ? 'title_email' : 'title_pin'); t.textContent = _t(on ? 'title_email' : 'title_pin'); }
+    const c = document.querySelector('#caStepPin .ca-contact');
+    if(c) c.style.display = on ? 'none' : '';
+  }
+  function _haveCode(){
+    /* _email queda VACÍO a propósito: el email tecleado no ha sido validado por
+       el Worker y no puede dar la exención @3villas.com del bloqueo por reserva
+       finalizada (hallazgo del checker, 11/09/2026). El equipo entra por send(). */
+    _email = '';
+    _haveCodeMode = true;
+    _pinDirectUI(false);
+    _haveCodeUI(true);
+    noErr('caErrEmail');
+    document.getElementById('caPinSub').textContent = _t('have_code_hint');
+    step('Pin');
+    const inp = document.getElementById('caPin');
+    if(inp) inp.focus();
+  }
+
+  /* ── v22: salir de la sesión (ordenador compartido, petición de Jordi) ── */
+  function logout(){
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+    try{ sessionStorage.removeItem('3v_booking_cache'); }catch(e){}
+    location.reload();
+  }
+  /* Botón de salir: pastilla fija abajo a la IZQUIERDA (la derecha la ocupa el
+     botón flotante de WhatsApp de checkin-pasos, #waFloat; y así nunca se solapa
+     con el logo ni con el selector de idioma en móvil). Solo se monta cuando el
+     huésped ya está dentro. */
+  function _mountLogout(){
+    if(!document.body || document.getElementById('caLogoutBtn')) return;
+    const txt = _t('logout');
+    document.body.insertAdjacentHTML('beforeend',
+      '<button id="caLogoutBtn" type="button" onclick="CheckinAuth.logout()" title="' + txt + '" data-ca-i18n="logout" ' +
+      'style="position:fixed;left:12px;bottom:12px;z-index:900;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;' +
+      'border:1px solid #dee2e6;border-radius:999px;padding:6px 12px;background:#fff;' +
+      'color:#495057;cursor:pointer;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.12)">\u238B ' + txt + '</button>');
+  }
+
   function _toggleNoEmail(){
     _noEmailMode = document.getElementById('caNoEmail').checked;
+    _haveCodeBtn(!_noEmailMode);       /* v22 */
     if(_noEmailMode){
       /* Ir directamente al paso PIN con el label de código especial */
       _pinDirectUI(true);
@@ -848,11 +959,12 @@ const CheckinAuth = (function(){
         return;
       }
       step('Ok');
-      setSession(_code, pin, loginEmail, j.checkinToken || '');
+      setSession(_code, pin, loginEmail, j.checkinToken || '', j.booking);
       /* Guardar booking en sessionStorage para que loadBookingData lo use sin llamar al Worker */
       try{ sessionStorage.setItem('3v_booking_cache', JSON.stringify({code:_code, booking:j.booking})); }catch(e){}
       setTimeout(() => {
         document.getElementById('caOverlay').remove();
+        _mountLogout();                 /* v22 */
         if(_cb) _cb(j.booking);
       }, 700);
     } catch(e){
@@ -892,6 +1004,8 @@ const CheckinAuth = (function(){
     var _em = document.getElementById('caEmail');
     if(_em){ _em.value = ''; }
     noErr('caErrEmail');
+    _haveCodeBtn(true);                /* v22 */
+    if(_haveCodeMode){ _haveCodeMode = false; _haveCodeUI(false); }   /* v22 */
     step('Email');
     busy('caBtnEmail', false);
   }
@@ -949,6 +1063,7 @@ const CheckinAuth = (function(){
             loadBookingData(_code, sess.pin)
               .then(booking => {
                 if(_isExpired(booking, sess.email)){ showExpired(); return; }
+                _mountLogout();         /* v22 */
                 if(_cb) _cb(booking);
               })
               .catch(() => {
@@ -999,6 +1114,7 @@ const CheckinAuth = (function(){
           loadBookingData(_code, sess.pin)
             .then(booking => {
               if(_isExpired(booking, sess.email)){ showExpired(); return; }
+              _mountLogout();           /* v22 */
               if(_cb) _cb(booking);
             })
             .catch(() => {
@@ -1023,6 +1139,8 @@ const CheckinAuth = (function(){
     _send:   () => send(),
     _verify: () => verify(),
     _back:   () => back(),
+    _haveCode: () => _haveCode(),      /* v22 */
+    logout:    () => logout(),         /* v22 */
     _toggleNoEmail: () => _toggleNoEmail(),
     _codeInfo: (v) => _codeInfo(v),
     _waCode:   () => _waCode(),
@@ -1037,4 +1155,4 @@ const CheckinAuth = (function(){
 
 })();
 
-/* HISTORIAL: v21 - i18n: lbl_alt_code (label del código alternativo en el paso PIN, usado por _pinDirectUI) añadido en es ('C\u00f3digo especial de acceso'), fr ('Code d\u2019acc\u00e8s sp\u00e9cial'), nl ('Speciale toegangscode'), pt ('C\u00f3digo especial de acesso') y ca ("Codi especial d'acc\u00e9s"). Desde la v10 solo existía en en/de/it y los demás idiomas caían al fallback inglés en la propia pantalla del código. Sin más cambios. | v20 - UX del código alternativo (modo sin email): (1) el placeholder del input pasa de 5 puntos (\u00b7 x5, correcto solo para el OTP de email) a una fila llena de 12 puntos SOLO en modo directo — los huéspedes esperaban un código de 5 dígitos cuando el alternativo tiene 8-11; el modo OTP por email conserva sus 5 puntos (ph_pin) y el cambio de idioma respeta el modo (_applyOverlayTexts). (2) Nuevo botón "i" azul (caPinInfoBtn, visible solo en modo directo) junto al label: abre el popup caCodeInfo que explica que al no tener su email deberían haber recibido un código junto al link, pide disculpas si no es así, y ofrece un botón verde de WhatsApp al mismo número del pie (34659933434) con mensaje pre-rellenado (code_info_wa_msg, incluye el código de reserva) pidiendo el código al equipo. 4 claves i18n nuevas (code_info_title/txt/wa/wa_msg) en los 8 idiomas. (3) Limpieza: los 3 bloques duplicados que montaban el modo directo (checkin-hint sin email, back() y send() en modo sin email) usan la nueva helper _pinDirectUI(on), que también restaura el modo email (ruta 'sent'). API pública: _codeInfo y _waCode. | v19 - Fix de seguridad/UX: a un huésped CON email NUNCA debe ofrecérsele el código alternativo. El overlay activaba el modo sin-email (pre-marcar caNoEmail + saltar al PIN con código alternativo 5+code+7) si (hasEmail===false || !j.hint). El "|| !j.hint" era un fallback para Workers antiguos, pero hacía que una reserva CON email cayera en el modo alternativo cuando el Worker no devolvía hint (versión antigua, email sin máscara, etc.). Aunque el Worker rechaza el alternativo en reservas con email (no es bypass real), confundía al huésped. Ahora el modo sin-email solo se activa con hasEmail===false EXPLÍCITO; si hasEmail no viene definido se asume que SÍ hay email (lo seguro: pedir email). El fallback "sin respuesta del Worker" sigue mostrando el checkbox desmarcado (no pre-marca, no entra en modo alternativo) para no bloquear al huésped si checkin-hint cae. | v18 - Fix: en reservas SIN email, el overlay pre-marca el checkbox "No tengo acceso al email de la reserva" (caNoEmail) y va directo al PIN. Al pulsar "Usar otro email" (back()) se volvía al paso Email pero el checkbox seguía marcado y _noEmailMode=true, así que al introducir un email (p.ej. @3villas.com) NO se enviaba el código (send() saltaba al PIN por el modo sin-email). Ahora back() desmarca caNoEmail, pone _noEmailMode=false, limpia el campo de email y el error, de modo que "Usar otro email" funciona como un envío normal de código por email. | v17 - Auto-refresh simple y estable en loadBookingData: antes, si había caché, devolvía el caché y NO consultaba Caspio (los cambios hechos fuera no se veían). Ahora intenta SIEMPRE traer lo último de Caspio (solo corre en el arranque, no en la navegación entre pasos), con credencial en orden: token de check-in (JWT, sirve en reservas con y sin email vía Worker v43+), luego PIN de sesión, luego código alternativo 5+code+7; si todo falla, usa el caché como respaldo (no rompe la experiencia) y NO borra la sesión aquí. Esto arregla la lentitud y la expulsión al overlay de email que causaba el arranque alternativo de checkin-pasos v56 (que se saltaba init). | v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
+/* HISTORIAL: v22 - Tres cambios pedidos tras el caso de Cristian (10/09/2026 19:05, feel good communication, reserva 54614278: el huesped no recibia el codigo por email) y la pregunta de Jordi (03/09/2026 22:14, cuanto dura la sesion). (1) SESION HASTA EL FINAL DE LA ESTANCIA: hasta la v21 la sesion duraba 30 dias naturales desde el login (SESSION_TTL), asi que un huesped que entraba meses antes de llegar tenia que volver a pedir un codigo el dia de la llegada. Ahora setSession recibe el booking y la funcion nueva y pura _sessionExpiry(booking, nowMs) devuelve la medianoche de Checkout + EXPIRE_DAYS (3) + 1 dia, que es justo el dia en que _isExpired cierra la reserva: dentro de la estancia no se vuelve a pedir codigo en ese dispositivo, y la sesion nunca dura mas que la reserva. SESSION_TTL queda como respaldo (reserva sin fecha de checkout legible, o con el checkout ya pasado). El booking viaja desde verify() (j.booking) y desde el refresco del token en loadBookingData. (2) BOTON "Ya tengo un codigo" (caHaveCode) bajo el boton de enviar del paso del email: el equipo genera un codigo desde notas-equipo-reservas v76 y se lo pasa al huesped por WhatsApp, y el huesped necesitaba una forma de escribirlo sin pedir otro OTP. Lleva al paso del codigo en modo normal (_pinDirectUI(false)) con el texto have_code_hint; guarda el email escrito si lo hay (puede quedar vacio: solo se usa para la excepcion @3villas.com). Se oculta en el modo sin email, que ya salta solo a esa pantalla, y vuelve con back(). (3) BOTON DE SALIR (caLogoutBtn) junto al selector de idioma de la pagina (#langWrap), montado por _mountLogout() tras un login correcto o al restaurar una sesion: borra la sesion y la cache del booking y recarga. Motivo de Jordi: el ordenador compartido. i18n: claves nuevas have_code, have_code_hint y logout en los 8 idiomas. API publica: _haveCode y logout. Pruebas: checkin-sesion.test.js. REVISIÓN 11/09/2026 tras el checker: (a) en «Ya tengo un código» _email queda vacío (el email tecleado no está validado por el Worker y no puede dar la exención @3villas.com del bloqueo por reserva finalizada); (b) en ese modo el paso PIN muestra el título neutro y oculta el pie de «revisa el spam» hasta volver atrás; (c) el botón Salir es una pastilla fija abajo a la izquierda (la derecha la ocupa el botón flotante de WhatsApp; no se solapa con el logo en móvil) y lleva data-ca-i18n. | v21 - i18n: lbl_alt_code (label del código alternativo en el paso PIN, usado por _pinDirectUI) añadido en es ('C\u00f3digo especial de acceso'), fr ('Code d\u2019acc\u00e8s sp\u00e9cial'), nl ('Speciale toegangscode'), pt ('C\u00f3digo especial de acesso') y ca ("Codi especial d'acc\u00e9s"). Desde la v10 solo existía en en/de/it y los demás idiomas caían al fallback inglés en la propia pantalla del código. Sin más cambios. | v20 - UX del código alternativo (modo sin email): (1) el placeholder del input pasa de 5 puntos (\u00b7 x5, correcto solo para el OTP de email) a una fila llena de 12 puntos SOLO en modo directo — los huéspedes esperaban un código de 5 dígitos cuando el alternativo tiene 8-11; el modo OTP por email conserva sus 5 puntos (ph_pin) y el cambio de idioma respeta el modo (_applyOverlayTexts). (2) Nuevo botón "i" azul (caPinInfoBtn, visible solo en modo directo) junto al label: abre el popup caCodeInfo que explica que al no tener su email deberían haber recibido un código junto al link, pide disculpas si no es así, y ofrece un botón verde de WhatsApp al mismo número del pie (34659933434) con mensaje pre-rellenado (code_info_wa_msg, incluye el código de reserva) pidiendo el código al equipo. 4 claves i18n nuevas (code_info_title/txt/wa/wa_msg) en los 8 idiomas. (3) Limpieza: los 3 bloques duplicados que montaban el modo directo (checkin-hint sin email, back() y send() en modo sin email) usan la nueva helper _pinDirectUI(on), que también restaura el modo email (ruta 'sent'). API pública: _codeInfo y _waCode. | v19 - Fix de seguridad/UX: a un huésped CON email NUNCA debe ofrecérsele el código alternativo. El overlay activaba el modo sin-email (pre-marcar caNoEmail + saltar al PIN con código alternativo 5+code+7) si (hasEmail===false || !j.hint). El "|| !j.hint" era un fallback para Workers antiguos, pero hacía que una reserva CON email cayera en el modo alternativo cuando el Worker no devolvía hint (versión antigua, email sin máscara, etc.). Aunque el Worker rechaza el alternativo en reservas con email (no es bypass real), confundía al huésped. Ahora el modo sin-email solo se activa con hasEmail===false EXPLÍCITO; si hasEmail no viene definido se asume que SÍ hay email (lo seguro: pedir email). El fallback "sin respuesta del Worker" sigue mostrando el checkbox desmarcado (no pre-marca, no entra en modo alternativo) para no bloquear al huésped si checkin-hint cae. | v18 - Fix: en reservas SIN email, el overlay pre-marca el checkbox "No tengo acceso al email de la reserva" (caNoEmail) y va directo al PIN. Al pulsar "Usar otro email" (back()) se volvía al paso Email pero el checkbox seguía marcado y _noEmailMode=true, así que al introducir un email (p.ej. @3villas.com) NO se enviaba el código (send() saltaba al PIN por el modo sin-email). Ahora back() desmarca caNoEmail, pone _noEmailMode=false, limpia el campo de email y el error, de modo que "Usar otro email" funciona como un envío normal de código por email. | v17 - Auto-refresh simple y estable en loadBookingData: antes, si había caché, devolvía el caché y NO consultaba Caspio (los cambios hechos fuera no se veían). Ahora intenta SIEMPRE traer lo último de Caspio (solo corre en el arranque, no en la navegación entre pasos), con credencial en orden: token de check-in (JWT, sirve en reservas con y sin email vía Worker v43+), luego PIN de sesión, luego código alternativo 5+code+7; si todo falla, usa el caché como respaldo (no rompe la experiencia) y NO borra la sesión aquí. Esto arregla la lentitud y la expulsión al overlay de email que causaba el arranque alternativo de checkin-pasos v56 (que se saltaba init). | v16 - Token de check-in (JWT) para guardar de forma segura en reservas con email: al verificar identidad, el Worker (v42) devuelve un checkinToken firmado (72h); ahora se guarda en la sesión (setSession recibe el token) y se expone con getToken(). loadBookingData refresca el token en sesión si el Worker devuelve uno nuevo al recargar. Las páginas hijas (pasos/premium) usan CheckinAuth.getToken() para guardar vía checkin-save sin depender del OTP ya consumido ni del código alternativo (que sigue solo para reservas sin email). | v15 - Fix 401 (Unauthorized) al recargar datos tras guardar un paso: la página borra la caché del booking (3v_booking_cache) tras guardar, y loadBookingData volvía a llamar a verify-checkin-code con el OTP de sesión YA CONSUMIDO, dando 401 y haciendo que el guardado pareciera no aplicarse. Ahora, si no hay caché, loadBookingData intenta con el PIN de sesión y, si falla, reintenta con el código alternativo 5+code+7 (que el Worker acepta siempre), garantizando la recarga de datos sin depender del OTP de un solo uso | v14 - Sesión 30 días (login recordado 1 mes); email guardado en sesión; bloqueo "reserva finalizada" a partir de Checkout+3 días en las 3 páginas (online/pasos/premium) salvo @3villas.com; overlay de bloqueo "Esta reserva ha finalizado" en 8 idiomas (expired_title/expired_sub); parseo de Checkout manual sin desfase UTC | v13 - Preconnect / versión de referencia | v10 - checkin-hint hasEmail + checkbox "no tengo email"; hint preferido Segundo_email; código alternativo 5+code+7; PIN OTP aleatorio; bloqueo progresivo locked/remainingSeconds | v8 - Fix isMainPage con regex sobre location.href (sirve con y sin .html) | v7 - getCode acepta ?reserva=; el code de la URL manda en páginas hijas | v6 y anteriores - flujo OTP email + sesión localStorage + caché booking sessionStorage + i18n overlay 8 idiomas */
