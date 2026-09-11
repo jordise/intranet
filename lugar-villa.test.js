@@ -33,8 +33,8 @@ console.log('checkin-pasos.html');
   var f = 'checkin-pasos.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Check-in Pasos v(\d+)/);
-  ok('v97 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '97' && hv[1] === '97' && tv[1] === '97', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v97', /<!-- HISTORIAL: v97 - /.test(s));
+  ok('v98 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '98' && hv[1] === '98' && tv[1] === '98', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v98', /<!-- HISTORIAL: v98 - /.test(s));
   /* LANG_ARR real de la pagina */
   var la = s.indexOf('var LANG_ARR={};'), ca = s.indexOf('LANG_ARR.ca={', la), caEnd = s.indexOf('\n};', ca) + 3;
   var ctx = {}; vm.runInNewContext(s.slice(la, caEnd), ctx);
@@ -112,8 +112,8 @@ console.log('\nnotas-equipo-reservas.html');
   var f = 'notas-equipo-reservas.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Notas Equipo Reservas v(\d+)/);
-  ok('v76 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '76' && hv[1] === '76' && tv[1] === '76', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v76', /<!-- HISTORIAL: v76 - /.test(s));
+  ok('v77 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '77' && hv[1] === '77' && tv[1] === '77', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v77', /<!-- HISTORIAL: v77 - /.test(s));
   var c = { bookingData: null, villaData: null, confCode: 'ABC', Auth: { name: function () { return 'VM'; } } };
   vm.runInNewContext(fnSource(f, 'fB') + '\n' + fnSource(f, 'fV') + '\n' + block(s, f) + '\n' + fnSource(f, 'buildC2DMsg') +
     '\nthis.place=villaPlace;this.msg=buildC2DMsg;this.setRow=function(r){bookingData=r;villaData=r;};', c);

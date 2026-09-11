@@ -2,6 +2,8 @@
    arreglo de pantalla del código alternativo. Caso de Cristian (10/09/2026 19:05,
    feel good communication, reserva 54614278: el huésped no recibía el código por
    email) y pregunta de Jordi (22:14).
+   v77: enlace de acceso de un toque (botón «Enviar acceso»), tras el segundo aviso
+   de Cristian (11/09/2026: "no encuentro el botón").
    node codigo-huesped.test.js
 
    Como cobros-devolucion-fianza.test.js: NO copia el codigo de la pagina. Extrae
@@ -109,8 +111,8 @@ console.log('notas-equipo-reservas.html: bloque y llamada al Worker');
   ok('el bloque verde es el primero del cuerpo de la seccion Login',
     SRC.indexOf('🔑 Código para el huésped') > SRC.indexOf('<div class="col-body" id="bodyColLogin">') &&
     SRC.indexOf('🔑 Código para el huésped') < SRC.indexOf('¿Quién puede entrar al check-in online?'));
-  ok('frase acordada del bloque',
-    SRC.indexOf('Si el huésped no recibe el código por email, genera uno aquí y envíaselo por WhatsApp. Vale una vez y no se anula aunque el huésped vuelva a pulsar «enviar código».') > 0);
+  ok('frase acordada del bloque (v77: nombra el enlace y el código)',
+    SRC.indexOf('Si el huésped no recibe el código por email, envíale el enlace de acceso (recomendado) o genera un código.') > 0);
   ok('boton Generar codigo',
     /id="btnCodigoHuesped" onclick="generarCodigoHuesped\(\)"/.test(SRC) && SRC.indexOf('🔑 Generar código') > 0);
   ok('area de resultado oculta al cargar', /id="codigoHuespedRes" style="display:none/.test(SRC));
@@ -159,15 +161,143 @@ console.log('notas-equipo-reservas.html: codigo alternativo y textos');
   ok('y ya no dice que la sesion dura un mes', SRC.indexOf('sesión dura ~1 mes') < 0);
 })();
 
+/* ══════════ v77: ENLACE DE ACCESO (un toque) ══════════ */
+
+/* ── buildAccesoMsg(ph, nm, link) ── */
+console.log('notas-equipo-reservas.html: buildAccesoMsg (v77)');
+(function () {
+  var msg = fn('buildAccesoMsg');
+  var LINK = 'https://www.3villas.com/intranet/checkin-pasos.html?reserva=54614278&acceso=abc.def.ghi';
+
+  var es = msg('+34 600 11 22 33', 'Ana', LINK);
+  ok('ES: saluda por el nombre', es.indexOf('Hola Ana,') === 0);
+  ok('ES: lleva el enlace entero', es.indexOf(LINK) > 0);
+  ok('ES: dice que no hace falta código', es.indexOf('sin código') > 0);
+  ok('ES: dice cualquier dispositivo y 3 días después de la salida',
+    es.indexOf('cualquier dispositivo') > 0 && es.indexOf('3 días después de su salida') > 0);
+  ok('ES: no menciona ningún código de acceso', es.indexOf('Su código') < 0);
+  ok('ES: firma 3VILLAS', /3VILLAS$/.test(es));
+
+  var en = msg('+44 7700 900123', 'John', LINK);
+  ok('EN por defecto para un prefijo que no es 34/33/39', en.indexOf('Hello John,') === 0);
+  ok('EN: lleva el enlace y dice que no hace falta código',
+    en.indexOf(LINK) > 0 && en.indexOf('no code needed') > 0);
+
+  var fr = msg('+33 6 12 34 56 78', 'Marie', LINK);
+  ok('FR por el prefijo 33', fr.indexOf('Bonjour Marie,') === 0);
+  ok('FR: lleva el enlace y dice sans code', fr.indexOf(LINK) > 0 && fr.indexOf('sans code') > 0);
+
+  var it = msg('+39 320 1234567', 'Luca', LINK);
+  ok('IT por el prefijo 39', it.indexOf('Buongiorno Luca,') === 0);
+  ok('IT: lleva el enlace y dice senza codice', it.indexOf(LINK) > 0 && it.indexOf('senza codice') > 0);
+
+  ok('el prefijo sin + ni espacios tambien se reconoce',
+    msg('34 600 11 22 33', 'Ana', LINK).indexOf('Hola') === 0 &&
+    msg('+34-600-112-233', 'Ana', LINK).indexOf('Hola') === 0);
+  ok('el prefijo escrito 0034 cuenta como Espana',
+    msg('0034600112233', 'Ana', LINK).indexOf('Hola') === 0);
+  ok('0033 cuenta como Francia y 0039 como Italia',
+    msg('0033612345678', 'Ana', LINK).indexOf('Bonjour') === 0 &&
+    msg('0039320123456', 'Ana', LINK).indexOf('Buongiorno') === 0);
+  ok('sin nombre: saluda "Hola," sin espacio ni coma suelta', msg('+34600112233', '', LINK).indexOf('Hola,') === 0);
+  ok('sin nombre en ingles: "Hello,"', msg('+44700000000', '', LINK).indexOf('Hello,') === 0);
+  ok('sin telefono: ingles', msg('', 'Ana', LINK).indexOf('Hello') === 0);
+  ok('sin nombre no rompe y no deja "undefined"', msg('+34600112233', '', LINK).indexOf('undefined') < 0);
+  ok('sin enlace no deja "undefined"', msg('+34600112233', 'Ana', '').indexOf('undefined') < 0);
+
+  /* texto plano: se pega en WhatsApp, no admite simbolos de formato */
+  [es, en, fr, it].forEach(function (m, i) {
+    var idioma = ['ES', 'EN', 'FR', 'IT'][i];
+    ok(idioma + ': sin asteriscos ni guiones bajos de formato', m.indexOf('*') < 0 && m.indexOf('_') < 0);
+    ok(idioma + ': ninguna linea empieza por viñeta (-, *, >)',
+      m.split('\n').every(function (l) { return !/^\s*[-*>]/.test(l); }));
+    ok(idioma + ': saltos de linea de verdad, no "\\n" escrito', m.indexOf('\n') > 0 && m.indexOf('\\n') < 0);
+    ok(idioma + ': el enlace va en su propia linea, desnudo',
+      m.split('\n').indexOf(LINK) > 0 && m.indexOf('](') < 0 && m.indexOf('<' + LINK) < 0);
+  });
+})();
+
+/* ── el cableado del enlace de acceso ── */
+console.log('notas-equipo-reservas.html: boton Enviar acceso y bloque del enlace (v77)');
+(function () {
+  ok('el boton esta en la fila CHECKIN ONLINE, justo detras del boton Login',
+    /id="btnEnviarAcceso" onclick="enviarAcceso\(\)"/.test(SRC) &&
+    SRC.indexOf('id="btnEnviarAcceso"') > SRC.indexOf("togCiSection('colLogin')") &&
+    SRC.indexOf('id="btnEnviarAcceso"') < SRC.indexOf('<div class="ci-bar">'));
+  ok('texto y titulo del boton',
+    SRC.indexOf('🔗 Enviar acceso') > 0 &&
+    SRC.indexOf('title="Copia un mensaje con el enlace de acceso del huésped (sin código)"') > 0);
+  ok('es verde, como el bloque del codigo',
+    /id="btnEnviarAcceso"[^>]*background:#ecfdf5;color:#047857;border:1\.5px solid #047857/.test(SRC));
+
+  ok('el bloque del enlace va DENTRO de la tarjeta verde y ENCIMA de Generar codigo',
+    SRC.indexOf('id="btnAccesoBloque"') > SRC.indexOf('🔑 Código para el huésped') &&
+    SRC.indexOf('id="btnAccesoBloque"') < SRC.indexOf('id="btnCodigoHuesped"'));
+  ok('boton Crear enlace', /id="btnAccesoBloque" onclick="enviarAcceso\(\)"/.test(SRC) && SRC.indexOf('🔗 Crear enlace') > 0);
+  ok('linea que explica el enlace',
+    SRC.indexOf('el huésped entra directo en cualquier dispositivo hasta 3 días después del checkout.') > 0);
+  ok('area de resultado oculta al cargar', /id="accesoRes" style="display:none/.test(SRC));
+  ok('el enlace sale en monoespaciada y parte las lineas largas',
+    /id="accesoLink" style="font-family:'Courier New',monospace;[^"]*word-break:break-all/.test(SRC));
+  ok('los dos botones de copiar',
+    SRC.indexOf('onclick="copiarAcceso()"') > 0 && SRC.indexOf('onclick="copiarMsgAcceso()"') > 0 &&
+    SRC.indexOf('📋 Copiar enlace') > 0 && SRC.indexOf('📋 Copiar mensaje') > 0);
+  ok('linea gris de validez', SRC.indexOf('id="accesoInfo"') > 0 &&
+    SRC.indexOf("'personal · cualquier dispositivo'") > 0 && SRC.indexOf("'Válido hasta '") > 0);
+
+  ok('llama al Worker con la accion del enlace y la sesion del equipo',
+    SRC.indexOf("WORKER+'?action=staff-checkin-link'") > 0 &&
+    /action=staff-checkin-link'[\s\S]{0,200}headers:Object\.assign\(\{'Content-Type':'application\/json'\},Auth\.headers\(\)\)/.test(SRC) &&
+    /action=staff-checkin-link'[\s\S]{0,260}body:JSON\.stringify\(\{bookingCode:confCode\}\)/.test(SRC));
+  ok('sin reserva no llama al Worker', /window\.enviarAcceso=function\(\)\{\s*if\(!confCode\)\{toast/.test(SRC));
+  ok('estado ocupado de los botones mientras crea', SRC.indexOf("b.textContent='Creando…'") > 0);
+  ok('el mensaje de WhatsApp se arma con los campos de la reserva y el enlace',
+    /buildAccesoMsg\(\s*fB\('Guest_phonenumber'\)\|\|fB\('Segundo_Telefono'\),/.test(SRC) &&
+    SRC.split('buildAccesoMsg(').length - 1 === 3 /* definicion + enviarAcceso + copiarMsgAcceso */);
+  ok('enviarAcceso copia el mensaje y avisa',
+    /toast\(_accesoFallback\?'✅ Enlace copiado \(dura 72 h/.test(SRC) && SRC.indexOf("'✅ Enlace copiado, pégalo en WhatsApp'") > 0 && /navigator\.clipboard\.writeText\(msg\)/.test(SRC));
+  ok('si el portapapeles falla, abre la seccion Login SOLO si esta cerrada y avisa',
+    /getComputedStyle\(col\)\.display==='none'\)togCiSection\('colLogin'\)/.test(SRC) &&
+    SRC.indexOf("toast('Enlace listo, pulsa Copiar mensaje','ok')") > 0);
+  ok('el enlace se pinta siempre, tanto si el portapapeles funciona como si no',
+    SRC.indexOf('pintarAcceso(j);') > 0 && SRC.split('pintarAcceso(').length - 1 === 2);
+  ok('el error del Worker se muestra tal cual en un toast',
+    /toast\('❌ '\+\(j\.error\|\|'No se pudo crear el enlace'\),'err'\)/.test(SRC));
+  ok('los botones son window.* (onclick inline)',
+    SRC.indexOf('window.enviarAcceso=function()') > 0 &&
+    SRC.indexOf('window.copiarAcceso=function()') > 0 &&
+    SRC.indexOf('window.copiarMsgAcceso=function()') > 0);
+  ok('?ci=login abre la seccion Login del huesped',
+    /var cm=\{login:'colLogin',arrival:'colArrival'/.test(SRC));
+})();
+
 /* ── version ── */
 console.log('notas-equipo-reservas.html: version');
 (function () {
-  ok('cabecera v76', /VERSIÓN ACTUAL: v76 \|/.test(SRC));
-  ok('titulo v76', /<title>Notas Equipo Reservas v76 — 3Villas<\/title>/.test(SRC));
-  ok('PAGE_VERSION 76 (la auto-recarga mira este numero)',
-    SRC.indexOf('var PAGE_VERSION = 76;') > 0 && SRC.indexOf('var PAGE_VERSION = 75;') < 0);
-  ok('el historial empieza en v76', /<!-- HISTORIAL: v76 - Caso de Cristian \(10\/09\/2026 19:05/.test(SRC));
-  ok('y conserva la v75 y la v74', / \| v75 - /.test(SRC) && / \| v74 - /.test(SRC));
+  ok('cabecera v77', /VERSIÓN ACTUAL: v77 \|/.test(SRC));
+  ok('titulo v77', /<title>Notas Equipo Reservas v77 — 3Villas<\/title>/.test(SRC));
+  ok('PAGE_VERSION 77 (la auto-recarga mira este numero)',
+    SRC.indexOf('var PAGE_VERSION = 77;') > 0 && SRC.indexOf('var PAGE_VERSION = 76;') < 0);
+  ok('el historial empieza en v77 y nombra el caso', /<!-- HISTORIAL: v77 - Cristian \(11\/09\/2026\)/.test(SRC));
+  ok('y conserva la v76, la v75 y la v74',
+    / \| v76 - /.test(SRC) && / \| v75 - /.test(SRC) && / \| v74 - /.test(SRC));
+})();
+
+
+/* ── revision del checker 11/09/2026: fallback, fecha de caducidad, wrap ── */
+console.log('notas-equipo-reservas.html: fallback + fmtAccesoExpira + wrap');
+(function () {
+  var msgA = fn('buildAccesoMsg');
+  ok('con fallback el mensaje ES dice 72 horas y no promete 3 dias', /72 horas/.test(msgA('+34600112233', 'Ana', 'https://x', true)) && !/3 días/.test(msgA('+34600112233', 'Ana', 'https://x', true)));
+  ok('sin fallback el mensaje ES promete hasta 3 dias despues de su salida', /3 días después de su salida/.test(msgA('+34600112233', 'Ana', 'https://x', false)));
+  ok('con fallback el mensaje EN dice 72 hours', /72 hours/.test(msgA('+44700000000', 'Ann', 'https://x', true)));
+  ok('con fallback FR e IT tambien cambian', /72 heures/.test(msgA('+33612345678', 'Luc', 'https://x', true)) && /72 ore/.test(msgA('+39333000000', 'Gio', 'https://x', true)));
+  var fmt = fn('fmtAccesoExpira');
+  ok('fmtAccesoExpira: exp 2026-10-11T00:00:00Z (checkout 07/10 + 3 dias) muestra el ultimo dia valido 10/10/2026', fmt(Date.UTC(2026, 9, 11) / 1000) === '10/10/2026', fmt(Date.UTC(2026, 9, 11) / 1000));
+  ok('fmtAccesoExpira: vacio sin numero', fmt('') === '' && fmt(0) === '');
+  ok('la fila CHECKIN ONLINE hace wrap en movil', SRC.indexOf('display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;padding:12px 16px;') > 0);
+  ok('enviarAcceso pasa el flag fallback al mensaje y a la linea gris', /_accesoLinkVal, _accesoFallback\);/.test(SRC) && SRC.indexOf("j&&j.fallback?'Válido 72 horas") > 0);
+  ok('la tarjeta sigue explicando que el codigo vale una vez', SRC.indexOf('El código vale una vez y no se anula aunque el huésped vuelva a pulsar «enviar código».') > 0);
 })();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');

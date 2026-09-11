@@ -2,6 +2,8 @@
    el final de la reserva (Checkout + 3 dias + 1, a medianoche local) en vez de
    30 dias fijos. Pregunta de Jordi (03/09/2026 22:14: "la sesion puede durar
    hasta la fecha de checkout?") y caso de Cristian (10/09/2026 19:05).
+   v23: entrada por enlace de acceso (?acceso=TOKEN) creado por el equipo en
+   notas-equipo-reservas v77, tras el segundo aviso de Cristian (11/09/2026).
    node checkin-sesion.test.js
 
    Como cobros-devolucion-fianza.test.js: NO copia el codigo del fichero. Extrae
@@ -90,9 +92,10 @@ console.log('checkin-auth.js: _sessionExpiry');
 /* ── el resto del cableado de la v22 (texto real del fichero) ── */
 console.log('checkin-auth.js: v22');
 (function () {
-  ok('cabecera v22', /checkin-auth\.js v22 — Autenticaci/.test(SRC) && /CAMBIOS v22 \(sobre v21\):/.test(SRC));
-  ok('el historial empieza en v22 y conserva la v21',
-    /\/\* HISTORIAL: v22 - /.test(SRC) && / \| v21 - /.test(SRC));
+  ok('cabecera v23', /checkin-auth\.js v23 — Autenticaci/.test(SRC) && /CAMBIOS v23 \(sobre v22\):/.test(SRC));
+  ok('y conserva los cambios de la v22', /CAMBIOS v22 \(sobre v21\):/.test(SRC));
+  ok('el historial empieza en v23 y conserva la v22 y la v21',
+    /\/\* HISTORIAL: v23 - /.test(SRC) && / \| v22 - /.test(SRC) && / \| v21 - /.test(SRC));
 
   ok('setSession recibe el booking', /function setSession\(code, pin, email, token, booking\)\{/.test(SRC));
   ok('y calcula la caducidad con _sessionExpiry', /expires: _sessionExpiry\(booking \|\| null, Date\.now\(\)\)/.test(SRC));
@@ -124,8 +127,8 @@ console.log('checkin-auth.js: v22');
     /function _haveCodeUI\(on\)\{[\s\S]*?'title_email' : 'title_pin'[\s\S]*?\.ca-contact'\)[\s\S]*?on \? 'none' : ''/.test(SRC));
   ok('back() restaura el paso PIN al salir del modo "ya tengo un codigo"',
     /_haveCodeBtn\(true\);[\s\S]{0,80}if\(_haveCodeMode\)\{ _haveCodeMode = false; _haveCodeUI\(false\); \}/.test(SRC));
-  ok('se monta tras un login correcto y tras restaurar una sesion (3 sitios)',
-    SRC.split('_mountLogout();').length - 1 === 3);
+  ok('se monta tras un login correcto, tras restaurar una sesion y tras un enlace de acceso (4 sitios)',
+    SRC.split('_mountLogout();').length - 1 === 4);
   ok('la API publica expone _haveCode y logout',
     /_haveCode: \(\) => _haveCode\(\),/.test(SRC) && /logout:    \(\) => logout\(\),/.test(SRC));
 
@@ -141,18 +144,102 @@ console.log('checkin-auth.js: v22');
     SRC.indexOf("have_code:'Ich habe bereits einen Code'") > 0);
 })();
 
-/* ── checkin-pasos.html v97: carga la version nueva del js ── */
-console.log('checkin-pasos.html: v97');
+/* ══════════ v23: ENLACE DE ACCESO (?acceso=TOKEN) ══════════ */
+console.log('checkin-auth.js: enlace de acceso (v23)');
+(function () {
+  /* _accessParam lee el parametro de la URL: se ejecuta de verdad con un
+     location de mentira, igual que las funciones puras de arriba. */
+  function conUrl(qs) {
+    return new Function('location', 'URLSearchParams',
+      fnSource(F, '_accessParam') + '\nreturn _accessParam();')(
+      { search: qs }, URLSearchParams);
+  }
+  ok('lee ?acceso=', conUrl('?reserva=54614278&acceso=abc.def') === 'abc.def');
+  ok('sin el parametro devuelve cadena vacia', conUrl('?reserva=54614278') === '');
+  ok('sin query devuelve cadena vacia', conUrl('') === '');
+
+  var BOOT = fnSource(F, '_bootFromAccessLink');
+  ok('valida el token con la accion de siempre, no con una nueva',
+    /wPost\('verify-checkin-code', \{ bookingCode:code, token \}\)/.test(BOOT) &&
+    BOOT.indexOf('pin') < 0);
+  ok('abre la sesion con los 5 argumentos (el booking fija la caducidad, v22)',
+    /setSession\(code, '', '', j\.checkinToken \|\| '', j\.booking\)/.test(BOOT));
+  ok('guarda el booking en la cache, como verify()', BOOT.indexOf("sessionStorage.setItem('3v_booking_cache'") > 0);
+  ok('quita el token de la barra de direcciones valga o no el enlace',
+    BOOT.split('_stripAccessParam()').length - 1 === 2);
+  ok('comprueba el bloqueo por reserva finalizada antes de entrar',
+    /_isExpired\(j\.booking, ''\)\)\{ showExpired\(\); return true; \}/.test(BOOT));
+  ok('monta el boton Salir y llama al callback', /_mountLogout\(\);\s*if\(_cb\) _cb\(j\.booking\);/.test(BOOT));
+  ok('devuelve true si entra y false si el enlace no vale',
+    /return true;\s*\}catch\(e\)\{[\s\S]*?return false;/.test(BOOT));
+
+  var STRIP = fnSource(F, '_stripAccessParam');
+  ok('_stripAccessParam usa history.replaceState y no recarga',
+    /searchParams\.delete\('acceso'\)/.test(STRIP) && /history\.replaceState\(null, '',/.test(STRIP) &&
+    STRIP.indexOf('location.reload') < 0);
+
+  var INIT = SRC.slice(SRC.indexOf('    init(opts){'), SRC.indexOf('    _send:   () => send(),'));
+  ok('init() mira el enlace de acceso en las dos rutas de huesped (principal e hijas)',
+    INIT.split('_accessParam()').length - 1 === 2 &&
+    INIT.split('_bootFromAccessLink(_code, _acc)').length - 1 === 2);
+  ok('y solo en modo huesped: la rama de admin va antes y sale con return',
+    INIT.indexOf('_accessParam()') > INIT.indexOf('/* ── MODO HUÉSPED ── */'));
+  ok('si el enlace no vale, sigue el flujo de siempre',
+    INIT.split('if(!ok){ if(!sess) _linkExpiredNotice(); goNormal(); }').length - 1 === 2);
+  ok('una sesion guardada valida NO se pierde por un enlace caducado (no se borra ni se avisa)',
+    /if\(!ok\)\{ if\(!sess\) _linkExpiredNotice\(\); goNormal\(\); \}/.test(INIT) &&
+    INIT.indexOf('if(!ok){ localStorage.removeItem') < 0);
+  ok('el arranque espera al DOM, como el resto de rutas',
+    INIT.split("document.addEventListener('DOMContentLoaded', go)").length - 1 === 4);
+
+  ok('el aviso link_expired se pinta bajo el subtitulo del paso del email',
+    SRC.indexOf("[['caEmailSub','caLinkExp'],['caPinSub','caLinkExp2']]") > 0 && /function _linkExpiredNotice\(\)\{[\s\S]*?insertAdjacentHTML\('afterend'/.test(SRC));
+  ok('y se repinta cuando el overlay se monta despues (inject)',
+    /if\(_linkFailed\) _linkExpiredNotice\(\);/.test(SRC));
+
+  var idiomas = ['en', 'es', 'fr', 'de', 'it', 'nl', 'pt', 'ca'];
+  ok('link_expired en los 8 idiomas', SRC.split('link_expired:').length - 1 === idiomas.length);
+  ok('los textos de en/es son los acordados',
+    SRC.indexOf("link_expired:'This access link is no longer valid. Request a code with your e-mail.'") > 0 &&
+    SRC.indexOf("link_expired:'Este enlace de acceso ya no es v\\u00e1lido. Pide un c\\u00f3digo con tu email.'") > 0);
+})();
+
+/* ── checkin-pasos.html v98 y checkin-premium.html v27: cargan la version nueva del js ── */
+console.log('checkin-pasos.html: v98');
 (function () {
   var P = fs.readFileSync('checkin-pasos.html', 'utf8');
-  ok('carga checkin-auth.js?v=22', P.indexOf('<script src="checkin-auth.js?v=22"></script>') > 0);
+  ok('carga checkin-auth.js?v=23', P.indexOf('<script src="checkin-auth.js?v=23"></script>') > 0);
   ok('sin la carga antigua sin version', P.indexOf('<script src="checkin-auth.js"></script>') < 0);
-  ok('cabecera v97', /VERSIÓN ACTUAL: v97 \|/.test(P));
-  ok('titulo v97', /<title>Check-in Pasos v97 — 3Villas<\/title>/.test(P));
-  ok('PAGE_VERSION 97 (la auto-deteccion mira este numero)',
-    P.indexOf('var PAGE_VERSION = 97;') > 0 && P.indexOf('var PAGE_VERSION = 96;') < 0);
-  ok('el historial empieza en v97 y conserva la v96',
-    /<!-- HISTORIAL: v97 - /.test(P) && / \| v96 - /.test(P));
+  ok('sin la carga de la v22 (fuera del historial)',
+    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=22') < 0);
+  ok('cabecera v98', /VERSIÓN ACTUAL: v98 \|/.test(P));
+  ok('titulo v98', /<title>Check-in Pasos v98 — 3Villas<\/title>/.test(P));
+  ok('PAGE_VERSION 98 (la auto-deteccion mira este numero)',
+    P.indexOf('var PAGE_VERSION = 98;') > 0 && P.indexOf('var PAGE_VERSION = 97;') < 0);
+  ok('el historial empieza en v98 y conserva la v97 y la v96',
+    /<!-- HISTORIAL: v98 - /.test(P) && / \| v97 - /.test(P) && / \| v96 - /.test(P));
+})();
+
+console.log('checkin-premium.html: v27');
+(function () {
+  var P = fs.readFileSync('checkin-premium.html', 'utf8');
+  ok('carga checkin-auth.js?v=23', P.indexOf('<script src="checkin-auth.js?v=23"></script>') > 0);
+  ok('sin la carga de la v22 (fuera del historial)',
+    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=22') < 0);
+  ok('cabecera v27', /VERSIÓN ACTUAL: v27 \|/.test(P));
+  ok('titulo v27', /<title>Checkin Premium v27 — 3Villas<\/title>/.test(P));
+  ok('el historial empieza en v27 y conserva la v26',
+    /<!-- HISTORIAL: v27 - /.test(P) && / \| v26 - /.test(P));
+})();
+
+
+/* ── revision del checker 11/09/2026 ── */
+console.log('checkin-auth.js: revision v23');
+(function () {
+  ok('_bootFromAccessLink comprueba la reserva finalizada ANTES de guardar la sesion', /async function _bootFromAccessLink\([\s\S]*?_isExpired\(j\.booking, ''\)[\s\S]*?setSession\(code, '', '', j\.checkinToken/.test(SRC));
+  ok('el catch marca _linkFailed', /async function _bootFromAccessLink\([\s\S]*?catch\(e\)\{[\s\S]*?_linkFailed = true;/.test(SRC));
+  ok('el aviso sale bajo el paso Email y bajo el paso PIN', SRC.indexOf("[['caEmailSub','caLinkExp'],['caPinSub','caLinkExp2']]") > 0);
+  ok('el modo admin quita ?acceso= de la URL', /if\(isAdmin\(\)\)\{\s*_stripAccessParam\(\);/.test(SRC));
 })();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
