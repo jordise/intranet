@@ -33,8 +33,8 @@ console.log('checkin-pasos.html');
   var f = 'checkin-pasos.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Check-in Pasos v(\d+)/);
-  ok('v98 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '98' && hv[1] === '98' && tv[1] === '98', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v98', /<!-- HISTORIAL: v98 - /.test(s));
+  ok('v99 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '99' && hv[1] === '99' && tv[1] === '99', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v99', /<!-- HISTORIAL: v99 - /.test(s));
   /* LANG_ARR real de la pagina */
   var la = s.indexOf('var LANG_ARR={};'), ca = s.indexOf('LANG_ARR.ca={', la), caEnd = s.indexOf('\n};', ca) + 3;
   var ctx = {}; vm.runInNewContext(s.slice(la, caEnd), ctx);
