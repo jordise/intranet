@@ -80,7 +80,7 @@ const MIA_ALLOWED_ROLES=['admin','manager','staff','sales'];
 const MIA_PAY_ROLES=['admin','manager'];
 const MIA_DEBUG = false;               // true solo para depurar en local
 
-const PROXY          = 'https://caspio-proxy.jordi-89b.workers.dev';
+const PROXY          = 'https://www.3villas.com/intranet/api';
 const VIEW_BOOKINGS  = 'Vi_villas_and_bookings2021';
 const VIEW_PAYMENTS  = 'Vi_bookingsall_and_paymen_editb';
 /* 22 s: tiene que ser mayor que el peor caso del Worker (5 s de comprobación

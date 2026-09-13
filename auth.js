@@ -41,7 +41,7 @@ const Auth = (function () {
     }
   })();
 
-  const WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+  const WORKER = 'https://www.3villas.com/intranet/api';
   const LOGIN  = '/intranet/login.html';
 
   // Claves de almacenamiento

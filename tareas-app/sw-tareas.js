@@ -1,11 +1,11 @@
-/* sw-tareas.js v02 — Service Worker de la app independiente "Tareas 3V"
+/* sw-tareas.js v03 — Service Worker de la app independiente "Tareas 3V"
    Scope: /intranet/tareas-app/
    Su única finalidad es hacer la app instalable (Chrome exige un SW que controle
    la página) y dar caché de respaldo offline. Estrategia network-first: siempre
    intenta red primero y solo cae a caché si no hay conexión, para no servir
    versiones viejas. No intercepta llamadas a Caspio ni al Worker. */
 
-const CACHE = 'tareas3v-v02';
+const CACHE = 'tareas3v-v03';
 const PRECACHE = [
   '/intranet/tareas-app/tareas-app.html',
   '/intranet/tareas-app/manifest-tareas.json',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
   // No interceptar llamadas al Worker de Caspio ni a Caspio directamente
-  if (url.hostname.includes('workers.dev') || url.hostname.includes('caspio.com')) {
+  if (url.pathname.startsWith('/intranet/api') || url.hostname.includes('workers.dev') || url.hostname.includes('caspio.com')) {
     return;
   }
 
@@ -59,4 +59,4 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// HISTORIAL: v02 - Fix "Failed to convert value to Response": el fetch handler solo gestiona GET del mismo origen; cuando la red falla y no hay caché, devuelve una Response 504 válida en vez de undefined (que rompía respondWith y causaba network error al cargar la página). CACHE bump a tareas3v-v02 para reemplazar el SW viejo cacheado. | v01 - SW inicial de la app Tareas 3V. Scope /intranet/tareas-app/, network-first, precache de la página y assets de la app, no intercepta Caspio/Worker.
+// HISTORIAL: v03 - no intercepta ni cachea /intranet/api (la API pasa por el mismo dominio desde el 13/09/2026); CACHE bump a tareas3v-v03 | v02 - Fix "Failed to convert value to Response": el fetch handler solo gestiona GET del mismo origen; cuando la red falla y no hay caché, devuelve una Response 504 válida en vez de undefined (que rompía respondWith y causaba network error al cargar la página). CACHE bump a tareas3v-v02 para reemplazar el SW viejo cacheado. | v01 - SW inicial de la app Tareas 3V. Scope /intranet/tareas-app/, network-first, precache de la página y assets de la app, no intercepta Caspio/Worker.

@@ -1,11 +1,13 @@
 // ============================================================
-//  sw.js — Service Worker  3Villas  v6
+//  sw.js — Service Worker  3Villas  v7
+//  v7: no intercepta /intranet/api (la API ahora se sirve en el mismo
+//      dominio; sus respuestas nunca se cachean)
 //  v6: activate limpia también cachés de scopes antiguos
 //      (/3villas-manuals/, 3villas-v1 a v4) para móviles
 //      que tenían el SW viejo instalado antes de la migración
 // ============================================================
 
-const CACHE = '3villas-v6';
+const CACHE = '3villas-v7';
 
 const PRECACHE = [
   '/intranet/entradas.html',
@@ -47,8 +49,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // No interceptar llamadas al worker de Caspio ni a Caspio directamente
-  if (url.hostname.includes('workers.dev') || url.hostname.includes('caspio.com')) {
+  // No interceptar llamadas a la API (mismo dominio, /intranet/api), al worker de Caspio ni a Caspio directamente
+  if (url.pathname.startsWith('/intranet/api') || url.hostname.includes('workers.dev') || url.hostname.includes('caspio.com')) {
     return;
   }
 
@@ -65,4 +67,4 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// HISTORIAL: v6 - activate borra todos los cachés antiguos incluyendo /3villas-manuals/; CACHE bump a 3villas-v6 fuerza reinstalación en móviles con SW viejo | v5 - versión anterior
+// HISTORIAL: v7 - la API pasa por www.3villas.com/intranet/api (bloqueos de LaLiga a IPs de Cloudflare, 13/09/2026); el SW no la intercepta ni la cachea; CACHE bump a 3villas-v7 | v6 - activate borra todos los cachés antiguos incluyendo /3villas-manuals/; CACHE bump a 3villas-v6 fuerza reinstalación en móviles con SW viejo | v5 - versión anterior

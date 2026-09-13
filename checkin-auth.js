@@ -90,7 +90,7 @@
 
 const CheckinAuth = (function(){
 
-  const WORKER      = 'https://caspio-proxy.jordi-89b.workers.dev';
+  const WORKER      = 'https://www.3villas.com/intranet/api';
   const SESSION_KEY = '3v_checkin_auth';
   const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // v22: RESPALDO (30 días). La sesión
                                                  // normal caduca en Checkout + EXPIRE_DAYS

@@ -3,7 +3,7 @@
 // ================================================================
 // VERSIÓN ACTUAL: v11 | Historial completo al final de este archivo
 
-var _NAV_WORKER = 'https://caspio-proxy.jordi-89b.workers.dev';
+var _NAV_WORKER = 'https://www.3villas.com/intranet/api';
 
 var _itemEquipo = {
   label: 'Equipo',
