@@ -155,10 +155,12 @@ console.log('cobros-inquilinos.html: avisoMarcasFila (aviso por email)');
   ok('sin usuario: equipo', a(true, ['[x]'], 'RES1', 'V', 'cobros-inquilinos v33', '').Usuario === 'equipo');
   ok('la funcion es la copia literal de notas-equipo-reservas',
     fnSource(F, 'avisoMarcasFila') === fnSource('notas-equipo-reservas.html', 'avisoMarcasFila'));
-  ok('la pagina llama al aviso con cobros-inquilinos v33', SRC.indexOf("'cobros-inquilinos v33'") > 0);
+  /* v35: la etiqueta de pagina del aviso sube con la version */
+  ok('la pagina llama al aviso con cobros-inquilinos v35', SRC.indexOf("'cobros-inquilinos v35'") > 0 && SRC.indexOf("'cobros-inquilinos v33'") < 0);
   ok('el aviso va a TaAvisos_marcas_manuales', SRC.indexOf('action=create&table=TaAvisos_marcas_manuales') > 0);
-  ok('el interruptor se lee una sola vez (la lectura de la v31, sin una segunda peticion)',
-    SRC.split('action=data&table=TaConfig_intranet').length - 1 === 1);
+  /* v35: la segunda lectura de TaConfig_intranet es la de los datos del ordenante (claves n34_*), no otra del interruptor */
+  ok('el interruptor se lee una sola vez (la lectura de la v31) y los datos del ordenante otra (v35)',
+    SRC.split('action=data&table=TaConfig_intranet').length - 1 === 2 && SRC.split("Clave='aviso_marcas_email'").length - 1 === 2);
 })();
 
 /* ── puedeDesmarcarDevolucion(): solo administracion ── */
@@ -189,8 +191,9 @@ console.log('cobros-inquilinos.html: filtro, contador y guardado');
   ok('el valor 2 filtra por el paso 1 sin devolver',
     SRC.indexOf("else if(_devFilter === '2') clauses.push(`TaBookings2021_Security_deposit_devolver_firmar=1 AND (TaBookings2021_Security_deposit_devuelto=0 OR TaBookings2021_Security_deposit_devuelto IS NULL)`)") > 0);
   ok('contador nuevo statFirmar en la barra de totales', SRC.indexOf('id="statFirmar"') > 0);
+  /* v35: la unica casilla de la pagina es la de la columna Fichero (toggleN34), no la de la v1 */
   ok('la casilla unica de la v1 ya no existe (solo queda nombrada en el historial)',
-    SRC.indexOf('function saveDevuelto') < 0 && SRC.indexOf('onchange="saveDevuelto') < 0 && SRC.indexOf('type="checkbox"') < 0);
+    SRC.indexOf('function saveDevuelto') < 0 && SRC.indexOf('onchange="saveDevuelto') < 0 && SRC.split('type="checkbox"').length - 1 === 1 && SRC.indexOf('onchange="toggleN34(') > 0);
   ok('el guardado es un solo PUT a TaBookings2021',
     SRC.indexOf('?action=save&table=TaBookings2021&method=PUT&where=${encodeURIComponent(where)}') > 0);
   ok('el rastro se lee de la tabla, no de la vista',
@@ -201,7 +204,8 @@ console.log('cobros-inquilinos.html: filtro, contador y guardado');
     SRC.indexOf('const marcas = await leerMarcasUna(code);') < SRC.indexOf('body.Marcas_manuales = marcasConLinea(marcas, linea, 3800);'));
   ok('si no se puede leer el historial no se escribe nada y se avisa',
     SRC.indexOf("alert('No se ha podido leer el historial de marcas. Inténtalo de nuevo.');") > 0 &&
-    SRC.indexOf('if(marcas === null){') < SRC.indexOf('const url   = Auth.url(`${WORKER}?action=save'));
+    /* v35: anotarFicheroN34 usa el mismo PUT antes en el fichero; se mira el de guardarDevolucion */
+    SRC.indexOf('if(marcas === null){') < SRC.indexOf('const url   = Auth.url(`${WORKER}?action=save', SRC.indexOf('if(marcas === null){')));
   ok('la marca siempre lleva su linea (no hay guardado sin Marcas_manuales)',
     SRC.indexOf('body.Marcas_manuales = marcasConLinea(marcas, linea, 3800);') > 0);
   ok('los flags se escriben como 1 y 0, no como booleanos',
@@ -313,15 +317,15 @@ console.log('cobros-inquilinos.html: preset Devoluciones pendientes');
     SRC.indexOf('sortBy(\'checkout\')') > 0 && SRC.indexOf('id="si-checkout"') > 0 &&
     SRC.indexOf("['date','devuelto','villa','checkin','checkout'].forEach") > 0 &&
     SRC.indexOf('${esc(checkout)}') > 0);
-  ok('la fila de agrupacion cuenta la columna nueva', SRC.indexOf('colspan="20"') > 0 && SRC.indexOf('colspan="19"') < 0);
+  ok('la fila de agrupacion cuenta la columna nueva (v34 checkout y v35 fichero)', SRC.indexOf('colspan="21"') > 0 && SRC.indexOf('colspan="20"') < 0 && SRC.indexOf('colspan="19"') < 0);
 })();
 
 /* ── version ── */
 console.log('cobros-inquilinos.html: version');
 (function () {
-  ok('cabecera v34', /VERSIÓN ACTUAL: v34 \|/.test(SRC));
-  ok('titulo v34', /<title>Control Cobros Inquilinos v34 — 3Villas<\/title>/.test(SRC));
-  ok('el historial empieza en v34', /<!-- HISTORIAL: v34 - Toni Segui \(10\/09\/2026 18:43, WhatsApp\)/.test(SRC));
+  ok('cabecera v35', /VERSIÓN ACTUAL: v35 \|/.test(SRC));
+  ok('titulo v35', /<title>Control Cobros Inquilinos v35 — 3Villas<\/title>/.test(SRC));
+  ok('el historial empieza en v35 y conserva la entrada v34', /<!-- HISTORIAL: v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
   ok('y conserva la v33 y la v32', / \| v33 - /.test(SRC) && / \| v32 - /.test(SRC));
 })();
 
