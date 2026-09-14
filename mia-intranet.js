@@ -32,6 +32,16 @@
 //  Se carga con una sola línea al final de nav-component.js.
 //  Quitar esa línea desactiva Mia en toda la intranet.
 //
+//  HISTORIAL · 2026-09-14 — el botón "Abrir notas" solo se pinta para
+//  admin, manager y staff (MIA_NOTES_ROLES, copia de auth.js:110). Ese
+//  botón abre notas-equipo-reservas.html, que enseña el bloque fiscal del
+//  huésped. Mia se carga en tareas.html, que está en el menú del rol
+//  cleaner, así que hasta hoy un limpiador podía llegar a esa ficha desde
+//  su propia página de tareas. Se tapan los CUATRO sitios que llevan a esa
+//  ficha: el botón de renderState y, dentro de doNotes, el enlace de
+//  compartir, el botón y los enlaces de la lista de resultados. Nada más
+//  de Mia se toca.
+//
 //  HISTORIAL · 2026-09-07 — revisión funcional contra los registros
 //  (nodo mia-functional-review-2026-09-07). Son CORRECCIONES, no
 //  funciones nuevas: ninguna lleva bandera en FEAT.
@@ -78,6 +88,12 @@ const MIA_ALLOWED_ROLES=['admin','manager','staff','sales'];
    Si cambia allí, cambia aquí. Quien no está en la lista recibe la ficha sin
    pagos y sin ninguna mención a los pagos. */
 const MIA_PAY_ROLES=['admin','manager'];
+/* Quién ve el botón "Abrir notas". Copia exacta de auth.js:110
+   'notas-equipo-reservas': ['admin','manager','staff'] — la página que ese
+   botón abre, y que enseña el bloque fiscal del huésped (nombre, DNI o
+   pasaporte, dirección). Si cambia allí, cambia aquí. A quien no está en la
+   lista no se le pinta el botón, en vez de llevarle a un "Acceso denegado". */
+const MIA_NOTES_ROLES=['admin','manager','staff'];
 const MIA_DEBUG = false;               // true solo para depurar en local
 
 const PROXY          = 'https://www.3villas.com/intranet/api';
@@ -455,6 +471,7 @@ function myRole(){
   catch(e){ return ''; }
 }
 function canSeePayments(){ return MIA_PAY_ROLES.indexOf(myRole())>=0; }
+function canSeeNotes(){ return MIA_NOTES_ROLES.indexOf(myRole())>=0; }
 function hasSession(){
   try{
     if(typeof Auth==='undefined'||!Auth||!Auth.token)return false;
@@ -1844,7 +1861,7 @@ async function renderState(r,ctx,req){
   /* Botones */
   const btns=E('div','mia-btns');
   btns.appendChild(btn(T.openEnt,link('entradas',entradasParamsFor(r)),true));
-  if(code)btns.appendChild(btn(T.openNotes,link('notas',{TaBookings2021_FS_confirmation_code:code})));
+  if(code&&canSeeNotes())btns.appendChild(btn(T.openNotes,link('notas',{TaBookings2021_FS_confirmation_code:code})));
   const vid=String(g(r,'villaId')||'').trim();
   if(isId(vid))btns.appendChild(btn(T.openVilla,link('villa',{villa_id:vid})));
   body.appendChild(btns);
@@ -2316,7 +2333,7 @@ async function doNotes(n,extraNo,req){
   if(guest)chips.guest=guest;
   /* J3: con código, el enlace de notas; sin él, el de Entradas con el nombre
      que se escribió. Los de la lista salen de filas leídas y no se comparten. */
-  ST.shareHref=code?link('notas',{TaBookings2021_FS_confirmation_code:code})
+  ST.shareHref=(code&&canSeeNotes())?link('notas',{TaBookings2021_FS_confirmation_code:code})
                    :(guest?link('entradas',bookingsPlan({guest:guest}).params):'');
   ST.shareChips=chipTexts(chips);
   const again=function(){ doNotes(n,extraNo,req); };
@@ -2330,7 +2347,7 @@ async function doNotes(n,extraNo,req){
     const naC=noApplyBlock(extraNo);
     if(naC)box.appendChild(naC);
     const btns=E('div','mia-btns');
-    btns.appendChild(btn(T.openNotes,link('notas',{TaBookings2021_FS_confirmation_code:code}),true));
+    if(canSeeNotes())btns.appendChild(btn(T.openNotes,link('notas',{TaBookings2021_FS_confirmation_code:code}),true));
     box.appendChild(btns);
     say(box,req);
     return;
@@ -2363,7 +2380,7 @@ async function doNotes(n,extraNo,req){
   box.appendChild(note(T.many));
   box.appendChild(resultList(rows,T.notes,function(r){
     const c=String(g(r,'confirmCode')||'').trim();
-    return c?link('notas',{TaBookings2021_FS_confirmation_code:c}):'';
+    return (c&&canSeeNotes())?link('notas',{TaBookings2021_FS_confirmation_code:c}):'';
   },req));
   if(more)moreBlock(box,bookingsPlan({guest:guest}),{guest:guest});
   const naL=noApplyBlock(extraNo);
