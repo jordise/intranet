@@ -112,8 +112,9 @@ console.log('\nnotas-equipo-reservas.html');
   var f = 'notas-equipo-reservas.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Notas Equipo Reservas v(\d+)/);
-  ok('v77 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '77' && hv[1] === '77' && tv[1] === '77', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v77', /<!-- HISTORIAL: v77 - /.test(s));
+  ok('v78 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '78' && hv[1] === '78' && tv[1] === '78', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v78', /<!-- HISTORIAL: v78 - /.test(s));
+  ok('y conserva la v77', /\| v77 - /.test(s));
   var c = { bookingData: null, villaData: null, confCode: 'ABC', Auth: { name: function () { return 'VM'; } } };
   vm.runInNewContext(fnSource(f, 'fB') + '\n' + fnSource(f, 'fV') + '\n' + block(s, f) + '\n' + fnSource(f, 'buildC2DMsg') +
     '\nthis.place=villaPlace;this.msg=buildC2DMsg;this.setRow=function(r){bookingData=r;villaData=r;};', c);

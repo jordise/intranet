@@ -131,8 +131,14 @@ console.log('\n3. Con lista de filas se comparte el enlace del plan, no el de la
   ok('doBookingsStay comparte link(entradas, plan.params)', /ST\.shareHref=link\('entradas',plan\.params\)/.test(stay));
   ok('ninguna respuesta comparte el enlace de una fila',
     !/ST\.shareHref\s*=\s*[^;\n]*entradasParamsFor/.test(card + stay + notas + fn('doBookingsLink') + fn('doTasks') + fn('doVilla')));
-  ok('doNotes comparte el enlace de notas o el del plan',
-    /ST\.shareHref=code\?link\('notas'/.test(notas) && /link\('entradas',bookingsPlan\(\{guest:guest\}\)\.params\)/.test(notas));
+  /* 14/09/2026: desde que notas-equipo-reservas.html pide su propia clave, el
+     enlace de notas solo se comparte con quien puede abrirlo. La prueba deja de
+     exigir la forma antigua `code?link('notas'` y pasa a exigir la puerta:
+     si alguien la quita, esta prueba falla. */
+  ok('doNotes comparte el enlace de notas solo si el rol puede abrirlo, o el del plan',
+    /ST\.shareHref=\(code&&canSeeNotes\(\)\)\?link\('notas'/.test(notas) && /link\('entradas',bookingsPlan\(\{guest:guest\}\)\.params\)/.test(notas));
+  ok('la lista de resultados de doNotes tambien pasa por la puerta',
+    /\(c&&canSeeNotes\(\)\)\?link\('notas'/.test(notas));
 })();
 
 console.log('\n4. Los siete tipos de respuesta dejan puesto el enlace');
