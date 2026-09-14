@@ -33,8 +33,8 @@ console.log('checkin-pasos.html');
   var f = 'checkin-pasos.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Check-in Pasos v(\d+)/);
-  ok('v99 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '99' && hv[1] === '99' && tv[1] === '99', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v99', /<!-- HISTORIAL: v99 - /.test(s));
+  ok('v100 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '100' && hv[1] === '100' && tv[1] === '100', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v100', /<!-- HISTORIAL: v100 - /.test(s));
   /* LANG_ARR real de la pagina */
   var la = s.indexOf('var LANG_ARR={};'), ca = s.indexOf('LANG_ARR.ca={', la), caEnd = s.indexOf('\n};', ca) + 3;
   var ctx = {}; vm.runInNewContext(s.slice(la, caEnd), ctx);
@@ -112,8 +112,8 @@ console.log('\nnotas-equipo-reservas.html');
   var f = 'notas-equipo-reservas.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Notas Equipo Reservas v(\d+)/);
-  ok('v78 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '78' && hv[1] === '78' && tv[1] === '78', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v78', /<!-- HISTORIAL: v78 - /.test(s));
+  ok('v79 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '79' && hv[1] === '79' && tv[1] === '79', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v79', /<!-- HISTORIAL: v79 - /.test(s));
   ok('y conserva la v77', /\| v77 - /.test(s));
   var c = { bookingData: null, villaData: null, confCode: 'ABC', Auth: { name: function () { return 'VM'; } } };
   vm.runInNewContext(fnSource(f, 'fB') + '\n' + fnSource(f, 'fV') + '\n' + block(s, f) + '\n' + fnSource(f, 'buildC2DMsg') +

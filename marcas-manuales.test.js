@@ -166,9 +166,9 @@ PAGES.forEach(function (P) {
 var rSrc = fs.readFileSync('notas-equipo-reservas.html', 'utf8');
 var rLine3 = rSrc.split('\n')[2];
 ok('notas-equipo-reservas: marcador de version y PAGE_VERSION coinciden',
-  /VERSIÓN ACTUAL: v78/.test(rLine3) && /PAGE_VERSION = 78/.test(rSrc), rLine3);
+  /VERSIÓN ACTUAL: v79/.test(rLine3) && /PAGE_VERSION = 79/.test(rSrc), rLine3);
 var vSrc = fs.readFileSync('notas-villamanager.html', 'utf8');
-ok('notas-villamanager: marcador de version v38', /VERSIÓN ACTUAL: v38/.test(vSrc.split('\n')[2]));
+ok('notas-villamanager: marcador de version v39', /VERSIÓN ACTUAL: v39/.test(vSrc.split('\n')[2]));
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail\n');
 process.exit(fail ? 1 : 0);
