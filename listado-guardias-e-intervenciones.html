@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v08 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v09 | Historial completo al final de este archivo -->
 <head>
   <base href="/intranet/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Listado Guardias e Intervenciones v08 — 3Villas</title>
+  <title>Listado Guardias e Intervenciones v09 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <script>
     // ── AUTO-DETECCIÓN DE VERSIÓN (Opción B) ──
     (function(){
-      const PAGE_VERSION='v08';
+      const PAGE_VERSION='v09';
       try{
         if(location.protocol==='file:') return;
         fetch(location.pathname,{cache:'reload'}).then(r=>r.text()).then(html=>{
@@ -94,7 +94,7 @@
     .report-table th,.report-table td{padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--gray-2)}
     .report-table thead th{position:sticky;top:0;background:var(--gray-5);color:#fff;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;z-index:5}
     .report-table td.num,.report-table th.num{text-align:center}
-    .report-table tbody tr:nth-child(even){background:var(--gray-1)}
+    .report-table tbody tr.row-even{background:var(--gray-1)}
     .report-table tbody tr:hover{background:var(--red-light)}
     .report-table tr.row-total{background:var(--red-light);font-weight:800;color:var(--red-dark)}
     .report-table tr.row-total td{border-top:2px solid var(--red);position:sticky;bottom:0}
@@ -102,6 +102,38 @@
     .tipo-line{line-height:1.5}
     .tipo-line+.tipo-line{margin-top:1px}
     .row-total .tipo-line{color:var(--red-dark)}
+    /* ── v09: números clicables y fila de detalle ── */
+    .num-btn{border:none;background:none;font:inherit;font-weight:700;color:var(--red);cursor:pointer;padding:2px 8px;border-radius:6px;text-decoration:underline dotted;text-underline-offset:3px}
+    .num-btn:hover{background:#fff;text-decoration:underline solid;box-shadow:inset 0 0 0 1px var(--red)}
+    .num-btn.on{background:var(--red);color:#fff;text-decoration:none}
+    .tipo-line .num-btn{padding:1px 6px;font-weight:600;text-align:left;white-space:normal}
+    .tipo-line .num-btn strong{font-weight:800}
+    .row-total .num-btn{color:var(--red-dark)}
+    .row-total .num-btn.on{background:var(--red-dark);color:#fff}
+    tr.row-detail td{white-space:normal;background:#fff;padding:0;border-bottom:2px solid var(--red)}
+    .report-table tbody tr.row-detail:hover{background:#fff}
+    .det-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--red-light);color:var(--red-dark);font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase}
+    .det-close{border:none;background:none;cursor:pointer;color:var(--red-dark);font-size:14px;padding:2px 6px}
+    .det-list{display:flex;flex-direction:column}
+    /* En un móvil la tabla es más ancha que la pantalla y se desplaza dentro de #tableWrap:
+       la lista se queda pegada al borde visible en vez de irse fuera de la pantalla */
+    .det-head,.det-list{position:sticky;left:0;max-width:calc(100vw - 32px)}
+    .det-row{display:grid;grid-template-columns:86px 92px minmax(120px,1.2fr) minmax(120px,1fr) minmax(160px,2fr) 110px 70px;gap:6px 12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--gray-2);font-size:12px}
+    .det-row:last-child{border-bottom:none}
+    .det-row.pend{background:#fff8f9}
+    .det-pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;text-align:center}
+    .det-pill.pend{background:var(--red-light);color:var(--red)}
+    .det-pill.done{background:var(--green-light);color:var(--green-dark)}
+    .det-pill.guardia{background:var(--gray-2);color:var(--gray-5)}
+    .det-muted{color:var(--gray-4);font-size:11px}
+    .det-desc{color:var(--gray-5);line-height:1.4;overflow-wrap:anywhere}
+    .det-open{display:inline-block;background:var(--red);color:#fff;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
+    .det-open:hover{background:var(--red-dark)}
+    @media (max-width:760px){
+      .det-row{grid-template-columns:1fr 1fr;padding:10px 12px}
+      .det-row .det-desc{grid-column:1 / -1}
+      .det-row .det-open{justify-self:start}
+    }
   </style>
 </head>
 <body>
@@ -492,10 +524,11 @@ function aggregate(rows){
     var mgrName=allUsersMap[mgrId]||mgrId||'—';
     var key=monthKey+'|'+mgrName.trim().toLowerCase();
     if(!groups[key]){
-      groups[key]={monthKey:monthKey,monthSort:monthSort,mgrName:mgrName,guardias:0,intervenciones:0,pendientes:0,desplazamientos:0,porTipo:{}};
+      groups[key]={monthKey:monthKey,monthSort:monthSort,mgrName:mgrName,guardias:0,intervenciones:0,pendientes:0,desplazamientos:0,porTipo:{},rows:[]};
       order.push(key);
     }
     var grp=groups[key];
+    grp.rows.push(r); /* v09: los registros detrás de cada número */
     var tipoId=r.TaTasks_Intervencion_guardia_tipo_ID||'';
     if(tipoId==='guardia sin intervencion'){
       grp.guardias++;
@@ -516,13 +549,23 @@ function monthKeyLabel(monthKey){
 }
 
 /* ── Render de la tabla-resumen + fila de totales ── */
-function tiposLinesHTML(porTipo, tiposCols){
+function tiposLinesHTML(porTipo, tiposCols, gi){
   var lines=tiposCols.filter(function(t){return (porTipo[t.id]||0)>0;})
-    .map(function(t){return '<div class="tipo-line"><strong>'+(porTipo[t.id]||0)+'</strong> '+esc(t.name)+'</div>';});
+    .map(function(t){return '<div class="tipo-line">'+numBtn(gi,'tipo:'+t.id,porTipo[t.id]||0,t.name)+'</div>';});
   return lines.length ? lines.join('') : '—';
 }
+/* v09: un número con registros detrás es un botón; 0 sigue siendo una raya */
+function numBtn(gi,k,n,label){
+  if(!n) return gi==='T'?'0':'—';   /* TOTALES sigue enseñando 0, como en v08 */
+  /* con etiqueta (líneas de Tipos) el botón es la línea entera: número y nombre */
+  var inner=label?('<strong>'+n+'</strong> '+esc(label)):String(n);
+  return '<button type="button" class="num-btn" data-gi="'+esc(String(gi))+'" data-k="'+esc(k)+'" title="Ver los registros">'+inner+'</button>';
+}
+var lastGroups=[];      /* v09: los grupos pintados, en el orden de la tabla */
+var openDetail={};      /* v09: gi -> clave abierta ('guardias', 'pendientes', 'tipo:<id>'…) */
 function renderTable(rows){
   var tiposCols=allTipos.filter(function(t){return t.id!=='guardia sin intervencion';});
+  lastGroups=rows; openDetail={};
 
   g('reportThead').innerHTML='<tr><th>Mes</th><th>Villa Manager (responsable)</th><th class="num">Nº guardias</th><th class="num">Nº intervenciones</th><th class="num">Pendientes</th><th class="num">Desplazamientos</th><th>Tipos</th></tr>';
 
@@ -536,24 +579,26 @@ function renderTable(rows){
   g('stEmpty').style.display='none';
   g('tableWrap').style.display='block';
 
-  var totals={guardias:0,intervenciones:0,pendientes:0,desplazamientos:0,porTipo:{}};
-  var bodyHtml=rows.map(function(r){
+  var totals={guardias:0,intervenciones:0,pendientes:0,desplazamientos:0,porTipo:{},rows:[]};
+  var bodyHtml=rows.map(function(r,gi){
     totals.guardias+=r.guardias; totals.intervenciones+=r.intervenciones; totals.pendientes+=r.pendientes; totals.desplazamientos+=r.desplazamientos;
+    totals.rows=totals.rows.concat(r.rows||[]);
     tiposCols.forEach(function(t){ totals.porTipo[t.id]=(totals.porTipo[t.id]||0)+(r.porTipo[t.id]||0); });
-    return '<tr><td>'+esc(monthKeyLabel(r.monthKey))+'</td><td>'+esc(r.mgrName)+'</td>'
-      + '<td class="num">'+(r.guardias||'—')+'</td>'
-      + '<td class="num">'+(r.intervenciones||'—')+'</td>'
-      + '<td class="num">'+(r.pendientes||'—')+'</td>'
-      + '<td class="num">'+(r.desplazamientos||'—')+'</td>'
-      + '<td class="tipos-cell">'+tiposLinesHTML(r.porTipo,tiposCols)+'</td></tr>';
+    return '<tr id="grp_'+gi+'" class="'+(gi%2?'row-even':'')+'"><td>'+esc(monthKeyLabel(r.monthKey))+'</td><td>'+esc(r.mgrName)+'</td>'
+      + '<td class="num">'+numBtn(gi,'guardias',r.guardias)+'</td>'
+      + '<td class="num">'+numBtn(gi,'intervenciones',r.intervenciones)+'</td>'
+      + '<td class="num">'+numBtn(gi,'pendientes',r.pendientes)+'</td>'
+      + '<td class="num">'+numBtn(gi,'desplazamientos',r.desplazamientos)+'</td>'
+      + '<td class="tipos-cell">'+tiposLinesHTML(r.porTipo,tiposCols,gi)+'</td></tr>';
   }).join('');
 
-  bodyHtml += '<tr class="row-total"><td colspan="2">TOTALES</td>'
-    + '<td class="num">'+totals.guardias+'</td>'
-    + '<td class="num">'+totals.intervenciones+'</td>'
-    + '<td class="num">'+totals.pendientes+'</td>'
-    + '<td class="num">'+totals.desplazamientos+'</td>'
-    + '<td class="tipos-cell">'+tiposLinesHTML(totals.porTipo,tiposCols)+'</td></tr>';
+  lastGroups.T=totals; /* v09: la fila TOTALES también abre su lista */
+  bodyHtml += '<tr class="row-total" id="grp_T"><td colspan="2">TOTALES</td>'
+    + '<td class="num">'+numBtn('T','guardias',totals.guardias)+'</td>'
+    + '<td class="num">'+numBtn('T','intervenciones',totals.intervenciones)+'</td>'
+    + '<td class="num">'+numBtn('T','pendientes',totals.pendientes)+'</td>'
+    + '<td class="num">'+numBtn('T','desplazamientos',totals.desplazamientos)+'</td>'
+    + '<td class="tipos-cell">'+tiposLinesHTML(totals.porTipo,tiposCols,'T')+'</td></tr>';
 
   g('reportTbody').innerHTML=bodyHtml;
 
@@ -561,11 +606,156 @@ function renderTable(rows){
   g('sIntervCnt').textContent=totals.intervenciones;
   g('sPendCnt').textContent=totals.pendientes;
   g('sDespCnt').textContent=totals.desplazamientos;
+  reopenAfterReturn();   /* v09: la lista que estaba abierta al salir hacia un registro */
+}
+
+/* ── v09: la lista de registros detrás de un número ──
+   Un clic en un número abre, debajo de esa fila, los registros que lo componen
+   (guardias, intervenciones, pendientes, desplazamientos o un tipo concreto),
+   con las pendientes primero y un botón "Abrir" que lleva al registro completo
+   en guardias-e-intervenciones.html (?editar=<nº tarea>). Otro clic en el mismo
+   número, o en ✕, la cierra. Sin llamada nueva al servidor: los registros ya
+   están en currentRows. */
+g('reportTbody').addEventListener('click',function(e){
+  var a=e.target.closest ? e.target.closest('.det-open') : null;
+  if(a){ saveReturnState(a); return; }   /* el enlace sigue su curso; solo se guarda dónde estaba */
+  var b=e.target.closest ? e.target.closest('.num-btn') : null;
+  if(!b) return;
+  toggleDetail(b.dataset.gi, b.dataset.k);
+});
+/* v09: al abrir un registro se guarda mes, filas y lista abierta; al volver con ✕ (history.back)
+   la página se reabre en el mismo mes con la misma lista desplegada. Mismo patrón que
+   entradas-equipo.html al saltar a una tarea. Caduca a los 30 minutos. */
+var RETURN_KEY='3v_lgi_return';
+function saveReturnState(a){
+  try{
+    var tr=a.closest('tr.row-detail'); var gi=tr?tr.id.replace('det_',''):'';
+    var grp=(gi==='T')?lastGroups.T:lastGroups[parseInt(gi,10)];
+    sessionStorage.setItem(RETURN_KEY,JSON.stringify({
+      t:Date.now(), desde:val('fDesde'), hasta:val('fHasta'), estado:estadoFilter,
+      gi:gi, gk:(grp&&grp.mgrName!==undefined)?(grp.monthKey+'|'+grp.mgrName):'T', k:openDetail[gi]||'',
+      y:window.scrollY||0
+    }));
+  }catch(e){}
+}
+var returnState=null;
+function readReturnState(){
+  try{
+    var raw=sessionStorage.getItem(RETURN_KEY); if(!raw) return null;
+    sessionStorage.removeItem(RETURN_KEY);
+    var st=JSON.parse(raw);
+    if(!st||!st.t||(Date.now()-st.t)>30*60*1000) return null;
+    return st;
+  }catch(e){ return null; }
+}
+function applyReturnState(st){
+  if(!st) return;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(st.desde||'')) g('fDesde').value=st.desde;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(st.hasta||'')) g('fHasta').value=st.hasta;
+  syncMonthLabelFromDates();
+  if(st.estado==='pend'||st.estado==='done'){
+    estadoFilter=st.estado;
+    var onId=(st.estado==='pend')?'ePend':'eDone';
+    ['eAll','ePend','eDone'].forEach(function(x){g(x).classList.toggle('on',x===onId);});
+  }
+}
+function reopenAfterReturn(){
+  if(!returnState||!returnState.k) { returnState=null; return; }
+  var st=returnState; returnState=null;
+  var gi=null;
+  if(st.gk==='T') gi='T';
+  else lastGroups.some(function(gp,i){ if((gp.monthKey+'|'+gp.mgrName)===st.gk){ gi=i; return true; } return false; });
+  if(gi===null) return;
+  toggleDetail(String(gi),st.k);
+  try{ window.scrollTo(0,st.y||0); }catch(e){}
+}
+function isGuardiaRow(r){ return (r.TaTasks_Intervencion_guardia_tipo_ID||'')==='guardia sin intervencion'; }
+function subsetRows(grp,k){
+  var rows=(grp&&grp.rows)||[];
+  if(k==='guardias') return rows.filter(isGuardiaRow);
+  if(k==='intervenciones') return rows.filter(function(r){return !isGuardiaRow(r);});
+  if(k==='pendientes') return rows.filter(function(r){return !isGuardiaRow(r)&&!isFlagOn(r.TaTasks_Tarea_terminada);});
+  if(k==='desplazamientos') return rows.filter(function(r){return isFlagOn(r.TaTasks_Desplazamientos);});
+  if(k.indexOf('tipo:')===0){ var tid=k.slice(5); return rows.filter(function(r){return (r.TaTasks_Intervencion_guardia_tipo_ID||'')===tid;}); }
+  return [];
+}
+function detailTitle(grp,k,n){
+  var who=(grp&&grp.mgrName)?grp.mgrName:'TOTALES';
+  var what=k;
+  if(k==='guardias') what=(n===1?'guardia':'guardias');
+  else if(k==='intervenciones') what=(n===1?'intervención':'intervenciones');
+  else if(k==='pendientes') what=(n===1?'intervención pendiente':'intervenciones pendientes');
+  else if(k==='desplazamientos') what=(n===1?'desplazamiento':'desplazamientos');
+  else if(k.indexOf('tipo:')===0) what=tiposMap[k.slice(5)]||k.slice(5);
+  return (who==='TOTALES'?'TOTALES · ':'')+n+' '+what+(who==='TOTALES'?'':' · '+who);
+}
+function extractTime(v){ var m=String(v||'').match(/(\d{1,2}):(\d{2})/); return m?(pad2(parseInt(m[1],10))+':'+m[2]):''; }
+function fmtDMY(iso){ if(!iso) return '—'; var p=iso.split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):iso; }
+function plainText(v,max){
+  /* el registro guarda una línea por punto con '• ' o '[x] '/'[ ] ' delante (guardias v21 G10): se quitan */
+  var t=String(v||'').split(/\r?\n/).map(function(l){return l.replace(/^\s*(\[x\]|\[ \]|•)\s*/i,'').trim();}).filter(Boolean).join(' · ').replace(/\s+/g,' ').trim();
+  return t.length>max?t.slice(0,max-1)+'…':t;
+}
+function detailRowHTML(r){
+  var tid=r.TaTasks_taskid;
+  var guardia=isGuardiaRow(r);
+  var done=isFlagOn(r.TaTasks_Tarea_terminada);
+  var pill=guardia?'<span class="det-pill guardia">Guardia</span>':(done?'<span class="det-pill done">Terminada</span>':'<span class="det-pill pend">Pendiente</span>');
+  var fecha=fmtDMY(extractDateOnly(r.TaTasks_Data_to_be_done_fixed));
+  var hIni=extractTime(r.TaTasks_Intervencion_guardia_hora_inicio), hFin=extractTime(r.TaTasks_Intervencion_guardia_hora_fin);
+  var horas=guardia?'':(hIni&&hFin?hIni+'–'+hFin:(hIni||hFin||''));
+  var villa=r.TaVillas_Name_villa_para_inquilinos||'—';
+  var tipo=guardia?(tiposMap['guardia sin intervencion']||'Guardia sin intervención'):(r.Ta_tipo_intervencion_guardia_Nombre||tiposMap[r.TaTasks_Intervencion_guardia_tipo_ID]||r.TaTasks_Intervencion_guardia_tipo_ID||'—');
+  var flags=(isFlagOn(r.TaTasks_importante)?' 🚩':'')+(isFlagOn(r.TaTasks_urgente)?' 🏁':'')+(isFlagOn(r.TaTasks_Desplazamientos)?' 🚗':'');
+  var quien=allUsersMap[r.TaTasks_UserID_responsible_alfanum]||r.TaTasks_UserID_responsible_alfanum||'—';
+  var desc=plainText(r.TaTasks_Taskdescription,90);
+  var reserva=r.TaTasks_Idreserva||'';
+  return '<div class="det-row'+((!guardia&&!done)?' pend':'')+'">'
+    + '<div>'+pill+'</div>'
+    + '<div>'+esc(fecha)+(horas?'<div class="det-muted">'+esc(horas)+'</div>':'')+'</div>'
+    + '<div>'+esc(villa)+(reserva?'<div class="det-muted">Reserva '+esc(reserva)+'</div>':'')+'</div>'
+    + '<div>'+esc(tipo)+flags+'</div>'
+    + '<div class="det-desc">'+(desc?esc(desc):'<span class="det-muted">Sin descripción</span>')+'</div>'
+    + '<div class="det-muted">'+esc(quien)+'</div>'
+    + '<div><a class="det-open" href="guardias-e-intervenciones.html?editar='+encodeURIComponent(tid)+'" title="Ver / Editar el registro" data-tid="'+encodeURIComponent(tid)+'">Abrir ✎</a></div>'
+    + '</div>';
+}
+function sortForDetail(rows){
+  /* pendientes primero, luego por fecha descendente, luego por nº de tarea */
+  return rows.slice().sort(function(a,b){
+    var pa=(!isGuardiaRow(a)&&!isFlagOn(a.TaTasks_Tarea_terminada))?0:1;
+    var pb=(!isGuardiaRow(b)&&!isFlagOn(b.TaTasks_Tarea_terminada))?0:1;
+    if(pa!==pb) return pa-pb;
+    var da=extractDateOnly(a.TaTasks_Data_to_be_done_fixed), db=extractDateOnly(b.TaTasks_Data_to_be_done_fixed);
+    if(da!==db) return da<db?1:-1;
+    return (parseInt(b.TaTasks_taskid,10)||0)-(parseInt(a.TaTasks_taskid,10)||0);
+  });
+}
+function toggleDetail(gi,k){
+  var grp=(gi==='T')?lastGroups.T:lastGroups[parseInt(gi,10)];
+  var rowEl=g('grp_'+gi); if(!grp||!rowEl) return;
+  var det=g('det_'+gi);
+  var wasOpen=openDetail[gi]===k;
+  if(det) det.parentNode.removeChild(det);
+  rowEl.querySelectorAll('.num-btn.on').forEach(function(x){x.classList.remove('on');});
+  if(wasOpen){ delete openDetail[gi]; return; }
+  openDetail[gi]=k;
+  var kSel=(window.CSS&&CSS.escape)?CSS.escape(k):k.replace(/["\\]/g,'\\$&');
+  var btn=rowEl.querySelector('.num-btn[data-k="'+kSel+'"]'); if(btn) btn.classList.add('on');
+  var list=sortForDetail(subsetRows(grp,k));
+  var tr=document.createElement('tr'); tr.className='row-detail'; tr.id='det_'+gi;
+  tr.innerHTML='<td colspan="7"><div class="det-head"><span>'+esc(detailTitle(grp,k,list.length))+'</span><button type="button" class="det-close" title="Cerrar" data-gi="'+esc(String(gi))+'">✕</button></div>'
+    + '<div class="det-list">'+(list.length?list.map(detailRowHTML).join(''):'<div class="det-row"><div class="det-muted">Sin registros</div></div>')+'</div></td>';
+  tr.querySelector('.det-close').addEventListener('click',function(){ toggleDetail(gi,k); });
+  if(gi==='T') rowEl.parentNode.insertBefore(tr,rowEl);   /* TOTALES es fija abajo: la lista va encima */
+  else rowEl.parentNode.insertBefore(tr,rowEl.nextSibling);
 }
 
 /* ── Init ── */
 Promise.all([loadVillas(),loadUsers(),loadTipos()]).then(function(){
   applyMonth();
+  returnState=readReturnState();   /* v09: vuelta desde un registro */
+  if(returnState) applyReturnState(returnState);
   doSearch();
 }).catch(function(err){
   g('stLoad').style.display='none';
@@ -576,6 +766,6 @@ Promise.all([loadVillas(),loadUsers(),loadTipos()]).then(function(){
 })();
 </script>
 
-<!-- HISTORIAL: v08 - Dos correcciones para que esta página coincida con el detalle (guardias-e-intervenciones.html): (1) regla de validez (esValida en reprocess()) — antes esta página excluía cualquier fila con TaTasks_Intervencion_guardia distinto de 'Yes', incluidas las filas donde ese campo aún no existe/no se ha guardado nunca (undefined), lo que las hacía desaparecer del listado sin que nadie las hubiera marcado como no válidas; ahora, igual que en el detalle, un campo undefined se trata como válido (esValida=true) y solo se excluyen las filas explícitamente marcadas como no válidas. (2) Pendientes: nueva columna 'Pendientes' — aggregate() cuenta, por cada grupo Mes+Villa Manager, las intervenciones (no guardias) sin Terminada activo; renderTable() añade la columna a la cabecera, a cada fila (o '—' si 0) y a TOTALES; statsBar añade un contador 'pendientes' junto a guardias/intervenciones/desplazamientos, para que los managers vean de un vistazo cuánto trabajo queda abierto sin entrar a cada fila. Además, mismo fix de roles/usuarios que en guardias-e-intervenciones.html v21: myRole se normaliza a minúsculas (String(Auth.role()||'').toLowerCase()), y loadUsers() separa allUsersMap (todos los usuarios, para que los nombres de ex-staff sigan apareciendo en las filas ya agregadas) de allUsers (solo usuarios activos, mismo predicado sobre User_Status que tareas.html, usado en el autocompletado/listas de filtro). Sin cambios en filtros, selector de mes, columnas de Tipos ni en el resto de la agregación/render. | v07 - Cambio pedido por Jordi: solo deben mostrarse (y contar en el resumen) los registros con Intervencion_guardia='Yes' en Caspio — los que un admin/manager haya marcado como no válidos (checkbox "Intervención/Guardia válida" desmarcado en guardias-e-intervenciones.html) dejan de aparecer aquí. Al ser un campo Yes/No, y estar ya documentado en este proyecto que ese tipo de campo no es fiable en el WHERE del servidor (mismo motivo por el que Intervencion_guardia_tipo_ID, un campo string, es lo que ya filtraba "es guardia/intervención" en vez de comprobar el Yes/No directamente), el filtro se aplica en CLIENTE dentro de reprocess() — mismo sitio y mismo patrón que Estado/Importante/Urgente, sin condición ni checkbox: siempre se excluyen las no válidas, sin llamada nueva a la API (currentRows ya está cargado). | v06 - Cambio pedido por Jordi: aplicar aquí el mismo cambio ya hecho en guardias-e-intervenciones.html v12 (villamanager responsable en vez de asignado), que nunca se había aplicado en esta página — filtro y agrupación seguían usando TaTasks_UserID_asigned_alfanum. Cambiados los 2 puntos: (1) buildWhere() — el filtro multi-select de Villa Manager ahora filtra por TaTasks_UserID_responsible_alfanum en vez de TaTasks_UserID_asigned_alfanum. (2) aggregate() — mgrId (con el que se agrupa cada fila del pivote Mes×Villa Manager) ahora se calcula desde TaTasks_UserID_responsible_alfanum en vez de TaTasks_UserID_asigned_alfanum. Etiquetas actualizadas para que quede claro: "Villa Manager" → "Villa Manager (responsable)" tanto en el label del filtro como en la cabecera de la columna de la tabla de resultados. Sin cambios en el resto de filtros, selector de mes ni en el resto de la agregación (Nº guardias/intervenciones/desplazamientos/tipos siguen calculándose igual, solo cambia QUIÉN decide la fila). | v05 - FIX CRÍTICO reportado por Jordi: el botón de menú (☰) no hacía nada al pulsarlo. Causa: faltaba <script src="nav-component.js"></script> — este archivo se creó basándose en guardias-e-intervenciones.html, que ya tenía el mismo fallo (solo cargaba nav.js, nunca nav-component.js, así que NavComponent.open() lanzaba un ReferenceError silencioso sin abrir el panel). Corregido ahí también (su propia v10). Añadida la línea que faltaba justo después de <script src="nav.js"></script>. | v04 - FIX bug reportado por Jordi (con captura): mismo Villa Manager, mismo mes, apareciendo en DOS filas en vez de una (ya con la fecha correcta, confirmando que el fix de fechas de v03 funcionó — el problema era otro). Causa: aggregate() agrupaba por monthKey+'|'+mgrId (el ID interno TaTasks_UserID_asigned_alfanum), no por el nombre mostrado; si dos tareas de la misma persona se guardaron con IDs de usuario ligeramente distintos (mayúsculas/minúsculas, o dos cuentas distintas para la misma persona), cada ID generaba su propio grupo aunque ambos resolvieran al mismo nombre en pantalla (allUsersMap[mgrId] daba 'Jordi' en los dos casos). FIX: la clave de agrupación pasa a ser monthKey+'|'+mgrName.trim().toLowerCase() (el NOMBRE ya resuelto, normalizado en minúsculas y sin espacios sobrantes) en vez del ID crudo — así todas las tareas que se muestran con el mismo nombre de Villa Manager en pantalla se agrupan en una sola fila, independientemente de qué ID interno de Caspio tengan detrás. Sin cambios en el resto de la agregación, filtros ni selector de mes. | v03 - FIX bug reportado por Jordi: la agrupación por Mes + Villa Manager mostraba 'Sin fecha' y, para un mismo Villa Manager, aparecían DOS filas en vez de una. Causa raíz (idéntica a la ya corregida en guardias-e-intervenciones.html v09): aggregate() extraía la fecha con (campo).split(' ')[0]||(campo).split('T')[0] — si TaTasks_Data_to_be_done_fixed venía con separador 'T' (ISO, sin espacio) en vez de espacio, split(' ')[0] devolvía la cadena COMPLETA con hora incluida (ej. '2026-08-07T00:00:00'), que al concatenarle otra vez 'T00:00:00' para construir el Date daba una cadena inválida ('2026-08-07T00:00:00T00:00:00') → Date inválido → la fila caía en el grupo 'sin-fecha'. Como no todas las tareas de un mismo Villa Manager tienen el campo guardado con el mismo separador, unas caían en el mes correcto y otras en 'Sin fecha', generando dos filas distintas para la misma persona. FIX: nueva función extractDateOnly() (regex ^(\d{4}-\d{2}-\d{2})), robusta sea cual sea el separador, usada en aggregate() en vez del split anterior — ahora todas las tareas de un Villa Manager con fecha válida se agrupan correctamente bajo el mismo mes, en una sola fila. Sin cambios en filtros, selector de mes ni resto de la agregación/render. | v02 - Cambio pedido por Jordi: las columnas de 'número de incidencias de cada tipo' (antes una columna por cada Tipo de intervención, con la mayoría de celdas a '—' porque cada Villa Manager solo suele tener 1-2 tipos distintos al mes) se sustituyen por UNA sola columna 'Tipos', que dentro de cada celda apila una línea por tipo — solo los tipos con cantidad distinta de 0 para ese Villa Manager ese mes, en formato '<strong>N</strong> Nombre' (ej. Juan → '2 Cerraduras' en una línea y '3 Otros' en la siguiente) — igual que en la fila de TOTALES, que suma esos mismos tipos across todas las filas filtradas. Nueva función tiposLinesHTML(porTipo,tiposCols) genera esas líneas (o '—' si el Villa Manager no tuvo ningún tipo ese mes); reemplaza el mapeo anterior de tipoCells/totalTipoCells (columna por tipo). Nuevas clases CSS .tipos-cell (white-space:normal para permitir el apilado, en vez del nowrap general de .report-table td) y .tipo-line. Sin cambios en la agregación (aggregate() sigue calculando porTipo igual que en v01) ni en los filtros/selector de mes — únicamente cambia cómo se pintan los tipos en la tabla. LIMPIEZA de huérfanos: ninguna (las funciones/variables sustituidas no se usan en ningún otro sitio del archivo). | v01 - Primera versión de la página. Listado-resumen (pivote Mes × Villa Manager) de guardias e intervenciones, con los MISMOS filtros que guardias-e-intervenciones.html v08 (buscar, estado Todas/Pendientes/Terminadas, villa manager multi-select, villa, nº tarea, id reserva, tipo de intervención, importante/urgente) contra la misma vista Caspio (Vi_TaTasks_villas_user_mu) y el mismo buildWhere() (idéntico, campos con prefijo TaTasks_). ÚNICA diferencia pedida: las fechas Desde/Hasta dejan de estar siempre visibles en la barra principal y pasan, en su lugar, a un selector de MES (‹ Agosto 2026 › en la barra principal, con botón central que vuelve al mes actual) que por defecto carga el mes en curso (día 1 a último día) y permite cambiar de mes con 1 clic; los campos Desde/Hasta originales se conservan dentro del panel colapsable 'Filtros' (renombrados 'fecha exacta') para quien quiera poner fechas concretas o un rango que no coincida con un mes completo — si el rango introducido a mano coincide exactamente con un mes completo, la etiqueta del selector se sincroniza sola; si no, muestra 'Rango personalizado'. Salida: en vez del listado de tarjetas de guardias-e-intervenciones.html, esta página muestra una tabla-resumen agrupada por Mes + Villa Manager con las columnas pedidas — Mes, Villa Manager, Nº guardias (registros con Intervencion_guardia_tipo_ID='guardia sin intervencion'), Nº intervenciones (el resto), Desplazamientos (nº de registros con Desplazamientos=true) y una columna por cada Tipo de intervención existente en la tabla lookup Ta_tipo_intervencion_guardia (excluyendo 'guardia sin intervencion', que ya tiene su propia columna) con el nº de incidencias de ese tipo — más una fila final TOTALES con la suma de todas las columnas numéricas de todo el resultado filtrado. Filas ordenadas por mes (ascendente) y, dentro de cada mes, por nombre de Villa Manager (A-Z); si algún registro no tiene fecha se agrupa aparte bajo 'Sin fecha'. Optimización de llamadas respecto al patrón de guardias-e-intervenciones.html: los filtros que SOLO afectan al cliente (Estado, Importante, Urgente) ya no disparan un nuevo fetch al Worker — se reprocesan sobre currentRows ya cargado (reprocess()); solo los filtros que cambian el WHERE del servidor (Buscar, Mes/fechas, Villa Manager, Villa, Nº Tarea, Id Reserva, Tipo) disparan scheduleFetch()→doSearch() con fetch nuevo. Barra de estadísticas simplificada a 3 contadores (guardias/intervenciones/desplazamientos) sobre el total ya agregado. Sin modal de creación/edición: página de solo lectura (consulta), no se crean ni modifican tareas desde aquí — para eso sigue existiendo guardias-e-intervenciones.html. NOTA IMPORTANTE PENDIENTE: esta página usa Auth.require('listado-guardias-e-intervenciones'), una clave que TODAVÍA NO EXISTE en auth.js — hay que añadir la entrada de permisos correspondiente antes de desplegar esta página o Auth.require lanzará 'Sin permiso' para todos los usuarios (se entrega la línea exacta a añadir en cuanto se confirme). -->
+<!-- HISTORIAL: v09 - Pedido por Nazaret (14/09/2026, grupo TIC): cada número del resumen abre los registros que hay detrás. En renderTable() cada cantidad distinta de 0 (Nº guardias, Nº intervenciones, Pendientes, Desplazamientos y cada línea de Tipos, también en la fila TOTALES) pasa a ser un botón (numBtn); un clic abre debajo de esa fila una fila de detalle (toggleDetail) con un registro por línea — estado (Pendiente/Terminada/Guardia), fecha y horas, villa y reserva, tipo con banderas, descripción recortada a 90 caracteres, responsable — y un botón 'Abrir ✎' que lleva a guardias-e-intervenciones.html?editar=<nº tarea>, el mismo enlace que ya usan tareas.html y entradas-equipo.html. Las pendientes van primero y luego por fecha descendente. Otro clic en el mismo número, o en ✕, cierra la lista; un clic en otro número de la misma fila la sustituye. Sin llamada nueva al servidor: aggregate() guarda ahora los registros de cada grupo (rows) y subsetRows() filtra en memoria con las mismas reglas que las cuentas. En la fila TOTALES la lista se inserta encima (la fila lleva position:sticky abajo) y un total a 0 sigue pintándose como 0, no como raya. Cualquier cambio de filtro o de mes repinta la tabla y cierra las listas abiertas. Vuelta desde el registro: al pulsar 'Abrir ✎' se guarda en sessionStorage (clave 3v_lgi_return, 30 minutos) el rango de fechas, la píldora de estado, la fila y la lista abierta y el scroll; al volver con ✕ (history.back) la página arranca con ese rango y vuelve a desplegar la misma lista (readReturnState/applyReturnState/reopenAfterReturn), mismo patrón que entradas-equipo.html al saltar a una tarea. Texto de la descripción: se quitan los '• ' y '[x] '/'[ ] ' con los que guardias-e-intervenciones.html guarda cada punto (v21 G10) y los puntos se unen con ' · '. En la columna Tipos el botón es la línea entera (número y nombre). El rayado de filas alternas pasa de nth-child a la clase row-even, para que una lista abierta no cambie el color de las filas de debajo. Sin cambios en filtros, selector de mes, agregación ni cuentas. | v08 - Dos correcciones para que esta página coincida con el detalle (guardias-e-intervenciones.html): (1) regla de validez (esValida en reprocess()) — antes esta página excluía cualquier fila con TaTasks_Intervencion_guardia distinto de 'Yes', incluidas las filas donde ese campo aún no existe/no se ha guardado nunca (undefined), lo que las hacía desaparecer del listado sin que nadie las hubiera marcado como no válidas; ahora, igual que en el detalle, un campo undefined se trata como válido (esValida=true) y solo se excluyen las filas explícitamente marcadas como no válidas. (2) Pendientes: nueva columna 'Pendientes' — aggregate() cuenta, por cada grupo Mes+Villa Manager, las intervenciones (no guardias) sin Terminada activo; renderTable() añade la columna a la cabecera, a cada fila (o '—' si 0) y a TOTALES; statsBar añade un contador 'pendientes' junto a guardias/intervenciones/desplazamientos, para que los managers vean de un vistazo cuánto trabajo queda abierto sin entrar a cada fila. Además, mismo fix de roles/usuarios que en guardias-e-intervenciones.html v21: myRole se normaliza a minúsculas (String(Auth.role()||'').toLowerCase()), y loadUsers() separa allUsersMap (todos los usuarios, para que los nombres de ex-staff sigan apareciendo en las filas ya agregadas) de allUsers (solo usuarios activos, mismo predicado sobre User_Status que tareas.html, usado en el autocompletado/listas de filtro). Sin cambios en filtros, selector de mes, columnas de Tipos ni en el resto de la agregación/render. | v07 - Cambio pedido por Jordi: solo deben mostrarse (y contar en el resumen) los registros con Intervencion_guardia='Yes' en Caspio — los que un admin/manager haya marcado como no válidos (checkbox "Intervención/Guardia válida" desmarcado en guardias-e-intervenciones.html) dejan de aparecer aquí. Al ser un campo Yes/No, y estar ya documentado en este proyecto que ese tipo de campo no es fiable en el WHERE del servidor (mismo motivo por el que Intervencion_guardia_tipo_ID, un campo string, es lo que ya filtraba "es guardia/intervención" en vez de comprobar el Yes/No directamente), el filtro se aplica en CLIENTE dentro de reprocess() — mismo sitio y mismo patrón que Estado/Importante/Urgente, sin condición ni checkbox: siempre se excluyen las no válidas, sin llamada nueva a la API (currentRows ya está cargado). | v06 - Cambio pedido por Jordi: aplicar aquí el mismo cambio ya hecho en guardias-e-intervenciones.html v12 (villamanager responsable en vez de asignado), que nunca se había aplicado en esta página — filtro y agrupación seguían usando TaTasks_UserID_asigned_alfanum. Cambiados los 2 puntos: (1) buildWhere() — el filtro multi-select de Villa Manager ahora filtra por TaTasks_UserID_responsible_alfanum en vez de TaTasks_UserID_asigned_alfanum. (2) aggregate() — mgrId (con el que se agrupa cada fila del pivote Mes×Villa Manager) ahora se calcula desde TaTasks_UserID_responsible_alfanum en vez de TaTasks_UserID_asigned_alfanum. Etiquetas actualizadas para que quede claro: "Villa Manager" → "Villa Manager (responsable)" tanto en el label del filtro como en la cabecera de la columna de la tabla de resultados. Sin cambios en el resto de filtros, selector de mes ni en el resto de la agregación (Nº guardias/intervenciones/desplazamientos/tipos siguen calculándose igual, solo cambia QUIÉN decide la fila). | v05 - FIX CRÍTICO reportado por Jordi: el botón de menú (☰) no hacía nada al pulsarlo. Causa: faltaba <script src="nav-component.js"></script> — este archivo se creó basándose en guardias-e-intervenciones.html, que ya tenía el mismo fallo (solo cargaba nav.js, nunca nav-component.js, así que NavComponent.open() lanzaba un ReferenceError silencioso sin abrir el panel). Corregido ahí también (su propia v10). Añadida la línea que faltaba justo después de <script src="nav.js"></script>. | v04 - FIX bug reportado por Jordi (con captura): mismo Villa Manager, mismo mes, apareciendo en DOS filas en vez de una (ya con la fecha correcta, confirmando que el fix de fechas de v03 funcionó — el problema era otro). Causa: aggregate() agrupaba por monthKey+'|'+mgrId (el ID interno TaTasks_UserID_asigned_alfanum), no por el nombre mostrado; si dos tareas de la misma persona se guardaron con IDs de usuario ligeramente distintos (mayúsculas/minúsculas, o dos cuentas distintas para la misma persona), cada ID generaba su propio grupo aunque ambos resolvieran al mismo nombre en pantalla (allUsersMap[mgrId] daba 'Jordi' en los dos casos). FIX: la clave de agrupación pasa a ser monthKey+'|'+mgrName.trim().toLowerCase() (el NOMBRE ya resuelto, normalizado en minúsculas y sin espacios sobrantes) en vez del ID crudo — así todas las tareas que se muestran con el mismo nombre de Villa Manager en pantalla se agrupan en una sola fila, independientemente de qué ID interno de Caspio tengan detrás. Sin cambios en el resto de la agregación, filtros ni selector de mes. | v03 - FIX bug reportado por Jordi: la agrupación por Mes + Villa Manager mostraba 'Sin fecha' y, para un mismo Villa Manager, aparecían DOS filas en vez de una. Causa raíz (idéntica a la ya corregida en guardias-e-intervenciones.html v09): aggregate() extraía la fecha con (campo).split(' ')[0]||(campo).split('T')[0] — si TaTasks_Data_to_be_done_fixed venía con separador 'T' (ISO, sin espacio) en vez de espacio, split(' ')[0] devolvía la cadena COMPLETA con hora incluida (ej. '2026-08-07T00:00:00'), que al concatenarle otra vez 'T00:00:00' para construir el Date daba una cadena inválida ('2026-08-07T00:00:00T00:00:00') → Date inválido → la fila caía en el grupo 'sin-fecha'. Como no todas las tareas de un mismo Villa Manager tienen el campo guardado con el mismo separador, unas caían en el mes correcto y otras en 'Sin fecha', generando dos filas distintas para la misma persona. FIX: nueva función extractDateOnly() (regex ^(\d{4}-\d{2}-\d{2})), robusta sea cual sea el separador, usada en aggregate() en vez del split anterior — ahora todas las tareas de un Villa Manager con fecha válida se agrupan correctamente bajo el mismo mes, en una sola fila. Sin cambios en filtros, selector de mes ni resto de la agregación/render. | v02 - Cambio pedido por Jordi: las columnas de 'número de incidencias de cada tipo' (antes una columna por cada Tipo de intervención, con la mayoría de celdas a '—' porque cada Villa Manager solo suele tener 1-2 tipos distintos al mes) se sustituyen por UNA sola columna 'Tipos', que dentro de cada celda apila una línea por tipo — solo los tipos con cantidad distinta de 0 para ese Villa Manager ese mes, en formato '<strong>N</strong> Nombre' (ej. Juan → '2 Cerraduras' en una línea y '3 Otros' en la siguiente) — igual que en la fila de TOTALES, que suma esos mismos tipos across todas las filas filtradas. Nueva función tiposLinesHTML(porTipo,tiposCols) genera esas líneas (o '—' si el Villa Manager no tuvo ningún tipo ese mes); reemplaza el mapeo anterior de tipoCells/totalTipoCells (columna por tipo). Nuevas clases CSS .tipos-cell (white-space:normal para permitir el apilado, en vez del nowrap general de .report-table td) y .tipo-line. Sin cambios en la agregación (aggregate() sigue calculando porTipo igual que en v01) ni en los filtros/selector de mes — únicamente cambia cómo se pintan los tipos en la tabla. LIMPIEZA de huérfanos: ninguna (las funciones/variables sustituidas no se usan en ningún otro sitio del archivo). | v01 - Primera versión de la página. Listado-resumen (pivote Mes × Villa Manager) de guardias e intervenciones, con los MISMOS filtros que guardias-e-intervenciones.html v08 (buscar, estado Todas/Pendientes/Terminadas, villa manager multi-select, villa, nº tarea, id reserva, tipo de intervención, importante/urgente) contra la misma vista Caspio (Vi_TaTasks_villas_user_mu) y el mismo buildWhere() (idéntico, campos con prefijo TaTasks_). ÚNICA diferencia pedida: las fechas Desde/Hasta dejan de estar siempre visibles en la barra principal y pasan, en su lugar, a un selector de MES (‹ Agosto 2026 › en la barra principal, con botón central que vuelve al mes actual) que por defecto carga el mes en curso (día 1 a último día) y permite cambiar de mes con 1 clic; los campos Desde/Hasta originales se conservan dentro del panel colapsable 'Filtros' (renombrados 'fecha exacta') para quien quiera poner fechas concretas o un rango que no coincida con un mes completo — si el rango introducido a mano coincide exactamente con un mes completo, la etiqueta del selector se sincroniza sola; si no, muestra 'Rango personalizado'. Salida: en vez del listado de tarjetas de guardias-e-intervenciones.html, esta página muestra una tabla-resumen agrupada por Mes + Villa Manager con las columnas pedidas — Mes, Villa Manager, Nº guardias (registros con Intervencion_guardia_tipo_ID='guardia sin intervencion'), Nº intervenciones (el resto), Desplazamientos (nº de registros con Desplazamientos=true) y una columna por cada Tipo de intervención existente en la tabla lookup Ta_tipo_intervencion_guardia (excluyendo 'guardia sin intervencion', que ya tiene su propia columna) con el nº de incidencias de ese tipo — más una fila final TOTALES con la suma de todas las columnas numéricas de todo el resultado filtrado. Filas ordenadas por mes (ascendente) y, dentro de cada mes, por nombre de Villa Manager (A-Z); si algún registro no tiene fecha se agrupa aparte bajo 'Sin fecha'. Optimización de llamadas respecto al patrón de guardias-e-intervenciones.html: los filtros que SOLO afectan al cliente (Estado, Importante, Urgente) ya no disparan un nuevo fetch al Worker — se reprocesan sobre currentRows ya cargado (reprocess()); solo los filtros que cambian el WHERE del servidor (Buscar, Mes/fechas, Villa Manager, Villa, Nº Tarea, Id Reserva, Tipo) disparan scheduleFetch()→doSearch() con fetch nuevo. Barra de estadísticas simplificada a 3 contadores (guardias/intervenciones/desplazamientos) sobre el total ya agregado. Sin modal de creación/edición: página de solo lectura (consulta), no se crean ni modifican tareas desde aquí — para eso sigue existiendo guardias-e-intervenciones.html. NOTA IMPORTANTE PENDIENTE: esta página usa Auth.require('listado-guardias-e-intervenciones'), una clave que TODAVÍA NO EXISTE en auth.js — hay que añadir la entrada de permisos correspondiente antes de desplegar esta página o Auth.require lanzará 'Sin permiso' para todos los usuarios (se entrega la línea exacta a añadir en cuanto se confirme). -->
 </body>
 </html>

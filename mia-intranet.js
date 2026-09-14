@@ -94,6 +94,11 @@ const MIA_PAY_ROLES=['admin','manager'];
    pasaporte, dirección). Si cambia allí, cambia aquí. A quien no está en la
    lista no se le pinta el botón, en vez de llevarle a un "Acceso denegado". */
 const MIA_NOTES_ROLES=['admin','manager','staff'];
+/* J9: quién entra en la respuesta de guardias y en sus enlaces. Copia exacta
+   de auth.js:90 'guardias-e-intervenciones': ['admin','manager','staff'].
+   Si cambia allí, cambia aquí. A sales se le responde con la tarjeta normal
+   de Tareas en vez de con botones que acaban en "Acceso denegado". */
+const MIA_GUARD_ROLES=['admin','manager','staff'];
 const MIA_DEBUG = false;               // true solo para depurar en local
 
 const PROXY          = 'https://www.3villas.com/intranet/api';
@@ -121,6 +126,16 @@ const INC_SCAN       = 1000;
 const INC_DAYS       = 14;
 /* Texto de la incidencia recortado: una respuesta es un índice, no el parte. */
 const INC_TEXT       = 160;
+/* J9: guardias e intervenciones. GUARD_MAX se enseñan; GUARD_FETCH es el tope
+   de la consulta (en 2026 hay unas 50 al mes en toda la empresa); GUARD_DAYS
+   es la ventana por defecto sin fechas, la misma que abre por defecto
+   guardias-e-intervenciones.html (los últimos 30 días). */
+const GUARD_MAX      = 30;
+const GUARD_FETCH    = 300;
+const GUARD_DAYS     = 30;
+const GUARD_TEXT     = 160;
+/* J9: las dos páginas de guardias enseñan otro texto de ayuda en la casilla */
+const GUARD_PAGES    = ['guardias-e-intervenciones.html','listado-guardias-e-intervenciones.html'];
 /* Villas por lista de elección. "bini" está en dieciocho nombres, así que un
    tope de diez escondía villas de verdad. Pasado el tope se pide más letras. */
 const MAX_VILLAS     = 20;
@@ -136,6 +151,7 @@ const FEAT = {
   ready :1,   /* J5: tarjeta "qué falta" para las entradas de un día */
   incid :1,   /* J6: tareas con incidencia reportada por limpieza */
   page  :1,   /* J7: abrir una página del menú de quien pregunta, por su nombre */
+  guard :1,   /* J9: guardias e intervenciones (registros de TaTasks con tipo de guardia) */
   /* J8: una pregunta cada vez. Cada pregunta lleva un número y la respuesta
      que llega tarde, de una pregunta anterior, no se pinta. A 0 vuelve el
      comportamiento de antes: sin número y sin bloqueo del campo. */
@@ -165,7 +181,7 @@ const F = {
      entradas-equipo (línea 818 de v141). */
   arrivalFormDone:'TaBookings2021_Arrivalform_done'
 };
-const U = { id:'UserID', name:'Name' };
+const U = { id:'UserID', name:'Name', email:'Email' };
 
 /* Vista de pagos — conceptos por línea */
 const PAY = {
@@ -189,7 +205,8 @@ const PAGES = {
   tareas   :'tareas.html',
   ocupacion:'listado-ocupacion.html',
   villa    :'villa.html',
-  notas    :'notas-equipo-reservas.html'
+  notas    :'notas-equipo-reservas.html',
+  guardias :'guardias-e-intervenciones.html'   /* J9 */
 };
 
 /* tareas.html restoreFiltersFromURL() lee est(1583) u(1585) fd/fh(1591)
@@ -322,6 +339,27 @@ const T = {
   /* J7 */
   pageOpen  :'Abrir',
   pageLine  :'Esta página del menú:',
+  /* J9 — guardias e intervenciones */
+  phGuard   :'Pregunta a Mia: mis intervenciones pendientes, guardias de un compañero en agosto…',
+  gdHead    :'Guardias e intervenciones registradas en la intranet. Pendiente: la intervención aún no está marcada como Terminada.',
+  gdNone    :'No hay guardias ni intervenciones con esos filtros.',
+  gdKo      :'No he podido leer las guardias.',
+  gdNoMe    :'No he podido saber tu usuario. Pregunta con tu nombre.',
+  gdMore    :'Hay más registros. Ábrelos todos en Guardias.',
+  gdCap     :'Hay más registros de los que Mia puede leer de una vez. Añade fechas o una persona.',
+  gdShift   :'Guardia sin intervención',
+  gdPend    :'Pendiente',
+  gdDone    :'Terminada',
+  gdResp    :'Responsable:',
+  gdFollow  :'Seguimiento:',
+  gdOpen    :'Abrir registro',
+  gdOpenPage:'Abrir en Guardias',
+  gdInvalid :'No válida',
+  gdBad1    :'Hay 1 registro con la marca «Intervención/Guardia válida» apagada. Por eso no sale en el resumen. Un admin o manager puede encenderla desde el registro.',
+  gdBadN    :'Hay {n} registros con la marca «Intervención/Guardia válida» apagada. Por eso no salen en el resumen. Un admin o manager puede encenderla desde cada registro.',
+  gdFollowNote:'Abrir en Guardias filtra por responsable. Las que tienes en seguimiento: en la página, filtro «Villa Manager asignado» = Yo.',
+  gdPendAll :'Sin fechas en la pregunta: enseño todas las pendientes, de cualquier fecha.',
+  gdWin     :'Sin fechas en la pregunta: enseño los últimos 30 días.',
   /* Barrido del 2026-09-07 */
   noFilter  :'Dime un código, un nombre o una villa.',
   incAsig   :'Asignada a:',
@@ -472,6 +510,7 @@ function myRole(){
 }
 function canSeePayments(){ return MIA_PAY_ROLES.indexOf(myRole())>=0; }
 function canSeeNotes(){ return MIA_NOTES_ROLES.indexOf(myRole())>=0; }
+function canSeeGuardias(){ return MIA_GUARD_ROLES.indexOf(myRole())>=0; }
 function hasSession(){
   try{
     if(typeof Auth==='undefined'||!Auth||!Auth.token)return false;
@@ -827,6 +866,9 @@ body.easy .mia-panel .mia-rdrow .mia-rd-m{font-family:'Atkinson Hyperlegible','O
 .mia-panel .mia-inc .mia-inc-m{display:flex;flex-wrap:wrap;gap:2px 10px;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;font-size:14px;color:var(--mia-muted)}
 .mia-panel .mia-inc .mia-btn{align-self:stretch}
 @media (min-width:481px){ .mia-panel .mia-inc .mia-btn{align-self:flex-start} }
+/* J9: registro con la marca válida apagada — en gris, con su etiqueta */
+.mia-panel .mia-inc.mia-inc-off{opacity:.62;border-style:dashed}
+.mia-panel .mia-inc .mia-inc-bad{font-weight:700;color:var(--red,#C8102E)}
 body.dark .mia-panel .mia-inc{background:#252535;border-color:rgba(255,255,255,.14)}
 body.dark .mia-panel .mia-inc .mia-inc-v,
 body.dark .mia-panel .mia-inc .mia-inc-n,
@@ -926,7 +968,9 @@ function buildRow(){
   field.setAttribute('for','miaInput');
   const inp=document.createElement('input');
   inp.type='text'; inp.id='miaInput'; inp.autocomplete='off';
-  inp.setAttribute('placeholder',T.ph); inp.setAttribute('aria-label',T.ph);
+  /* J9: en las dos páginas de guardias la ayuda nombra sus preguntas */
+  const ph=(FEAT.guard&&GUARD_PAGES.indexOf(curPage())>=0)?T.phGuard:T.ph;
+  inp.setAttribute('placeholder',ph); inp.setAttribute('aria-label',ph);
   inp.addEventListener('keydown',function(ev){
     /* J8: con una pregunta en marcha, Enter no hace nada. */
     if(ev.key==='Enter'){ ev.preventDefault(); if(locked())return; onAsk(); }
@@ -1215,7 +1259,9 @@ const CHIP_LABELS = {
   noauto:'Sin automáticas',
   ctx:T.ctxChip,   /* J1: el código no lo dijo la pregunta, lo dice la página */
   unit:'Unidad',
-  incident:'Con incidencia'   /* J6 */
+  incident:'Con incidencia',  /* J6 */
+  guardia:'Guardias',         /* J9 */
+  resp:'Responsable'          /* J9: quien estaba de guardia; "yo" = quien pregunta */
 };
 /* Quitar un chip borra su filtro. El de la reserva de la página (J1) borra el
    código Y apunta que el usuario no la quiere: al repintar no se vuelve a
@@ -1422,6 +1468,7 @@ async function proxyGet(qs){
    quitan los campos sensibles al recibirlas, se guarda solo id→nombre y las
    filas se sueltan. Una vez por carga de página, ni una petición más. */
 let USERSP=null;
+let USERS_EMAIL=null;   /* J9: email (en minúsculas, sin acentos) → UserID */
 /* G5: el resultado de cada intento se DEVUELVE ({map,ok}) y no se guarda en
    una variable del módulo. Una lectura que falló hace dos preguntas ya no
    puede hablar por la de ahora. */
@@ -1432,10 +1479,16 @@ async function loadUsersRes(){
     try{
       const rows=await proxyGet('action=data&table=TaUsers&limit=200');
       m=new Map();
+      const em={};
       rows.forEach(function(u){
         const id=String(u[U.id]||'').trim(), nm=String(u[U.name]||'').trim();
         if(id&&nm)m.set(id,nm);
+        /* J9: email → id, solo para saber quién es "yo". El token de sesión
+           lleva email, nombre y rol, no el UserID (caspio-proxy, claims). */
+        const e=fold(u[U.email]);
+        if(id&&e)em[e]=id;
       });
+      USERS_EMAIL=em;
     }catch(e){ LAST_KO=e; dbg('TaUsers ko'); }
     if(m){ USERS=m; return {map:m,ok:true}; }
     /* Un fallo no se guarda: la siguiente pregunta lo vuelve a intentar una
@@ -2459,6 +2512,9 @@ function tasksPlan(t){
   if(t.important===true){ p.imp='1'; chips.important=true; }
   /* Quién decide esto es doTasks, aquí solo se emite. */
   if(t.noauto===true){ p.auto='0'; chips.noauto=true; }
+  /* J9: si la pregunta era de guardias y esta tarjeta la responde (rol sin
+     la página, o FEAT.guard a 0), se dice: tareas.html no filtra por guardia. */
+  if(t.guardia===true)no.push('guardias');
   return {params:p,chips:chips,no:no};
 }
 /* De cada fila de TaMultiunits Mia guarda SOLO esto: el id, la villa, el
@@ -2674,6 +2730,9 @@ async function doTasks(t,extraNo,req){
      villas parecidas que el resto de Tareas, sin repetir ni una línea.
      Con FEAT.incid a 0 esta rama no existe y la respuesta es la de siempre. */
   if(FEAT.incid && t.incident===true){ await doTasksIncidents(t,extraNo,topNote,near,req); return; }
+  /* J9: guardias e intervenciones. Misma bifurcación que J6, con la villa ya
+     resuelta. Con FEAT.guard a 0 la respuesta es la tarjeta normal de Tareas. */
+  if(FEAT.guard && t.guardia===true && canSeeGuardias()){ await doTasksGuardias(t,extraNo,topNote,near,req); return; }
   const render=function(){
     const plan=tasksPlan(t); plan.no=plan.no.concat(extraNo||[]);
     /* R7: lo que el enlace lleva de verdad. auto=0 lo pone Mia sola y u= vacío
@@ -2917,6 +2976,241 @@ async function doTasksIncidents(t,extraNo,topNote,near,req){
   box.appendChild(btns);
   const sg=suggestBlock(near,function(h){
     return link('tareas',tasksPlan(Object.assign({},t,{villa:h.name,villaId:h.id})).params);
+  });
+  if(sg)box.appendChild(sg);
+  say(box,req);
+}
+
+/* ════════════════ GUARDIAS E INTERVENCIONES (J9) ════════════════ */
+/* Pedido de Nazaret (14/09/2026): las mismas preguntas que responde el
+   resumen de guardias, contestadas aquí con la lista de registros y un enlace
+   a cada uno. Qué es un registro de guardia: una fila de TaTasks con
+   Intervencion_guardia_tipo_ID relleno (es el mismo filtro que usan
+   guardias-e-intervenciones.html y su resumen). 'guardia sin intervencion' es
+   un día de guardia sin aviso; cualquier otro tipo es una intervención.
+   Pendiente = Tarea_terminada apagado. Los registros con la marca
+   "Intervención/Guardia válida" quitada (Intervencion_guardia = No) no se
+   enseñan, igual que en las dos páginas, pero SÍ se cuentan y se dice
+   cuántos son: así un registro escondido deja de ser invisible. */
+const GUARD_ORDER='Data_to_be_done_fixed DESC';
+const GUARD_SHIFT='guardia sin intervencion';
+const GUARD_ME_RE=/^(yo|me|mi|mí|mío|mio|mine|myself|my)$/i;
+function isGuardShift(r){ return String(r&&r.Intervencion_guardia_tipo_ID==null?'':r.Intervencion_guardia_tipo_ID).trim()===GUARD_SHIFT; }
+function guardPending(r){ return !isGuardShift(r) && isOk(r.Tarea_terminada)!==true; }
+/* El id del usuario que ha entrado. El token de sesión no lleva UserID
+   (claims: type, email, role, name, exp), así que se resuelve como hacen las
+   páginas de guardias: el email del token contra TaUsers. Sin email o sin
+   fila, cadena vacía — y entonces la pregunta por "yo" NO se lanza sin
+   filtro (sería toda la empresa). */
+async function myUserId(){
+  let em='';
+  try{ em=fold((typeof Auth!=='undefined'&&Auth&&Auth.email)?Auth.email():''); }catch(e){}
+  if(!em)return '';
+  try{ await loadUsersRes(); }catch(e){}
+  return (USERS_EMAIL&&Object.prototype.hasOwnProperty.call(USERS_EMAIL,em))?USERS_EMAIL[em]:'';
+}
+function guardWhere(t,uid,withFollow){
+  const parts=["Intervencion_guardia_tipo_ID IS NOT NULL","Intervencion_guardia_tipo_ID<>''"];
+  if(t.villa && isId(t.villaId))parts.push('villaid='+parseInt(t.villaId,10));
+  if(isDate(t.from))parts.push("Data_to_be_done_fixed>='"+t.from+"T00:00:00'");
+  if(isDate(t.to))parts.push("Data_to_be_done_fixed<='"+t.to+"T23:59:59'");
+  /* Responsable: quien estaba de guardia; el resumen agrupa por este campo.
+     En una pregunta de pendientes cuenta también el asignado, que es quien
+     hace el seguimiento mientras la intervención sigue abierta (v21 G34). */
+  if(uid&&withFollow)parts.push("(UserID_responsible_alfanum='"+sq(uid)+"' OR UserID_asigned_alfanum='"+sq(uid)+"')");
+  else if(uid)parts.push("UserID_responsible_alfanum='"+sq(uid)+"'");
+  return parts.join(' AND ');
+}
+function guardQs(where,limit){
+  return 'action=data&table=TaTasks'+(where?'&where='+encodeURIComponent(where):'')
+    +'&orderBy='+encodeURIComponent(GUARD_ORDER)+'&limit='+limit;
+}
+/* Nombres de los tipos, de la misma tabla que leen las dos páginas. Una vez
+   por carga de página; si falla, se enseña el id tal cual. */
+let GTIPOSP=null;
+async function loadGuardTipos(){
+  if(GTIPOSP)return GTIPOSP;
+  GTIPOSP=(async function(){
+    const m={};
+    try{
+      const rows=await proxyGet('action=data&table=Ta_tipo_intervencion_guardia&limit=100');
+      rows.forEach(function(r){
+        const id=String(r.Intervencion_guardia_tipo_ID==null?'':r.Intervencion_guardia_tipo_ID).trim();
+        const nm=String(r.Nombre==null?'':r.Nombre).trim();
+        if(id&&nm)m[id]=nm;
+      });
+    }catch(e){ GTIPOSP=null; }
+    return m;
+  })();
+  return GTIPOSP;
+}
+function guardTime(v){ const m=String(v==null?'':v).match(/(\d{1,2}):(\d{2})/); return m?((m[1].length<2?'0':'')+m[1]+':'+m[2]):''; }
+function guardText(r){
+  /* el registro guarda un punto por línea con '• ' o '[x] '/'[ ] ' delante
+     (guardias v21 G10): se quitan y los puntos se unen con ' · ' */
+  const s=String(r.Taskdescription==null?'':r.Taskdescription).split(/\r?\n/)
+    .map(function(l){ return l.replace(/^\s*(\[x\]|\[ \]|•)\s*/i,'').trim(); }).filter(Boolean).join(' · ').replace(/\s+/g,' ').trim();
+  return s.length>GUARD_TEXT?s.slice(0,GUARD_TEXT-1)+'…':s;
+}
+/* Pendientes primero; luego de la más reciente a la más antigua. Mismo orden
+   que la fila de detalle del resumen (listado v09). */
+function guardPick(rows){
+  const list=(rows||[]).filter(function(r){ return r&&String(r.Intervencion_guardia_tipo_ID==null?'':r.Intervencion_guardia_tipo_ID).trim()!==''; });
+  list.sort(function(a,b){
+    const pa=guardPending(a)?0:1, pb=guardPending(b)?0:1;
+    if(pa!==pb)return pa-pb;
+    const A=String(a.Data_to_be_done_fixed||''), B=String(b.Data_to_be_done_fixed||'');
+    if(A!==B)return A<B?1:-1;
+    return (parseInt(b.taskid,10)||0)-(parseInt(a.taskid,10)||0);
+  });
+  return list;
+}
+/* Una fila = un registro. Todo entra por textContent (E). */
+function guardRow(r,names,tipos,users,invalid){
+  const row=E('div','mia-inc'+(invalid?' mia-inc-off':''));
+  const vid=String(r.villaid==null?'':r.villaid).trim();
+  const head=E('div','mia-inc-h');
+  const tidN=String(r.taskid==null?'':r.taskid).trim();
+  head.appendChild(E('span','mia-inc-v',((names&&names[vid])||(vid?'Villa '+vid:'—'))+(isId(tidN)?' #'+tidN:'')));
+  const hIni=guardTime(r.Intervencion_guardia_hora_inicio), hFin=guardTime(r.Intervencion_guardia_hora_fin);
+  const horas=isGuardShift(r)?'':(hIni&&hFin?' · '+hIni+'–'+hFin:(hIni||hFin?' · '+(hIni||hFin):''));
+  head.appendChild(E('span','mia-inc-d',fmtDate(r.Data_to_be_done_fixed)+horas));
+  row.appendChild(head);
+  const tid0=String(r.Intervencion_guardia_tipo_ID==null?'':r.Intervencion_guardia_tipo_ID).trim();
+  const tipo=isGuardShift(r)?T.gdShift:((tipos&&tipos[tid0])||tid0||'—');
+  const flags=(isOk(r.importante)===true?' 🚩':'')+(isOk(r.urgente)===true?' 🏁':'')+(isOk(r.Desplazamientos)===true?' 🚗':'');
+  row.appendChild(E('div','mia-inc-n',tipo+flags));
+  const tx=isGuardShift(r)?'':guardText(r);
+  if(tx)row.appendChild(E('div','mia-inc-t',tx));
+  const meta=E('div','mia-inc-m');
+  const rid=String(r.UserID_responsible_alfanum||'').trim(), aid=String(r.UserID_asigned_alfanum||'').trim();
+  const rName=userName(rid)||(users&&users.get(rid))||'—';
+  meta.appendChild(E('span',null,T.gdResp+' '+rName));
+  /* Seguimiento: solo en una intervención abierta y si es otra persona */
+  if(guardPending(r)&&aid&&aid!==rid){
+    const aName=userName(aid)||(users&&users.get(aid))||'';
+    if(aName)meta.appendChild(E('span',null,T.gdFollow+' '+aName));
+  }
+  if(!isGuardShift(r))meta.appendChild(E('span',null,guardPending(r)?T.gdPend:T.gdDone));
+  if(invalid)meta.appendChild(E('span','mia-inc-bad',T.gdInvalid));
+  const code=String(r.Idreserva==null?'':r.Idreserva).trim();
+  if(code)meta.appendChild(E('span',null,'Reserva '+code));
+  row.appendChild(meta);
+  const tid=String(r.taskid==null?'':r.taskid).trim();
+  if(isId(tid))row.appendChild(btn(T.gdOpen,link('guardias',{editar:tid})));
+  return row;
+}
+/* Los filtros de la pregunta, en la URL de guardias-e-intervenciones.html
+   v22 (desde, hasta, vm, estado, vid/villa). */
+function guardPageParams(t,uid){
+  const p={};
+  if(isDate(t.from))p.desde=t.from;
+  if(isDate(t.to))p.hasta=t.to;
+  if(uid)p.vm=uid;
+  if(t.status){ const st=fold(t.status); if(st==='pendiente')p.estado='pend'; else if(st==='terminada')p.estado='done'; }
+  if(t.villa && isId(t.villaId))p.vid=String(t.villaId);
+  else if(t.villa)p.villa=t.villa;
+  return p;
+}
+async function doTasksGuardias(t,extraNo,topNote,near,req){
+  const no=(extraNo||[]).slice();
+  /* Ventana por defecto, decidida UNA vez: "pendientes" sin fechas son todas
+     las pendientes (como la píldora Pendientes de la página, v21 G22); lo
+     demás sin fechas son los últimos GUARD_DAYS días. */
+  const stPend=fold(t.status)==='pendiente', stDone=fold(t.status)==='terminada';
+  let winNote=null;
+  if(!t.gdWin){
+    t.gdWin=1;
+    if(!isDate(t.from)&&!isDate(t.to)&&!stPend){ const hoy=todayISO(); t.from=addDays(hoy,-GUARD_DAYS); t.to=hoy; t.gdAuto=1; }
+  }
+  if(t.gdAuto&&isDate(t.from)&&isDate(t.to))winNote=T.gdWin;
+  else if(stPend&&!isDate(t.from)&&!isDate(t.to))winNote=T.gdPendAll;
+  /* Quién: "yo" es quien ha entrado (email del token contra TaUsers); un
+     nombre se busca en TaUsers. Si "yo" no se resuelve, la consulta no se
+     lanza: sin filtro serían las guardias de toda la empresa. */
+  let uid='', uLbl='', meKo=false;
+  if(t.user){
+    if(GUARD_ME_RE.test(String(t.user).trim())){
+      uid=await myUserId();
+      if(uid){ uLbl='yo'; }
+      else { meKo=true; no.push('usuario: '+t.user); }
+    }else{
+      /* doTasks ya cargó TaUsers para este nombre; aquí se asegura por si la
+         rama se llama sola (pruebas) o el mapa cayó en la pregunta anterior. */
+      await ensureUsers(t.user);
+      const u=findUser(t.user);
+      if(u.id){ uid=u.id; uLbl=t.user; }
+      else no.push('usuario: '+t.user+(u.many?' (varios)':''));
+    }
+  }
+  if(t.unit)no.push('unidad "'+t.unit+'"');
+  if(t.type)no.push('tipo: '+t.type);
+
+  let rows=null, ko=false;
+  if(meKo){ rows=[]; }
+  else{
+    try{ rows=await proxyGet(guardQs(guardWhere(t,uid,stPend),GUARD_FETCH)); }
+    catch(e){ LAST_KO=e; ko=true; }
+  }
+  const names=await villaNames();
+  const tipos=await loadGuardTipos();
+  const capped=!ko&&rows&&rows.length>=GUARD_FETCH;
+  let list=ko?[]:guardPick(rows);
+  if(stPend)list=list.filter(guardPending);
+  if(stDone)list=list.filter(function(r){ return !isGuardShift(r)&&isOk(r.Tarea_terminada)===true; });
+  /* La marca "Intervención/Guardia válida" apagada esconde el registro en las
+     dos páginas. Aquí se enseña al final, en gris y con su etiqueta, y se
+     dice quién puede encenderla: así un registro escondido deja de ser un
+     misterio (el caso de Nazaret del 12/09/2026). */
+  const bad=list.filter(function(r){ return isOk(r.Intervencion_guardia)===false; });
+  list=list.filter(function(r){ return isOk(r.Intervencion_guardia)!==false; });
+  const shown=list.slice(0,GUARD_MAX);
+  const shownBad=bad.slice(0,Math.max(0,GUARD_MAX-shown.length));
+
+  const again=function(){
+    if(!t.villa){ topNote=null; near=[]; }
+    /* el chip Responsable quita el usuario; el chip Guardias quita la ventana
+       que Mia puso sola, para que la tarjeta de Tareas no herede fechas que
+       nadie escribió */
+    if(t.resp===undefined)delete t.user;
+    if(t.guardia!==true){ if(t.gdAuto){ delete t.from; delete t.to; } doTasks(t,extraNo,req); return; }
+    doTasksGuardias(t,extraNo,topNote,near,req);
+  };
+  const box=E('div');
+  if(topNote)box.appendChild(note(topNote));
+  t.resp=uLbl||t.user||undefined;
+  const stChip=t.status?(String(t.status).charAt(0).toUpperCase()+String(t.status).slice(1)):'';
+  const chipObj={guardia:true,villa:t.villa,from:t.from,to:t.to,resp:t.resp,status:stChip};
+  const params=guardPageParams(t,uid);
+  ST.shareHref=link('guardias',params); ST.shareChips=chipTexts(chipObj);
+  const chips=chipsBlock(chipObj,t,again);
+  if(chips)box.appendChild(chips);
+  box.appendChild(note(T.gdHead));
+  if(winNote)box.appendChild(note(winNote));
+  const na=noApplyBlock(no);
+  if(na)box.appendChild(na);
+  if(meKo){
+    box.appendChild(note(T.gdNoMe));
+  }else if(ko){
+    box.appendChild(note(T.gdKo));
+  }else if(!shown.length&&!shownBad.length){
+    box.appendChild(note(T.gdNone));
+  }else{
+    const l=E('div','mia-list');
+    let users=null; try{ users=await loadUsers(); }catch(e){}
+    shown.forEach(function(r){ l.appendChild(guardRow(r,names,tipos,users,false)); });
+    shownBad.forEach(function(r){ l.appendChild(guardRow(r,names,tipos,users,true)); });
+    box.appendChild(l);
+    if(list.length>GUARD_MAX||bad.length>shownBad.length)box.appendChild(note(T.gdMore));
+  }
+  if(bad.length)box.appendChild(note((bad.length===1?T.gdBad1:T.gdBadN).replace('{n}',String(bad.length))));
+  if(stPend&&uid&&!meKo)box.appendChild(note(T.gdFollowNote));
+  if(capped)box.appendChild(note(T.gdCap));
+  const btns=E('div','mia-btns');
+  btns.appendChild(btn(T.gdOpenPage,link('guardias',params),true));
+  box.appendChild(btns);
+  const sg=suggestBlock(near,function(h){
+    return link('guardias',guardPageParams(Object.assign({},t,{villa:h.name,villaId:h.id}),uid));
   });
   if(sg)box.appendChild(sg);
   say(box,req);
