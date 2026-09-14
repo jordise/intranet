@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v7 | Historial completo al final --->
+<!-- VERSIÓN ACTUAL: v8 | Historial completo al final --->
 <head>
   <base href="/intranet/">
   <meta charset="UTF-8">
@@ -46,7 +46,7 @@
     }
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entradas Desviar v7 — 3Villas</title>
+  <title>Entradas Desviar v8 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -188,19 +188,28 @@
 
         document.getElementById('msg').textContent = 'Cargando perfil…';
 
-        const url  = Auth.url(`${WORKER}?action=data&table=TaUsers&limit=500`);
-        const res  = await fetch(url);
-        if (!res.ok) throw new Error(`Error al cargar usuarios (HTTP ${res.status})`);
-        const json = await res.json();
-        const rows = json.Result || json.result || [];
+        /* v8: el rol ya viaja en la sesion (el mismo que usan auth.js para los
+           permisos y nav.js para el menu), asi que no hace falta bajar TaUsers
+           entero para leer una sola fila. Si llegara vacio, se hace la consulta
+           de siempre como respaldo. */
+        let role = '';
+        try { role = String((Auth.role ? Auth.role() : '') || '').trim().toLowerCase(); } catch (e) { role = ''; }
 
-        const me = rows.find(u =>
-          String(u.Email || u.email || '').toLowerCase() === email.toLowerCase()
-        );
+        if (!role) {
+          const url  = Auth.url(`${WORKER}?action=data&table=TaUsers&limit=500`);
+          const res  = await fetch(url);
+          if (!res.ok) throw new Error(`Error al cargar usuarios (HTTP ${res.status})`);
+          const json = await res.json();
+          const rows = json.Result || json.result || [];
 
-        const role = String(
-          (me && (me.Role || me.role || me.Rol || me.rol || ''))
-        ).trim().toLowerCase();
+          const me = rows.find(u =>
+            String(u.Email || u.email || '').toLowerCase() === email.toLowerCase()
+          );
+
+          role = String(
+            (me && (me.Role || me.role || me.Rol || me.rol || ''))
+          ).trim().toLowerCase();
+        }
 
         console.log('[desviar] email:', email, '| rol detectado:', role || '(vacío)');
 
@@ -226,4 +235,4 @@
 
 </body>
 </html>
-<!-- HISTORIAL: v7 - Retrofit: favicon estándar añadido (ruta absoluta); logo roto Logo_350x180_negro_trans.png → logo-negro.png (ruta absoluta, único logo existente en repo); spinner <div> CSS background base64 → <img> base64 estándar; CSS .spinner{background:url(...)} eliminado; título corregido (desincronizado v04 → v7). |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
+<!-- HISTORIAL: v8 - El rol se lee de la sesion con Auth.role() en vez de bajar TaUsers entero (500 filas) para encontrar una sola. Es el mismo rol que ya usan auth.js para los permisos y nav.js para el menu, asi que no cambia el destino de nadie; si Auth.role() llegara vacio se hace la consulta de siempre como respaldo. Ademas el destino del rol cleaner, entradas-cleaner.html, existe desde hoy: hasta ahora los 43 usuarios con ese rol caian en un 404 al pulsar la primera entrada de su menu (bead bd_3villas-s1p.7, abierto desde el 02/09/2026). | v7 - Retrofit: favicon estándar añadido (ruta absoluta); logo roto Logo_350x180_negro_trans.png → logo-negro.png (ruta absoluta, único logo existente en repo); spinner <div> CSS background base64 → <img> base64 estándar; CSS .spinner{background:url(...)} eliminado; título corregido (desincronizado v04 → v7). |  v6 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v5 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v4 - versión anterior -->
