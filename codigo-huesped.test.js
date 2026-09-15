@@ -274,14 +274,14 @@ console.log('notas-equipo-reservas.html: boton Enviar acceso y bloque del enlace
 /* ── version ── */
 console.log('notas-equipo-reservas.html: version');
 (function () {
-  ok('cabecera v79', /VERSIÓN ACTUAL: v79 \|/.test(SRC));
-  ok('titulo v79', /<title>Notas Equipo Reservas v79 — 3Villas<\/title>/.test(SRC));
-  ok('PAGE_VERSION 79 (la auto-recarga mira este numero)',
-    SRC.indexOf('var PAGE_VERSION = 79;') > 0 && SRC.indexOf('var PAGE_VERSION = 78;') < 0);
+  ok('cabecera v80', /VERSIÓN ACTUAL: v80 \|/.test(SRC));
+  ok('titulo v80', /<title>Notas Equipo Reservas v80 — 3Villas<\/title>/.test(SRC));
+  ok('PAGE_VERSION 80 (la auto-recarga mira este numero)',
+    SRC.indexOf('var PAGE_VERSION = 80;') > 0 && SRC.indexOf('var PAGE_VERSION = 79;') < 0);
   /* 14/09/2026: la v78 puso la pagina en su propia clave de permiso porque enseña
      el bloque fiscal del huesped. La v77 de Cristian sigue en el historial. */
-  ok('el historial empieza en v79 y conserva la v78 del cambio de permiso',
-    /<!-- HISTORIAL: v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
+  ok('el historial empieza en v80 y conserva la v79 (opcion 14:00) y la v78 del cambio de permiso',
+    /<!-- HISTORIAL: v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
   ok('y conserva la v77 de Cristian', / \| v77 - Cristian \(11\/09\/2026\)/.test(SRC));
   ok('y conserva la v76, la v75 y la v74',
     / \| v76 - /.test(SRC) && / \| v75 - /.test(SRC) && / \| v74 - /.test(SRC));
