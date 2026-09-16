@@ -149,14 +149,16 @@ console.log('cobros-inquilinos.html: avisoMarcasFila (aviso por email)');
     fila.Villa === 'Villa 18 B' && fila.Usuario === 'Toni Seguí' && fila.Lineas.indexOf('Fianza devuelta') === 1);
   ok('la pagina que se manda es cobros-inquilinos v33', fila.Pagina === 'cobros-inquilinos v33');
   ok('la funcion copiada sigue dando el enlace de la pagina de notas',
-    fila.Enlace === 'https://3villas.com/intranet/notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=RES1');
+    fila.Enlace === 'https://www.3villas.com/intranet/notas-equipo-reservas.html?TaBookings2021_FS_confirmation_code=RES1');
   ok('pero el aviso lo cambia por el de esta pagina (donde se marca)',
-    SRC.indexOf("fila.Enlace = 'https://3villas.com/intranet/cobros-inquilinos.html?code=' + encodeURIComponent(String(code || ''));") > 0);
+    SRC.indexOf("fila.Enlace = 'https://www.3villas.com/intranet/cobros-inquilinos.html?code=' + encodeURIComponent(String(code || ''));") > 0);
+  /* v36: ningun enlace del aviso queda en 3villas.com sin www (la sesion vive en www) */
+  ok('v36: ningun enlace del aviso sin www', SRC.indexOf("'https://3villas.com/intranet/") < 0 && (SRC.match(/'https:\/\/www\.3villas\.com\/intranet\/(notas-equipo-reservas|cobros-inquilinos)\.html\?/g) || []).length === 4);
   ok('sin usuario: equipo', a(true, ['[x]'], 'RES1', 'V', 'cobros-inquilinos v33', '').Usuario === 'equipo');
   ok('la funcion es la copia literal de notas-equipo-reservas',
     fnSource(F, 'avisoMarcasFila') === fnSource('notas-equipo-reservas.html', 'avisoMarcasFila'));
   /* v35: la etiqueta de pagina del aviso sube con la version */
-  ok('la pagina llama al aviso con cobros-inquilinos v35', SRC.indexOf("'cobros-inquilinos v35'") > 0 && SRC.indexOf("'cobros-inquilinos v33'") < 0);
+  ok('la pagina llama al aviso con cobros-inquilinos v36', SRC.indexOf("'cobros-inquilinos v36'") > 0 && SRC.indexOf("'cobros-inquilinos v35'") < 0 && SRC.indexOf("'cobros-inquilinos v33'") < 0);
   ok('el aviso va a TaAvisos_marcas_manuales', SRC.indexOf('action=create&table=TaAvisos_marcas_manuales') > 0);
   /* v35: la segunda lectura de TaConfig_intranet es la de los datos del ordenante (claves n34_*), no otra del interruptor */
   ok('el interruptor se lee una sola vez (la lectura de la v31) y los datos del ordenante otra (v35)',
@@ -323,9 +325,9 @@ console.log('cobros-inquilinos.html: preset Devoluciones pendientes');
 /* ── version ── */
 console.log('cobros-inquilinos.html: version');
 (function () {
-  ok('cabecera v35', /VERSIÓN ACTUAL: v35 \|/.test(SRC));
-  ok('titulo v35', /<title>Control Cobros Inquilinos v35 — 3Villas<\/title>/.test(SRC));
-  ok('el historial empieza en v35 y conserva la entrada v34', /<!-- HISTORIAL: v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
+  ok('cabecera v36', /VERSIÓN ACTUAL: v36 \|/.test(SRC));
+  ok('titulo v36', /<title>Control Cobros Inquilinos v36 — 3Villas<\/title>/.test(SRC));
+  ok('el historial empieza en v36 (enlace www del aviso) y conserva la v35 y la v34', /<!-- HISTORIAL: v36 - Enlace del aviso por email/.test(SRC) && / \| v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
   ok('y conserva la v33 y la v32', / \| v33 - /.test(SRC) && / \| v32 - /.test(SRC));
 })();
 

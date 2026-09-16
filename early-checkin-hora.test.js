@@ -58,9 +58,9 @@ ok('notas-equipo-reservas: el texto de ayuda dice 5 minutos antes', R.indexOf('s
 
 console.log('versiones');
 ok('checkin-pasos v100', /VERSIÓN ACTUAL: v100 \|/.test(S) && S.indexOf('var PAGE_VERSION = 100;') > 0 && /<!-- HISTORIAL: v100 - /.test(S));
-ok('notas-equipo-reservas v80', /VERSIÓN ACTUAL: v80 \|/.test(R) && R.indexOf('var PAGE_VERSION = 80;') > 0 && /<!-- HISTORIAL: v80 - /.test(R) && R.indexOf('<title>Notas Equipo Reservas v80') > 0);
+ok('notas-equipo-reservas v81', /VERSIÓN ACTUAL: v81 \|/.test(R) && R.indexOf('var PAGE_VERSION = 81;') > 0 && /<!-- HISTORIAL: v81 - /.test(R) && / \| v80 - /.test(R) && R.indexOf('<title>Notas Equipo Reservas v81') > 0);
 var V = fs.readFileSync('notas-villamanager.html', 'utf8');
-ok('notas-villamanager v40', /VERSIÓN ACTUAL: v40 \|/.test(V) && /<!-- HISTORIAL: v40 - /.test(V));
+ok('notas-villamanager v41', /VERSIÓN ACTUAL: v41 \|/.test(V) && /<!-- HISTORIAL: v41 - /.test(V) && / \| v40 - /.test(V));
 
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 if (fail) process.exit(1);
