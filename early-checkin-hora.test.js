@@ -1,4 +1,4 @@
-/* Pruebas del early check-in por hora (checkin-pasos v100, notas-equipo-reservas v80,
+/* Pruebas del early check-in por hora (checkin-pasos v101, notas-equipo-reservas v80,
    notas-villamanager v40). 15/09/2026: opcion 15:00 (Marta Deza, WhatsApp 15/09/2026). Caso: Marta Deza, WhatsApp 14/09/2026, reserva 66167362:
    early check-in a las 13:00 sin linea de cobro y el codigo no salio hasta las 15:55.
    node early-checkin-hora.test.js
@@ -57,7 +57,7 @@ ok('notas-equipo-reservas: el texto de ayuda ya no exige una linea COBRADA', R.s
 ok('notas-equipo-reservas: el texto de ayuda dice 5 minutos antes', R.indexOf('se muestra al huésped 5 minutos antes de esa hora') > 0);
 
 console.log('versiones');
-ok('checkin-pasos v100', /VERSIÓN ACTUAL: v100 \|/.test(S) && S.indexOf('var PAGE_VERSION = 100;') > 0 && /<!-- HISTORIAL: v100 - /.test(S));
+ok('checkin-pasos v101', /VERSIÓN ACTUAL: v101 \|/.test(S) && S.indexOf('var PAGE_VERSION = 101;') > 0 && /<!-- HISTORIAL: v101 - /.test(S));
 ok('notas-equipo-reservas v81', /VERSIÓN ACTUAL: v81 \|/.test(R) && R.indexOf('var PAGE_VERSION = 81;') > 0 && /<!-- HISTORIAL: v81 - /.test(R) && / \| v80 - /.test(R) && R.indexOf('<title>Notas Equipo Reservas v81') > 0);
 var V = fs.readFileSync('notas-villamanager.html', 'utf8');
 ok('notas-villamanager v41', /VERSIÓN ACTUAL: v41 \|/.test(V) && /<!-- HISTORIAL: v41 - /.test(V) && / \| v40 - /.test(V));
