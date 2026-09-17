@@ -1,5 +1,5 @@
 /* Pruebas de los campos de instrucciones por suministro (electricidad, agua, gas) en la seccion
-   Emergencias de editar-villa.html v25 y villa.html v22 (peticion de Nazaret, TIC, 13/09/2026).
+   Emergencias de editar-villa.html v26 y villa.html v22 (peticion de Nazaret, TIC, 13/09/2026).
    node editar-villa-utilidades.test.js
 
    Como lugar-villa.test.js: NO copia el codigo de las paginas. Extrae con vm las listas reales
@@ -53,7 +53,7 @@ function checkPage(file, ver, titleRe) {
   return s;
 }
 
-var sEdit = checkPage('editar-villa.html', 25, /<title>Editar Villa v(\d+)/);
+var sEdit = checkPage('editar-villa.html', 26, /<title>Editar Villa v(\d+)/);
 (function () {
   var ctx = {};
   vm.runInNewContext(constBlock(sEdit, 'TEXT_FIELDS'), ctx);
@@ -72,7 +72,7 @@ var sEdit = checkPage('editar-villa.html', 25, /<title>Editar Villa v(\d+)/);
     var c3 = {}; vm.runInNewContext(sEdit.slice(i, j).replace(/^const /, 'var '), c3);
     ok(n + ' no contiene los seis', NEW.every(function (f) { return !c3[n].has(f); }));
   });
-  ok('el historial v25 no lleva nombres de personas ajenas ni horas', !/Amanda|\d{1,2}:\d{2}/.test(sEdit.slice(sEdit.indexOf('<!-- HISTORIAL: v25'), sEdit.indexOf('| v24 - '))));
+  ok('el historial v26 no lleva nombres de personas ajenas ni horas', !/Amanda|\d{1,2}:\d{2}/.test(sEdit.slice(sEdit.indexOf('<!-- HISTORIAL: v26'), sEdit.indexOf('| v25 - '))));
 })();
 
 checkPage('villa.html', 22, /<title>Villa Info v(\d+)/);

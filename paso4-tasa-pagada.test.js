@@ -68,7 +68,7 @@ console.log('cableado en la pagina');
 ok('la tarjeta del paso 4 usa p0Step4PendingText al pintar', /if\(n===4\)\{[\s\S]{0,400}p0Step4PendingText\(r,tP0,_currentLang\)/.test(S));
 ok('applyLangP0 vuelve a aplicar el texto al cambiar de idioma', /function applyLangP0\(lang\)\{[\s\S]*?p0Step4PendingText\(bd4,tP0,lang\)/.test(S));
 ok('la funcion se expone en window', S.indexOf('window.p0Step4PendingText=p0Step4PendingText;') > 0);
-ok('versión v101 en cabecera, título, PAGE_VERSION e historial', /VERSIÓN ACTUAL: v101 \|/.test(S) && /<title>Check-in Pasos v101/.test(S) && S.indexOf('var PAGE_VERSION = 101;') > 0 && /<!-- HISTORIAL: v101 - /.test(S));
+ok('versión v102 en cabecera, título, PAGE_VERSION e historial', /VERSIÓN ACTUAL: v102 \|/.test(S) && /<title>Check-in Pasos v102/.test(S) && S.indexOf('var PAGE_VERSION = 102;') > 0 && /<!-- HISTORIAL: v102 - /.test(S));
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
