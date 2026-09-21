@@ -1,7 +1,7 @@
 /* Pruebas de fotoUrl (villa.html v23, editar-villa.html v27, checkin-pasos.html v103):
    las fotos del bucket R2 se piden por el mismo host www.3villas.com/intranet/fotos/
    porque los operadores espanoles bloquean r2.dev las tardes de partido de LaLiga
-   (caso Amanda, 19/09/2026). node fotos-mismo-host.test.js
+   (caso de una villamanager, 19/09/2026). node fotos-mismo-host.test.js
 
    Como unidad-direccion.test.js: NO copia el codigo de la pagina. Extrae la funcion
    real de cada HTML y la ejecuta. */
