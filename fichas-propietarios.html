@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v01 | Historial completo al final de este archivo -->
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
+<title>Fichas de Propietarios v01 — 3Villas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+  --green:#1e9e4e;--green-light:#e6f7ee;
+  --orange:#e07b00;--orange-light:#fff4e0;
+  --blue:#1565c0;--blue-light:#e8f1fb;
+  --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;
+  --shadow-md:0 4px 16px rgba(0,0,0,.12);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:60px}
+
+/* ── NAV (mismo estándar que editar-villa.html y crear-villa.html) ── */
+.top-nav{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+.nav-logo img{height:24px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 4px}
+.h-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;flex-shrink:0}
+.nav-close-btn{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:30px;height:30px;border-radius:50%;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0;text-decoration:none}
+
+.wrap{max-width:1080px;margin:0 auto;padding:14px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.card h2{font-family:Montserrat,sans-serif;font-size:15px;font-weight:900;color:var(--gray-5);margin-bottom:4px}
+.card .sub{font-size:12px;color:var(--gray-4);margin-bottom:14px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.fld label{display:block;font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;color:var(--gray-5);margin-bottom:4px}
+.fld input,.fld select,.fld textarea{width:100%;border:1.5px solid var(--gray-2);border-radius:9px;padding:9px 11px;font-size:14px;font-family:'Open Sans',sans-serif;color:var(--gray-5);background:#fff;outline:none}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.fld.malo input{border-color:var(--red);background:var(--red-light)}
+.fld textarea{min-height:76px;resize:vertical}
+
+.bot{background:var(--red);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;cursor:pointer}
+.bot:hover{background:var(--red-dark)}
+.bot:disabled{opacity:.55;cursor:default}
+.bot.sec{background:#fff;color:var(--gray-4);border:1.5px solid var(--gray-3)}
+.bot.ok{background:var(--green)}
+.bot.wa{background:#25D366}
+.bot.sm{padding:6px 11px;font-size:11px}
+
+.enlace-box{border:1.5px solid var(--green);background:var(--green-light);border-radius:12px;padding:12px;margin-top:14px;display:none}
+.enlace-box .url{font-family:monospace;font-size:12px;word-break:break-all;background:#fff;border:1px solid var(--gray-2);border-radius:8px;padding:9px;margin-bottom:10px}
+.enlace-box .cad{font-size:11px;color:var(--gray-4);margin-top:8px}
+.enlace-box .bots{display:flex;gap:8px;flex-wrap:wrap}
+
+.tabla-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);text-align:left;padding:8px 9px;border-bottom:1.5px solid var(--gray-2);white-space:nowrap}
+td{padding:9px;border-bottom:1px solid var(--gray-2);vertical-align:middle}
+tr:hover td{background:var(--gray-1)}
+.badge{display:inline-block;font-family:Montserrat,sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.badge.abierta{background:var(--gray-2);color:var(--gray-4)}
+.badge.enviada{background:var(--orange-light);color:var(--orange)}
+.badge.revisada{background:var(--blue-light);color:var(--blue)}
+.badge.promoviendo{background:var(--blue-light);color:var(--blue);border:1px dashed var(--blue)}
+.badge.promovida{background:var(--green-light);color:var(--green)}
+.acc{display:flex;gap:6px;flex-wrap:wrap}
+.pista{font-size:12px;color:var(--gray-4);margin-top:12px;border-left:3px solid var(--gray-3);padding-left:10px}
+
+/* ── Detalle ── */
+.det-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.det-paso{border:1.5px solid var(--gray-2);border-radius:12px;padding:12px;margin-bottom:12px}
+.det-paso h3{font-family:Montserrat,sans-serif;font-size:13px;font-weight:900;color:var(--red);margin-bottom:9px}
+.det-fila{display:grid;grid-template-columns:minmax(150px,38%) 1fr;gap:10px;padding:5px 0;border-bottom:1px dotted var(--gray-2);font-size:13px}
+.det-fila b{font-weight:600;color:var(--gray-4);font-size:12px}
+.det-fila span{word-break:break-word}
+.det-vacio{color:var(--gray-3)}
+.det-fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.det-fotos img{width:84px;height:62px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-2);cursor:pointer}
+.det-fotos a{font-size:11px;font-weight:700;color:var(--red)}
+.sub-tabla{width:100%;font-size:12px;margin-top:6px}
+.sub-tabla th{font-size:9px;padding:5px 6px}
+.sub-tabla td{padding:5px 6px}
+.fiscal-box{border:1.5px solid var(--blue);background:var(--blue-light);border-radius:12px;padding:10px;margin-top:8px}
+.fiscal-box h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:var(--blue);margin-bottom:6px}
+.manual-box{border:1.5px solid var(--orange);background:var(--orange-light);border-radius:12px;padding:12px;margin-top:12px}
+.manual-box h4{font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:var(--orange);margin-bottom:4px}
+.manual-box p{font-size:12px;color:var(--gray-5);margin-bottom:8px}
+.manual-box ol{margin-left:18px;font-size:12px}
+.manual-box li{margin-bottom:3px}
+.promo-det{margin:8px 0;font-size:12px}
+.promo-det summary{cursor:pointer;font-family:Montserrat,sans-serif;font-weight:800;
+  color:var(--gray-5);padding:6px 0;min-height:36px;display:flex;align-items:center}
+.promo-aviso{font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--red);
+  margin-top:10px}
+.filtro-fld{max-width:340px;margin-bottom:12px}
+
+/* ── Lightbox (mismo patrón que editar-villa.html) ── */
+#lbOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:900;align-items:center;justify-content:center;padding:20px}
+#lbOverlay.open{display:flex}
+#lbOverlay img{max-width:100%;max-height:100%;border-radius:10px}
+#lbClose{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:17px;cursor:pointer}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:var(--gray-5);color:#fff;font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;padding:11px 20px;border-radius:22px;z-index:800;display:none;box-shadow:var(--shadow-md)}
+#toast.show{display:block}
+#toast.ok{background:var(--green)}
+#toast.err{background:var(--red)}
+.cargando{text-align:center;color:var(--gray-4);font-size:13px;padding:24px}
+</style>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+</head>
+<body>
+<!-- 'crear-villa', no 'editar-villas': auth.js da 'editar-villas' a admin,
+     manager, staff y sales, y esta página crea enlaces con token y crea villas
+     nuevas. 'crear-villa' la tienen solo admin y manager (auth.js línea 131),
+     que son los mismos dos roles que pueden promover una ficha. -->
+<script>Auth.require('crear-villa');</script>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center"><div class="h-title">📋 Fichas de propietarios</div></div>
+  <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+    <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
+    <a class="nav-close-btn" href="index.html" title="Cerrar">✕</a>
+  </div>
+</nav>
+
+<div id="lbOverlay" onclick="if(event.target===this)closeLB()">
+  <button id="lbClose" onclick="closeLB()">✕</button>
+  <img id="lbImg" src="" alt="">
+</div>
+
+<div class="wrap">
+
+  <!-- ── Nuevo enlace ── -->
+  <div class="card" id="cardNuevo">
+    <h2>Nuevo enlace para un propietario</h2>
+    <div class="sub">El propietario abre el enlace, rellena su ficha en su idioma y la envía. El enlace solo se enseña una vez, aquí mismo.</div>
+    <div class="grid">
+      <div class="fld" id="fld_ownerName"><label for="nOwner">Nombre del propietario</label><input id="nOwner" type="text" autocomplete="off"></div>
+      <div class="fld" id="fld_propertyName"><label for="nVilla">Nombre de la villa</label><input id="nVilla" type="text" autocomplete="off"></div>
+      <div class="fld" id="fld_email"><label for="nEmail">Correo electrónico</label><input id="nEmail" type="email" autocomplete="off"></div>
+      <div class="fld" id="fld_phone"><label for="nTel">Teléfono</label><input id="nTel" type="tel" autocomplete="off"></div>
+      <div class="fld" id="fld_lang"><label for="nLang">Idioma</label>
+        <select id="nLang">
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px"><button class="bot" id="btnCrear" onclick="crearEnlace()">🔗 Crear el enlace</button></div>
+    <div class="enlace-box" id="enlaceBox">
+      <div class="url" id="enlaceUrl"></div>
+      <div class="bots">
+        <button class="bot sm" onclick="copiarEnlace()">📋 Copiar</button>
+        <a class="bot sm wa" id="btnWa" href="#" target="_blank" rel="noopener" style="text-decoration:none">💬 Enviar por WhatsApp</a>
+      </div>
+      <div class="cad" id="enlaceCad"></div>
+    </div>
+  </div>
+
+  <!-- ── Listado ── -->
+  <div class="card" id="cardLista">
+    <h2>Fichas</h2>
+    <div class="sub">Las más nuevas primero. Se leen las últimas 200.</div>
+    <div id="listaCont"><div class="cargando">Cargando…</div></div>
+    <div class="pista">Si un propietario pierde su enlace no se puede volver a enseñar: el enlace solo se ve en el momento de crearlo. Cree una ficha nueva para esa villa y pásele el enlace nuevo.</div>
+  </div>
+
+  <!-- ── Detalle ── -->
+  <div class="card" id="cardDetalle" style="display:none"></div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="ficha-campos.js"></script>
+<script>
+(function(){
+'use strict';
+var WORKER = 'https://www.3villas.com/intranet/api';
+var PAGE_VERSION = 1;
+
+/* ── v01: auto-detección de versión (Opción B), igual que editar-villa.html ── */
+(function checkForNewerVersion(){
+  try{
+    if(location.protocol === 'file:') return;
+    fetch(location.pathname, { cache:'reload' }).then(function(r){ return r.text(); }).then(function(html){
+      var m = html.match(/VERSIÓN ACTUAL:\s*v(\d+)/i);
+      if(!m) return;
+      var serverV = parseInt(m[1], 10);
+      if(serverV > PAGE_VERSION){
+        var key = '3v_vchk_' + location.pathname + '_v' + serverV;
+        if(!sessionStorage.getItem(key)){ sessionStorage.setItem(key, '1'); location.reload(); }
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   ▼▼ MAPEO A TaVillas — inicio. La prueba fichas-propietarios.test.js
+      extrae este bloque entero del HTML y lo ejecuta: no hay ninguna
+      copia del código en la prueba.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Campos de TaVillas que NUNCA se envían al promover. Son los cinco que el
+   Worker rechaza desde la revisión de seguridad: los tres del estado del
+   registro y los dos comerciales, que decide el equipo y nunca el
+   propietario. Si el mapeo enviara uno, el Worker devolvería un error. */
+var NUNCA_ENVIAR = ['SIGNED', 'Activa', 'villaid', 'Status', 'Deal_Type'];
+
+/* Enteros de TaVillas que son una cuenta llana, no una clave ajena.
+   Origen: editar-villa.html v16 ("cots_cunas / Highchair_silita /
+   dehumidifier_number confirmado como cantidades simples, no FK") y las
+   dos capacidades, que no están en su lista de tablas lookup. */
+var TV_CUENTA = ['Pax_legal', 'Total_Pax', 'dehumidifier_number', 'cots_cunas', 'Highchair_silita'];
+
+/* Enteros de TaVillas que son un Sí/No real con valores 1 y 0.
+   Origen: editar-villa.html, OPTS.yesno10 y OPTS.smoke10. */
+var TV_SINO_10 = ['Dishwasher_lavaplatos', 'Washing_machine', 'Cofe_Machine',
+  'Beach_towels_provided', 'Detector_de_humos__Smoke_Detecto'];
+
+/* Campos Yes/No de verdad en Caspio: se mandan como true o false.
+   Origen: BOOL_FIELDS de editar-villa.html. Extintores__extinguisher sigue
+   en la lista aunque hoy ninguna columna apunte a él: si alguna vez el
+   esquema vuelve a apuntar un texto a un Sí/No, la regla de más abajo lo
+   manda a la mano en vez de romper la fila. */
+var TV_SINO_BOOL = ['Swimingpool_fence', 'first_aid_kit', 'Extintores__extinguisher'];
+
+/* Claves ajenas a tablas lookup de Caspio (un id entero). No se envían
+   nunca desde aquí: el id correcto solo lo sabe el desplegable de Editar
+   Villa. La respuesta del propietario se enseña en la lista de al lado.
+   Origen: LOOKUP_DEFS y el historial v16 de editar-villa.html. */
+var TV_LOOKUP = ['Aircon', 'Parking', 'Cleanning_team', 'Garden_team', 'Pool_team',
+  'Changeoverday', 'Who_contract_internet', 'Pets_allowed', 'Swiming_pool', 'Wifi_Comany',
+  'ETV_Plate', 'House_Name_Plate'];
+
+/* Destinos que el esquema nombra pero que no son un campo real de TaVillas,
+   así que enviarlos haría fallar el PUT entero.
+   - Room1..Room7_*: no es un campo, es el patrón de los siete dormitorios.
+   El 21/09/2026 el esquema corrigió los cuatro nombres que antes estaban
+   aquí: Explanation_aircon, Description_cofe_machine, Wifi_speed_company_type
+   y Extintores__extinguisher_comment. Los cuatro existen en editar-villa.html
+   y desde hoy sí se envían. */
+var TV_DESCONOCIDO = ['Room1..Room7_*'];
+
+/* Campos de TaVillas de tipo STRING(255). Un texto más largo no cabe: Caspio
+   rechaza la fila o lo recorta él sin avisar. Aquí se manda cortado con
+   puntos suspensivos y el texto entero pasa a la lista de la mano.
+   Origen: editar-villa.html v25, que dice que los de Caldera y Jacuzzi son
+   "STRING de 255 y el texto real de una villa ya superaba ese límite". */
+var TV_STRING255 = ['Caldera_info_team', 'Jacuzzi_info_team', 'Explanation_aircon',
+  'Description_cofe_machine', 'Wifi_speed_company_type', 'Extintores__extinguisher_comment',
+  'safe_box_comments_team'];
+
+/* Las siete camas de TaVillas: Beds, Aircon, fan, Bath y foor son claves
+   ajenas (INT_FIELDS de editar-villa), así que solo se escribe el campo de
+   comentarios de cada habitación, que es texto libre. */
+var ROOM_MAX = 7;
+
+/* Las tres columnas que llevan una lista en JSON. Se tratan aparte. */
+var REPEAT_JSON = ['bedrooms_json', 'bathrooms_json', 'sharedBathrooms_json'];
+
+var OPS_ES = {
+  all:'En todos', some:'En algunos', none:'En ninguno',
+  gas:'Gas', induction:'Inducción', ceramic:'Vitrocerámica', electric:'Eléctrica',
+  charcoal:'Carbón', obra:'De obra',
+  doubleWide:'Cama doble ancha', doubleLong:'Cama doble larga',
+  single1:'1 cama individual', single2:'2 camas individuales',
+  single3:'3 camas individuales', single4:'4 camas individuales',
+  trundle:'Cama nido', bunk:'Litera',
+  bathtub:'Bañera', shower:'Ducha', both:'Bañera y ducha',
+  private:'Privada', communal:'Comunitaria',
+  street:'En la calle', insideProperty:'Dentro de la parcela', garage:'Garaje',
+  owner:'El propietario', '3villas':'3Villas',
+  mon:'Lunes', tue:'Martes', wed:'Miércoles', thu:'Jueves', fri:'Viernes',
+  sat:'Sábado', sun:'Domingo', varies:'Varía'
+};
+
+function campos(){ return (typeof window !== 'undefined' && window.FICHA_CAMPOS) || []; }
+function defDe(nombre){
+  var a = campos();
+  for(var i = 0; i < a.length; i++) if(a[i].name === nombre) return a[i];
+  return null;
+}
+function esSi(v){
+  if(v === true || v === 1) return true;
+  return ['1', '-1', 'true', 'si', 'sí', 'yes'].indexOf(String(v === undefined || v === null ? '' : v).trim().toLowerCase()) >= 0;
+}
+function esNo(v){
+  return ['0', 'false', 'no', 'nein', 'non'].indexOf(String(v === undefined || v === null ? '' : v).trim().toLowerCase()) >= 0;
+}
+function listaDe(v){
+  if(!v) return [];
+  if(Object.prototype.toString.call(v) === '[object Array]') return v;
+  try{ var a = JSON.parse(v); return Object.prototype.toString.call(a) === '[object Array]' ? a : []; }
+  catch(e){ return []; }
+}
+/* Valor de una columna de la ficha, escrito en español para que lo lea el equipo. */
+function valorEs(nombre, valor){
+  var d = defDe(nombre);
+  var s = String(valor === undefined || valor === null ? '' : valor).trim();
+  if(s === '') return '';
+  if(d && d.type === 'YES/NO') return esSi(s) ? 'Sí' : (esNo(s) ? 'No' : '');
+  if(OPS_ES[s]) return OPS_ES[s];
+  return s;
+}
+/* Etiqueta con la que se nombra un destino en la lista de la mano: la de su
+   única columna de origen, o las de todas unidas si son varias. */
+function etiquetaDestino(fuentes){
+  var e = [], i;
+  for(i = 0; i < fuentes.length; i++) e.push(fuentes[i].label_es);
+  return e.join(' + ');
+}
+/* Una habitación de bedrooms_json, resumida en una línea para RoomNcomments. */
+function textoDormitorio(b){
+  var p = [];
+  if(b.bedConfiguration) p.push(OPS_ES[b.bedConfiguration] || b.bedConfiguration);
+  if(b.bedDimensions) p.push('Medidas: ' + b.bedDimensions);
+  if(b.location) p.push('Ubicación: ' + b.location);
+  if(esSi(b.hasAC)) p.push('Aire acondicionado: Sí'); else if(esNo(b.hasAC)) p.push('Aire acondicionado: No');
+  if(esSi(b.hasCeilingFan)) p.push('Ventilador de techo: Sí'); else if(esNo(b.hasCeilingFan)) p.push('Ventilador de techo: No');
+  if(esSi(b.hasEnSuite)){
+    p.push('Baño en suite: Sí' + (b.enSuiteBathtubOrShower ? ' (' + (OPS_ES[b.enSuiteBathtubOrShower] || b.enSuiteBathtubOrShower) + ')' : ''));
+  } else if(esNo(b.hasEnSuite)) p.push('Baño en suite: No');
+  return p.join(' · ');
+}
+
+/* ── El mapeo. Devuelve lo que se envía y lo que queda para la mano. ──
+   ficha = la fila de TaVillas_ficha tal y como la devuelve el Worker.
+   Reglas:
+   1. Un destino con UNA sola columna de origen recibe el valor tal cual.
+   2. Un destino con VARIAS columnas de origen recibe las partes con su
+      etiqueta, unidas por " · ", saltando las vacías.
+   3. Los Sí/No van como 1 y 0 si el destino es un entero de Caspio, y como
+      true y false si el destino es un campo Yes/No de Caspio.
+   4. Las claves ajenas y los destinos desconocidos no se envían: van a la
+      lista "Para completar en Editar Villa".
+   5. SIGNED, Activa y villaid no se envían nunca. */
+function construirVillaFields(ficha){
+  ficha = ficha || {};
+  var villaFields = {}, manual = [];
+  var i, j, c, destino, lista = campos();
+
+  function apunta(nombre, etiqueta, valor, motivo){
+    if(!valor) return;
+    manual.push({ campo:nombre, etiqueta:etiqueta, valor:valor, motivo:motivo });
+  }
+
+  /* 1. Agrupar las columnas del esquema por destino de TaVillas. */
+  var porDestino = {}, orden = [];
+  for(i = 0; i < lista.length; i++){
+    c = lista[i];
+    if(c.step < 1 || !c.maps_to) continue;
+    if(NUNCA_ENVIAR.indexOf(c.maps_to) >= 0) continue;
+    if(!porDestino[c.maps_to]){ porDestino[c.maps_to] = []; orden.push(c.maps_to); }
+    porDestino[c.maps_to].push(c);
+  }
+
+  /* 2. Recorrer destino por destino. */
+  for(i = 0; i < orden.length; i++){
+    destino = orden[i];
+    var fuentes = porDestino[destino];
+
+    /* Las dos cuentas de baños salen del tamaño de la lista, no del texto. */
+    if(destino === 'Ensuite_BATHROOMS'){ villaFields[destino] = String(listaDe(ficha.bathrooms_json).length); continue; }
+    if(destino === 'Shared_BATHROOMS'){ villaFields[destino] = String(listaDe(ficha.sharedBathrooms_json).length); continue; }
+
+    /* El texto de la valla de la piscina lleva DOS respuestas: el tipo de
+       piscina, que es la única columna que apunta aquí, y la respuesta de la
+       valla, que además viaja sola al campo Sí/No Swimingpool_fence. Sin la
+       segunda parte, un campo llamado "descripción de la valla" solo diría
+       "Privada" y el equipo no sabría si hay valla. */
+    if(destino === 'Swimingpool_fence_description'){
+      var pp = [];
+      for(j = 0; j < fuentes.length; j++){
+        var vp = valorEs(fuentes[j].name, ficha[fuentes[j].name]);
+        if(vp !== '') pp.push(fuentes[j].label_es + ': ' + vp);
+      }
+      var vValla = valorEs('hasChildBarrier', ficha.hasChildBarrier);
+      var dValla = defDe('hasChildBarrier');
+      if(vValla !== '') pp.push((dValla ? dValla.label_es : 'Valla de seguridad para niños') + ': ' + vValla);
+      if(pp.length) villaFields[destino] = pp.join(' · ');
+      continue;
+    }
+
+    /* Claves ajenas y destinos desconocidos: a la mano. */
+    if(TV_LOOKUP.indexOf(destino) >= 0 || TV_DESCONOCIDO.indexOf(destino) >= 0){
+      var motivo = TV_LOOKUP.indexOf(destino) >= 0
+        ? 'El campo ' + destino + ' de TaVillas es una lista desplegable: elija la opción en Editar Villa.'
+        : 'El campo ' + destino + ' no existe con ese nombre en Editar Villa: cópielo a mano.';
+      for(j = 0; j < fuentes.length; j++){
+        if(fuentes[j].name === 'bedrooms_json') continue;   /* se detalla más abajo, dormitorio a dormitorio */
+        apunta(fuentes[j].name, fuentes[j].label_es, valorEs(fuentes[j].name, ficha[fuentes[j].name]), motivo);
+      }
+      continue;
+    }
+
+    /* Enteros que son una cuenta. */
+    if(TV_CUENTA.indexOf(destino) >= 0){
+      var bruto = String(ficha[fuentes[0].name] === undefined || ficha[fuentes[0].name] === null ? '' : ficha[fuentes[0].name]).trim();
+      if(bruto !== '' && !isNaN(Number(bruto))) villaFields[destino] = Number(bruto);
+      continue;
+    }
+    /* Enteros que son un Sí/No con 1 y 0. */
+    if(TV_SINO_10.indexOf(destino) >= 0){
+      var v10 = ficha[fuentes[0].name];
+      if(esSi(v10)) villaFields[destino] = 1;
+      else if(esNo(v10)) villaFields[destino] = 0;
+      continue;
+    }
+    /* Campos Yes/No de Caspio: true o false. */
+    if(TV_SINO_BOOL.indexOf(destino) >= 0){
+      var fte = fuentes[0], dv = defDe(fte.name);
+      if(dv && dv.type === 'YES/NO'){
+        var vb = ficha[fte.name];
+        if(esSi(vb)) villaFields[destino] = true;
+        else if(esNo(vb)) villaFields[destino] = false;
+      }else{
+        /* Origen de texto contra un destino Sí/No: escribir el texto en un
+           campo Yes/No rompería la fila, así que va a la mano. */
+        apunta(fte.name, fte.label_es, valorEs(fte.name, ficha[fte.name]),
+          'El campo ' + destino + ' de TaVillas es un Sí/No y esta respuesta es texto: pásela a mano en Editar Villa.');
+      }
+      continue;
+    }
+
+    /* Texto: una fuente tal cual, varias con etiqueta y " · ". */
+    var texto = '';
+    if(fuentes.length === 1){
+      texto = valorEs(fuentes[0].name, ficha[fuentes[0].name]);
+    }else{
+      var partes = [];
+      for(j = 0; j < fuentes.length; j++){
+        var vv = valorEs(fuentes[j].name, ficha[fuentes[j].name]);
+        if(vv !== '') partes.push(fuentes[j].label_es + ': ' + vv);
+      }
+      texto = partes.join(' · ');
+    }
+    if(texto === '') continue;
+    if(TV_STRING255.indexOf(destino) >= 0 && texto.length > 255){
+      /* STRING(255) en Caspio: un texto más largo lo rechaza o lo corta él.
+         Se manda cortado, con puntos suspensivos, y el texto entero va a la
+         lista de la mano para que nadie lo pierda. */
+      villaFields[destino] = texto.slice(0, 254) + '…';
+      manual.push({ campo:fuentes[0].name, etiqueta:etiquetaDestino(fuentes) + ' (texto completo)',
+        valor:texto,
+        motivo:'El campo ' + destino + ' de TaVillas admite 255 caracteres y esta respuesta tiene ' +
+          texto.length + '. Se ha guardado cortada: pegue el texto completo donde haga falta.' });
+    }else{
+      villaFields[destino] = texto;
+    }
+  }
+
+  /* 3. Los dormitorios: solo el campo de comentarios de cada habitación. */
+  var dorms = listaDe(ficha.bedrooms_json);
+  for(i = 0; i < dorms.length && i < ROOM_MAX; i++){
+    var linea = textoDormitorio(dorms[i] || {});
+    if(linea) villaFields['Room' + (i + 1) + 'comments'] = linea;
+    apunta('bedrooms_json', 'Dormitorio ' + (i + 1), linea,
+      'Las camas, el aire, el ventilador, el baño y la planta de cada dormitorio son listas desplegables en Editar Villa (Room' + (i + 1) + 'Beds, Room' + (i + 1) + 'Aircon, Room' + (i + 1) + 'fan, Room' + (i + 1) + 'Bath, Room' + (i + 1) + 'foor).');
+  }
+  if(dorms.length > ROOM_MAX){
+    manual.push({ campo:'bedrooms_json', etiqueta:'Dormitorios de más', valor:String(dorms.length) + ' dormitorios',
+      motivo:'TaVillas solo tiene siete habitaciones: los dormitorios a partir del octavo hay que anotarlos a mano.' });
+  }
+
+  /* 4. TODA columna contestada que no tenga destino en TaVillas pasa a la
+     lista de la mano. Antes solo se avisaba de los archivos, así que
+     respuestas como el tipo de placa, las normas de la casa, el total de
+     baños o cualquier casilla de observaciones se caían sin rastro. Ahora
+     nada de lo que escribe el propietario desaparece en silencio. */
+  for(i = 0; i < lista.length; i++){
+    c = lista[i];
+    if(c.step < 1 || c.maps_to) continue;
+    if(REPEAT_JSON.indexOf(c.name) >= 0) continue;   /* las tres listas ya se detallan aparte */
+    if(c.name === 'acceptedTerms' || c.name === 'acceptedTerms_at') continue;   /* conformidad, no es un dato de la villa */
+    var vSin = valorEs(c.name, ficha[c.name]);
+    if(vSin === '') continue;
+    var esArchivo = /^foto_|File$|Pdf$/.test(c.name);
+    apunta(c.name, c.label_es, vSin, esArchivo
+      ? 'Este archivo no tiene campo propio en TaVillas: guárdelo en el Drive de la villa.'
+      : 'Esta respuesta no tiene campo propio en TaVillas: apúntela donde corresponda en Editar Villa.');
+  }
+
+  /* 5. El nombre de la villa manda, aunque el propietario lo dejara corto. */
+  if(ficha.propertyName) villaFields.Name = String(ficha.propertyName).trim();
+
+  /* 6. Red de seguridad: los cinco campos prohibidos nunca salen de aquí. */
+  for(i = 0; i < NUNCA_ENVIAR.length; i++) delete villaFields[NUNCA_ENVIAR[i]];
+
+  return { villaFields:villaFields, manual:manual };
+}
+/* ════════════════════════════════════════════════════════════════════
+   ▲▲ MAPEO A TaVillas — fin ▲▲
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════ ESTADO Y UTILIDADES ════════════════════ */
+var fichas = [];
+var fichaAbierta = null;
+var ultimoEnlace = '';
+var verVacios = false;   /* en el detalle, esconder los campos sin contestar */
+/* 'promoviendo' es el estado de paso: el Worker ya está creando la villa.
+   Se enseña como los demás y NO se puede promover otra vez. */
+var ESTADOS = ['abierta', 'enviada', 'revisada', 'promoviendo', 'promovida'];
+var IDIOMA_ES = { es:'Español', en:'Inglés', fr:'Francés', de:'Alemán', it:'Italiano' };
+var PASO_TITULO = {
+  1:'General y situación legal', 2:'Climatización', 3:'Dormitorios', 4:'Baños',
+  5:'Equipamiento', 6:'Instalaciones', 7:'Ocio y tecnología', 8:'Exterior',
+  9:'Servicios, normas y datos fiscales'
+};
+var CAMPOS_FISCALES = ['fiscal_nif', 'fiscal_name', 'fiscal_address', 'fiscal_municipio'];
+
+function g(id){ return document.getElementById(id); }
+/* Escapa también la comilla simple y la tilde invertida. Sin ellas, un archivo
+   que el PROPIETARIO subiera con un nombre como  a.jpg?');alert(1)//  cerraba
+   el atributo onclick="openLB('…')" y corría su código en la pantalla del
+   equipo. Ahora ' sale como &#39; y ` como &#96;. */
+function esc(s){ return String(s === undefined || s === null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;'); }
+var _toastT;
+function toast(msg, tipo){
+  var el = g('toast'); el.textContent = msg; el.className = 'show ' + (tipo || '');
+  clearTimeout(_toastT); _toastT = setTimeout(function(){ el.className = ''; }, 4200);
+}
+function openLB(src){ if(!src) return; g('lbImg').src = src; g('lbOverlay').classList.add('open'); }
+function closeLB(){ g('lbOverlay').classList.remove('open'); }
+
+/* Mismo arreglo que villa.html v23 y editar-villa.html v27: las fotos del
+   bucket R2 se piden por el mismo host, porque los operadores españoles
+   bloquean r2.dev las tardes de partido. */
+var R2_PUBLIC = 'https://pub-48c1cfd5de614ff0a0cebfec482a7b32.r2.dev/';
+var FOTOS_HOST = 'https://www.3villas.com/intranet/fotos/';
+function fotoUrl(u){
+  if(!u || typeof u !== 'string') return u;
+  u = u.trim();
+  return u.indexOf(R2_PUBLIC) === 0 ? FOTOS_HOST + u.slice(R2_PUBLIC.length) : u;
+}
+/* Los dos únicos orígenes que pueden acabar en un href o un src de esta
+   página: el bucket R2 y el mismo host que lo sirve. Son los dos que devuelve
+   el Worker al subir un archivo. Todo lo demás, y en especial un javascript:,
+   se pinta como texto y NUNCA como enlace ni como imagen. La lista va por
+   origen, no por extensión: una extensión se falsifica en un segundo. */
+var ORIGENES_OK = [FOTOS_HOST, R2_PUBLIC];
+function urlSegura(u){
+  if(!u || typeof u !== 'string') return '';
+  var s = u.trim();
+  for(var i = 0; i < ORIGENES_OK.length; i++){
+    if(s.indexOf(ORIGENES_OK[i]) === 0) return s;
+  }
+  return '';
+}
+function esImagen(u){ return /\.(jpg|jpeg|png|gif|webp|heic|heif)(\?|$)/i.test(String(u || '')); }
+function rol(){ try{ return String(Auth.role() || '').trim().toLowerCase(); }catch(e){ return ''; } }
+function puedePromover(){ return ['admin', 'manager'].indexOf(rol()) >= 0; }
+/* Solo una ficha enviada o revisada se puede promover. Una ficha abierta
+   todavía la está escribiendo el propietario; una 'promoviendo' ya la está
+   creando el Worker; una 'promovida' ya tiene su villa. */
+function esPromovible(est){ return ['enviada', 'revisada'].indexOf(String(est || '').toLowerCase()) >= 0; }
+function fecha(v){
+  if(!v) return '';
+  if(Object.prototype.toString.call(v) === '[object Date]'){
+    if(isNaN(v.getTime())) return '';
+    return ('0' + v.getDate()).slice(-2) + '/' + ('0' + (v.getMonth() + 1)).slice(-2) + '/' + v.getFullYear();
+  }
+  var s = String(v), m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : s.slice(0, 10);
+}
+/* 'expires' es el exp del JWT: SEGUNDOS desde 1970, no una fecha en texto.
+   Pasado por fecha() a secas salía cortado a diez cifras y sin sentido. */
+function fechaCaducidad(expires){
+  if(!expires) return '';
+  var n = Number(expires);
+  if(!isNaN(n) && n > 0) return fecha(new Date(n * 1000));
+  return fecha(expires);
+}
+
+/* El texto de WhatsApp va en el idioma de la ficha: es el idioma en el que el
+   propietario va a leer el formulario. Corto, con la caducidad y el enlace. */
+var WA_TXT = {
+  es: 'Hola {nombre}, somos 3Villas. Le enviamos el enlace para completar los datos de {villa}. Puede hacerlo poco a poco, se guarda solo. El enlace caduca el {fecha}: {link}',
+  en: 'Hello {nombre}, this is 3Villas. Here is the link to complete the details of {villa}. You can do it little by little, it saves itself. The link expires on {fecha}: {link}',
+  fr: 'Bonjour {nombre}, c’est 3Villas. Voici le lien pour compléter les informations de {villa}. Vous pouvez le faire petit à petit, tout s’enregistre seul. Le lien expire le {fecha} : {link}',
+  de: 'Hallo {nombre}, hier ist 3Villas. Hier ist der Link, um die Angaben zu {villa} zu vervollständigen. Sie können es in Ruhe machen, es speichert sich selbst. Der Link läuft am {fecha} ab: {link}',
+  it: 'Buongiorno {nombre}, siamo 3Villas. Le inviamo il link per completare i dati di {villa}. Può farlo poco a poco, si salva da solo. Il link scade il {fecha}: {link}'
+};
+function textoWhatsApp(lang, nombre, villa, fechaCad, link){
+  var plant = WA_TXT[String(lang || 'es').toLowerCase()] || WA_TXT.es;
+  return plant.replace('{nombre}', nombre || '').replace('{villa}', villa || '')
+    .replace('{fecha}', fechaCad || '').replace('{link}', link || '');
+}
+
+/* ════════════════════ NUEVO ENLACE ════════════════════ */
+function crearEnlace(){
+  var cuerpo = {
+    ownerName: g('nOwner').value.trim(),
+    propertyName: g('nVilla').value.trim(),
+    email: g('nEmail').value.trim(),
+    phone: g('nTel').value.trim(),
+    lang: g('nLang').value
+  };
+  var malos = [];
+  if(cuerpo.ownerName.length < 3) malos.push('ownerName');
+  if(cuerpo.propertyName.length < 3) malos.push('propertyName');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cuerpo.email)) malos.push('email');
+  if(cuerpo.phone.replace(/[^0-9]/g, '').length < 9) malos.push('phone');
+  ['ownerName', 'propertyName', 'email', 'phone'].forEach(function(k){
+    var f = g('fld_' + k); if(f) f.classList.toggle('malo', malos.indexOf(k) >= 0);
+  });
+  if(malos.length){ toast('Revise los campos marcados en rojo', 'err'); return; }
+
+  var b = g('btnCrear'); b.disabled = true; b.textContent = 'Creando…';
+  fetch(Auth.url(WORKER + '?action=ficha-link'), {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(cuerpo)
+  }).then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(j){
+      if(!j || !j.link) throw new Error('El Worker no ha devuelto el enlace');
+      ultimoEnlace = j.link;
+      g('enlaceUrl').textContent = j.link;
+      var fCad = fechaCaducidad(j.expires);
+      g('enlaceCad').textContent = fCad ? ('El enlace caduca el ' + fCad + '.') : '';
+      g('btnWa').href = 'https://wa.me/?text=' +
+        encodeURIComponent(textoWhatsApp(cuerpo.lang, cuerpo.ownerName, cuerpo.propertyName, fCad, j.link));
+      g('enlaceBox').style.display = 'block';
+      toast('✓ Enlace creado', 'ok');
+      cargarLista();
+    })
+    .catch(function(e){ toast('❌ ' + e.message, 'err'); })
+    .finally(function(){ b.disabled = false; b.textContent = '🔗 Crear el enlace'; });
+}
+function copiarEnlace(){
+  if(!ultimoEnlace) return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ultimoEnlace).then(function(){ toast('✓ Enlace copiado', 'ok'); })
+      .catch(function(){ toast('No se ha podido copiar', 'err'); });
+  }else{ toast('No se ha podido copiar', 'err'); }
+}
+
+/* ════════════════════ LISTADO ════════════════════ */
+function cargarLista(){
+  var cont = g('listaCont');
+  cont.innerHTML = '<div class="cargando">Cargando…</div>';
+  var url = WORKER + '?action=data&table=TaVillas_ficha&where=' +
+    encodeURIComponent('ficha_id>0') + '&limit=200';
+  fetch(Auth.url(url)).then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(j){
+      fichas = j.Result || j.result || [];
+      fichas.sort(function(a, b){ return (parseInt(b.ficha_id, 10) || 0) - (parseInt(a.ficha_id, 10) || 0); });
+      pintaLista();
+    })
+    .catch(function(e){ cont.innerHTML = '<div class="cargando">No se ha podido leer el listado: ' + esc(e.message) + '</div>'; });
+}
+/* Filtra por propietario o por villa. Sin acentos y sin mayúsculas, para que
+   "jose" encuentre a "José". */
+function llano(s){
+  return String(s === undefined || s === null ? '' : s).toLowerCase()
+    .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e').replace(/[íìï]/g, 'i')
+    .replace(/[óòö]/g, 'o').replace(/[úùü]/g, 'u').replace(/ñ/g, 'n');
+}
+function fichasFiltradas(){
+  var q = llano((g('filtro') && g('filtro').value) || '').trim();
+  if(!q) return fichas;
+  return fichas.filter(function(f){
+    return llano(f.ownerName).indexOf(q) >= 0 || llano(f.propertyName).indexOf(q) >= 0;
+  });
+}
+function filtrar(){ pintaLista(); }
+function pintaLista(){
+  var cont = g('listaCont');
+  if(!fichas.length){ cont.innerHTML = '<div class="cargando">Todavía no hay ninguna ficha.</div>'; return; }
+  var vis = fichasFiltradas();
+  var h = '<div class="fld filtro-fld"><label for="filtro">Buscar por propietario o por villa</label>' +
+    '<input id="filtro" type="text" autocomplete="off" oninput="filtrar()" value="' +
+    esc((g('filtro') && g('filtro').value) || '') + '"></div>';
+  if(!vis.length){
+    cont.innerHTML = h + '<div class="cargando">Ninguna ficha coincide con la búsqueda.</div>';
+    var c0 = g('filtro'); if(c0){ c0.focus(); c0.selectionStart = c0.value.length; }
+    return;
+  }
+  h += '<div class="tabla-wrap"><table><thead><tr>' +
+    '<th>Fecha</th><th>Propietario</th><th>Villa</th><th>Estado</th><th>Enviada el</th><th>Idioma</th><th>Acciones</th>' +
+    '</tr></thead><tbody>';
+  for(var i = 0; i < vis.length; i++){
+    var f = vis[i];
+    var est = String(f.ficha_status || 'abierta').toLowerCase();
+    if(ESTADOS.indexOf(est) < 0) est = 'abierta';
+    var promovible = esPromovible(est) && puedePromover();
+    var env = fecha(f.submitted_at);
+    h += '<tr>' +
+      '<td>' + esc(fecha(f.created_at)) + '</td>' +
+      '<td>' + esc(f.ownerName || '') + '</td>' +
+      '<td>' + esc(f.propertyName || '') + '</td>' +
+      '<td><span class="badge ' + est + '">' + esc(est) + '</span></td>' +
+      '<td>' + (env ? esc(env) : '<span class="det-vacio">—</span>') + '</td>' +
+      '<td>' + esc(IDIOMA_ES[String(f.lang || '').toLowerCase()] || f.lang || '') + '</td>' +
+      '<td><div class="acc">' +
+        '<button class="bot sm sec" onclick="verFicha(' + parseInt(f.ficha_id, 10) + ')">Ver</button>' +
+        (promovible ? '<button class="bot sm" onclick="abrirPromocion(' + parseInt(f.ficha_id, 10) + ')">Promover a villa</button>' : '') +
+        (est === 'promovida' && f.villaid ? '<a class="bot sm ok" style="text-decoration:none" href="editar-villa.html?villaid=' + parseInt(f.villaid, 10) + '">Abrir la villa</a>' : '') +
+      '</div></td></tr>';
+  }
+  h += '</tbody></table></div>';
+  h += '<div class="pista">' + vis.length + ' de ' + fichas.length + ' fichas.</div>';
+  cont.innerHTML = h;
+  /* Al repintar se pierde el foco del cuadro de búsqueda: se devuelve. */
+  var c = g('filtro');
+  if(c && c.value){ c.focus(); c.selectionStart = c.selectionEnd = c.value.length; }
+}
+function fichaPorId(id){
+  for(var i = 0; i < fichas.length; i++) if(parseInt(fichas[i].ficha_id, 10) === parseInt(id, 10)) return fichas[i];
+  return null;
+}
+
+/* ════════════════════ DETALLE ════════════════════ */
+function verFicha(id){
+  var f = fichaPorId(id);
+  if(!f){ toast('No encuentro esa ficha', 'err'); return; }
+  fichaAbierta = f;
+  var c = g('cardDetalle');
+  var est = String(f.ficha_status || 'abierta').toLowerCase();
+  var h = '<div class="det-h"><div><h2>' + esc(f.propertyName || '(sin nombre)') + '</h2>' +
+    '<div class="sub">' + esc(f.ownerName || '') + ' · <span class="badge ' + esc(ESTADOS.indexOf(est) >= 0 ? est : 'abierta') + '">' + esc(est) + '</span></div></div>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+    '<button class="bot sec sm" onclick="alternarVacios()">' +
+      (verVacios ? 'Ocultar vacíos' : 'Mostrar vacíos') + '</button>' +
+    '<button class="bot sec sm" onclick="cerrarDetalle()">✕ Cerrar</button></div></div>';
+
+  var lista = campos(), paso, i, nVacios = 0;
+  for(paso = 1; paso <= 9; paso++){
+    var filas = '';
+    for(i = 0; i < lista.length; i++){
+      var d = lista[i];
+      if(d.step !== paso) continue;
+      if(CAMPOS_FISCALES.indexOf(d.name) >= 0) continue;   /* van en su propio recuadro */
+      if(d.name === 'bedrooms_json' || d.name === 'bathrooms_json' || d.name === 'sharedBathrooms_json'){
+        if(!listaDe(f[d.name]).length && !verVacios){ nVacios++; continue; }
+        filas += '<div class="det-fila"><b>' + esc(d.label_es) + '</b><span>' + tablaLista(f[d.name], d.name) + '</span></div>';
+        continue;
+      }
+      var v = f[d.name];
+      if(/^foto_|File$|Pdf$/.test(d.name)){
+        if(!v && !verVacios){ nVacios++; continue; }
+        filas += '<div class="det-fila"><b>' + esc(d.label_es) + '</b><span>' + miniatura(v) + '</span></div>';
+        continue;
+      }
+      var txt = valorEs(d.name, v);
+      /* Una ficha tiene 120 campos: con los vacíos escondidos, el equipo lee
+         de un vistazo lo que el propietario SÍ ha contestado. */
+      if(txt === '' && !verVacios){ nVacios++; continue; }
+      filas += '<div class="det-fila"><b>' + esc(d.label_es) + '</b><span' + (txt ? '' : ' class="det-vacio"') + '>' + esc(txt || '—') + '</span></div>';
+    }
+    if(paso === 9 && puedePromover()){
+      var ff = '';
+      for(i = 0; i < CAMPOS_FISCALES.length; i++){
+        var dfi = defDe(CAMPOS_FISCALES[i]);
+        ff += '<div class="det-fila"><b>' + esc(dfi ? dfi.label_es : CAMPOS_FISCALES[i]) + '</b><span>' +
+          esc(f[CAMPOS_FISCALES[i]] || '—') + '</span></div>';
+      }
+      filas += '<div class="fiscal-box"><h4>Datos fiscales (solo admin y manager)</h4>' + ff + '</div>';
+    }
+    if(filas) h += '<div class="det-paso"><h3>' + paso + '. ' + esc(PASO_TITULO[paso]) + '</h3>' + filas + '</div>';
+  }
+  if(nVacios) h += '<div class="pista">' + nVacios + ' campos sin contestar están escondidos. Pulse "Mostrar vacíos" para verlos.</div>';
+
+  /* Notas de revisión */
+  h += '<div class="det-paso"><h3>Revisión del equipo</h3>' +
+    '<div class="fld"><label for="notasRev">Notas de revisión</label>' +
+    '<textarea id="notasRev">' + esc(f.notas_revision || '') + '</textarea></div>' +
+    '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+    '<button class="bot sm" onclick="marcarRevisada()">✓ Marcar revisada</button>' +
+    '<span class="pista" style="border:none;padding:0">(el propietario ya no podrá editar)</span>' +
+    (esPromovible(est) && puedePromover()
+      ? '<button class="bot sm ok" onclick="abrirPromocion(' + parseInt(f.ficha_id, 10) + ')">Promover a villa</button>' : '') +
+    (est === 'promoviendo' ? '<span class="pista">La villa se está creando ahora mismo. Recargue en un momento.</span>' : '') +
+    '</div><div id="promoCont"></div></div>';
+
+  c.innerHTML = h;
+  c.style.display = 'block';
+  c.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function cerrarDetalle(){ g('cardDetalle').style.display = 'none'; fichaAbierta = null; }
+function alternarVacios(){
+  verVacios = !verVacios;
+  if(fichaAbierta) verFicha(fichaAbierta.ficha_id);
+}
+/* La URL la escribió el propietario, así que se comprueba el origen ANTES de
+   que llegue a un src, a un href o a un onclick. Si no es de 3Villas se
+   enseña el texto tal cual, escapado, y no se enlaza. */
+function miniatura(u){
+  if(!u) return '<span class="det-vacio">—</span>';
+  var src = urlSegura(fotoUrl(String(u)));
+  if(!src) return '<span class="det-vacio">Archivo de otro origen: ' + esc(String(u).slice(0, 120)) + '</span>';
+  if(esImagen(src)){
+    return '<div class="det-fotos"><img src="' + esc(src) + '" alt="" onclick="openLB(\'' + esc(src) + '\')" ' +
+      'onerror="this.onerror=null;this.replaceWith(document.createTextNode(\'Foto guardada, no disponible ahora\'))"></div>';
+  }
+  return '<div class="det-fotos"><a href="' + esc(src) + '" target="_blank" rel="noopener noreferrer">📄 Ver el archivo</a></div>';
+}
+/* Sin contestar es "—", no "No": un dormitorio que el propietario no llegó a
+   rellenar no es un dormitorio sin aire acondicionado. */
+function siNoGuion(v){
+  if(esSi(v)) return 'Sí';
+  if(esNo(v)) return 'No';
+  return '<span class="det-vacio">—</span>';
+}
+function tablaLista(valor, nombre){
+  var arr = listaDe(valor);
+  if(!arr.length) return '<span class="det-vacio">—</span>';
+  var esDorm = (nombre === 'bedrooms_json'), h, i;
+  h = '<table class="sub-tabla"><thead><tr><th>#</th>';
+  h += esDorm ? '<th>Camas</th><th>Medidas</th><th>Ubicación</th><th>A/A</th><th>Ventilador</th><th>En suite</th><th>Foto</th>'
+              : '<th>Dormitorio</th><th>Bañera</th><th>Ducha</th><th>Bidé</th><th>Foto</th>';
+  h += '</tr></thead><tbody>';
+  for(i = 0; i < arr.length; i++){
+    var it = arr[i] || {};
+    h += '<tr><td>' + (i + 1) + '</td>';
+    if(esDorm){
+      h += '<td>' + esc(OPS_ES[it.bedConfiguration] || it.bedConfiguration || '—') + '</td>' +
+        '<td>' + esc(it.bedDimensions || '—') + '</td>' +
+        '<td>' + esc(it.location || '—') + '</td>' +
+        '<td>' + siNoGuion(it.hasAC) + '</td>' +
+        '<td>' + siNoGuion(it.hasCeilingFan) + '</td>' +
+        '<td>' + (esSi(it.hasEnSuite)
+          ? ('Sí' + (it.enSuiteBathtubOrShower ? ' (' + esc(OPS_ES[it.enSuiteBathtubOrShower] || it.enSuiteBathtubOrShower) + ')' : ''))
+          : siNoGuion(it.hasEnSuite)) + '</td>';
+    }else{
+      h += '<td>' + esc(it.associatedBedroom || '—') + '</td>' +
+        '<td>' + siNoGuion(it.hasBathtub) + '</td>' +
+        '<td>' + siNoGuion(it.hasShower) + '</td>' +
+        '<td>' + siNoGuion(it.hasBidet) + '</td>';
+    }
+    h += '<td>' + miniatura(it.photo) + '</td></tr>';
+  }
+  return h + '</tbody></table>';
+}
+
+/* ════════════════════ REVISIÓN Y PROMOCIÓN ════════════════════ */
+function marcarRevisada(){
+  if(!fichaAbierta) return;
+  var notas = (g('notasRev') && g('notasRev').value) || '';
+  /* Marcar revisada CIERRA la ficha para el propietario: el Worker solo la
+     deja editar mientras está abierta o enviada. Se pregunta antes. */
+  if(!window.confirm('Marcar esta ficha como revisada. El propietario ya no podrá editarla. ¿Sigue?')) return;
+  fetch(Auth.url(WORKER + '?action=ficha-promote'), {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify({ id:parseInt(fichaAbierta.ficha_id, 10), status:'revisada', notas_revision:notas })
+  }).then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(j){
+      if(j && j.ok === false) throw new Error('El Worker no ha aceptado la revisión');
+      fichaAbierta.ficha_status = 'revisada';
+      fichaAbierta.notas_revision = notas;
+      toast('✓ Ficha marcada como revisada', 'ok');
+      pintaLista(); verFicha(fichaAbierta.ficha_id);
+    })
+    .catch(function(e){ toast('❌ ' + e.message, 'err'); });
+}
+
+/* Enseña primero lo que se va a enviar y lo que queda a mano, y solo
+   entonces ofrece el botón que crea la villa. */
+function abrirPromocion(id){
+  var f = fichaPorId(id);
+  if(!f){ toast('No encuentro esa ficha', 'err'); return; }
+  if(!puedePromover()){ toast('Solo admin y manager pueden promover una ficha', 'err'); return; }
+  if(!esPromovible(f.ficha_status)){
+    toast(String(f.ficha_status).toLowerCase() === 'promoviendo'
+      ? 'Esta ficha ya se está promoviendo'
+      : 'Esta ficha no se puede promover: está ' + String(f.ficha_status || 'abierta'), 'err');
+    return;
+  }
+  if(!fichaAbierta || parseInt(fichaAbierta.ficha_id, 10) !== parseInt(id, 10)){ verFicha(id); }
+  var r = construirVillaFields(f);
+  var cont = g('promoCont');
+  if(!cont) return;
+  var n = 0, k;
+  for(k in r.villaFields){ if(Object.prototype.hasOwnProperty.call(r.villaFields, k)) n++; }
+  var h = '<div class="manual-box"><h4>Antes de promover</h4>' +
+    '<p>Se van a copiar ' + n + ' campos a una villa nueva de TaVillas.</p>';
+  /* Lista plegable con CADA campo y CADA valor que se va a copiar: quien
+     promueve ve exactamente lo que va a escribir en TaVillas antes de hacerlo. */
+  h += '<details class="promo-det"><summary>Ver los ' + n + ' campos que se van a copiar</summary>' +
+    '<table class="sub-tabla"><thead><tr><th>Campo de TaVillas</th><th>Valor</th></tr></thead><tbody>';
+  var claves = [], kk;
+  for(kk in r.villaFields){ if(Object.prototype.hasOwnProperty.call(r.villaFields, kk)) claves.push(kk); }
+  claves.sort();
+  for(var z = 0; z < claves.length; z++){
+    h += '<tr><td>' + esc(claves[z]) + '</td><td>' + esc(String(r.villaFields[claves[z]])) + '</td></tr>';
+  }
+  h += '</tbody></table></details>';
+  if(r.manual.length){
+    h += '<p><b>Para completar en Editar Villa</b> (' + r.manual.length + '):</p><ol>';
+    for(var i = 0; i < r.manual.length; i++){
+      h += '<li><b>' + esc(r.manual[i].etiqueta) + ':</b> ' + esc(r.manual[i].valor) +
+        '<br><span style="color:var(--gray-4)">' + esc(r.manual[i].motivo) + '</span></li>';
+    }
+    h += '</ol>';
+  }
+  h += '<p class="promo-aviso">Esto crea una villa nueva. No se puede deshacer desde aquí.</p>' +
+    '<div style="margin-top:10px"><button class="bot" id="btnPromo" onclick="promover(' + parseInt(id, 10) + ')">🏠 Crear la villa ahora</button></div>' +
+    '<div id="promoRes" style="margin-top:10px"></div></div>';
+  cont.innerHTML = h;
+}
+function promover(id){
+  var f = fichaPorId(id);
+  if(!f) return;
+  if(!window.confirm('Esto crea una villa nueva. No se puede deshacer desde aquí. ¿Sigue?')) return;
+  var r = construirVillaFields(f);
+  var b = g('btnPromo');
+  if(b){ b.disabled = true; b.textContent = 'Creando la villa…'; }
+  fetch(Auth.url(WORKER + '?action=ficha-promote'), {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify({ id:parseInt(id, 10), villaFields:r.villaFields })
+  }).then(function(res){
+    /* 409 = el Worker dice que la ficha ya está promovida o en curso. No es
+       un fallo de red: se refresca el listado para ver el estado de verdad. */
+    if(res.status === 409){
+      f.ficha_status = 'promoviendo';
+      cargarLista();
+      throw new Error('La ficha ya está promovida o en curso');
+    }
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  })
+    .then(function(j){
+      if(!j || j.ok === false || !j.villaid) throw new Error('El Worker no ha devuelto el villaid');
+      f.ficha_status = 'promovida';
+      f.villaid = j.villaid;
+      var caja = g('promoRes');
+      if(caja){
+        caja.innerHTML = '<b>Villa creada: ' + esc(j.villaid) + '</b> — ' +
+          '<a href="editar-villa.html?villaid=' + parseInt(j.villaid, 10) + '">abrir en Editar Villa</a>';
+      }
+      if(b){ b.style.display = 'none'; }
+      toast('✓ Villa creada: ' + j.villaid, 'ok');
+      pintaLista();
+    })
+    .catch(function(e){
+      toast('❌ ' + e.message, 'err');
+      if(b){ b.disabled = false; b.textContent = '🏠 Crear la villa ahora'; }
+    });
+}
+
+window.crearEnlace = crearEnlace;
+window.copiarEnlace = copiarEnlace;
+window.verFicha = verFicha;
+window.cerrarDetalle = cerrarDetalle;
+window.alternarVacios = alternarVacios;
+window.filtrar = filtrar;
+window.marcarRevisada = marcarRevisada;
+window.abrirPromocion = abrirPromocion;
+window.promover = promover;
+window.openLB = openLB;
+window.closeLB = closeLB;
+document.addEventListener('DOMContentLoaded', cargarLista);
+})();
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v01 - Primera version. Pagina del equipo para las fichas de propietario, pareja de la pagina publica ficha-propietario.html. Permiso Auth.require('crear-villa'), la misma clave que crear-villa.html (admin y manager), y la misma cabecera estandar con el menu de nav.js, que gana una entrada nueva "Fichas de propietarios" al lado de "Nueva Villa" en el bloque Administracion. Arriba, el formulario que crea el enlace del propietario: nombre, villa, correo, telefono e idioma, llamada a ficha-link, y el enlace se ensena UNA sola vez con boton de copiar, boton de WhatsApp con un texto corto en espanol y la fecha de caducidad. El enlace no se puede volver a pedir: el token va dentro del enlace y la pagina lo dice en un aviso, asi que para un enlace perdido se crea una ficha nueva. Debajo, el listado de las ultimas 200 fichas de TaVillas_ficha, las mas nuevas primero, con fecha, propietario, villa, estado en etiqueta de color (abierta, enviada, revisada, promovida), idioma y acciones. "Ver" abre el detalle en la misma pagina, agrupado por los nueve pasos con las etiquetas en espanol, las fotos como miniaturas con lupa y las listas de dormitorios y banos como tablas; los cuatro campos fiscales salen en su propio recuadro y solo para admin y manager. "Marcar revisada" manda ficha-promote con status revisada y las notas. "Promover a villa" sale solo en las fichas enviadas o revisadas y solo para admin y manager: primero ensena cuantos campos se van a copiar y la lista "Para completar en Editar Villa", y solo despues crea la villa; al terminar ensena "Villa creada" con el enlace a editar-villa.html. El mapeo a TaVillas esta en un bloque marcado que la prueba extrae entero: un destino con una sola columna de origen recibe el valor tal cual; un destino con varias recibe las partes etiquetadas y unidas por un punto medio; los Si/No van como 1 y 0 en los enteros de Caspio y como true y false en los campos Yes/No; las claves ajenas (Aircon, Parking, los tres equipos, Changeoverday, Who_contract_internet, Pets_allowed, Swiming_pool, Wifi_Comany) NO se envian y pasan a la lista de la mano, porque el id correcto solo lo sabe el desplegable de Editar Villa; de los siete dormitorios solo se escribe el campo de comentarios, ya que camas, aire, ventilador, bano y planta son desplegables; y los cinco campos que el Worker rechaza tras la revision de seguridad, SIGNED, Activa, villaid, Status y Deal_Type, no se envian nunca, con un borrado final como red de seguridad. La descripcion de la valla de la piscina lleva dos respuestas, el tipo de piscina y la respuesta de la valla, porque un campo llamado descripcion de la valla que solo dijera Privada no le diria al equipo si hay valla; la respuesta de la valla viaja ademas sola al campo Si/No Swimingpool_fence. El estado de paso promoviendo se ensena como los demas, con su etiqueta a trazos, y no deja promover otra vez; si el Worker responde 409 la pagina lo dice con sus palabras, marca la ficha como promoviendo y recarga el listado, en vez de tratarlo como un fallo de red. Las fotos ya guardadas se piden por www.3villas.com/intranet/fotos, el mismo arreglo de villa.html v23 y editar-villa.html v27 contra el bloqueo de r2.dev. REVISION DEL 21/09/2026 tras dos revisores, todo dentro de la v01 porque el archivo todavia no se ha subido: (1) esc() escapa tambien la comilla simple y la tilde invertida, y toda URL que venga del propietario pasa por urlSegura() antes de llegar a un src, un href o un onclick: solo se aceptan www.3villas.com/intranet/fotos/ y el bucket R2. Sin esto, un archivo subido con un nombre como a.jpg?');alert(1)// cerraba el atributo onclick de la miniatura y corria su codigo en la pantalla del equipo; un javascript: tampoco se enlaza nunca. (2) el permiso pasa de editar-villas a crear-villa, que auth.js da solo a admin y manager, los dos roles que ya podian promover. (3) toda respuesta contestada que no tenga campo en TaVillas pasa a la lista de la mano con su etiqueta y su valor: antes solo se avisaba de los archivos y respuestas como el tipo de placa, las normas de la casa o cualquier casilla de observaciones se caian sin rastro. (4) los siete destinos de tipo STRING(255) se cortan a 255 caracteres con puntos suspensivos y el texto entero va a la lista de la mano, en vez de que Caspio rechace la fila. (5) la caducidad del enlace se lee como lo que es, el exp del JWT en segundos, y se ensena como DD/MM/AAAA. (6) el texto de WhatsApp va en el idioma de la ficha, en los cinco, corto y con la caducidad. (7) en las tablas de dormitorios y banos, lo que nadie contesto sale como raya y no como No. (8) Marcar revisada lleva la nota "(el propietario ya no podra editar)" y pregunta antes, porque cierra la ficha. (9) Promover pregunta antes con "Esto crea una villa nueva. No se puede deshacer desde aqui." y ensena una lista plegable con cada campo y cada valor que se va a copiar. (10) el listado gana un cuadro de busqueda por propietario o villa, sin acentos ni mayusculas, y una columna "Enviada el". (11) el detalle esconde los campos sin contestar detras de un boton "Mostrar vacios", y dice cuantos ha escondido. Fecha 21/09/2026. Pruebas fichas-propietarios.test.js. -->
