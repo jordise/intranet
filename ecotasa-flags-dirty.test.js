@@ -162,8 +162,8 @@ console.log('\n== checkin-testear-reserva.html (soloCambiados) ==');
 /* ── 4. Version de cada pagina y llamada dentro del guardado ── */
 console.log('\n== las tres paginas (HTML) ==');
 [
-  ['notas-equipo-reservas.html', 81, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
-  ['notas-villamanager.html', 41, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-equipo-reservas.html', 82, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-villamanager.html', 42, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
   ['checkin-testear-reserva.html', 10, 'async function saveAll(){', 'soloCambiados(fields,_booking,']
 ].forEach(function (t) {
   var file = t[0], ver = t[1], cabecera = t[2], llamada = t[3];
@@ -181,7 +181,7 @@ console.log('\n== las tres paginas (HTML) ==');
 console.log('\n== rastro de marcas manuales (v70/v33) intacto ==');
 ['notas-equipo-reservas.html', 'notas-villamanager.html'].forEach(function (P) {
   var src = fs.readFileSync(P, 'utf8');
-  ok(P + ': sigue el bloque var _mn=marcasNuevas();', src.indexOf('var _mn=marcasNuevas();') > 0);
+  ok(P + ': sigue el bloque var _mn=marcasNuevas()', src.indexOf('var _mn=marcasNuevas()') > 0);
   ok(P + ": sigue la escritura record.Marcas_manuales=_ls.join('\\n');", src.indexOf("record.Marcas_manuales=_ls.join('\\n');") > 0);
 });
 

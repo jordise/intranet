@@ -105,8 +105,11 @@ console.log('notas-equipo-reservas.html: v74 desmarcar (solo admin) + aviso');
   /* el sello de desmarcado y el filtro que lo oculta bajo la casilla */
   var src = fs.readFileSync(F, 'utf8');
   ok('marcasNuevas deja la linea "cobro desmarcado"', src.indexOf("marcaSello(DEP_SELLOS[d3][1],false,'cobro desmarcado')") > 0);
-  ok('el filtro de "Marcado a mano" oculta las lineas de cobro y de cobro desmarcado', /\/ \(cobrados\? \(por\|en\)\|cobro desmarcado\) \//.test(src));
-  ok('notas-villamanager tiene el mismo filtro', /\/ \(cobrados\? \(por\|en\)\|cobro desmarcado\) \//.test(fs.readFileSync('notas-villamanager.html', 'utf8')));
+  /* v82/v42: el mismo filtro excluye ademas las lineas del importe manual de la
+     ecotasa y de sus comentarios, que llevan la etiqueta Ecotasa sin ser la casilla. */
+  var FILTRO = /\/ \(cobrados\? \(por\|en\)\|cobro desmarcado\|\(importe\|comentario\) cambiado\) \//;
+  ok('el filtro de "Marcado a mano" oculta las lineas de cobro y de cobro desmarcado', FILTRO.test(src));
+  ok('notas-villamanager tiene el mismo filtro', FILTRO.test(fs.readFileSync('notas-villamanager.html', 'utf8')));
   ok('el guardado aplica los desmarcados despues de los marcados', src.indexOf('depCobrosPend(record,window.__depPendCobrado);') < src.indexOf('depCobrosDesmarcados(record,window.__depPendDescobrado);'));
   /* aviso: funcion pura */
   var a = new Function(fnSource(F, 'avisoMarcasFila') + '\nreturn avisoMarcasFila;')();

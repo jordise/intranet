@@ -274,14 +274,14 @@ console.log('notas-equipo-reservas.html: boton Enviar acceso y bloque del enlace
 /* ── version ── */
 console.log('notas-equipo-reservas.html: version');
 (function () {
-  ok('cabecera v81', /VERSIÓN ACTUAL: v81 \|/.test(SRC));
-  ok('titulo v81', /<title>Notas Equipo Reservas v81 — 3Villas<\/title>/.test(SRC));
-  ok('PAGE_VERSION 81 (la auto-recarga mira este numero)',
-    SRC.indexOf('var PAGE_VERSION = 81;') > 0 && SRC.indexOf('var PAGE_VERSION = 80;') < 0);
+  ok('cabecera v82', /VERSIÓN ACTUAL: v82 \|/.test(SRC));
+  ok('titulo v82', /<title>Notas Equipo Reservas v82 — 3Villas<\/title>/.test(SRC));
+  ok('PAGE_VERSION 82 (la auto-recarga mira este numero)',
+    SRC.indexOf('var PAGE_VERSION = 82;') > 0 && SRC.indexOf('var PAGE_VERSION = 81;') < 0);
   /* 14/09/2026: la v78 puso la pagina en su propia clave de permiso porque enseña
      el bloque fiscal del huesped. La v77 de Cristian sigue en el historial. */
-  ok('el historial empieza en v81 (enlace www del aviso) y conserva la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
-    /<!-- HISTORIAL: v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
+  ok('el historial empieza en v82 (marca del importe manual de la ecotasa) y conserva la v81, la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
+    /<!-- HISTORIAL: v82 - El importe manual de la ecotasa/.test(SRC) && / \| v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
   ok('y conserva la v77 de Cristian', / \| v77 - Cristian \(11\/09\/2026\)/.test(SRC));
   ok('y conserva la v76, la v75 y la v74',
     / \| v76 - /.test(SRC) && / \| v75 - /.test(SRC) && / \| v74 - /.test(SRC));
