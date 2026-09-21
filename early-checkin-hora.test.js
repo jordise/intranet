@@ -57,7 +57,7 @@ ok('notas-equipo-reservas: el texto de ayuda ya no exige una linea COBRADA', R.s
 ok('notas-equipo-reservas: el texto de ayuda dice 5 minutos antes', R.indexOf('se muestra al huésped 5 minutos antes de esa hora') > 0);
 
 console.log('versiones');
-ok('checkin-pasos v102', /VERSIÓN ACTUAL: v102 \|/.test(S) && S.indexOf('var PAGE_VERSION = 102;') > 0 && /<!-- HISTORIAL: v102 - /.test(S));
+ok('checkin-pasos v103', /VERSIÓN ACTUAL: v103 \|/.test(S) && S.indexOf('var PAGE_VERSION = 103;') > 0 && /<!-- HISTORIAL: v103 - /.test(S));
 ok('notas-equipo-reservas v81', /VERSIÓN ACTUAL: v81 \|/.test(R) && R.indexOf('var PAGE_VERSION = 81;') > 0 && /<!-- HISTORIAL: v81 - /.test(R) && / \| v80 - /.test(R) && R.indexOf('<title>Notas Equipo Reservas v81') > 0);
 var V = fs.readFileSync('notas-villamanager.html', 'utf8');
 ok('notas-villamanager v41', /VERSIÓN ACTUAL: v41 \|/.test(V) && /<!-- HISTORIAL: v41 - /.test(V) && / \| v40 - /.test(V));

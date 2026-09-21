@@ -53,7 +53,7 @@ function checkPage(file, ver, titleRe) {
   return s;
 }
 
-var sEdit = checkPage('editar-villa.html', 26, /<title>Editar Villa v(\d+)/);
+var sEdit = checkPage('editar-villa.html', 27, /<title>Editar Villa v(\d+)/);
 (function () {
   var ctx = {};
   vm.runInNewContext(constBlock(sEdit, 'TEXT_FIELDS'), ctx);
@@ -72,10 +72,10 @@ var sEdit = checkPage('editar-villa.html', 26, /<title>Editar Villa v(\d+)/);
     var c3 = {}; vm.runInNewContext(sEdit.slice(i, j).replace(/^const /, 'var '), c3);
     ok(n + ' no contiene los seis', NEW.every(function (f) { return !c3[n].has(f); }));
   });
-  ok('el historial v26 no lleva nombres de personas ajenas ni horas', !/Amanda|\d{1,2}:\d{2}/.test(sEdit.slice(sEdit.indexOf('<!-- HISTORIAL: v26'), sEdit.indexOf('| v25 - '))));
+  ok('el historial v27 y v26 no llevan nombres de personas ajenas ni horas', !/Amanda|\d{1,2}:\d{2}/.test(sEdit.slice(sEdit.indexOf('<!-- HISTORIAL: v27'), sEdit.indexOf('| v25 - '))));
 })();
 
-checkPage('villa.html', 22, /<title>Villa Info v(\d+)/);
+checkPage('villa.html', 23, /<title>Villa Info v(\d+)/);
 
 /* los pines de version de otras pruebas no apuntan a estas dos paginas */
 (function () {
