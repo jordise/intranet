@@ -320,10 +320,10 @@ ok('v148: transferencia con el flag de cobro sale pagada', _dep(E.calcPaymentIte
 ok('v148: la tarjeta (opcion 2) con solo Terminado NO sale pagada', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '2', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' }))).paid === false);
 ok('v148: PAGOS y la insignia cuentan lo mismo para la 65513925', E.fianzaFalta(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' })) === '');
 
-ok('la cabecera dice VERSION ACTUAL v151', /VERSIÓN ACTUAL: v151/.test(linea3), linea3);
-ok('PAGE_VERSION dice v151', /const PAGE_VERSION='v151';/.test(SRC));
-ok('el titulo dice v151', /<title>Entradas Equipo v151/.test(SRC));
-ok('el historial recoge v151 y conserva v149, v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v151 - /.test(SRC) && /\| v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v152', /VERSIÓN ACTUAL: v152/.test(linea3), linea3);
+ok('PAGE_VERSION dice v152', /const PAGE_VERSION='v152';/.test(SRC));
+ok('el titulo dice v152', /<title>Entradas Equipo v152/.test(SRC));
+ok('el historial recoge v152 y conserva v151, v149, v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v152 - /.test(SRC) && /\| v151 - /.test(SRC) && /\| v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;
