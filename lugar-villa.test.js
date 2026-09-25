@@ -33,8 +33,8 @@ console.log('checkin-pasos.html');
   var f = 'checkin-pasos.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Check-in Pasos v(\d+)/);
-  ok('v103 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '103' && hv[1] === '103' && tv[1] === '103', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v103', /<!-- HISTORIAL: v103 - /.test(s));
+  ok('v104 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '104' && hv[1] === '104' && tv[1] === '104', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v104', /<!-- HISTORIAL: v104 - /.test(s));
   /* LANG_ARR real de la pagina */
   var la = s.indexOf('var LANG_ARR={};'), ca = s.indexOf('LANG_ARR.ca={', la), caEnd = s.indexOf('\n};', ca) + 3;
   var ctx = {}; vm.runInNewContext(s.slice(la, caEnd), ctx);
@@ -56,14 +56,14 @@ console.log('checkin-pasos.html');
   ok('fila vacia -> menorca', c2.place({}) === 'menorca');
   ok('sin fila -> menorca', c2.place(null) === 'menorca');
   var EXP = {
-    en: { menorca: ['Arrival time to Menorca', 'Departure time from Menorca'], mallorca: ['Arrival time to Mallorca', 'Departure time from Mallorca'], barcelona: ['Arrival time to Barcelona', 'Departure time from Barcelona'] },
-    es: { menorca: ['Llegada a Menorca', 'Salida de Menorca'], mallorca: ['Llegada a Mallorca', 'Salida de Mallorca'], barcelona: ['Llegada a Barcelona', 'Salida de Barcelona'] },
-    fr: { menorca: ['Arrivée à Minorque', 'Départ de Minorque'], mallorca: ['Arrivée à Majorque', 'Départ de Majorque'], barcelona: ['Arrivée à Barcelone', 'Départ de Barcelone'] },
-    de: { menorca: ['Ankunft auf Menorca', 'Abreise von Menorca'], mallorca: ['Ankunft auf Mallorca', 'Abreise von Mallorca'], barcelona: ['Ankunft in Barcelona', 'Abreise von Barcelona'] },
-    it: { menorca: ['Arrivo a Minorca', 'Partenza da Minorca'], mallorca: ['Arrivo a Maiorca', 'Partenza da Maiorca'], barcelona: ['Arrivo a Barcellona', 'Partenza da Barcellona'] },
-    nl: { menorca: ['Aankomst op Menorca', 'Vertrek van Menorca'], mallorca: ['Aankomst op Mallorca', 'Vertrek van Mallorca'], barcelona: ['Aankomst in Barcelona', 'Vertrek uit Barcelona'] },
-    pt: { menorca: ['Chegada a Menorca', 'Partida de Menorca'], mallorca: ['Chegada a Maiorca', 'Partida de Maiorca'], barcelona: ['Chegada a Barcelona', 'Partida de Barcelona'] },
-    ca: { menorca: ['Arribada a Menorca', 'Sortida de Menorca'], mallorca: ['Arribada a Mallorca', 'Sortida de Mallorca'], barcelona: ['Arribada a Barcelona', 'Sortida de Barcelona'] }
+    en: { menorca: ['Flight or ferry arrival to Menorca', 'Flight or ferry departure from Menorca'], mallorca: ['Flight or ferry arrival to Mallorca', 'Flight or ferry departure from Mallorca'], barcelona: ['Flight or ferry arrival to Barcelona', 'Flight or ferry departure from Barcelona'] },
+    es: { menorca: ['Llegada del vuelo o barco a Menorca', 'Salida del vuelo o barco de Menorca'], mallorca: ['Llegada del vuelo o barco a Mallorca', 'Salida del vuelo o barco de Mallorca'], barcelona: ['Llegada del vuelo o barco a Barcelona', 'Salida del vuelo o barco de Barcelona'] },
+    fr: { menorca: ['Arrivée du vol ou du bateau à Minorque', 'Départ du vol ou du bateau de Minorque'], mallorca: ['Arrivée du vol ou du bateau à Majorque', 'Départ du vol ou du bateau de Majorque'], barcelona: ['Arrivée du vol ou du bateau à Barcelone', 'Départ du vol ou du bateau de Barcelone'] },
+    de: { menorca: ['Ankunft Flug oder Fähre auf Menorca', 'Abreise Flug oder Fähre von Menorca'], mallorca: ['Ankunft Flug oder Fähre auf Mallorca', 'Abreise Flug oder Fähre von Mallorca'], barcelona: ['Ankunft Flug oder Fähre in Barcelona', 'Abreise Flug oder Fähre von Barcelona'] },
+    it: { menorca: ['Arrivo del volo o del traghetto a Minorca', 'Partenza del volo o del traghetto da Minorca'], mallorca: ['Arrivo del volo o del traghetto a Maiorca', 'Partenza del volo o del traghetto da Maiorca'], barcelona: ['Arrivo del volo o del traghetto a Barcellona', 'Partenza del volo o del traghetto da Barcellona'] },
+    nl: { menorca: ['Aankomst vlucht of boot op Menorca', 'Vertrek vlucht of boot van Menorca'], mallorca: ['Aankomst vlucht of boot op Mallorca', 'Vertrek vlucht of boot van Mallorca'], barcelona: ['Aankomst vlucht of boot in Barcelona', 'Vertrek vlucht of boot uit Barcelona'] },
+    pt: { menorca: ['Chegada do voo ou barco a Menorca', 'Partida do voo ou barco de Menorca'], mallorca: ['Chegada do voo ou barco a Maiorca', 'Partida do voo ou barco de Maiorca'], barcelona: ['Chegada do voo ou barco a Barcelona', 'Partida do voo ou barco de Barcelona'] },
+    ca: { menorca: ['Arribada del vol o vaixell a Menorca', 'Sortida del vol o vaixell de Menorca'], mallorca: ['Arribada del vol o vaixell a Mallorca', 'Sortida del vol o vaixell de Mallorca'], barcelona: ['Arribada del vol o vaixell a Barcelona', 'Sortida del vol o vaixell de Barcelona'] }
   };
   langs.forEach(function (l) {
     PLACES.forEach(function (p) {
@@ -73,8 +73,8 @@ console.log('checkin-pasos.html');
     });
   });
   c2.set('en', 'menorca'); ok('una clave sin {…} no cambia', c2.t('lbl_checkin_time') === ctx.LANG_ARR.en.lbl_checkin_time);
-  c2.set('xx', 'barcelona'); ok('idioma desconocido -> EN con el lugar', c2.t('lbl_arr_time') === 'Arrival time to Barcelona');
-  c2.set('de', 'zz'); ok('lugar desconocido -> Menorca', c2.t('lbl_arr_time') === 'Ankunft auf Menorca');
+  c2.set('xx', 'barcelona'); ok('idioma desconocido -> EN con el lugar', c2.t('lbl_arr_time') === 'Flight or ferry arrival to Barcelona');
+  c2.set('de', 'zz'); ok('lugar desconocido -> Menorca', c2.t('lbl_arr_time') === 'Ankunft Flug oder Fähre auf Menorca');
   var rp = fnSource(f, 'renderPol');
   ok('renderPol fija _villaPlace = villaPlaceOf(r)', /_villaPlace\s*=\s*villaPlaceOf\(r\)/.test(rp));
   ok('renderPol llama applyPlaceLabels() despues de initLangPol (tambien con keepLang)', rp.indexOf('applyPlaceLabels()') > rp.indexOf('initLangPol()') && rp.indexOf('initLangPol()') > 0);
