@@ -1,6 +1,7 @@
 /* Pruebas de los iconos de la ficha de villa (peticion de Rafa, 25/09/2026: la ficha se lee de un vistazo).
    villa.html v25 y editar-villa.html v29 (v24/v28: iconos por campo y de seccion; v25/v29: segunda ronda de Rafa:
-   emoji de subgrupo a 18px, iconos de habitaciones y banos, ancho completo en escritorio).
+   emoji de subgrupo a 18px, iconos de habitaciones y banos, ancho completo en escritorio; v26/v30: tercera ronda,
+   50 campos mas: equipo, capacidad, emergencias, check-in online, operaciones, marketing).
    node villa-iconos.test.js
 
    Como editar-villa-utilidades.test.js: NO copia el codigo de las paginas. Extrae con vm el mapa real
@@ -55,6 +56,42 @@ var EXPECT = {
   '🛏️': ['Rooms_number', 'Beds_Explanation', 'Reorganizar_camas', 'Room1Beds', 'Room2Beds', 'Room3Beds', 'Room4Beds', 'Room5Beds', 'Room6Beds', 'Room7Beds', 'Room1Otherbeds', 'Room2Otherbeds', 'Room3Otherbeds', 'Room4Otherbeds', 'Room5Otherbeds', 'Room6Otherbeds', 'Room7Otherbeds'],
   '🛁': ['Ensuite_BATHROOMS', 'Shared_BATHROOMS', 'Room1Bath', 'Room2Bath', 'Room3Bath', 'Room4Bath', 'Room5Bath', 'Room6Bath', 'Room7Bath']
 };
+/* v26/v30, tercera ronda: se suman a los grupos anteriores (❄️, 🏊, 🧾 ya existian) */
+var EXPECT3 = {
+  '🧹': ['Cleanning_team'],
+  '🌿': ['Garden_team'],
+  '🏊': ['Pool_team', 'Pool_cleaner3villas'],
+  '🔧': ['Maintenance_team'],
+  '⚡': ['Electrician', 'where_is_mainpower'],
+  '🚰': ['Plumber', 'wher_is_water_stopcock', 'where_is_water_stopcock_street'],
+  '❄️': ['Aircondition_ownerteam', 'Room1Aircon', 'Room2Aircon', 'Room3Aircon', 'Room4Aircon', 'Room5Aircon', 'Room6Aircon', 'Room7Aircon'],
+  '🛠️': ['Issues_responsible'],
+  '🏠': ['Owner'],
+  '👥': ['Pax_legal', 'Total_Pax', 'Explain_additional_pax'],
+  '💨': ['Fans_ventiladores', 'Room1fan', 'Room2fan', 'Room3fan', 'Room4fan', 'Room5fan', 'Room6fan', 'Room7fan'],
+  '💧': ['dehumidifier_number', 'dehumidifier_explanation'],
+  '🪜': ['Room1foor', 'Room2foor', 'Room3foor', 'Room4foor', 'Room5foor', 'Room6foor', 'Room7foor'],
+  '👶': ['cots_cunas', 'Highchair_silita'],
+  '🌅': ['Views'],
+  '🚌': ['Public_transpost'],
+  '🚕': ['Taxi_and_Transfers'],
+  '🩹': ['first_aid_kit', 'where_is_first_aid'],
+  '🧯': ['Extintores__extinguisher', 'Extintores__extinguisher_comment'],
+  '🔥': ['Detector_de_humos__Smoke_Detecto'],
+  '☀️': ['Placas_solares_info'],
+  '🎁': ['Wellcompack', 'TipoWellcomepack'],
+  '🪧': ['ETV_Plate', 'House_Name_Plate'],
+  '🛋️': ['Status_Homestaging'],
+  '📷': ['Status_Photos', 'Deadlinedataphotos'],
+  '🔄': ['Changeoverday'],
+  '📋': ['Checkin_arrivalform'],
+  '👮': ['Checkin_registro_policia', 'Link_Registrodepolicia', 'Identificador_Policheckin'],
+  '💳': ['Checkin_deposito'],
+  '💶': ['Amount_secrity_Depsit', 'Amount_security_Deposit_waver', 'Gastos_tarjeta_pago_security_dep'],
+  '🧾': ['Checkin_ecotasa'],
+  '📸': ['Marketing_photos'],
+};
+Object.keys(EXPECT3).forEach(function (k) { EXPECT[k] = (EXPECT[k] || []).concat(EXPECT3[k]); });
 /* icono de cada seccion que se fijo a proposito */
 var SEC = { vm: '🧑‍💼', kb1: '🔑', kb2: '🔑', kbeq: '🔑', villa: '🏡', hab: '🛏️', serv: '🧭', seg: '🚨', piscina: '🏊', op: '🗓️', com: '📡', admin: '🗂️' };
 var KEYBOX_SECS = ['kb1', 'kb2', 'kbeq'];
@@ -94,15 +131,18 @@ function checkPage(file, ver, titleRe) {
     ok(ico + ' en ' + EXPECT[ico].join(', '), bad.length === 0, bad.join(','));
   });
   var ghost = Object.keys(FI).filter(function (f) {
-    var m = f.match(/^Room(\d)(comments|Beds|Otherbeds|Bath)$/);
+    var m = f.match(/^Room(\d)(comments|Beds|Otherbeds|Bath|Aircon|fan|foor)$/);
     if (m) return s.indexOf('`Room${r}' + m[2] + '`') < 0 || +m[1] < 1 || +m[1] > 7;
     return s.indexOf("('" + f + "'") < 0 && s.indexOf(", '" + f + "'") < 0;
   });
   ok('cada campo de FIELD_ICONS existe en la pagina', ghost.length === 0, ghost.join(','));
-  var tv = flat(ctx.fieldLabel('TV', 'TV')), none = flat(ctx.fieldLabel('Pax_legal', 'Plazas legales'));
+  var tv = flat(ctx.fieldLabel('TV', 'TV')), none = flat(ctx.fieldLabel('Name', 'Nombre interno equipo'));
   ok("fieldLabel('TV','TV') = <span class=lbl-ico>📺</span> + ' ' + 'TV'", tv === '<SPAN.lbl-ico>📺| |TV', tv);
-  ok('fieldLabel deja igual un campo sin icono (sin span)', none === 'Plazas legales', none);
+  ok('fieldLabel deja igual un campo sin icono (sin span)', none === 'Nombre interno equipo', none);
   ok('.lbl-ico a 16px', /\.lbl-ico\{font-size:16px;/.test(s));
+  /* v26/v30: Administracion y nombres siguen sin icono a proposito */
+  var NOICON = ['Name', 'Name_villa_corto_interno', 'Hostawayid', 'Agency_gestoria', 'Iniciocontrato', 'SIGNED', 'Deal_Type', 'propietario_NIF', 'Modelo_179', 'Pay_Cleanning'];
+  ok('sin icono a proposito: nombres, IDs y Administracion', NOICON.every(function (f) { return !(f in FI); }), NOICON.filter(function (f) { return f in FI; }).join(','));
 
   /* v25/v29: emoji de subgrupo a 18px (Rafa: los iconos de las habitaciones se veian muy pequenos) */
   ok('.sg-ico a 18px', /\.sg-ico\{font-size:18px;line-height:1;/.test(s));
@@ -166,7 +206,7 @@ function checkPage(file, ver, titleRe) {
   return iconsBlock(s, file);
 }
 
-var a = checkPage('villa.html', 25, /<title>Villa Info v(\d+)/);
+var a = checkPage('villa.html', 26, /<title>Villa Info v(\d+)/);
 (function () {
   var s = src('villa.html');
   ok('villa.html: Villamanager cerrado por defecto', !/buildSection\('vm'[\s\S]*?\},true\)\);/.test(section(s, 'vm', 'kb1', 'villa.html')));
@@ -177,7 +217,7 @@ var a = checkPage('villa.html', 25, /<title>Villa Info v(\d+)/);
   ok("empty(): '' y '-' vacios, '4821' no", c.e('') && c.e('  ') && c.e('-') && c.e(null) && !c.e('4821'));
   ok('villa.html: botones de arriba conservan 🏠 Hostaway y 📋 Preparar Manual', s.indexOf('🏠 Hostaway</a>') > 0 && s.indexOf('📋 Preparar Manual</a>') > 0);
 })();
-var b = checkPage('editar-villa.html', 29, /<title>Editar Villa v(\d+)/);
+var b = checkPage('editar-villa.html', 30, /<title>Editar Villa v(\d+)/);
 console.log('las dos paginas');
 ok('FIELD_ICONS identico en villa.html y editar-villa.html', a === b);
 
