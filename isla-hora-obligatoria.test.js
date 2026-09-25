@@ -1,4 +1,4 @@
-/* Pruebas de las horas de la isla obligatorias con casilla de escape (checkin-pasos v105).
+/* Pruebas de las horas de la isla obligatorias con casilla de escape (checkin-pasos v106).
    Caso: Jordi, WhatsApp 25/09/2026: la hora de llegada y la de salida del vuelo o barco
    deben ser obligatorias; el huesped que ya esta en la isla o se queda marca una casilla.
    node isla-hora-obligatoria.test.js
@@ -90,7 +90,7 @@ c2.set('en', 'menorca');
 ok('EN Menorca: casilla de llegada', c2.t('lbl_arr_here') === 'We are already in Menorca, no arrival flight or ferry', c2.t('lbl_arr_here'));
 ok('EN Menorca: aviso de llegada', c2.t('err_arr_required') === 'Please select the arrival time of your flight or ferry to Menorca, or tick the box if you are already in Menorca.', c2.t('err_arr_required'));
 c2.set('es', 'barcelona');
-ok('ES Barcelona: casilla de salida', c2.t('lbl_dep_stay') === 'Nos quedamos en Barcelona después de salir de la casa, sin vuelo ni barco ese día', c2.t('lbl_dep_stay'));
+ok('ES Barcelona: casilla de salida', c2.t('lbl_dep_stay') === 'Sin vuelo ni barco el día que salimos de la casa', c2.t('lbl_dep_stay'));
 c2.set('de', 'mallorca');
 ok('DE Mallorca: aviso de salida', c2.t('err_dep_required') === 'Bitte wählen Sie die Abfahrtszeit Ihres Fluges oder Ihrer Fähre von Mallorca, oder kreuzen Sie das Kästchen an, wenn Sie an dem Tag auf Mallorca bleiben.', c2.t('err_dep_required'));
 var sinLlave = true;
@@ -102,7 +102,7 @@ var sinLlave = true;
 });
 ok('ningun texto nuevo deja {…} sin rellenar (8 idiomas x 3 lugares)', sinLlave);
 
-console.log('pagina: cableado v105');
+console.log('pagina: cableado v106');
 var sub = fnSource('submitForm');
 var iReq = sub.indexOf("tArr('err_required')"), iArr = sub.indexOf("_p0IslandOk($('fArrHere').checked, $('fArrivalTime').value)"),
   iDep = sub.indexOf("_p0IslandOk($('fDepStay').checked, $('fDepartureTime').value)"), iExit = sub.indexOf('_p0ExitTimesOk(');
@@ -130,10 +130,10 @@ ok('_p0IslandToggle vacia, apaga y gris; y vuelve a encender', /s\.value='';\s*s
 ok('estilo .sel.sel-off y .chk-row en la pagina', S.indexOf('.sel.sel-off{') > 0 && S.indexOf('.chk-row{') > 0);
 
 console.log('pagina: version');
-ok('v105 en cabecera', /VERSIÓN ACTUAL: v105 \|/.test(S));
-ok('v105 en titulo', S.indexOf('<title>Check-in Pasos v105 — 3Villas</title>') > 0);
-ok('PAGE_VERSION 105', S.indexOf('var PAGE_VERSION = 105;') > 0);
-ok('HISTORIAL empieza en v105 y conserva la v104', S.indexOf('<!-- HISTORIAL: v105 - ') > 0 && S.indexOf(' | v104 - ') > 0);
+ok('v106 en cabecera', /VERSIÓN ACTUAL: v106 \|/.test(S));
+ok('v106 en titulo', S.indexOf('<title>Check-in Pasos v106 — 3Villas</title>') > 0);
+ok('PAGE_VERSION 105', S.indexOf('var PAGE_VERSION = 106;') > 0);
+ok('HISTORIAL empieza en v106 y conserva la v104', S.indexOf('<!-- HISTORIAL: v106 - ') > 0 && S.indexOf(' | v104 - ') > 0);
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
