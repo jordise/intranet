@@ -1,5 +1,6 @@
 /* Pruebas de los iconos de la ficha de villa (peticion de Rafa, 25/09/2026: la ficha se lee de un vistazo).
-   villa.html v24 y editar-villa.html v28.
+   villa.html v25 y editar-villa.html v29 (v24/v28: iconos por campo y de seccion; v25/v29: segunda ronda de Rafa:
+   emoji de subgrupo a 18px, iconos de habitaciones y banos, ancho completo en escritorio).
    node villa-iconos.test.js
 
    Como editar-villa-utilidades.test.js: NO copia el codigo de las paginas. Extrae con vm el mapa real
@@ -49,7 +50,10 @@ var EXPECT = {
   '🧺': ['Washing_machine'],
   '🍖': ['BBQ'],
   '🏖️': ['Beach_towels_provided', 'Beach_distance'], '🍽️': ['Dishwasher_lavaplatos', 'Restaurant_distance'], '🛒': ['Supermarket_distance'], '✈️': ['Airport_distance'], '💊': ['Pharmacy_distance'],
-  '🐾': ['Pets_allowed']
+  '🐾': ['Pets_allowed'],
+  /* v25/v29: segunda ronda de Rafa */
+  '🛏️': ['Rooms_number', 'Beds_Explanation', 'Reorganizar_camas', 'Room1Beds', 'Room2Beds', 'Room3Beds', 'Room4Beds', 'Room5Beds', 'Room6Beds', 'Room7Beds', 'Room1Otherbeds', 'Room2Otherbeds', 'Room3Otherbeds', 'Room4Otherbeds', 'Room5Otherbeds', 'Room6Otherbeds', 'Room7Otherbeds'],
+  '🛁': ['Ensuite_BATHROOMS', 'Shared_BATHROOMS', 'Room1Bath', 'Room2Bath', 'Room3Bath', 'Room4Bath', 'Room5Bath', 'Room6Bath', 'Room7Bath']
 };
 /* icono de cada seccion que se fijo a proposito */
 var SEC = { vm: '🧑‍💼', kb1: '🔑', kb2: '🔑', kbeq: '🔑', villa: '🏡', hab: '🛏️', serv: '🧭', seg: '🚨', piscina: '🏊', op: '🗓️', com: '📡', admin: '🗂️' };
@@ -90,15 +94,33 @@ function checkPage(file, ver, titleRe) {
     ok(ico + ' en ' + EXPECT[ico].join(', '), bad.length === 0, bad.join(','));
   });
   var ghost = Object.keys(FI).filter(function (f) {
-    var m = f.match(/^Room(\d)comments$/);
-    if (m) return s.indexOf('`Room${r}comments`') < 0 || +m[1] < 1 || +m[1] > 7;
+    var m = f.match(/^Room(\d)(comments|Beds|Otherbeds|Bath)$/);
+    if (m) return s.indexOf('`Room${r}' + m[2] + '`') < 0 || +m[1] < 1 || +m[1] > 7;
     return s.indexOf("('" + f + "'") < 0 && s.indexOf(", '" + f + "'") < 0;
   });
   ok('cada campo de FIELD_ICONS existe en la pagina', ghost.length === 0, ghost.join(','));
-  var tv = flat(ctx.fieldLabel('TV', 'TV')), none = flat(ctx.fieldLabel('Rooms_number', 'Nº habitaciones'));
+  var tv = flat(ctx.fieldLabel('TV', 'TV')), none = flat(ctx.fieldLabel('Pax_legal', 'Plazas legales'));
   ok("fieldLabel('TV','TV') = <span class=lbl-ico>📺</span> + ' ' + 'TV'", tv === '<SPAN.lbl-ico>📺| |TV', tv);
-  ok('fieldLabel deja igual un campo sin icono (sin span)', none === 'Nº habitaciones', none);
+  ok('fieldLabel deja igual un campo sin icono (sin span)', none === 'Plazas legales', none);
   ok('.lbl-ico a 16px', /\.lbl-ico\{font-size:16px;/.test(s));
+
+  /* v25/v29: emoji de subgrupo a 18px (Rafa: los iconos de las habitaciones se veian muy pequenos) */
+  ok('.sg-ico a 18px', /\.sg-ico\{font-size:18px;line-height:1;/.test(s));
+  ok('.subgroup-title sigue en flex con gap (el span se separa solo)', /\.subgroup-title\{[^}]*display:flex;align-items:center;gap:6px/.test(s));
+  var c4 = { document: fakeDoc() };
+  vm.runInNewContext(fnSource(s, 'subgroup') + '\nthis.sg=subgroup;', c4);
+  var sgT = c4.sg('🛏️ Habitación 1', 'sg-internal').childNodes[0];
+  ok("subgroup('🛏️ Habitación 1') = <span class=sg-ico>🛏️</span> + 'Habitación 1'", sgT && sgT.className === 'subgroup-title sg-internal' && flat(sgT) === '<SPAN.sg-ico>🛏️|Habitación 1', sgT && flat(sgT));
+  var sgZ = c4.sg('🧑‍💼 Villamanager', 'sg-guest').childNodes[0];
+  ok('subgroup con emoji compuesto (ZWJ) tambien lo separa', sgZ && flat(sgZ) === '<SPAN.sg-ico>🧑‍💼|Villamanager', sgZ && flat(sgZ));
+  var sgN = c4.sg('Datos sin icono', 'sg-neutral').childNodes[0];
+  ok('subgroup sin emoji queda como texto plano', sgN && sgN.childNodes.length === 0 && sgN.textContent === 'Datos sin icono', sgN && flat(sgN));
+  ok('subgroup sin titulo no crea cabecera', c4.sg('', 'sg-neutral').childNodes.length === 0);
+
+  /* v25/v29: en ordenador la ficha ocupa toda la pantalla (Rafa: se pierden los margenes) */
+  ok('main sigue a 700px centrado en movil/tablet', /\nmain\{padding:10px 12px 14px;max-width:700px;margin:0 auto;/.test(s));
+  ok('main sin max-width desde 1024px', /@media\(min-width:1024px\)\{main\{max-width:none;padding:12px 28px 20px\}\}/.test(s));
+  ok('la regla de escritorio va despues de la de main (gana en cascada)', s.indexOf('@media(min-width:1024px){main{max-width:none') > s.indexOf('\nmain{padding:10px 12px 14px;max-width:700px'));
 
   /* las etiquetas pasan por fieldLabel */
   if (file === 'villa.html') {
@@ -144,7 +166,7 @@ function checkPage(file, ver, titleRe) {
   return iconsBlock(s, file);
 }
 
-var a = checkPage('villa.html', 24, /<title>Villa Info v(\d+)/);
+var a = checkPage('villa.html', 25, /<title>Villa Info v(\d+)/);
 (function () {
   var s = src('villa.html');
   ok('villa.html: Villamanager cerrado por defecto', !/buildSection\('vm'[\s\S]*?\},true\)\);/.test(section(s, 'vm', 'kb1', 'villa.html')));
@@ -155,7 +177,7 @@ var a = checkPage('villa.html', 24, /<title>Villa Info v(\d+)/);
   ok("empty(): '' y '-' vacios, '4821' no", c.e('') && c.e('  ') && c.e('-') && c.e(null) && !c.e('4821'));
   ok('villa.html: botones de arriba conservan 🏠 Hostaway y 📋 Preparar Manual', s.indexOf('🏠 Hostaway</a>') > 0 && s.indexOf('📋 Preparar Manual</a>') > 0);
 })();
-var b = checkPage('editar-villa.html', 28, /<title>Editar Villa v(\d+)/);
+var b = checkPage('editar-villa.html', 29, /<title>Editar Villa v(\d+)/);
 console.log('las dos paginas');
 ok('FIELD_ICONS identico en villa.html y editar-villa.html', a === b);
 
