@@ -1,4 +1,4 @@
-/* Pruebas de la hora de salida de la casa (checkin-pasos v104). Caso: Sam y Nazaret,
+/* Pruebas de la hora de salida de la casa (checkin-pasos v104; lista desde las 04:00 en v107). Caso: Sam y Nazaret,
    grupo Nueva Intranet 24/09/2026: huespedes con salida a las 07:00 o con la hora del
    vuelo en la casilla de la casa.
    node salida-hora-orden.test.js
@@ -36,6 +36,10 @@ ok('06:00 -> 360', ctx._p0TimeMinutes('06:00') === 360);
 ok('vacio -> null', ctx._p0TimeMinutes('') === null);
 ok('texto -> null', ctx._p0TimeMinutes('tarde') === null);
 ok('25:00 -> null', ctx._p0TimeMinutes('25:00') === null);
+ok('04:00 sin sameDay -> madrugada siguiente (vuelo o barco)', ctx._p0TimeMinutes('04:00') === 28 * 60);
+ok('04:00 con sameDay -> 240 (salida de la casa, v107)', ctx._p0TimeMinutes('04:00', true) === 240);
+ok('05:30 con sameDay -> 330', ctx._p0TimeMinutes('05:30', true) === 330);
+ok('10:00 con sameDay -> 600', ctx._p0TimeMinutes('10:00', true) === 600);
 
 console.log('_p0ExitTimesOk: la salida de la isla no puede ser antes que la salida de la casa');
 ok('vuelo 12:00, casa 10:00 -> ok', ctx._p0ExitTimesOk('12:00', '10:00') === true);
@@ -45,6 +49,20 @@ ok('vuelo 09:00, casa 07:00 -> ok (madrugon real)', ctx._p0ExitTimesOk('09:00', 
 ok('vuelo 01:00, casa 10:00 -> ok (madrugada siguiente)', ctx._p0ExitTimesOk('01:00', '10:00') === true);
 ok('sin vuelo -> ok (no es obligatorio)', ctx._p0ExitTimesOk('', '10:00') === true);
 ok('sin casa -> ok (lo para el requerido)', ctx._p0ExitTimesOk('12:00', '') === true);
+ok('vuelo 06:00, casa 04:00 -> ok (v107, primer vuelo del dia)', ctx._p0ExitTimesOk('06:00', '04:00') === true);
+ok('vuelo 07:00, casa 05:30 -> ok (v107)', ctx._p0ExitTimesOk('07:00', '05:30') === true);
+ok('vuelo 06:00, casa 06:00 -> bloqueado (igual)', ctx._p0ExitTimesOk('06:00', '06:00') === false);
+ok('vuelo 06:00, casa 06:30 -> bloqueado (casillas cambiadas)', ctx._p0ExitTimesOk('06:00', '06:30') === false);
+ok('vuelo 01:00, casa 04:00 -> ok (madrugada siguiente)', ctx._p0ExitTimesOk('01:00', '04:00') === true);
+
+console.log('HOURS_CHECKOUT_ARR: salida de la casa desde las 04:00 (v107, Nazaret 25/09/2026)');
+var hc = /var HOURS_CHECKOUT_ARR = (\[[^\]]*\]);/.exec(S);
+var HC = hc ? JSON.parse(hc[1].replace(/'/g, '"')) : null;
+ok('lista encontrada', !!HC);
+ok('empieza en 04:00', !!HC && HC[0] === '04:00');
+ok('termina en 10:00', !!HC && HC[HC.length - 1] === '10:00');
+ok('13 medias horas de 04:00 a 10:00', !!HC && HC.length === 13 && HC.indexOf('05:30') === 3 && HC.indexOf('07:00') === 6);
+ok('el valor por defecto 10:00 sigue en la lista', !!HC && HC.indexOf('10:00') >= 0);
 
 console.log('pagina: cableado v104');
 var sub = fnSource('submitForm');
@@ -56,8 +74,8 @@ ok('err_exit_order en 8 idiomas', (S.match(/err_exit_order:'/g) || []).length ==
 ok('lbl_checkout_time en 8 idiomas', (S.match(/lbl_checkout_time:/g) || []).length === 8);
 ok('etiqueta ES "Hora de salida de la casa"', S.indexOf("lbl_checkout_time:'Hora de salida de la casa'") > 0);
 ok('etiqueta EN "Flight or ferry departure {depFrom}"', S.indexOf("lbl_dep_time:'Flight or ferry departure {depFrom}'") > 0);
-ok('version v106 en cabecera y titulo (la v106 conserva el cableado v104)', S.indexOf('VERSIÓN ACTUAL: v106') > 0 && S.indexOf('Check-in Pasos v106') > 0);
-ok('HISTORIAL v106 y conserva la v104', S.indexOf('<!-- HISTORIAL: v106 -') > 0 && S.indexOf(' | v104 - ') > 0);
+ok('version v107 en cabecera y titulo (la v107 conserva el cableado v104)', S.indexOf('VERSIÓN ACTUAL: v107') > 0 && S.indexOf('Check-in Pasos v107') > 0);
+ok('HISTORIAL v107 y conserva la v104', S.indexOf('<!-- HISTORIAL: v107 -') > 0 && S.indexOf(' | v104 - ') > 0);
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
