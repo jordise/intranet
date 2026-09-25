@@ -56,8 +56,8 @@ ok('err_exit_order en 8 idiomas', (S.match(/err_exit_order:'/g) || []).length ==
 ok('lbl_checkout_time en 8 idiomas', (S.match(/lbl_checkout_time:/g) || []).length === 8);
 ok('etiqueta ES "Hora de salida de la casa"', S.indexOf("lbl_checkout_time:'Hora de salida de la casa'") > 0);
 ok('etiqueta EN "Flight or ferry departure {depFrom}"', S.indexOf("lbl_dep_time:'Flight or ferry departure {depFrom}'") > 0);
-ok('version v104 en cabecera y titulo', S.indexOf('VERSIÓN ACTUAL: v104') > 0 && S.indexOf('Check-in Pasos v104') > 0);
-ok('HISTORIAL v104', S.indexOf('<!-- HISTORIAL: v104 -') > 0);
+ok('version v105 en cabecera y titulo (la v105 conserva el cableado v104)', S.indexOf('VERSIÓN ACTUAL: v105') > 0 && S.indexOf('Check-in Pasos v105') > 0);
+ok('HISTORIAL v105 y conserva la v104', S.indexOf('<!-- HISTORIAL: v105 -') > 0 && S.indexOf(' | v104 - ') > 0);
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
