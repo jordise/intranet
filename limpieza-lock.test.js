@@ -104,7 +104,7 @@ function cargar(file, Auth, doneLocked, p) {
 
 var PAGINAS = [
   { file: 'task-limpieza.html', ver: 11, titulo: 'Tarea Limpieza v11 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
-  { file: 'task-cierre.html', ver: 14, titulo: 'Tarea Cierre v14 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
+  { file: 'task-cierre.html', ver: 15, titulo: 'Tarea Cierre v15 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
   { file: 'task-wp.html', ver: 22, titulo: 'WelcomePack v22 — 3Villas', card: 'cardWPDone', hint: 'wpDoneHint', wh: 'whereCheck', pend: '⚠️ Marcado como pendiente — aparecerá en el listado' }
 ];
 
@@ -245,8 +245,14 @@ PAGINAS.forEach(function (P) {
   } else {
     var a = src.indexOf('Picture_cloudfare_after');
     var incBloque = src.slice(a, src.indexOf('const wh=', a));
-    ok('una foto de incidencia que falla NO aborta el guardado: avisa y sigue, como hasta ahora',
-      incBloque.indexOf('abortarPorFotoFallida') === -1 && incBloque.indexOf('toast(') > 0, incBloque.length);
+    if (P.file === 'task-cierre.html') {
+      /* v15: con la incidencia abierta, una foto de incidencia que falla aborta (el aviso a Reservas saldria sin ella); cerrada, avisa y sigue */
+      ok('cierre v15: una foto de incidencia que falla aborta SOLO con la incidencia abierta; cerrada, avisa y sigue',
+        /if\(incFail&&incOpen\)\{\s*abortarPorFotoFallida\(\);/.test(incBloque) && incBloque.indexOf("if(incFail)toast('") > 0, incBloque.length);
+    } else {
+      ok('una foto de incidencia que falla NO aborta el guardado: avisa y sigue, como hasta ahora',
+        incBloque.indexOf('abortarPorFotoFallida') === -1 && incBloque.indexOf('toast(') > 0, incBloque.length);
+    }
   }
 
   /* ── d. La lectura posterior al guardado ── */

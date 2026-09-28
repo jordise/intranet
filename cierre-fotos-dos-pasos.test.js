@@ -1,4 +1,4 @@
-/* Pruebas de task-cierre.html v14: cuando se guarda con la incidencia encendida y hay fotos,
+/* Pruebas de task-cierre.html v14/v15: cuando se guarda con la incidencia encendida y hay fotos,
    la pagina escribe DOS veces: primero solo las fotos, despues todo con Incidencias=true.
    node cierre-fotos-dos-pasos.test.js
 
@@ -26,8 +26,8 @@ function fnSource(name) {
 console.log('== version ==');
 var vTop = (src.match(/VERSIÓN ACTUAL:\s*v(\d+)/) || [])[1], vTitle = (src.match(/<title>Tarea Cierre v(\d+)/) || [])[1];
 ok('version igual en comentario y titulo (' + vTop + ')', vTop && vTop === vTitle, vTop + '/' + vTitle);
-ok('version >= 14', parseInt(vTop, 10) >= 14);
-ok('el historial explica la v14', /HISTORIAL: v14 - Fotos en el correo de incidencia/.test(src));
+ok('version >= 15', parseInt(vTop, 10) >= 15);
+ok('el historial explica la v14 y la v15', /HISTORIAL: v15 - Revision/.test(src) && /v14 - Fotos en el correo de incidencia/.test(src));
 
 /* ── Muñecos ── */
 function escenario(o) {
@@ -41,8 +41,9 @@ function escenario(o) {
   };
   [1, 2, 3, 4, 5].forEach(function (i) { els['aiPreview' + i] = { style: { display: (o.after && o.after[i]) ? 'block' : 'none' }, src: (o.after && o.after[i]) || '' }; });
   var photos = { main: { file: null }, ai1: {}, ai2: {}, ai3: {}, ai4: {}, ai5: {} };
-  var avisos = [];
-  var fila = { Tarea_terminada: !!o.done, taskid: 9876 };
+  (o.fresh || []).forEach(function (slot) { photos[slot] = { file: 'file:' + slot, base64: 'data:' + slot }; });
+  var avisos = [], abortos = 0;
+  var fila = o.sinTaskid ? { Tarea_terminada: !!o.done } : { Tarea_terminada: !!o.done, taskid: 9876 };
   var creada = !!o.exists;   /* la base de datos de mentira: la fila existe, o se crea con el primer POST */
   var fetchWithTimeout = function (url, opts, ms, label) {
     var body = opts && opts.body ? JSON.parse(opts.body) : null;
@@ -56,13 +57,13 @@ function escenario(o) {
     return Promise.resolve({ ok: true, text: function () { return Promise.resolve(''); } });
   };
   var ctx = {
-    doneLocked: false, incOpen: !!o.incidenciaOn, idReserva: '55990582', taskType: '30', cfg: { badge: 'Cierre' },
-    taskRecordId: o.exists ? 9876 : undefined, photos: photos, WORKER: 'https://api.test/intranet/api',
+    doneLocked: false, incOpen: !!o.incidenciaOn, incInicial: !!o.incInicial, idReserva: '55990582', taskType: '30', cfg: { badge: 'Cierre' },
+    taskRecordId: (o.exists && !o.sinIdDeVista) ? 9876 : undefined, photos: photos, WORKER: 'https://api.test/intranet/api',
     Auth: { url: function (u) { return u; } },
     g: function (id) { return els[id] || null; }, gv: function (id) { return (els[id] || {}).value || ''; },
     sw: function (id) { return !!(els[id] || {}).checked; }, $sw: function () {}, onSwDoneChange: function () {}, saveState: function () {},
-    clearState: function () {}, fotoPresente: function () { return true; }, fotoError: function () {}, abortarPorFotoFallida: function () {},
-    uploadPhoto: function () { return Promise.resolve(''); }, fetchWithTimeout: fetchWithTimeout,
+    clearState: function () {}, fotoPresente: function () { return true; }, fotoError: function () {}, abortarPorFotoFallida: function () { abortos++; avisos.push({ msg: 'Foto no subida. No se ha guardado nada', tipo: 'error' }); },
+    uploadPhoto: function (file, idRes, tType, suffix, slot) { return Promise.resolve((o.uploads || {})[slot] || ''); }, fetchWithTimeout: fetchWithTimeout,
     esVerdadero: function (v) { return v === true || v === 1 || v === -1 || ['yes', 'sí', 'true', '1'].indexOf(String(v).toLowerCase()) >= 0; },
     toast: function (m, t) { avisos.push({ msg: m, tipo: t }); }, setTimeout: function () {}, window: {}, history: { back: function () {} },
     console: { warn: function () {}, error: function () {} }, document: { getElementById: function (id) { return els[id] || null; } }
@@ -70,7 +71,7 @@ function escenario(o) {
   var nombres = Object.keys(ctx);
   var body = fnSource('guardar') + '\nreturn guardar;';
   var guardar = new Function(nombres.join(','), body).apply(null, nombres.map(function (n) { return ctx[n]; }));
-  return { correr: function () { return guardar(false); }, llamadas: llamadas, avisos: avisos, els: els };
+  return { correr: function () { return guardar(false); }, llamadas: llamadas, avisos: avisos, els: els, abortos: function () { return abortos; } };
 }
 var MAIN = 'https://www.3villas.com/intranet/fotos/cierre/2026_cierre_55990582_1.jpg?v=1';
 var AFTER1 = 'https://www.3villas.com/intranet/fotos/cierre/2026_cierre_55990582_after1.jpg?v=2';
@@ -109,15 +110,51 @@ function escrituras(e) { return e.llamadas.filter(function (l) { return l.metodo
   w = escrituras(e);
   ok('una sola escritura (no hay fotos que adelantar)', w.length === 1 && w[0].body.Incidencias === true, w.length);
 
-  /* 4. tarea NUEVA con incidencia: alta sin la marca, luego PUT por WHERE con la marca */
+  /* 4. tarea NUEVA con incidencia (v15): un solo POST con todo, como en la v13 */
   console.log('\n== tarea nueva + incidencia ==');
   e = escenario({ exists: false, incidenciaOn: true, incidencia: 'Puerta', mainUrl: MAIN, done: true });
   await e.correr();
   w = escrituras(e);
+  ok('una sola escritura, un POST', w.length === 1 && w[0].metodo === 'POST' && /method=POST/.test(w[0].url), w.length);
+  ok('  ...con la marca de incidencia, el texto y la foto', w[0] && w[0].body.Incidencias === true && w[0].body.Taskdescription === 'Puerta' && w[0].body.Picture_cloudfare1 === MAIN, JSON.stringify(w[0] && w[0].body));
+
+  /* 4b. la incidencia ya estaba abierta al cargar (v15): el aviso ya salio, una sola escritura */
+  console.log('\n== incidencia ya abierta al cargar ==');
+  e = escenario({ exists: true, incidenciaOn: true, incInicial: true, incidencia: 'Mas fotos', mainUrl: MAIN, after: { 1: AFTER1 }, done: true });
+  await e.correr();
+  w = escrituras(e);
+  ok('una sola escritura con todo', w.length === 1 && w[0].body.Incidencias === true && w[0].body.Picture_cloudfare_after1 === AFTER1, w.length);
+
+  /* 4c. fotos de incidencia recien subidas (ai2..ai5): la primera escritura las lleva todas */
+  console.log('\n== fotos nuevas en los cinco huecos ==');
+  var U = function (i) { return 'https://www.3villas.com/intranet/fotos/cierre/2026_cierre_55990582_after' + i + '.jpg?v=9'; };
+  e = escenario({ exists: true, incidenciaOn: true, incidencia: 'Cinco', mainUrl: MAIN, done: true, fresh: ['ai1', 'ai2', 'ai3', 'ai4', 'ai5'], uploads: { ai1: U(1), ai2: U(2), ai3: U(3), ai4: U(4), ai5: U(5) } });
+  await e.correr();
+  w = escrituras(e);
   ok('dos escrituras', w.length === 2, w.length);
-  ok('la primera es un POST sin la marca de incidencia', w[0] && w[0].metodo === 'POST' && /method=POST/.test(w[0].url) && w[0].body.Incidencias === false && w[0].body.Picture_cloudfare1 === MAIN, JSON.stringify(w[0]));
-  ok('la segunda es un PUT por WHERE con Incidencias=true', w[1] && w[1].metodo === 'PUT' && /action=save&table=TaTasks&where=.*&method=PUT/.test(w[1].url) && w[1].body.Incidencias === true, JSON.stringify(w[1] && w[1].url));
-  ok('  ...y el WHERE lleva la reserva y el tipo', w[1] && /Idreserva%3D'55990582'%20AND%20Tasktype_booking%3D30/.test(w[1].url), w[1] && w[1].url);
+  ok('la primera lleva las cinco fotos de incidencia recien subidas y la principal', w[0] && soloFotos(w[0].body) && [1, 2, 3, 4, 5].every(function (i) { return w[0].body['Picture_cloudfare_after' + i] === U(i); }) && w[0].body.Picture_cloudfare1 === MAIN, JSON.stringify(w[0] && w[0].body));
+
+  /* 4d. la vista no dio el id pero la fila existe y la comprobacion no trae taskid: PUT por WHERE */
+  console.log('\n== fila existente sin id conocido ==');
+  e = escenario({ exists: true, sinIdDeVista: true, sinTaskid: true, incidenciaOn: true, incidencia: 'Sin id', mainUrl: MAIN, done: true });
+  await e.correr();
+  w = escrituras(e);
+  ok('primero se comprueba la fila (GET) y luego dos PUT por WHERE', e.llamadas[0].metodo === 'GET' && /action=data&table=TaTasks/.test(e.llamadas[0].url) && w.length === 2 && w.every(function (l) { return l.metodo === 'PUT' && /action=save&table=TaTasks&where=.*&method=PUT/.test(l.url); }), JSON.stringify(e.llamadas.map(function (l) { return l.metodo + ' ' + l.url; })));
+  ok('  ...y el WHERE lleva la reserva y el tipo', w[0] && /Idreserva%3D'55990582'%20AND%20Tasktype_booking%3D30/.test(w[0].url), w[0] && w[0].url);
+
+  /* 4e. una foto de incidencia no sube con la incidencia abierta (v15): no se guarda nada */
+  console.log('\n== foto de incidencia que no sube ==');
+  e = escenario({ exists: true, incidenciaOn: true, incidencia: 'Falla', mainUrl: MAIN, done: true, fresh: ['ai1', 'ai2'], uploads: { ai1: U(1) } });
+  await e.correr();
+  w = escrituras(e);
+  ok('ninguna escritura', w.length === 0, w.length);
+  ok('se aborta con el aviso de foto no subida', e.abortos() === 1 && e.avisos.some(function (a) { return /No se ha guardado nada/.test(a.msg); }), JSON.stringify(e.avisos));
+  ok('el boton vuelve a estar activo', e.els.btnSave.disabled === false && e.els.saveLabel.textContent === '💾 Guardar');
+  /* ...y con la incidencia cerrada la regla de la v13 se mantiene: avisa y guarda */
+  e = escenario({ exists: true, incidenciaOn: false, mainUrl: MAIN, done: true, fresh: ['ai1'], uploads: {} });
+  await e.correr();
+  w = escrituras(e);
+  ok('con la incidencia cerrada, una foto que no sube solo avisa y se guarda igual', w.length === 1 && e.abortos() === 0 && e.avisos.some(function (a) { return /no se pudieron subir/.test(a.msg); }), JSON.stringify(e.avisos));
 
   /* 5. tarea nueva sin incidencia: un POST, como siempre */
   console.log('\n== tarea nueva sin incidencia ==');
