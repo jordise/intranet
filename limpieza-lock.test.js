@@ -104,7 +104,7 @@ function cargar(file, Auth, doneLocked, p) {
 
 var PAGINAS = [
   { file: 'task-limpieza.html', ver: 11, titulo: 'Tarea Limpieza v11 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
-  { file: 'task-cierre.html', ver: 13, titulo: 'Tarea Cierre v13 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
+  { file: 'task-cierre.html', ver: 14, titulo: 'Tarea Cierre v14 — 3Villas', card: 'cardDone', hint: 'doneHint', wh: 'wh', pend: '⚠️ Pendiente — aparecerá en el listado' },
   { file: 'task-wp.html', ver: 22, titulo: 'WelcomePack v22 — 3Villas', card: 'cardWPDone', hint: 'wpDoneHint', wh: 'whereCheck', pend: '⚠️ Marcado como pendiente — aparecerá en el listado' }
 ];
 
