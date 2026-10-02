@@ -33,8 +33,8 @@ console.log('checkin-pasos.html');
   var f = 'checkin-pasos.html', s = src(f);
   ok('los scripts inline compilan', (function () { try { return scriptsCompile(f) > 0; } catch (e) { return e.message; } })() === true);
   var pv = s.match(/var PAGE_VERSION = (\d+);/), hv = s.match(/VERSIÓN ACTUAL: v(\d+) \|/), tv = s.match(/<title>Check-in Pasos v(\d+)/);
-  ok('v107 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '107' && hv[1] === '107' && tv[1] === '107', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
-  ok('historial v107', /<!-- HISTORIAL: v107 - /.test(s) && / \| v104 - /.test(s));
+  ok('v108 en PAGE_VERSION, cabecera y titulo', pv && hv && tv && pv[1] === '108' && hv[1] === '108' && tv[1] === '108', [pv && pv[1], hv && hv[1], tv && tv[1]].join('/'));
+  ok('historial v108', /<!-- HISTORIAL: v108 - /.test(s) && / \| v104 - /.test(s));
   /* LANG_ARR real de la pagina */
   var la = s.indexOf('var LANG_ARR={};'), ca = s.indexOf('LANG_ARR.ca={', la), caEnd = s.indexOf('\n};', ca) + 3;
   var ctx = {}; vm.runInNewContext(s.slice(la, caEnd), ctx);

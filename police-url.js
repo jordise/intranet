@@ -1,6 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    police-url.js — CONSTRUCTOR UNICO del link de registro de policia.
-   VERSION ACTUAL: v1
+   VERSION ACTUAL: v2
+   v2 (02/10/2026): un nombre fiscal CON documento fiscal y SIN apellido fiscal no se usa
+   en el link. Desde checkin-pasos v108 esa combinacion es una EMPRESA (razon social en
+   Fiscal_guest_name),
+   y el registro de policia debe ir a nombre de una persona: se usa el nombre de la reserva.
 
    POR QUE EXISTE ESTE FICHERO
    Hasta ahora el link de policia se construia en SEIS sitios distintos, cada
@@ -128,7 +132,13 @@
   /* Nombre y apellido: los datos fiscales mandan sobre los de la reserva. */
   function names(get) {
     var fisc = String(get('Fiscal_guest_name') || '').trim();
-    var useFisc = !!(fisc && fisc !== ' ');
+    /* v2: nombre fiscal y documento fiscal, sin apellido fiscal = una EMPRESA
+       (checkin-pasos v108, _fiscalIsCompanyRow). La policia registra personas: manda
+       el nombre de la reserva. Un nombre fiscal sin apellido y sin documento se sigue
+       usando, como antes. */
+    var isCompany = !!(fisc && !String(get('Fiscal_guest_surename') || '').trim()
+                            && String(get('Fiscal_guest_DNI_passport') || '').trim());
+    var useFisc = !!(fisc && fisc !== ' ') && !isCompany;
     return {
       first: useFisc ? fisc
                      : String(get('Guest_Full_Name') || get('Guest_Name') || ''),

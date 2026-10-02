@@ -205,19 +205,19 @@ console.log('checkin-auth.js: enlace de acceso (v23)');
 })();
 
 /* ── checkin-pasos.html v107 y checkin-premium.html v27: cargan la version nueva del js ── */
-console.log('checkin-pasos.html: v107');
+console.log('checkin-pasos.html: v108');
 (function () {
   var P = fs.readFileSync('checkin-pasos.html', 'utf8');
   ok('carga checkin-auth.js?v=23', P.indexOf('<script src="checkin-auth.js?v=23"></script>') > 0);
   ok('sin la carga antigua sin version', P.indexOf('<script src="checkin-auth.js"></script>') < 0);
   ok('sin la carga de la v22 (fuera del historial)',
     P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=22') < 0);
-  ok('cabecera v107', /VERSIÓN ACTUAL: v107 \|/.test(P));
-  ok('titulo v107', /<title>Check-in Pasos v107 — 3Villas<\/title>/.test(P));
+  ok('cabecera v108', /VERSIÓN ACTUAL: v108 \|/.test(P));
+  ok('titulo v108', /<title>Check-in Pasos v108 — 3Villas<\/title>/.test(P));
   ok('PAGE_VERSION 105 (la auto-deteccion mira este numero)',
-    P.indexOf('var PAGE_VERSION = 107;') > 0 && P.indexOf('var PAGE_VERSION = 104;') < 0);
-  ok('el historial empieza en v107 y conserva la v104, la v102 y la v101',
-    /<!-- HISTORIAL: v107 - /.test(P) && / \| v104 - /.test(P) && / \| v102 - /.test(P) && / \| v101 - /.test(P));
+    P.indexOf('var PAGE_VERSION = 108;') > 0 && P.indexOf('var PAGE_VERSION = 104;') < 0);
+  ok('el historial empieza en v108 y conserva la v104, la v102 y la v101',
+    /<!-- HISTORIAL: v108 - /.test(P) && / \| v104 - /.test(P) && / \| v102 - /.test(P) && / \| v101 - /.test(P));
 })();
 
 console.log('checkin-premium.html: v27');
