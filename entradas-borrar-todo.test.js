@@ -39,8 +39,8 @@ ok('clearAll empieza por resetSistema', clearSrc.indexOf('resetSistema()') >= 0)
 console.log('2. Boton en el HTML');
 ok('boton Borrar todo presente', /onclick="borrarTodo\(\)"[^>]*>Borrar todo</.test(SRC));
 ok('tooltip de la X cambiado', SRC.indexOf('title="Volver a mis valores por defecto"') >= 0);
-ok('version v153 en las tres marcas',
-  SRC.indexOf('VERSIÓN ACTUAL: v153') >= 0 && SRC.indexOf('Entradas Equipo v153') >= 0 && SRC.indexOf("PAGE_VERSION='v153'") >= 0);
+ok('version v154 en las tres marcas',
+  SRC.indexOf('VERSIÓN ACTUAL: v154') >= 0 && SRC.indexOf('Entradas Equipo v154') >= 0 && SRC.indexOf("PAGE_VERSION='v154'") >= 0);
 
 console.log('3. resetSistema deja el estado base (DOM minimo)');
 function makeEnv() {
