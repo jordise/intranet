@@ -325,9 +325,9 @@ console.log('cobros-inquilinos.html: preset Devoluciones pendientes');
 /* ── version ── */
 console.log('cobros-inquilinos.html: version');
 (function () {
-  ok('cabecera v36', /VERSIÓN ACTUAL: v36 \|/.test(SRC));
-  ok('titulo v36', /<title>Control Cobros Inquilinos v36 — 3Villas<\/title>/.test(SRC));
-  ok('el historial empieza en v36 (enlace www del aviso) y conserva la v35 y la v34', /<!-- HISTORIAL: v36 - Enlace del aviso por email/.test(SRC) && / \| v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
+  ok('cabecera v37', /VERSIÓN ACTUAL: v37 \|/.test(SRC));
+  ok('titulo v37', /<title>Control Cobros Inquilinos v37 — 3Villas<\/title>/.test(SRC));
+  ok('el historial empieza en v37 (enlace por codigo) y conserva la v36, la v35 y la v34', /<!-- HISTORIAL: v37 - El enlace por codigo/.test(SRC) && / \| v36 - Enlace del aviso por email/.test(SRC) && / \| v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
   ok('y conserva la v33 y la v32', / \| v33 - /.test(SRC) && / \| v32 - /.test(SRC));
 })();
 
