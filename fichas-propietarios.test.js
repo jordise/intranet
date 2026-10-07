@@ -723,13 +723,14 @@ ok('alternarVacios repinta el detalle abierto',
 ok('alternarVacios esta expuesta en window', /window\.alternarVacios = alternarVacios;/.test(codigo));
 
 /* ════════ 6. nav.js lleva la entrada ════════ */
-console.log('nav.js: v15');
+/* 07/10/2026: nav.js v16 anade 'Prospección mensual'; la entrada de la v15 sigue igual. */
+console.log('nav.js: v16 (entrada de la v15)');
 var NAV = fs.readFileSync('nav.js', 'utf8');
-ok('cabecera y VERSION ACTUAL en v15',
-  /nav\.js — MENÚS POR ROL  3Villas  v15/.test(NAV) && /VERSIÓN ACTUAL: v15 \|/.test(NAV));
-ok('NAV_VERSION 15 (la auto-deteccion mira este numero)',
-  NAV.indexOf('var NAV_VERSION = 15;') > 0 && NAV.indexOf('var NAV_VERSION = 14;') < 0);
-ok('historial v15 y conserva la v14', /\/\/ HISTORIAL: v15 - /.test(NAV) && / \| v14 - /.test(NAV));
+ok('cabecera y VERSION ACTUAL en v16',
+  /nav\.js — MENÚS POR ROL  3Villas  v16/.test(NAV) && /VERSIÓN ACTUAL: v16 \|/.test(NAV));
+ok('NAV_VERSION 16 (la auto-deteccion mira este numero)',
+  NAV.indexOf('var NAV_VERSION = 16;') > 0 && NAV.indexOf('var NAV_VERSION = 15;') < 0);
+ok('historial v16 y conserva la v15 y la v14', /\/\/ HISTORIAL: v16 - /.test(NAV) && / \| v15 - /.test(NAV) && / \| v14 - /.test(NAV));
 var navCodigo = NAV.split('// HISTORIAL:')[0];
 ok('la entrada "Fichas de propietarios" existe',
   navCodigo.indexOf("{ label: 'Fichas de propietarios', url: 'fichas-propietarios.html',        icon: '📋' },") > 0);

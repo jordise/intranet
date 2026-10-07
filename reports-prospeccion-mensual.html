@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospección mensual v1 — 3Villas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/intranet/sw.js').catch(()=>{}));</script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Mismo aspecto que reports-ventas.html v24 (variables, cabecera, panel de filtros, tabla, estados). */
+:root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+
+/* NAV */
+.top-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+.nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+.nav-logo img{height:26px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 6px}
+.h-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-5)}
+.h-sub{font-size:11px;color:var(--gray-4);margin-top:1px}
+.nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.nav-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer}
+.nav-menu-btn:hover{background:var(--red-dark)}
+.user-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
+
+/* FILTER PANEL */
+#filterPanel{background:#fff;border-bottom:2px solid var(--gray-2);padding:10px 16px 0;position:sticky;top:48px;z-index:200;box-shadow:var(--shadow-sm)}
+.main-bar{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;padding-bottom:10px}
+.f-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:110px}
+.f-group.mes{flex:0 0 auto;min-width:230px}
+.f-group.wide{flex:2;min-width:180px}
+.f-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+.f-input,.f-select{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none;width:100%;transition:border-color .15s}
+.f-input:focus,.f-select:focus{border-color:var(--red)}
+.f-select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8194' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.mes-row{display:flex;gap:4px;align-items:center}
+.mes-row .f-select{flex:1}
+.btn-step{height:36px;width:34px;border:1.5px solid var(--gray-2);border-radius:7px;background:#fff;color:var(--gray-4);font-size:14px;cursor:pointer;flex-shrink:0}
+.btn-step:hover{border-color:var(--red);color:var(--red)}
+.btn-step:disabled{opacity:.35;cursor:not-allowed}
+
+/* STATS */
+#statsBar{display:none;background:#fff;border-bottom:1px solid var(--gray-2);padding:7px 18px;align-items:center;gap:18px;flex-wrap:wrap}
+.stat{display:flex;align-items:baseline;gap:5px;font-size:13px;color:var(--gray-4)}
+.stat strong{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:var(--gray-5)}
+
+/* MAIN */
+main{padding:16px;max-width:1300px;margin:0 auto}
+.regla{font-size:12px;color:var(--gray-4);margin-bottom:12px}
+.state-box{text-align:center;padding:60px 20px;color:var(--gray-4)}
+.spinner{display:block;width:56px;height:56px;margin:0 auto 12px;background:url('icon-corazon-rojo-fondo-transparente.png') center/contain no-repeat;animation:spin-3v .9s linear infinite}
+@keyframes spin-3v{to{transform:rotate(360deg)}}
+
+/* TABLA (scroll horizontal en móvil) */
+.twrap{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:3px solid var(--red)}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:820px}
+thead tr{background:var(--red)}
+th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;padding:8px 6px;text-align:center;white-space:normal;line-height:1.25;border-right:1px solid rgba(255,255,255,.12)}
+th:first-child{text-align:left;position:sticky;left:0;background:var(--red);z-index:1} th:last-child{border-right:none}
+tbody tr{border-bottom:1px solid var(--gray-2);transition:background .1s}
+tbody tr:hover{background:var(--gray-1)}
+td{padding:7px 6px;vertical-align:middle;text-align:center}
+td:first-child{text-align:left;position:sticky;left:0;background:#fff}
+tbody tr:hover td:first-child{background:var(--gray-1)}
+.td-agente{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;white-space:nowrap}
+.num-val{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5)}
+.num-zero{color:var(--gray-3)}
+tr.tot td{background:var(--gray-2);font-family:'Montserrat',sans-serif;font-weight:800;border-top:2px solid var(--gray-3)}
+tr.tot td:first-child{background:var(--gray-2)}
+.bono{display:inline-block;padding:2px 8px;border-radius:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;white-space:nowrap}
+.bono.si{background:var(--green-light);color:var(--green)}
+.bono.no{background:var(--gray-1);color:var(--gray-4)}
+.bono small{font-weight:600;margin-left:4px}
+
+/* SEMANAS CON DATOS */
+.semanas{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:14px 16px;margin-top:14px}
+.semanas h4{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-4);margin-bottom:8px}
+.semanas ul{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px 16px}
+.semanas li{font-size:12px;padding:3px 0;border-bottom:1px dashed var(--gray-2)}
+.semanas li strong{font-family:'Montserrat',sans-serif;font-weight:700}
+.semanas li.dup{color:var(--orange);font-weight:600}
+
+/* Avisos */
+.info-box{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px;line-height:1.5}
+.info-box.orange{background:var(--orange-light);border:1.5px solid var(--orange);color:var(--orange)}
+</style>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('reports-ventas');</script>
+
+<!-- NAV -->
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="h-title">Prospección mensual</div>
+    <div class="h-sub" id="navSub">Cargando…</div>
+  </div>
+  <div class="nav-btns">
+    <div class="user-pill">👤 <span id="navUser"></span></div>
+    <button class="nav-menu-btn" onclick="NavComponent.open()">☰</button>
+  </div>
+</nav>
+
+<!-- FILTROS -->
+<div id="filterPanel">
+  <div class="main-bar">
+    <div class="f-group mes">
+      <label class="f-label" for="fMes">Mes</label>
+      <div class="mes-row">
+        <button class="btn-step" id="btnPrev" onclick="stepMes(-1)" title="Mes anterior">◀</button>
+        <select id="fMes" class="f-select" onchange="loadData()"></select>
+        <button class="btn-step" id="btnNext" onclick="stepMes(1)" title="Mes siguiente">▶</button>
+      </div>
+    </div>
+    <div class="f-group wide">
+      <label class="f-label" for="fAgente">Agente</label>
+      <select id="fAgente" class="f-select" onchange="render()">
+        <option value="">Todos los agentes</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="statsBar">
+  <div class="stat"><strong id="stReg">0</strong> registros semanales</div>
+  <div class="stat"><strong id="stAg">0</strong> agentes</div>
+  <div class="stat"><strong id="stBono">0</strong> con bono</div>
+</div>
+
+<main>
+  <p class="regla">Bono fijo de 150 € con 50 o más llamadas en el mes.</p>
+  <div id="avisos"></div>
+  <div id="stLoad" class="state-box"><div class="spinner"></div><p>Cargando datos…</p></div>
+  <div id="stEmpty" class="state-box" style="display:none">
+    <p style="font-size:36px">📭</p>
+    <p id="emptyMsg" style="margin-top:10px;font-size:14px;color:var(--gray-4)">Sin registros en el mes seleccionado</p>
+  </div>
+  <div id="stErr" class="state-box" style="display:none">
+    <p style="font-size:36px">⚠️</p>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-top:8px"></p>
+  </div>
+
+  <div id="listView" style="display:none">
+    <div class="twrap">
+      <table><thead><tr id="tblHead"></tr></thead><tbody id="tblBody"></tbody></table>
+    </div>
+    <div class="semanas">
+      <h4>Semanas con reporte entregado</h4>
+      <ul id="semanasList"></ul>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+'use strict';
+
+const WORKER = 'https://www.3villas.com/intranet/api';
+const TABLE  = 'Ta_raport_ventas';
+const LIMIT  = 2000;   /* mismo límite que la lectura de reports-ventas.html v24 */
+const PAGE_VERSION = 1;
+
+/* ── v1: auto-detección de versión (Opción B), igual que fichas-propietarios.html ── */
+(function checkForNewerVersion(){
+  try{
+    if(location.protocol === 'file:') return;
+    fetch(location.pathname, { cache:'reload' }).then(function(r){ return r.text(); }).then(function(html){
+      var m = html.match(/VERSIÓN ACTUAL:\s*v(\d+)/i);
+      if(!m) return;
+      var serverV = parseInt(m[1], 10);
+      if(serverV > PAGE_VERSION){
+        var key = '3v_vchk_' + location.pathname + '_v' + serverV;
+        if(!sessionStorage.getItem(key)){ sessionStorage.setItem(key, '1'); location.reload(); }
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   ▼▼ CALCULO — inicio. La prueba reports-prospeccion-mensual.test.js
+      extrae este bloque entero del HTML y lo ejecuta: no hay ninguna
+      copia del código en la prueba. Sin DOM y sin red aquí dentro.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Columnas de Ta_raport_ventas que suma esta página (nombres exactos de
+   reports-ventas.html v24). Visitas = Visitas_Ventas, como en la v24. */
+const PROSP_FIELDS = [
+  {key:'Prosp_Llamadas',           label:'Llamadas'},
+  {key:'Prosp_No_Contestan',       label:'No contestan'},
+  {key:'Prosp_No_Interesado',      label:'No interesado'},
+  {key:'Prosp_Otra_Agencia',       label:'Otra agencia'},
+  {key:'Prosp_Seguimiento',        label:'Seguimiento'},
+  {key:'Visitas_Ventas',           label:'Visitas'},
+  {key:'Prosp_Cartas_Intenciones', label:'Cartas de intenciones'},
+  {key:'Prosp_Contratos',          label:'Contratos'},
+];
+/* Regla de Gaëlle (7 oct 2026): bono fijo de 150 € con 50 o más llamadas en el mes. */
+const BONO_LLAMADAS = 50;
+const BONO_EUROS    = 150;
+const MESES_LARGOS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+/* Mes actual 'YYYY-MM' en hora de Madrid (no la del dispositivo). */
+function madridYearMonth(now){
+  const d = (now === undefined) ? new Date() : new Date(now);
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Madrid', year:'numeric', month:'2-digit' }).formatToParts(d);
+  let y = '', m = '';
+  parts.forEach(function(p){ if(p.type === 'year') y = p.value; if(p.type === 'month') m = p.value; });
+  return y + '-' + m;
+}
+
+/* 'YYYY-MM' → { desde:'YYYY-MM-01', hasta:'YYYY-MM-<último día>' } */
+function monthRange(ym){
+  const m = String(ym || '').match(/^(\d{4})-(\d{2})$/);
+  if(!m) return null;
+  const y = +m[1], mo = +m[2];
+  if(mo < 1 || mo > 12) return null;
+  const last = new Date(y, mo, 0).getDate();   /* día 0 del mes siguiente = último día de este */
+  return { desde: m[1] + '-' + m[2] + '-01', hasta: m[1] + '-' + m[2] + '-' + String(last).padStart(2, '0') };
+}
+
+/* Suma (o resta) meses a 'YYYY-MM'. */
+function shiftMonth(ym, delta){
+  const m = String(ym).match(/^(\d{4})-(\d{2})$/);
+  if(!m) return ym;
+  const idx = (+m[1]) * 12 + (+m[2] - 1) + delta;
+  const y = Math.floor(idx / 12), mo = idx % 12 + 1;
+  return y + '-' + String(mo).padStart(2, '0');
+}
+
+function monthLabel(ym){
+  const m = String(ym).match(/^(\d{4})-(\d{2})$/);
+  return m ? MESES_LARGOS[+m[2] - 1] + ' ' + m[1] : String(ym);
+}
+
+/* Igual que parseFechaStr de reports-ventas.html (v05): cualquier formato de Fecha → Date local a mediodía. */
+function parseFechaStr(s){
+  if(!s) return null;
+  let raw = String(s).trim().split('T')[0].split(' ')[0];
+  let m;
+  m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3], 12, 0, 0);
+  m = raw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3], 12, 0, 0);
+  m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1], 12, 0, 0);
+  m = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1], 12, 0, 0);
+  const dt = new Date(s);
+  if(!isNaN(dt.getTime())) return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
+  return null;
+}
+
+function toDateStr(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/* Número de semanas de lunes a domingo que tocan el mes 'YYYY-MM' (aunque empiecen en el mes
+   anterior o acaben en el siguiente): la base de "N de M semanas con reporte". Un registro del
+   mes cuenta en la semana de su fecha (weekKey), y esa semana siempre toca el mes, así que el
+   número de semanas con reporte nunca pasa de esta base. Octubre 2026 = 5, febrero 2027 = 4. */
+function weeksInMonth(ym){
+  const rg = monthRange(ym);
+  if(!rg) return 0;
+  const y = +ym.slice(0, 4), mo = +ym.slice(5, 7), last = +rg.hasta.slice(8, 10);
+  const semanas = {};
+  for(let d = 1; d <= last; d++){ semanas[weekKey(new Date(y, mo - 1, d, 12, 0, 0))] = 1; }
+  return Object.keys(semanas).length;
+}
+
+/* Línea por agente bajo la tabla, p. ej. "Toni Moll: 3 de 4 semanas con reporte (3 filas)". */
+function lineaSemanas(a, nSemanas){
+  return a.nombre + ': ' + a.semanas + ' de ' + nSemanas + ' semanas con reporte (' + a.filas + (a.filas === 1 ? ' fila)' : ' filas)');
+}
+
+/* Aviso de registros que no se cuentan, en singular o plural. */
+function avisoFueraDeMes(n, ym){
+  if(!(n > 0)) return '';
+  return n === 1
+    ? '1 registro no se cuenta: su fecha no se puede leer o está fuera de ' + monthLabel(ym) + '.'
+    : n + ' registros no se cuentan: su fecha no se puede leer o está fuera de ' + monthLabel(ym) + '.';
+}
+
+/* Lunes de la semana de una fecha, 'YYYY-MM-DD': identifica la semana del registro
+   (y, en weeksInMonth, cada semana que toca el mes). */
+function weekKey(d){
+  const dow = (d.getDay() + 6) % 7;   /* 0 = lunes … 6 = domingo */
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow, 12, 0, 0);
+  return toDateStr(mon);
+}
+
+/* Valor numérico de un campo; vacío, null o texto = 0. Nombre de campo sin distinguir mayúsculas,
+   como _caspioFieldMap de reports-ventas.html (v16). */
+function numVal(r, key){
+  if(!r) return 0;
+  let v = r[key];
+  if(v === undefined){
+    const lk = key.toLowerCase();
+    const k = Object.keys(r).find(function(x){ return x.toLowerCase() === lk; });
+    if(k !== undefined) v = r[k];
+  }
+  const n = parseFloat(v);
+  return isFinite(n) ? n : 0;
+}
+
+/* Id del agente de una fila: mismo orden de campos que getAgenteRaw de reports-ventas.html (v09),
+   con su misma red de seguridad (un valor que sea un UserID conocido). */
+function agenteId(r, userMap){
+  const v = r.Agente ?? r.agente ?? r.AGENTE ?? r.agente_id ?? r.AgentId ?? null;
+  if(v != null && String(v).trim()) return String(v).trim();
+  const um = userMap || {};
+  for(const key of Object.keys(r)){
+    if(/fecha|date|fech|captac|visita|firma|cartel|seguro|alquil|finca|clave|prosp|factur|Id$/i.test(key)) continue;
+    const val = String(r[key] == null ? '' : r[key]).trim();
+    if(val && um[val]) return val;
+  }
+  return '';
+}
+
+function fechaDe(r){
+  return r.Fecha ?? r.fecha ?? r.FECHA ?? r.date ?? r.Date ?? '';
+}
+
+/* ¿La fecha de la fila cae dentro del mes 'YYYY-MM'? */
+function inMonth(fechaStr, ym){
+  const d = parseFechaStr(fechaStr);
+  if(!d) return false;
+  return toDateStr(d).slice(0, 7) === ym;
+}
+
+/* Regla del bono: 50 o más llamadas en el mes. */
+function bonoInfo(llamadas){
+  const n = Number(llamadas) || 0;
+  return n >= BONO_LLAMADAS ? { ok:true, faltan:0 } : { ok:false, faltan: BONO_LLAMADAS - n };
+}
+
+/* Resumen del mes: una entrada por agente con al menos una fila en el mes, más los totales.
+   semanas = número de semanas distintas (lunes) con registro de ese agente en el mes. */
+function resumenMensual(rows, ym, userMap){
+  const um = userMap || {};
+  const porAgente = {};
+  let fueraDeMes = 0;
+  (rows || []).forEach(function(r){
+    if(!inMonth(fechaDe(r), ym)){ fueraDeMes++; return; }
+    const id = agenteId(r, um);
+    if(!porAgente[id]){
+      const sums = {};
+      PROSP_FIELDS.forEach(function(f){ sums[f.key] = 0; });
+      porAgente[id] = { id:id, nombre: id ? (um[id] || id) : '(sin agente)', sums:sums, filas:0, _sem:{} };
+    }
+    const a = porAgente[id];
+    PROSP_FIELDS.forEach(function(f){ a.sums[f.key] += numVal(r, f.key); });
+    a.filas++;
+    a._sem[weekKey(parseFechaStr(fechaDe(r)))] = 1;
+  });
+  const agentes = Object.keys(porAgente).map(function(id){
+    const a = porAgente[id];
+    const out = { id:a.id, nombre:a.nombre, sums:a.sums, filas:a.filas, semanas:Object.keys(a._sem).length };
+    out.bono = bonoInfo(a.sums.Prosp_Llamadas);
+    return out;
+  }).sort(function(x, y){ return x.nombre.localeCompare(y.nombre, 'es'); });
+  const totales = {};
+  PROSP_FIELDS.forEach(function(f){ totales[f.key] = agentes.reduce(function(s, a){ return s + a.sums[f.key]; }, 0); });
+  return {
+    agentes: agentes,
+    totales: totales,
+    filas: agentes.reduce(function(s, a){ return s + a.filas; }, 0),
+    conBono: agentes.filter(function(a){ return a.bono.ok; }).length,
+    fueraDeMes: fueraDeMes
+  };
+}
+
+/* Aviso de filas duplicadas: un agente con más filas que semanas en el mes tiene dos filas
+   en alguna semana. Las dos se suman, así que las llamadas (y el bono) pueden salir de más. */
+function avisosDuplicados(resumen){
+  return ((resumen && resumen.agentes) || [])
+    .filter(function(a){ return a.filas > a.semanas; })
+    .map(function(a){ return 'Atención: ' + a.nombre + ' tiene más filas que semanas en este mes; revisa el Reporte semanal, puede haber una fila duplicada.'; });
+}
+
+/* La lectura de Ta_raport_ventas, con el mismo WHERE y el mismo límite que loadData de
+   reports-ventas.html v24: Fecha>='desde' AND Fecha<='hastaT23:59:59', limit 2000. Solo lectura.
+   No se pide orden: el caspio-proxy no aplica orderBy en action=data, así que el orden de las
+   filas que llegan no está garantizado. Esta página no depende de él: suma por agente y ordena
+   los agentes por nombre en el navegador (resumenMensual). */
+function buildMonthUrl(ym){
+  const rg = monthRange(ym);
+  if(!rg) return null;
+  const where = "Fecha>='" + rg.desde + "' AND Fecha<='" + rg.hasta + "T23:59:59'";
+  return WORKER + '?action=data&table=' + TABLE + '&where=' + encodeURIComponent(where) + '&limit=' + LIMIT;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ▲▲ CALCULO — fin
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ══ STATE ══ */
+let monthRows = [], salesAgents = [], userMap = {};
+let reqId = 0;
+const g = id => document.getElementById(id);
+
+function esc(s){ return String(s === undefined || s === null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;'); }
+
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded', async () => {
+  buildMesOptions(madridYearMonth());
+  await loadUsers();
+  loadData();
+});
+
+/* Selector de mes: los últimos 36 meses hasta el mes actual (Madrid). */
+function buildMesOptions(selected){
+  const cur = madridYearMonth();
+  const sel = g('fMes');
+  let html = '';
+  for(let i = 0; i < 36; i++){
+    const ym = shiftMonth(cur, -i);
+    html += '<option value="' + ym + '"' + (ym === selected ? ' selected' : '') + '>' + monthLabel(ym) + '</option>';
+  }
+  sel.innerHTML = html;
+  updateStepBtns();
+}
+function updateStepBtns(){
+  const sel = g('fMes');
+  g('btnNext').disabled = sel.selectedIndex <= 0;
+  g('btnPrev').disabled = sel.selectedIndex >= sel.options.length - 1;
+}
+function stepMes(delta){
+  const sel = g('fMes');
+  const i = sel.selectedIndex - delta;   /* la lista va del mes actual hacia atrás */
+  if(i < 0 || i >= sel.options.length) return;
+  sel.selectedIndex = i;
+  loadData();
+}
+
+/* ══ USUARIOS: misma lectura que reports-ventas.html v24 (TaUsers, UserID → Name, sales activos) ══ */
+async function loadUsers(){
+  try{
+    const r = await fetch(Auth.url(WORKER + '?action=data&table=TaUsers&limit=300'));
+    const j = await r.json();
+    const rows = j.Result || j.result || [];
+    rows.forEach(u => { const uid = String(u.UserID || '').trim(); if(uid) userMap[uid] = String(u.Name || u.name || uid); });
+    if(g('navUser')){
+      const me = rows.find(u => String(u.Email || '').toLowerCase() === (Auth.email ? Auth.email() : '').toLowerCase());
+      if(me) g('navUser').textContent = (me.Name || '').split(' ')[0];
+    }
+    salesAgents = rows
+      .filter(u => {
+        const s = u.User_Status; const active = s === true || s === 1 || ['yes','sí','true'].includes(String(s).toLowerCase());
+        return active && String(u.Role || u.role || '').toLowerCase() === 'sales';
+      })
+      .map(u => ({ id: String(u.UserID || '').trim(), name: String(u.Name || u.name || '').trim() }))
+      .filter(u => u.id && u.name);
+  }catch(e){ console.warn('loadUsers:', e); }
+}
+
+/* Selector de agente: los comerciales activos más cualquier agente con filas en el mes. */
+function fillAgenteOptions(resumen){
+  const sel = g('fAgente');
+  const prev = sel.value;
+  const seen = {};
+  const list = [];
+  salesAgents.forEach(u => { if(!seen[u.id]){ seen[u.id] = 1; list.push({ id:u.id, name:u.name }); } });
+  resumen.agentes.forEach(a => { if(a.id && !seen[a.id]){ seen[a.id] = 1; list.push({ id:a.id, name:a.nombre }); } });
+  list.sort((x, y) => x.name.localeCompare(y.name, 'es'));
+  sel.innerHTML = '<option value="">Todos los agentes</option>' +
+    list.map(u => '<option value="' + esc(u.id) + '">' + esc(u.name) + '</option>').join('');
+  if(prev && seen[prev]) sel.value = prev;
+}
+
+/* ══ CARGA (solo lectura) ══ */
+async function loadData(){
+  const myId = ++reqId;
+  updateStepBtns();
+  const ym = g('fMes').value;
+  g('stLoad').style.display = 'block'; g('stErr').style.display = 'none';
+  g('stEmpty').style.display = 'none'; g('listView').style.display = 'none';
+  g('statsBar').style.display = 'none'; g('avisos').innerHTML = '';
+  try{
+    const url = buildMonthUrl(ym);
+    if(!url) throw new Error('Mes no válido: ' + ym);
+    const res = await fetch(Auth.url(url));
+    const json = await res.json();
+    if(myId !== reqId) return;
+    if(json.error) throw new Error(json.error);
+    monthRows = json.Result || json.result || [];
+    g('stLoad').style.display = 'none';
+    render();
+  }catch(err){
+    if(myId !== reqId) return;
+    g('stLoad').style.display = 'none'; g('stErr').style.display = 'block';
+    g('errMsg').textContent = 'No se pudieron cargar los datos. ' + err.message; console.error('[Prospección v1]', err);
+  }
+}
+
+/* ══ PINTAR ══ */
+function render(){
+  const ym = g('fMes').value;
+  const full = resumenMensual(monthRows, ym, userMap);
+  fillAgenteOptions(full);
+  const agSel = g('fAgente').value;
+  const rowsVista = agSel ? monthRows.filter(r => agenteId(r, userMap) === agSel) : monthRows;
+  const rs = agSel ? resumenMensual(rowsVista, ym, userMap) : full;
+
+  const avisos = [];
+  if(monthRows.length >= LIMIT) avisos.push('La lectura llegó al límite de ' + LIMIT + ' filas: puede faltar algún registro de este mes.');
+  avisosDuplicados(rs).forEach(t => avisos.push(t));
+  if(full.fueraDeMes > 0) avisos.push(avisoFueraDeMes(full.fueraDeMes, ym));
+  g('avisos').innerHTML = avisos.map(t => '<div class="info-box orange">' + esc(t) + '</div>').join('');
+
+  g('navSub').textContent = monthLabel(ym) + ' · ' + rs.filas + ' registros';
+  g('listView').style.display = 'none'; g('stEmpty').style.display = 'none'; g('statsBar').style.display = 'none';
+  if(!rs.agentes.length){
+    g('stEmpty').style.display = 'block';
+    g('emptyMsg').textContent = agSel
+      ? 'Sin registros de ' + (userMap[agSel] || agSel) + ' en ' + monthLabel(ym)
+      : 'Sin registros en ' + monthLabel(ym);
+    return;
+  }
+  g('stReg').textContent = rs.filas; g('stAg').textContent = rs.agentes.length; g('stBono').textContent = rs.conBono;
+  g('statsBar').style.display = 'flex';
+
+  g('tblHead').innerHTML = '<th>Agente</th>' + PROSP_FIELDS.map(f => '<th>' + esc(f.label) + '</th>').join('') + '<th>Bono ' + BONO_EUROS + ' €</th>';
+  const numCell = n => '<td><span class="' + (n > 0 ? 'num-val' : 'num-zero') + '">' + (n > 0 ? n : 0) + '</span></td>';
+  const filas = rs.agentes.map(a => {
+    const bono = a.bono.ok
+      ? '<span class="bono si">Sí</span>'
+      : '<span class="bono no">No<small>faltan ' + a.bono.faltan + '</small></span>';
+    return '<tr><td class="td-agente">' + esc(a.nombre) + '</td>' + PROSP_FIELDS.map(f => numCell(a.sums[f.key])).join('') + '<td>' + bono + '</td></tr>';
+  }).join('');
+  const tot = '<tr class="tot"><td>Total</td>' + PROSP_FIELDS.map(f => '<td>' + rs.totales[f.key] + '</td>').join('') +
+    '<td>' + rs.conBono + ' de ' + rs.agentes.length + '</td></tr>';
+  g('tblBody').innerHTML = filas + tot;
+
+  const nSemanas = weeksInMonth(ym);
+  g('semanasList').innerHTML = rs.agentes.map(a =>
+    '<li' + (a.filas > a.semanas ? ' class="dup"' : '') + '>' + esc(lineaSemanas(a, nSemanas)) + '</li>').join('');
+  g('listView').style.display = 'block';
+}
+
+Object.assign(window, { loadData, render, stepMes });
+})();
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v1 2026-10-07 — primera versión (bro): resumen mensual por agente de las columnas de prospección de Reports Ventas v24, bono 150 € a partir de 50 llamadas. Página de solo lectura, item 2 de la petición de Gaëlle Antonio (Director Comercial). Permiso Auth.require('reports-ventas'), la misma clave que reports-ventas.html (admin y sales); nav.js v16 la pone justo debajo del reporte semanal en el menú de admin (bloque Listados) y en el de sales. Lee Ta_raport_ventas con la misma forma que loadData de la v24 (Fecha>='primer día' AND Fecha<='último díaT23:59:59', limit 2000), sin orderBy: el caspio-proxy no lo aplica en action=data, el orden de las filas no está garantizado y la página no depende de él (suma por agente y ordena los agentes por nombre en el navegador); vuelve a filtrar en el navegador por el mes leído con parseFechaStr; los agentes salen de TaUsers como en la v24 (UserID → Name). Suma por agente Llamadas, No contestan, No interesado, Otra agencia, Seguimiento, Visitas (Visitas_Ventas), Cartas de intenciones y Contratos; vacío = 0. Columna "Bono 150 €": Sí con 50 o más llamadas en el mes, si no "No, faltan N"; bajo el título la regla en una línea, "Bono fijo de 150 € con 50 o más llamadas en el mes.", sin nombres ni fechas porque la ven los comerciales. Debajo, "Semanas con reporte entregado": una línea por agente, "<nombre>: <semanas> de <semanas del mes> semanas con reporte (<filas> filas)"; la base es el número de semanas de lunes a domingo que tocan el mes (octubre 2026 = 5, noviembre 2026 = 6, febrero 2027 = 4) y cada registro cuenta en la semana de su fecha, que siempre toca el mes, así que nunca sale más semanas con reporte que semanas del mes; sirve para ver una semana sin rellenar; si un agente tiene más filas que semanas sale un aviso naranja encima de la tabla ("Atención: <agente> tiene más filas que semanas en este mes; revisa el Reporte semanal, puede haber una fila duplicada."), porque una fila duplicada suma dos veces y puede dar el bono por error. Mes por defecto = mes actual en hora de Madrid. Aviso si la lectura llega a 2000 filas o si algún registro no se cuenta porque su fecha no se puede leer o cae fuera del mes (singular y plural). Si la lectura falla: "No se pudieron cargar los datos." y el error. Los encabezados de la tabla no se parten a mitad de palabra en el móvil. Pruebas reports-prospeccion-mensual.test.js. -->
