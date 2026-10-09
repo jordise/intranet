@@ -1,4 +1,4 @@
-/* Pruebas de los datos fiscales de persona o de empresa (checkin-pasos v108, police-url v2).
+/* Pruebas de los datos fiscales de persona o de empresa (checkin-pasos v109, police-url v2).
    Caso: Toni, WhatsApp 02/10/2026: el CIF B70807052 de un proveedor nuevo (empresa) salia
    como 'no valido' en el formulario de llegada, que para Espana solo admitia DNI o NIE.
    node checkin-fiscal-empresa.test.js
@@ -52,7 +52,7 @@ ok('fila vacia -> persona', isCo('', '', '') === false && isCo(null, undefined, 
 ok('apellido de solo espacios cuenta como vacio', isCo('ACME SL', '   ', 'B70807052') === true);
 
 console.log('la pagina usa las funciones');
-ok('version v108 en la cabecera', /VERSIÓN ACTUAL: v108/.test(S.slice(0, 400)));
+ok('version v109 en la cabecera', /VERSIÓN ACTUAL: v109/.test(S.slice(0, 400)));
 ok('el envio valida empresa o persona', S.indexOf("_isCo ? !validateCompanyId($('fCountry').value, $('fDni').value) : !validateDni(") > 0);
 ok('una empresa se guarda sin apellido', S.indexOf('Fiscal_guest_surename:             _isCo?null:') > 0);
 ok('el apellido no es obligatorio para una empresa', S.indexOf("required.filter(id=>!(_isCo&&id==='fLname')).filter(") > 0);
