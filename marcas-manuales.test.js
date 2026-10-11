@@ -242,9 +242,9 @@ PAGES.forEach(function (P) {
 var rSrc = fs.readFileSync('notas-equipo-reservas.html', 'utf8');
 var rLine3 = rSrc.split('\n')[2];
 ok('notas-equipo-reservas: marcador de version y PAGE_VERSION coinciden',
-  /VERSIÓN ACTUAL: v83/.test(rLine3) && /PAGE_VERSION = 83/.test(rSrc), rLine3);
-ok('notas-equipo-reservas: titulo e historial v83',
-  rSrc.indexOf('<title>Notas Equipo Reservas v83') > 0 && /<!-- HISTORIAL: v83 - /.test(rSrc) && / \| v82 - /.test(rSrc));
+  /VERSIÓN ACTUAL: v84/.test(rLine3) && /PAGE_VERSION = 84/.test(rSrc), rLine3);
+ok('notas-equipo-reservas: titulo e historial v84',
+  rSrc.indexOf('<title>Notas Equipo Reservas v84') > 0 && /<!-- HISTORIAL: v84 - /.test(rSrc) && / \| v83 - /.test(rSrc));
 var vSrc = fs.readFileSync('notas-villamanager.html', 'utf8');
 ok('notas-villamanager: marcador de version v42', /VERSIÓN ACTUAL: v42/.test(vSrc.split('\n')[2]));
 ok('notas-villamanager: titulo e historial v42',
