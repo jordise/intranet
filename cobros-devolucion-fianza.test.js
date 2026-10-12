@@ -325,9 +325,9 @@ console.log('cobros-inquilinos.html: preset Devoluciones pendientes');
 /* ── version ── */
 console.log('cobros-inquilinos.html: version');
 (function () {
-  ok('cabecera v37', /VERSIÓN ACTUAL: v37 \|/.test(SRC));
-  ok('titulo v37', /<title>Control Cobros Inquilinos v37 — 3Villas<\/title>/.test(SRC));
-  ok('el historial empieza en v37 (enlace por codigo) y conserva la v36, la v35 y la v34', /<!-- HISTORIAL: v37 - El enlace por codigo/.test(SRC) && / \| v36 - Enlace del aviso por email/.test(SRC) && / \| v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
+  ok('cabecera v38', /VERSIÓN ACTUAL: v38 \|/.test(SRC));
+  ok('titulo v38', /<title>Control Cobros Inquilinos v38 — 3Villas<\/title>/.test(SRC));
+  ok('el historial empieza en v38 (fecha de la devolucion), sigue con la v37 (enlace por codigo) y conserva la v36, la v35 y la v34', /<!-- HISTORIAL: v38 - Fecha de la devolucion de la fianza/.test(SRC) && / \| v37 - El enlace por codigo/.test(SRC) && / \| v36 - Enlace del aviso por email/.test(SRC) && / \| v35 - Idea de Jordi Segui \(12\/09\/2026 15:36, WhatsApp/.test(SRC) && SRC.indexOf('| v34 - Toni Segui (10/09/2026 18:43, WhatsApp)') > 0);
   ok('y conserva la v33 y la v32', / \| v33 - /.test(SRC) && / \| v32 - /.test(SRC));
 })();
 
@@ -364,6 +364,48 @@ ok('la pastilla Sin devolver (3) tambien ordena por check-in (corte de 1000)', /
 ok('la linea del preset cae al limite por defecto si Checkout hasta esta vacio', /const lim = \(\$\('fCheckoutTo'\) && \$\('fCheckoutTo'\)\.value\) \|\| fechaLimiteDevolucion\(new Date\(\)\);/.test(SRC));
 ok('la pastilla de Cobros apaga el preset', /function setPillCobros\(btn\)\{\s*presetOff\(\);/.test(SRC));
 ok('un filtro tocado a mano apaga el preset, salvo el rango de checkout', /fp\.addEventListener\('change'/.test(SRC) && /if\(id === 'fCheckoutTo' \|\| id === 'fCheckoutFrom'\) return;\s*presetOff\(\);/.test(SRC));
+
+/* ── v38 / v85: el dia de la devolucion junto a DEVUELTO (Marta, Reservas,
+   WhatsApp 28/09/2026 15:03: "pone DEVUELTO, pero no el dia") ── */
+console.log('cobros-inquilinos.html v38: selloDevolucionHTML');
+(function () {
+  var h = fn('selloDevolucionHTML', fnSource(F, 'esc') + '\n' + fnSource(F, 'selloDevolucion'));
+  var dos = '[Fianza devuelta 11/09/2026 09:15 - Jordi Seguí]';
+  ok('con sello: dia, hora y nombre, como antes', h('devuelto', dos) === '<div class="dev-sello">11/09/2026 09:15 · Jordi Seguí</div>');
+  ok('devuelto, rastro leido sin la linea: sin fecha registrada',
+    />sin fecha registrada<\/div>$/.test(h('devuelto', '[Deposito marcado 09/09/2026 10:00 - Lluis]')));
+  ok('devuelto, rastro leido y vacio: sin fecha registrada', />sin fecha registrada</.test(h('devuelto', '')));
+  ok('la explicacion va en el title', /title="Se marcó como devuelta sin guardar el día/.test(h('devuelto', '')));
+  ok('devuelto, rastro sin leer (undefined o null): nada', h('devuelto', undefined) === '' && h('devuelto', null) === '');
+  ok('una desmarca posterior: sin fecha registrada',
+    />sin fecha registrada</.test(h('devuelto', dos + '\n[Fianza devuelta DESMARCADA 11/09/2026 10:00 - Toni]')));
+  ok('pendiente: nada', h('pendiente', dos) === '' && h('pendiente', '') === '');
+  ok('enviado a firmar con sello: su sello', h('firmar', '[Fianza enviada a firmar 10/09/2026 17:40 - Toni Seguí]') === '<div class="dev-sello">10/09/2026 17:40 · Toni Seguí</div>');
+  ok('enviado a firmar sin sello: nada (la peticion es solo DEVUELTO)', h('firmar', '') === '');
+  ok('el nombre se escapa', h('devuelto', '[Fianza devuelta 11/09/2026 09:15 - <b>X</b>]').indexOf('&lt;b&gt;X&lt;/b&gt;') > 0);
+  ok('devolucionHTML usa la funcion nueva', /\$\{selloDevolucionHTML\(estado, marcas\)\}/.test(SRC));
+})();
+
+console.log('notas-equipo-reservas.html v85: selloFianzaDevuelta y textoFianzaDevuelta');
+(function () {
+  var R = 'notas-equipo-reservas.html', RSRC = fs.readFileSync(R, 'utf8');
+  var sello = new Function(fnSource(R, 'selloFianzaDevuelta') + '\nreturn selloFianzaDevuelta;')();
+  var texto = new Function(fnSource(R, 'marcaEsc') + '\n' + fnSource(R, 'selloFianzaDevuelta') + '\n' + fnSource(R, 'textoFianzaDevuelta') + '\nreturn textoFianzaDevuelta;')();
+  var dos = '[Fianza devuelta 11/09/2026 09:15 - Jordi Seguí]';
+  var s = sello(dos);
+  ok('lee dia, hora y nombre', s && s.dia === '11/09/2026' && s.hora === '09:15' && s.nombre === 'Jordi Seguí');
+  ok('no confunde con el paso 1', sello('[Fianza enviada a firmar 10/09/2026 17:40 - Toni]') === null);
+  ok('manda la ultima linea', sello(dos + '\n[Fianza devuelta 12/09/2026 08:00 - Toni Seguí]').dia === '12/09/2026');
+  ok('una desmarca posterior la anula', sello(dos + '\n[Fianza devuelta DESMARCADA 11/09/2026 10:00 - Toni]') === null);
+  ok('rastro nulo o vacio: null', sello(null) === null && sello('') === null);
+  var t = texto(dos);
+  ok('con sello: "Devuelto el 11/09/2026 a las 09:15" y el nombre', t.indexOf('✅ Devuelto el 11/09/2026 a las 09:15</span>') > 0 && t.indexOf('· Jordi Seguí</span>') > 0);
+  ok('rastro leido sin sello: "Devuelto · sin fecha registrada"', /✅ Devuelto<\/span> <span[^>]*>· sin fecha registrada<\/span>$/.test(texto('[Deposito marcado 09/09/2026 10:00 - Lluis]')) && /sin fecha registrada/.test(texto('')));
+  ok('rastro sin leer (null): solo "Devuelto", como antes', texto(null) === '<span style="color:var(--green);font-weight:700">✅ Devuelto</span>');
+  ok('el nombre se escapa', texto('[Fianza devuelta 11/09/2026 09:15 - <b>X</b>]').indexOf('&lt;b&gt;X&lt;/b&gt;') > 0);
+  ok('renderDepResumen usa textoFianzaDevuelta(marcasTexto)', /\? textoFianzaDevuelta\(marcasTexto\)/.test(RSRC.split('<!-- HISTORIAL:')[0]));
+  ok('misma etiqueta que escribe Control Cobros (lineaMarcaDevolucion)', /'Fianza devuelta'/.test(fnSource(F, 'lineaMarcaDevolucion')) && /\\\[Fianza devuelta /.test(fnSource(R, 'selloFianzaDevuelta')));
+})();
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

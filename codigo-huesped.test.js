@@ -274,14 +274,14 @@ console.log('notas-equipo-reservas.html: boton Enviar acceso y bloque del enlace
 /* ── version ── */
 console.log('notas-equipo-reservas.html: version');
 (function () {
-  ok('cabecera v84', /VERSIÓN ACTUAL: v84 \|/.test(SRC));
-  ok('titulo v84', /<title>Notas Equipo Reservas v84 — 3Villas<\/title>/.test(SRC));
+  ok('cabecera v85', /VERSIÓN ACTUAL: v85 \|/.test(SRC));
+  ok('titulo v85', /<title>Notas Equipo Reservas v85 — 3Villas<\/title>/.test(SRC));
   ok('PAGE_VERSION 83 (la auto-recarga mira este numero)',
-    SRC.indexOf('var PAGE_VERSION = 84;') > 0 && SRC.indexOf('var PAGE_VERSION = 83;') < 0);
+    SRC.indexOf('var PAGE_VERSION = 85;') > 0 && SRC.indexOf('var PAGE_VERSION = 84;') < 0);
   /* 14/09/2026: la v78 puso la pagina en su propia clave de permiso porque enseña
      el bloque fiscal del huesped. La v77 de Cristian sigue en el historial. */
-  ok('el historial empieza en v84 (envio por Whaticket), sigue con la v83 (Whaticket) y conserva la v82 (importe manual de la ecotasa), la v81, la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
-    /<!-- HISTORIAL: v84 - 11\/10\/2026: boton "Enviar recordatorio"/.test(SRC) && / \| v83 - Chat2Desk esta caido/.test(SRC) && / \| v82 - El importe manual de la ecotasa/.test(SRC) && / \| v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
+  ok('el historial empieza en v85 (dia de la devolucion de la fianza), sigue con la v84 (envio por Whaticket), la v83 (Whaticket) y conserva la v82 (importe manual de la ecotasa), la v81, la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
+    /<!-- HISTORIAL: v85 - 12\/10\/2026: el resumen de la fianza dice el dia/.test(SRC) && / \| v84 - 11\/10\/2026: boton "Enviar recordatorio"/.test(SRC) && / \| v83 - Chat2Desk esta caido/.test(SRC) && / \| v82 - El importe manual de la ecotasa/.test(SRC) && / \| v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
   /* v83 (11/10/2026): Chat2Desk caido, Reservas usa Whaticket con el mismo numero. */
   var vivo = SRC.split('<!-- HISTORIAL:')[0];
   ok('v83: el modal manda a Whaticket y ya no a Chat2Desk',

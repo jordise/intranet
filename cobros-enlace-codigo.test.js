@@ -19,8 +19,8 @@ ok('check-in hasta vacio', /\$\('fCheckinTo'\);\s*if\(fCiT\)\s*fCiT\.value\s*=\s
 ok('sigue vaciando las fechas de cobro', ramal.indexOf("fDateFrom.value = ''") >= 0 && ramal.indexOf("fDateTo.value   = ''") >= 0);
 ok('sigue quitando la pastilla de cobros', ramal.indexOf("_cobrosFilter = ''") >= 0);
 ok("por defecto la pagina sigue en 'No canceladas'", /<option value="no-cancelled" selected>/.test(SRC));
-ok('version v37 en las dos marcas', SRC.indexOf('VERSIÓN ACTUAL: v37') >= 0 && SRC.indexOf('Control Cobros Inquilinos v37') >= 0);
-ok('HISTORIAL v37 delante', SRC.indexOf('<!-- HISTORIAL: v37 -') >= 0);
+ok('version v38 en las dos marcas', SRC.indexOf('VERSIÓN ACTUAL: v38') >= 0 && SRC.indexOf('Control Cobros Inquilinos v38') >= 0);
+ok('HISTORIAL v38 delante y v37 detras', SRC.indexOf('<!-- HISTORIAL: v38 -') >= 0 && SRC.indexOf(' | v37 - El enlace por codigo') > 0);
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
