@@ -109,7 +109,9 @@ const Auth = (function () {
     // ── NOTAS ──────────────────────────────────────────────────
     'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
     'notas-villamanager'    : ['admin', 'manager', 'staff'],
+    'historial-whatsapp'    : ['admin', 'staff'],  // 12/10/2026: archivo de solo lectura de WhatsApp (Chat2Desk); mismos roles que el Worker whatsapp-history (HISTORY_ROLES). Reservas = staff
     'informe-reservas' : ['admin'],  // 13/10/2026: Informe de reservas, solo admin + Marta (USER_PERMISSIONS), solo lectura
+    'cuadro-comercial' : ['admin'],  // 13/10/2026: Cuadro de mando comercial, solo admin + Gaëlle, Rafa, Jose y Johannes (USER_PERMISSIONS), solo lectura; misma lista que COMERCIAL_USERS en el Worker caspio-proxy v61
 
     // ── WELCOMEPACKS ───────────────────────────────────────────
     'pedir-wellcomepacks'   : ['admin', 'manager', 'staff'],
@@ -150,10 +152,12 @@ const Auth = (function () {
   const USER_PERMISSIONS = {
     // 13/10/2026 (Gary: "she, rafa and the partners should have access to this info"): Marta, Rafa, Jose y Johannes.
     // Jordi, Toni, Carlos y Gary son admin y entran por rol. La misma lista vive en el Worker caspio-proxy (REPORT_USERS, v60).
+    // 13/10/2026 (Gary: "she says yes build it - also rafa and the partners need access as well"): Cuadro de mando comercial para Gaëlle, Rafa, Jose y Johannes (COMERCIAL_USERS en el Worker caspio-proxy v61).
+    'gaelle@3villas.com': ['cuadro-comercial'],
     'marta@3villas.com': ['informe-reservas'],
-    'rafa@3villas.com': ['informe-reservas'],
-    'jose@3villas.com': ['informe-reservas'],
-    'johannes@3villas.com': ['informe-reservas'],
+    'rafa@3villas.com': ['informe-reservas', 'cuadro-comercial'],
+    'jose@3villas.com': ['informe-reservas', 'cuadro-comercial'],
+    'johannes@3villas.com': ['informe-reservas', 'cuadro-comercial'],
   };
 
   // ── JWT decode (sin verificar firma — solo para leer payload) ──

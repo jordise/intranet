@@ -335,9 +335,9 @@ console.log('cobros-inquilinos.html: version');
 console.log('nav.js: v11');
 (function () {
   var NAV = fs.readFileSync('nav.js', 'utf8');
-  ok('cabecera v18', /nav\.js — MENÚS POR ROL  3Villas  v18/.test(NAV) && /VERSIÓN ACTUAL: v18 \|/.test(NAV));
-  ok('NAV_VERSION 18 (la auto-deteccion mira este numero)',
-    NAV.indexOf('var NAV_VERSION = 18;') > 0 && NAV.indexOf('var NAV_VERSION = 17;') < 0);
+  ok('cabecera v20', /nav\.js — MENÚS POR ROL  3Villas  v20/.test(NAV) && /VERSIÓN ACTUAL: v20 \|/.test(NAV));
+  ok('NAV_VERSION 20 (la auto-deteccion mira este numero)',
+    NAV.indexOf('var NAV_VERSION = 20;') > 0 && NAV.indexOf('var NAV_VERSION = 19;') < 0);
   ok('Control Cobros sigue en Administracion', NAV.indexOf("{ label: 'Control Cobros',      url: 'cobros-inquilinos.html',          icon: '💶' },") > 0);
   ok('y debajo la entrada nueva Devoluciones pendientes',
     NAV.indexOf("{ label: 'Devoluciones pendientes', url: 'cobros-inquilinos.html?preset=devoluciones', icon: '↩️' },") >
@@ -352,9 +352,10 @@ console.log('nav.js: v11');
    menu de limpieza y v14 arreglo el enlace muerto de Test checkin-online.
    21/09/2026: v15 anade la entrada 'Fichas de propietarios'.
    07/10/2026: v16 anade la entrada 'Prospección mensual'.
-   13/10/2026: v17 anade 'Informe de reservas'; v18 la quita del menu de staff (solo admin y Marta).
+   13/10/2026: v17 anade 'Informe de reservas'; v18 la quita del menu de staff (solo admin y Marta);
+   v19 anade 'Historial WhatsApp'; v20 anade 'Cuadro de mando comercial' (13/10/2026).
    La entrada de Toni sigue en el historial. */
-  ok('el historial empieza en v18 y conserva la v17, la v16, la v15 y la v14', /\/\/ HISTORIAL: v18 - /.test(NAV) && / \| v17 - /.test(NAV) && / \| v16 - /.test(NAV) && / \| v15 - /.test(NAV) && / \| v14 - /.test(NAV));
+  ok('el historial empieza en v20 y conserva la v19, la v18, la v17, la v16, la v15 y la v14', /\/\/ HISTORIAL: v20 - /.test(NAV) && / \| v19 - /.test(NAV) && / \| v18 - /.test(NAV) && / \| v17 - /.test(NAV) && / \| v16 - /.test(NAV) && / \| v15 - /.test(NAV) && / \| v14 - /.test(NAV));
   ok('y conserva la v11 de Toni', /\| v11 - Toni Segui \(10\/09\/2026 18:43, WhatsApp\)/.test(NAV));
   ok('y conserva la v10', / \| v10 - /.test(NAV));
 })();
