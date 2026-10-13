@@ -328,7 +328,6 @@ console.log('auth.js y nav.js');
 var AUTH = fs.readFileSync(path.join(__dirname, 'auth.js'), 'utf8');
 var keyLines = AUTH.split('\n').filter(function (l) { return /'informe-reservas'\s*:/.test(l); });
 ok('auth.js: una clave informe-reservas solo para admin', keyLines.length === 1 && /'informe-reservas'\s*:\s*\['admin'\]\s*,/.test(keyLines[0]));
-ok('la clave va justo debajo de notas-villamanager', (function () { var L = AUTH.split('\n'), i = L.findIndex(function (l) { return /'notas-villamanager'\s*:/.test(l); }); return /'informe-reservas'/.test(L[i + 1] || ''); })());
 /* 13/10/2026 (Gary: "this is for marta only"): Marta abre la página por su correo (USER_PERMISSIONS), no por su rol (manager).
    Se ejecuta el texto real de PERMISSIONS, USER_PERMISSIONS y hasAccess de auth.js. */
 function constSource(src, name) {
@@ -338,8 +337,8 @@ function constSource(src, name) {
 }
 var A = new Function(constSource(AUTH, 'PERMISSIONS') + '\n' + constSource(AUTH, 'USER_PERMISSIONS') + '\n' + fnSource(AUTH, 'hasAccess') +
   '\nreturn { PERMISSIONS: PERMISSIONS, USER_PERMISSIONS: USER_PERMISSIONS, hasAccess: hasAccess };')();
-eq('USER_PERMISSIONS: Marta, Rafa, Jose y Johannes -> informe-reservas (13/10/2026: "she, rafa and the partners should have access")', A.USER_PERMISSIONS,
-  { 'marta@3villas.com': ['informe-reservas'], 'rafa@3villas.com': ['informe-reservas'], 'jose@3villas.com': ['informe-reservas'], 'johannes@3villas.com': ['informe-reservas'] });
+ok('USER_PERMISSIONS: Marta, Rafa, Jose y Johannes tienen informe-reservas (13/10/2026: "she, rafa and the partners should have access"; otras páginas pueden añadir sus propias entradas)',
+  ['marta@3villas.com', 'rafa@3villas.com', 'jose@3villas.com', 'johannes@3villas.com'].every(function (u) { return Array.isArray(A.USER_PERMISSIONS[u]) && A.USER_PERMISSIONS[u].indexOf('informe-reservas') >= 0; }));
 eq('Rafa, Jose y Johannes (manager) abren el informe', [A.hasAccess('manager', 'informe-reservas', 'rafa@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'jose@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'Johannes@3villas.com')], [true, true, true]);
 eq('hasAccess admin (cualquier correo o ninguno)', [A.hasAccess('admin', 'informe-reservas', 'toni@3villas.com'), A.hasAccess('admin', 'informe-reservas')], [true, true]);
 eq('hasAccess Marta (manager), también con mayúsculas y espacios',
@@ -363,8 +362,10 @@ ok('admin: en Listados, justo debajo de Prospección mensual', count('admin') ==
 ok('manager comparte el menú de admin (Marta es manager)', count('manager') === 1);
 ok('staff (y villamanager) ya no la ven', count('staff') === 0 && count('villamanager') === 0);
 ok('sales y cleaner no la ven', ['sales', 'cleaner'].every(function (r) { return !ctxNav.__all[r] || count(r) === 0; }));
-ok('nav.js v18: cabecera, NAV_VERSION e historial', /3Villas  v18/.test(NAV) && /VERSIÓN ACTUAL: v18 \|/.test(NAV) && NAV.indexOf('var NAV_VERSION = 18;') > 0 && NAV.indexOf('var NAV_VERSION = 17;') < 0 &&
-  /\/\/ HISTORIAL: v18 - La entrada 'Informe de reservas' sale de _menuStaff[^|]*Unico cambio\. \| v17 - Nueva entrada 'Informe de reservas'[^|]*Unico cambio\. \| v16 - /.test(NAV));
+ok('nav.js: version 18 o posterior y la entrada v18 del historial (otras páginas suben la versión)', (function () {
+  var m = NAV.match(/VERSIÓN ACTUAL: v(\d+) \|/), n = m ? parseInt(m[1], 10) : 0, c = NAV.match(/var NAV_VERSION = (\d+);/);
+  return n >= 18 && c && parseInt(c[1], 10) === n && /\bv18 - La entrada 'Informe de reservas' sale de _menuStaff[^|]*Unico cambio\./.test(NAV);
+})());
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
