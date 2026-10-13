@@ -1,4 +1,4 @@
-/* Pruebas de informe-reservas.html v3 (13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
+/* Pruebas de informe-reservas.html v4 (v4 = ocupación, Gary: "occupancy needs to be on the top level"; 13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
    v3 = estancias de propietario, Gary: "owner stays need to be in the report as well").
    Neto por canal, precio por día, villa por Hostawayid, filtros de estado, villa y canal,
    CSV en español, cifras del cuadro, la clave de auth.js y las entradas de nav.js v18.
@@ -37,9 +37,10 @@ var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commi
   'sortDetail', 'filterRows', 'computeStats', 'villaSummary', 'fmtDate', 'fmtMoney', 'csvNum', 'csvCell', 'detailMatrix', 'villaMatrix',
   'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween',
   'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv', 'villaTsv',
-  'huespedCell', 'villaDetailRowHtml', 'esc', 'ownerTag', 'reservasSub', 'nochesSub'];
+  'huespedCell', 'villaDetailRowHtml', 'esc', 'ownerTag', 'reservasSub', 'nochesSub',
+  'madridToday', 'isoDayNum', 'computeOccupancy', 'fmtPct', 'occSub', 'resumenMatrix'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
-  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS'];
+  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
   FNS.map(function (f) { return fnSource(SRC, f); }).join('\n') +
   '\nreturn {' + FNS.concat(VARS).map(function (n) { return n + ':' + n; }).join(',') + '};';
@@ -266,8 +267,8 @@ var v12 = vsO.filter(function (v) { return v.villaKey === 'V12'; })[0];
 eq('resumen por villa: propietario en reservas, noches y Prop.; medias con noches de pago',
   [v12.reservas, v12.noches, v12.propietario, v12.nochesPagadas, v12.total, v12.neto, v12.porNoche, v12.netoPorNoche], [4, 26, 1, 21, 4800, 2650, 228.57, 189.29]);
 eq('resumen por villa: villa sin propietario = Prop. 0', vsO.filter(function (v) { return v.villaKey === 'V3'; })[0].propietario, 0);
-eq('cabecera del resumen: Prop. detrás de Noches', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
-eq('hoja "Por villa": Prop. en su columna', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, 4800, 2650, 228.57, 189.29]);
+eq('cabecera del resumen: Prop. detrás de Noches (v4: Ocup. detrás de Prop.)', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Ocup.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
+eq('hoja "Por villa": Prop. en su columna (v4: Ocup. vacía sin ventana)', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, '', 4800, 2650, 228.57, 189.29]);
 eq('fichero global: fila de propietario', P.buildCsv([own]).slice(1).split('\r\n')[1], '12;Villa Prueba;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;8001;PROPIETARIA');
 eq('Excel global: fila de propietario', P.detailMatrix([own])[0], ['12', 'Villa Prueba', '01/09/2026', '06/09/2026', 5, '01/02/2026', 'Propietario', 0, 0, '', '', '8001', 'PROPIETARIA']);
 eq('fichero de la villa: fila de propietario, Pago vacío', P.buildVillaCsv([own]).slice(1).split('\r\n')[1], 'PROPIETARIA;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;;;8001;;');
@@ -287,7 +288,54 @@ eq('etiqueta solo en propietario', [P.ownerTag(own), P.ownerTag(di)], ['<span cl
   ok('chips de canal sin Propietario con la casilla desmarcada', /if\(r\.owner && !withOwner\) return;/.test(fnSource(SRC, 'channelOptions')));
   ok('tarjetas: Estancias propietario, "sobre noches de pago" y "incl." en el cuadro y en la ficha', [rsrc, psrc].every(function (s) {
     return s.indexOf("'Estancias propietario', '', nochesSub(s.nochesPropietario)") > 0 && s.indexOf("'sobre noches de pago'") > 0 && s.indexOf('reservasSub(s)') > 0; }));
-  ok('resumen por villa en pantalla: columna propietario ordenable y en el total', rsrc.indexOf("'noches', 'propietario', 'total'") > 0 && rsrc.indexOf("'</td><td>' + v.propietario + '</td>'") > 0 && rsrc.indexOf("s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtMoney(s.total)") > 0);
+  ok('resumen por villa en pantalla: columna propietario ordenable y en el total (v4: con Ocup. detrás)', rsrc.indexOf("'noches', 'propietario', 'ocupacion', 'total'") > 0 && rsrc.indexOf("'</td><td>' + v.propietario + '</td><td>' + fmtPct(v.ocupacion) + '</td>'") > 0 && rsrc.indexOf("s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtPct(o.ocupacion) + '</td><td>' + fmtMoney(s.total)") > 0);
+})();
+
+console.log('v4: ocupación');
+/* Dos villas, ventana de 10 días (1-10/3/2026), hoy fuera de la ventana: pago 4 + 3 noches, propietario 2 noches. */
+var W0 = '2026-03-01', W1 = '2026-03-10', HOY = '2026-10-13';
+var occRows = [
+  R({ hostawayReservationId: 9001, listingMapId: 1001, arrivalDate: '2026-03-02', departureDate: '2026-03-06', nights: 4 }),
+  R({ hostawayReservationId: 9002, listingMapId: 1003, arrivalDate: '2026-03-05', departureDate: '2026-03-08', nights: 3 }),
+  R({ hostawayReservationId: 9003, listingMapId: 1001, arrivalDate: '2026-03-08', departureDate: '2026-03-10', nights: 2, status: 'ownerStay' })
+];
+var oc = P.computeOccupancy(occRows, W0, W1, HOY);
+eq('ocupación: 2 villas × 10 días − 2 de propietario = 18 disponibles, 7 ocupadas, 38,9 %', oc,
+  { ocupacion: 38.9, nochesOcupadas: 7, nochesPropietario: 2, disponibles: 18, dias: 10, villas: 2, hastaHoy: false });
+eq('formato del %: coma decimal y — sin dato', [P.fmtPct(oc.ocupacion), P.fmtPct(40), P.fmtPct(null)], ['38,9 %', '40,0 %', '—']);
+eq('subtítulo de la tarjeta Ocupación', [P.occSub(oc), P.occSub({ nochesOcupadas: 3, disponibles: 10, hastaHoy: true })],
+  ['7 noches de 18 disponibles · sin propietario', '3 noches de 10 disponibles · sin propietario · hasta hoy']);
+var clip = P.computeOccupancy([
+  R({ listingMapId: 1001, arrivalDate: '2026-02-27', departureDate: '2026-03-03', nights: 4 }),
+  R({ listingMapId: 1001, arrivalDate: '2026-03-09', departureDate: '2026-03-14', nights: 5 })
+], W0, W1, HOY);
+eq('recorte: estancia que empieza antes (2 noches dentro) y que acaba después (2 noches dentro)', [clip.nochesOcupadas, clip.disponibles, clip.ocupacion], [4, 10, 40]);
+var ocC = P.computeOccupancy(occRows.concat([
+  R({ listingMapId: 1003, arrivalDate: '2026-03-01', departureDate: '2026-03-10', nights: 9, status: 'cancelled' }),
+  R({ listingMapId: 1040, arrivalDate: '2026-03-01', departureDate: '2026-03-10', nights: 9, status: 'cancelled' })
+]), W0, W1, HOY);
+eq('canceladas: no cuentan noches ni villas', [ocC.nochesOcupadas, ocC.villas, ocC.disponibles, ocC.ocupacion], [7, 2, 18, 38.9]);
+var ocY = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2026-01-08', departureDate: '2026-01-15', nights: 7 })], '2026-01-01', '2026-12-31', '2026-01-11');
+eq('año en curso: la ventana acaba ayer (10 días), 3 noches dentro, hasta hoy', [ocY.dias, ocY.nochesOcupadas, ocY.disponibles, ocY.ocupacion, ocY.hastaHoy], [10, 3, 10, 30, true]);
+var ocF = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2027-07-10', departureDate: '2027-07-17', nights: 7 })], '2027-01-01', '2027-12-31', HOY);
+eq('ventana futura o pasada: sin recorte', [ocF.dias, ocF.hastaHoy, P.computeOccupancy([], '2025-01-01', '2025-12-31', HOY).dias], [365, false, 365]);
+eq('hoy = primer día de la ventana: 0 días, ocupación —', (function () { var o = P.computeOccupancy(occRows, W0, W1, W0); return [o.dias, o.disponibles, o.ocupacion]; })(), [0, 0, null]);
+eq('madridToday en hora de Madrid', [P.madridToday('2026-12-31T23:30:00Z'), P.madridToday('2026-10-13T10:00:00Z')], ['2027-01-01', '2026-10-13']);
+var vsOcc = P.villaSummary(occRows, W0, W1, HOY);
+eq('villaSummary: ocupacion por villa (V3 3/10, V12 4/(10−2))', vsOcc.map(function (v) { return [v.villaKey, v.ocupacion]; }), [['V3', 30], ['V12', 50]]);
+eq('villaSummary sin ventana: ocupacion null', P.villaSummary(occRows).map(function (v) { return v.ocupacion; }), [null, null]);
+eq('hoja "Por villa": Ocup. como número', P.villaMatrix(vsOcc)[1].slice(4, 6), [1, 50]);
+var resRows = P.resumenMatrix(P.computeStats(occRows), oc, W0, W1);
+eq('hoja "Resumen": fila Ocupación con el % y las dos cifras de noches', resRows[resRows.length - 1], ['Ocupación', '38,9 %', 7, 18, 'sin propietario']);
+eq('hoja "Resumen": cabecera', P.RESUMEN_HEADERS, ['Concepto', 'Valor', 'Noches ocupadas', 'Noches disponibles', 'Nota']);
+(function () {
+  var rsrc = fnSource(SRC, 'render'), psrc = fnSource(SRC, 'renderVillaPanel');
+  ok('tarjeta Ocupación primera en el cuadro y en la ficha', [rsrc, psrc].every(function (s) { return /\(fmtPct\(o\.ocupacion\), 'Ocupación', 'green', occSub\(o\)\)/.test(s); }) &&
+    rsrc.indexOf("kpi(fmtPct(o.ocupacion)") < rsrc.indexOf("'Reservas', '', reservasSub(s)"));
+  ok('aviso gris de la ocupación', rsrc.indexOf('La ocupación cuenta solo las villas con alguna reserva en el periodo; las noches de propietario se restan de las noches disponibles.') > 0);
+  ok('Excel: hoja "Resumen" con resumenMatrix y "Por villa" con la ventana', /book_append_sheet\(wb, ws0, 'Resumen'\)/.test(SRC) && /resumenMatrix\(computeStats\(rows\), occOf\(rows\)/.test(SRC) &&
+    /villaMatrix\(villaSummary\(rows, loadInfo\.desde, loadInfo\.hasta, madridToday\(\)\)\)/.test(SRC));
+  ok('HISTORIAL v4: pedido de Gary y regla de propietario', SRC.trim().split('\n').pop().indexOf('but owner stay does not count against occupancy') > 0);
 })();
 
 console.log('Lectura del Worker');
@@ -303,9 +351,9 @@ eq('año de Madrid: 31/12 23:30 UTC ya es año nuevo', P.madridYear('2026-12-31T
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v3 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->' && /PAGE_VERSION = 3;/.test(SRC) && /<title>Informe de reservas v3/.test(SRC) &&
-  SRC.indexOf("'[Informe reservas v3]'") > 0 && SRC.indexOf('PAGE_VERSION = 2;') < 0);
-ok('HISTORIAL es la última línea y empieza por v3, con v2 y v1 detrás', /^<!-- HISTORIAL: v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v4 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v4 | Historial completo al final -->' && /PAGE_VERSION = 4;/.test(SRC) && /<title>Informe de reservas v4/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v4]'") > 0 && SRC.indexOf('PAGE_VERSION = 3;') < 0);
+ok('HISTORIAL es la última línea y empieza por v4, con v3, v2 y v1 detrás', /^<!-- HISTORIAL: v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
 ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('owner stays need to be in the report as well') > 0 &&
   h.indexOf('Worker v61') > 0 && h.indexOf("status 'ownerStay'") > 0; })());
 ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&

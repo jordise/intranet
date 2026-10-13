@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v4 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Informe de reservas v3 — 3Villas</title>
+<title>Informe de reservas v4 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -296,7 +296,7 @@ td.guest{max-width:260px;overflow:hidden;text-overflow:ellipsis}
 'use strict';
 
 var WORKER = 'https://www.3villas.com/intranet/api';
-var PAGE_VERSION = 3;
+var PAGE_VERSION = 4;
 
 /* ── v1: auto-detección de versión (Opción B), igual que reports-prospeccion-mensual.html ── */
 (function checkForNewerVersion(){
@@ -330,7 +330,10 @@ var FILE_HEADERS = ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fe
 var VILLA_DETAIL_HEADERS = ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código'];
 var VILLA_FILE_HEADERS = ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código', 'Correo', 'Teléfono'];
 var PAGO_LABELS = { paid:'Pagado', partially_paid:'Parcial', partiallypaid:'Parcial', partial:'Parcial', unpaid:'Pendiente' };
-var VILLA_HEADERS = ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche'];
+/* v4: columna Ocup. (ocupación de la villa) detrás de Prop. */
+var VILLA_HEADERS = ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Ocup.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche'];
+/* v4: hoja "Resumen" del Excel. */
+var RESUMEN_HEADERS = ['Concepto', 'Valor', 'Noches ocupadas', 'Noches disponibles', 'Nota'];
 var MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 /* Año actual en hora de Madrid (no la del dispositivo). */
@@ -343,6 +346,55 @@ function madridYear(now){
 function madridHHMM(now){
   var d = (now === undefined) ? new Date() : new Date(now);
   return new Intl.DateTimeFormat('es-ES', { timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit', hour12:false }).format(d);
+}
+
+/* v4: fecha de hoy 'YYYY-MM-DD' en hora de Madrid. */
+function madridToday(now){
+  var d = (now === undefined) ? new Date() : new Date(now);
+  return new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+}
+
+/* v4: 'YYYY-MM-DD…' → número de día (días desde 1970-01-01, UTC); null si no es una fecha. */
+function isoDayNum(s){
+  var m = String(s == null ? '' : s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : null;
+}
+
+/* v4 (Gary 13/10/2026: "occupancy needs to be on the top level ... but owner stay does not count against occupancy").
+   Ventana = noches con fecha entre windowStart y windowEnd (ambas incluidas). Si hoy cae dentro de la ventana, la última
+   noche es la de ayer (noches con fecha < hoy) y hastaHoy = true. Noches de una fila = del check-in al check-out − 1,
+   recortadas a la ventana. Pago → nochesOcupadas; propietario → nochesPropietario (no ocupan y se restan de las
+   disponibles); canceladas no cuentan. Disponibles = villas distintas (filas no canceladas) × días − noches de propietario.
+   ocupacion = % con un decimal (38.9), null si no hay noches disponibles. */
+function computeOccupancy(rows, windowStart, windowEnd, todayISO){
+  var a = isoDayNum(windowStart), b = isoDayNum(windowEnd), t = isoDayNum(todayISO), hastaHoy = false;
+  var out = { ocupacion:null, nochesOcupadas:0, nochesPropietario:0, disponibles:0, dias:0, villas:0, hastaHoy:false };
+  if(a === null || b === null) return out;
+  if(t !== null && a <= t && t <= b){ b = t - 1; hastaHoy = true; }
+  var dias = b >= a ? b - a + 1 : 0, villas = {};
+  (rows || []).forEach(function(r){
+    if(r.cancelled) return;
+    villas[r.villaKey] = 1;
+    var ci = isoDayNum(r.checkin), co = isoDayNum(r.checkout);
+    if(ci === null) return;
+    if(co === null) co = ci + (r.nights || 0);
+    var n = Math.max(0, Math.min(co - 1, b) - Math.max(ci, a) + 1);
+    if(r.owner) out.nochesPropietario += n; else out.nochesOcupadas += n;
+  });
+  out.dias = dias;
+  out.villas = Object.keys(villas).length;
+  out.disponibles = Math.max(0, out.villas * dias - out.nochesPropietario);
+  out.ocupacion = out.disponibles > 0 ? Math.round(out.nochesOcupadas / out.disponibles * 1000) / 10 : null;
+  out.hastaHoy = hastaHoy;
+  return out;
+}
+
+/* v4: 38.9 → '38,9 %'; null → '—'. */
+function fmtPct(n){ return n === null || n === undefined || !isFinite(n) ? '—' : n.toFixed(1).replace('.', ',') + ' %'; }
+
+/* v4: subtítulo de la tarjeta Ocupación. */
+function occSub(o){
+  return o.nochesOcupadas.toLocaleString('es-ES') + ' noches de ' + o.disponibles.toLocaleString('es-ES') + ' disponibles · sin propietario' + (o.hastaHoy ? ' · hasta hoy' : '');
 }
 
 function channelLabel(name){
@@ -543,11 +595,13 @@ function rowsOfVilla(rows, villaKey){
 }
 
 /* Resumen por villa (sin canceladas). v3: las estancias de propietario suman en reservas, noches y propietario;
-   €/noche y neto €/noche solo con las noches de pago. */
-function villaSummary(rows){
-  var m = {};
+   €/noche y neto €/noche solo con las noches de pago.
+   v4: ocupacion de cada villa con computeOccupancy (misma ventana); null sin ventana. */
+function villaSummary(rows, windowStart, windowEnd, todayISO){
+  var m = {}, byKey = {};
   (rows || []).forEach(function(r){
     if(r.cancelled) return;
+    (byKey[r.villaKey] || (byKey[r.villaKey] = [])).push(r);
     var v = m[r.villaKey] || (m[r.villaKey] = { villaKey:r.villaKey, num:r.num, villa:r.villa, mapped:r.mapped, reservas:0, noches:0, propietario:0, nochesPagadas:0, total:0, neto:0, nochesNeto:0 });
     v.reservas++; v.noches += r.nights || 0;
     if(r.owner){ v.propietario++; return; }
@@ -559,6 +613,7 @@ function villaSummary(rows){
     v.total = round2(v.total); v.neto = round2(v.neto);
     v.porNoche = v.nochesPagadas > 0 ? round2(v.total / v.nochesPagadas) : null;
     v.netoPorNoche = v.nochesNeto > 0 ? round2(v.neto / v.nochesNeto) : null;
+    v.ocupacion = windowStart ? computeOccupancy(byKey[k], windowStart, windowEnd, todayISO).ocupacion : null;
     return v;
   }).sort(cmpVillaNum);
 }
@@ -642,8 +697,21 @@ function villaDetailRowHtml(r){
 
 function villaMatrix(sum){
   return sum.map(function(v){
-    return [v.num, v.villa, v.reservas, v.noches, v.propietario, v.total, v.neto, v.porNoche === null ? '' : v.porNoche, v.netoPorNoche === null ? '' : v.netoPorNoche];
+    return [v.num, v.villa, v.reservas, v.noches, v.propietario, v.ocupacion == null ? '' : v.ocupacion, v.total, v.neto, v.porNoche === null ? '' : v.porNoche, v.netoPorNoche === null ? '' : v.netoPorNoche];
   });
+}
+
+/* v4: filas de la hoja "Resumen" (RESUMEN_HEADERS): cifras del cuadro y la ocupación con sus dos recuentos de noches. */
+function resumenMatrix(s, o, desde, hasta){
+  return [
+    ['Periodo de llegadas', fmtDate(desde) + ' – ' + fmtDate(hasta), '', '', ''],
+    ['Reservas', s.reservas, '', '', ''],
+    ['Noches', s.noches, '', '', ''],
+    ['Estancias propietario', s.propietario, '', '', ''],
+    ['Ingresos totales €', s.total, '', '', ''],
+    ['Ingresos netos €', s.neto, '', '', ''],
+    ['Ocupación', fmtPct(o.ocupacion), o.nochesOcupadas, o.disponibles, 'sin propietario' + (o.hastaHoy ? ' · hasta hoy' : '')]
+  ];
 }
 
 /* CSV para Excel en español: BOM UTF-8, ';', coma decimal, fechas dd/mm/yyyy. */
@@ -821,7 +889,7 @@ async function loadReservas(){
     renderVillaList(); renderChannelChips(); render();
   }catch(err){
     if(myId !== reqId) return;
-    console.error('[Informe reservas v3]', err);
+    console.error('[Informe reservas v4]', err);
     showError(err.status === 403 ? 'Tu usuario no tiene permiso para este informe.' : 'No se pudieron cargar las reservas. ' + (err.message || err));
   }finally{
     if(myId === reqId) g('btnLoad').disabled = false;
@@ -878,16 +946,20 @@ function currentRows(){
   return sortDetail(filterRows(allRows, { villas: selectedVillaKeys(), channels: selChannels ? Object.keys(selChannels) : null, includeCancelled: loadInfo && loadInfo.inc, includeOwner: includeOwner() }));
 }
 
+/* v4: ocupación de unas filas en la ventana cargada, con hoy en hora de Madrid. */
+function occOf(rows){ return computeOccupancy(rows, loadInfo.desde, loadInfo.hasta, madridToday()); }
+
 /* ══ PINTAR ══ */
 function render(){
   if(!loadInfo) return;
-  var rows = currentRows(), s = computeStats(rows);
+  var rows = currentRows(), s = computeStats(rows), o = occOf(rows);
   g('navSub').textContent = fmtDate(loadInfo.desde) + ' – ' + fmtDate(loadInfo.hasta) + ' · ' + s.reservas + ' reservas';
   if(!rows.length){ g('report').style.display = 'none'; g('stEmpty').style.display = 'block'; return; }
   g('stEmpty').style.display = 'none'; g('report').style.display = 'block';
 
   function kpi(v, l, cls, sub){ return '<div class="kpi' + (cls ? ' ' + cls : '') + '"><div class="v">' + v + '</div><div class="l">' + l + '</div>' + (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>'; }
   g('kpis').innerHTML =
+    kpi(fmtPct(o.ocupacion), 'Ocupación', 'green', occSub(o)) +
     kpi(s.reservas.toLocaleString('es-ES'), 'Reservas', '', reservasSub(s)) +
     kpi(s.noches.toLocaleString('es-ES'), 'Noches') +
     kpi(s.propietario.toLocaleString('es-ES'), 'Estancias propietario', '', nochesSub(s.nochesPropietario)) +
@@ -903,6 +975,7 @@ function render(){
   if(s.sinVilla) av.push('<div class="info-box orange">' + s.sinVilla + (s.sinVilla === 1 ? ' reserva de alojamientos sin villa en la intranet' : ' reservas de alojamientos sin villa en la intranet') + '</div>');
   av.push('<div class="info-box gray">Precio neto = precio total menos la comisión del portal (Booking.com y Airbnb). Reservas directas y web: neto = total.</div>');
   if(s.propietario) av.push('<div class="info-box gray">Estancias de propietario: cuentan en reservas y noches; no suman en los importes ni en los precios medios.</div>');
+  av.push('<div class="info-box gray">La ocupación cuenta solo las villas con alguna reserva en el periodo; las noches de propietario se restan de las noches disponibles.</div>');
   g('avisos').innerHTML = av.join('');
 
   var maxC = s.canales.reduce(function(m, c){ return Math.max(m, c.total); }, 0) || 1;
@@ -926,23 +999,23 @@ function render(){
   /* Resumen por villa: con "Todas" o con varias villas. */
   var nSel = selVillas === null ? villaOptions().length : Object.keys(selVillas).length;
   if(nSel > 1){
-    var sum = villaSummary(rows), K = villaSort.key, D = villaSort.dir;
+    var sum = villaSummary(rows, loadInfo.desde, loadInfo.hasta, madridToday()), K = villaSort.key, D = villaSort.dir;
     sum.sort(function(a, b){
       if(K === 'num') return D * cmpVillaNum(a, b);
       if(K === 'villa') return D * a.villa.localeCompare(b.villa, 'es');
       var x = a[K] === null ? -Infinity : a[K], y = b[K] === null ? -Infinity : b[K];
       return D * (x - y);
     });
-    var keys = ['num', 'villa', 'reservas', 'noches', 'propietario', 'total', 'neto', 'porNoche', 'netoPorNoche'];
+    var keys = ['num', 'villa', 'reservas', 'noches', 'propietario', 'ocupacion', 'total', 'neto', 'porNoche', 'netoPorNoche'];
     g('villaHead').innerHTML = VILLA_HEADERS.map(function(h, i){
       return '<th class="sortable' + (i < 2 ? ' l' : '') + '" data-sort="' + keys[i] + '">' + esc(h) + (villaSort.key === keys[i] ? (villaSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
     }).join('') + '<th class="l"></th>';
     g('villaBody').innerHTML = sum.map(function(v){
       return '<tr class="vrow" tabindex="0" role="button" data-vk="' + esc(v.villaKey) + '" title="Ver las reservas de ' + esc(v.villa) + '">' +
-        '<td class="l vn">' + esc(v.num) + '</td><td class="l villa">' + esc(v.villa) + '</td><td>' + v.reservas + '</td><td>' + v.noches + '</td><td>' + v.propietario + '</td>' +
+        '<td class="l vn">' + esc(v.num) + '</td><td class="l villa">' + esc(v.villa) + '</td><td>' + v.reservas + '</td><td>' + v.noches + '</td><td>' + v.propietario + '</td><td>' + fmtPct(v.ocupacion) + '</td>' +
         '<td>' + fmtMoney(v.total) + '</td><td>' + fmtMoney(v.neto) + '</td><td>' + fmtMoney(v.porNoche) + '</td><td>' + fmtMoney(v.netoPorNoche) + '</td>' +
         '<td class="l"><span class="vhint">Ver reservas ›</span></td></tr>';
-    }).join('') + '<tr class="tot"><td class="l">Total</td><td class="l">' + sum.length + ' villas</td><td>' + s.reservas + '</td><td>' + s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtMoney(s.total) + '</td><td>' + fmtMoney(s.neto) + '</td><td>' + fmtMoney(s.medioNoche) + '</td><td>' + fmtMoney(s.netoMedioNoche) + '</td><td></td></tr>';
+    }).join('') + '<tr class="tot"><td class="l">Total</td><td class="l">' + sum.length + ' villas</td><td>' + s.reservas + '</td><td>' + s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtPct(o.ocupacion) + '</td><td>' + fmtMoney(s.total) + '</td><td>' + fmtMoney(s.neto) + '</td><td>' + fmtMoney(s.medioNoche) + '</td><td>' + fmtMoney(s.netoMedioNoche) + '</td><td></td></tr>';
     g('villaBlock').style.display = 'block';
   } else {
     g('villaBlock').style.display = 'none';
@@ -976,7 +1049,7 @@ function render(){
 function kpiBox(v, l, cls, sub){ return '<div class="kpi' + (cls ? ' ' + cls : '') + '"><div class="v">' + v + '</div><div class="l">' + l + '</div>' + (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>'; }
 
 function renderVillaPanel(vr){
-  var s = computeStats(vr), f = vr[0], LEFT = { 'Huésped':1, 'Canal':1, 'Pago':1, 'Código':1 };
+  var s = computeStats(vr), o = occOf(vr), f = vr[0], LEFT = { 'Huésped':1, 'Canal':1, 'Pago':1, 'Código':1 };
   function euro(n){ return n === null ? '—' : fmtMoney(n) + ' €'; }
   g('villaPanel').innerHTML =
     '<div class="card vp">' +
@@ -989,6 +1062,7 @@ function renderVillaPanel(vr){
           '<button type="button" class="btn ghost" id="btnCopyVilla" onclick="copyVillaTable()">Copiar tabla</button></div>' +
       '</div>' +
       '<div class="kpis">' +
+        kpiBox(fmtPct(o.ocupacion), 'Ocupación', 'green', occSub(o)) +
         kpiBox(s.reservas.toLocaleString('es-ES'), 'Reservas', '', reservasSub(s)) +
         kpiBox(s.noches.toLocaleString('es-ES'), 'Noches') +
         kpiBox(s.propietario.toLocaleString('es-ES'), 'Estancias propietario', '', nochesSub(s.nochesPropietario)) +
@@ -1039,11 +1113,15 @@ function downloadXlsx(){
   if(!loadInfo) return;
   if(!window.XLSX){ alert('No se pudo cargar el generador de Excel. Se descarga el CSV, que también abre en Excel.'); downloadCsv(); return; }
   var rows = currentRows(), wb = XLSX.utils.book_new();
+  /* v4: hoja "Resumen" primero, con la fila Ocupación. */
+  var ws0 = XLSX.utils.aoa_to_sheet([RESUMEN_HEADERS].concat(resumenMatrix(computeStats(rows), occOf(rows), loadInfo.desde, loadInfo.hasta)));
+  ws0['!cols'] = [24, 26, 16, 18, 30].map(function(w){ return { wch:w }; });
+  XLSX.utils.book_append_sheet(wb, ws0, 'Resumen');
   var ws1 = XLSX.utils.aoa_to_sheet([FILE_HEADERS].concat(detailMatrix(rows)));
   ws1['!cols'] = [6, 28, 11, 11, 7, 12, 13, 12, 12, 11, 12, 12, 26].map(function(w){ return { wch:w }; });
   XLSX.utils.book_append_sheet(wb, ws1, 'Reservas');
-  var ws2 = XLSX.utils.aoa_to_sheet([VILLA_HEADERS].concat(villaMatrix(villaSummary(rows))));
-  ws2['!cols'] = [6, 28, 9, 8, 7, 12, 12, 10, 12].map(function(w){ return { wch:w }; });
+  var ws2 = XLSX.utils.aoa_to_sheet([VILLA_HEADERS].concat(villaMatrix(villaSummary(rows, loadInfo.desde, loadInfo.hasta, madridToday()))));
+  ws2['!cols'] = [6, 28, 9, 8, 7, 8, 12, 12, 10, 12].map(function(w){ return { wch:w }; });
   XLSX.utils.book_append_sheet(wb, ws2, 'Por villa');
   XLSX.writeFile(wb, exportName('xlsx'));
 }
@@ -1088,4 +1166,4 @@ Object.assign(window, { loadReservas: loadReservas, downloadCsv: downloadCsv, do
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v3 - 13/10/2026 — estancias de propietario en el informe (bro). Gary: "owner stays need to be in the report as well". La Analítica de Hostaway cuenta las estancias de propietario en sus check-ins (4.430 en 2026 = 4.246 de pago + 169 de propietario + 15 apartamentos extra de reservas de grupo), y Marta espera verlas. Datos: el Worker v61 devuelve en action=hostaway-report-page también las reservas con status 'ownerStay' (las mismas 28 claves; totalPrice suele venir a 0 o vacío, el canal vacío o 'direct', las noches sí, y el huésped puede traer el nombre del propietario o "PROPIETARIA"); hasta que el Worker v61 esté desplegado no llega ninguna y el informe queda como en v2. Reglas: enrichRow marca owner (status ownerStay), canal propio "Propietario" (clave ownerStay), total 0, neto 0, precio/día y neto/día vacíos (—), sin aviso de comisión; filterRows deja pasar ownerStay además de new y modified. Casilla nueva "Incluir estancias de propietario", marcada por defecto, junto a "Incluir canceladas"; se aplica en el navegador sin volver a leer Hostaway: desmarcada, las estancias de propietario salen de todas las cifras, tablas, gráficos, chips de canal y ficheros. Cifras (computeStats): las estancias de propietario suman en Reservas y Noches y en las nuevas propietario y nochesPropietario; no suman en total, neto, comisión, totalConDato ni nochesConDato; Precio medio/noche = total ÷ noches de pago (nochesPagadas) y el neto medio igual. Tarjetas: nueva "Estancias propietario" (con "N noches"); Reservas dice "incl. N de propietario"; Precio medio/noche dice "sobre noches de pago"; aviso gris cuando hay estancias de propietario. Por canal: barra propia "Propietario" (total 0, neto 0, con su número); el gráfico mensual de € no las suma. Resumen por villa (villaSummary): suman en Reservas y Noches, columna nueva "Prop." detrás de Noches (también en la hoja "Por villa" del Excel), €/noche y neto €/noche solo con noches de pago. Detalle global y ficha de la villa: etiqueta neutra "propietario" en la celda Canal (sin tachar), Precio total y neto 0,00, por día —, Huésped tal como llega, Pago —; la ficha lleva las mismas tarjetas. Ficheros (Excel y CSV, global y por villa): fila con Canal "Propietario", total 0, neto 0, por día vacío, Pago vacío. Pruebas informe-reservas.test.js (fila de propietario, filtro de estado y casilla, cifras, nochesPagadas, columna Prop. y medias por villa, fila del fichero, etiqueta del canal, versión). | v2 - 13/10/2026 — ficha por villa (bro). Mismo día, tras la primera revisión de Gary: la tabla de la ficha cabe entera en un portátil (sin ancho mínimo, letra algo menor, la celda Huésped se parte en dos líneas; desplazamiento lateral solo por debajo de 900 px) y botón 'Copiar tabla' en la ficha (villaTsv: cabecera y filas de esa villa separadas por tabuladores, al portapapeles, 'Copiado ✓' dos segundos), porque Marta tiene que llevarse los datos de la villa abierta, no solo el total. Segunda revisión: el botón '← Volver al resumen' pasa a rojo y se repite debajo de la tabla, y la tecla Esc cierra la ficha (Gary: 'i need a back button as well once you click into a villa'). Gary, señalando el resumen por villa: "for each of these ... i need to be able to select and click into that villa to see the booking info such as who booked the villa and when and price and all of the details". Cada fila del "Resumen por villa" (también los alojamientos sin villa) se puede pulsar o abrir con Intro y lleva "Ver reservas ›"; abre la ficha de la villa, que sustituye al resumen y al detalle hasta "← Volver al resumen": número en rojo, nombre, fechas de llegada, cifras de la villa (Reservas, Noches, Total €, Neto €, €/noche, Neto €/noche, Comisión €) y sus reservas por check-in con las columnas Huésped, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Personas, Pago, Código (el huésped primero y luego las columnas de Marta, a petición de Gary), fila de totales y canceladas tachadas con la casilla. Huésped = guestName o nombre + apellidos, con el correo (enlace mailto) y el teléfono debajo; Personas = numberOfGuests o adultos + niños; Pago = paymentStatus en español (paid Pagado, partially_paid o partial Parcial, unpaid Pendiente, otro valor tal cual); Código = hostawayReservationId y debajo channelReservationId. Botones "Descargar Excel de esta villa" y "Descargar CSV de esta villa", fichero informe-reservas-villa-<nº>-<desde>-<hasta> con las columnas de la ficha y Correo y Teléfono detrás de Código. Tabla "Detalle de reservas": nueva columna Huésped (solo el nombre) detrás de Canal; la hoja "Reservas" del Excel y el CSV guardan las columnas de Marta en su orden y añaden Huésped al final. Datos: el Worker v59 añade a action=hostaway-report-page guestName, guestFirstName, guestLastName, guestEmail, phone, numberOfGuests, adults, children, infants, paymentStatus, channelReservationId y confirmationCode; hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —. Todos los datos del huésped pasan por esc(). Pruebas informe-reservas.test.js (agrupación por villa, Pago, Personas, celda Huésped, fila de la ficha, cabeceras de pantalla y de ficheros, versión). | v1 - 13/10/2026 — primera versión (bro): informe de solo lectura de las reservas de Hostaway por villa y canal para el estudio de precios. Lo pidió Marta (Reservas) en la reunión de Precios 2027 del 13/10/2026, que cada otoño rehace a mano esta tabla villa por villa; sus columnas: "número de la villa, check-in date, check-out date, number of days, booking date, channel, total price, net price, daily price, daily price neto". Encargo de Gary: elegir una casa, varias o todas, verlo en la página con aspecto de cuadro de mando y descargar un Excel para llevarlo a su hoja. Temporada = llegadas en las fechas elegidas (por defecto del 1/1 al 31/12 del año actual en hora de Madrid, botones 2025, 2026 y 2027), todos los canales. Permiso Auth.require('informe-reservas'), clave nueva de auth.js para admin, manager y staff (Marta = staff); nav.js v18 la pone en el bloque Listados de _menuAdmin, debajo de 'Prospección mensual', y en _menuStaff, debajo de 'Historial WhatsApp'. Datos: action=hostaway-report-page del Worker (arrivalStartDate, arrivalEndDate, afterId, hwToken, includeCancelled=1 con "Incluir canceladas"), paginado como loadHostaway de hostaway-comprobar-fechas-reservas.html (reenvía afterId y hwToken, para en done, tope de 100 páginas); campos id, hostawayReservationId, listingMapId, listingName, channelName, channelId, status, arrivalDate, departureDate, nights, reservationDate, totalPrice, currency, channelCommissionAmount, airbnbListingHostFee, cancellationDate; sin nombres, correos ni teléfonos de huéspedes. Nº de villa: TaVillas (villaid, Name, Hostawayid) por listingMapId = Hostawayid; sin villa = Nº vacío, nombre del alojamiento de Hostaway y aviso. Regla del neto (comprobada con datos reales de Hostaway el 13/10/2026): Booking.com (bookingcom) neto = total − channelCommissionAmount; Airbnb (airbnbOfficial) neto = total − airbnbListingHostFee; cualquier otro canal (directa, web 3Villas, Vrbo…) neto = total − channelCommissionAmount o neto = total si no hay; si Booking.com o Airbnb no traen el dato, neto y neto/día vacíos y aviso "N reservas sin dato de comisión". Precio/día = total ÷ noches; neto/día = neto ÷ noches; 0 noches = vacío. Las canceladas solo salen con la casilla, tachadas, y no suman en las cifras. Cuadro: Reservas, Noches, Ingresos totales, Ingresos netos, Precio medio/noche, Precio neto medio/noche, Comisión portales y su % sobre el total con dato; barras por canal y por mes de llegada (CSS, sin librería); resumen por villa ordenable con varias villas; detalle Nº villa, Villa, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Código, ordenado por villa y check-in, con fila de totales. Filtros de villa (lista con buscador, "Todas", "N de M villas") y de canal al momento en el navegador; las fechas y "Incluir canceladas" vuelven a leer Hostaway. Descargas: Excel (.xlsx con hojas "Reservas" y "Por villa", SheetJS 0.18.5 de cdnjs; si no carga, se baja el CSV y se avisa) y CSV (BOM UTF-8, ';', coma decimal, fechas dd/mm/yyyy); nombre informe-reservas-<desde>-<hasta>, o informe-reservas-villa-<nº>-<desde>-<hasta> con una sola villa. Error: "No se pudieron cargar las reservas." y el texto; 403 = "Tu usuario no tiene permiso para este informe.". Pruebas informe-reservas.test.js. -->
+<!-- HISTORIAL: v4 - 13/10/2026 — ocupación en el cuadro (bro). Gary: "occupancy needs to be on the top level, percentage needs to be on the top level items, but owner stay does not count against occupancy". Definición (computeOccupancy, en el bloque de cálculo): ventana = las fechas de llegada elegidas (los botones de año dan del 1/1 al 31/12); noches de una reserva = del check-in al check-out − 1, recortadas a la ventana; noches de pago = noches ocupadas; noches de propietario = no ocupan y se restan de las disponibles; canceladas no cuentan. Noches disponibles = villas distintas de las filas a la vista (sin canceladas) × días de la ventana − noches de propietario. Ocupación = noches ocupadas ÷ disponibles, en % con un decimal ("61,3 %"); — si no hay noches disponibles. Recorte: si hoy (hora de Madrid) cae dentro de la ventana, la última noche es la de ayer (noches con fecha anterior a hoy) y la tarjeta dice "hasta hoy"; una ventana pasada o futura no se recorta. No hay fechas de alta de los anuncios: una villa cuenta como disponible todos los días de la ventana; aviso gris "La ocupación cuenta solo las villas con alguna reserva en el periodo; las noches de propietario se restan de las noches disponibles.". Tarjeta nueva "Ocupación" la primera del cuadro, con "N noches de M disponibles · sin propietario" (y "· hasta hoy"); sigue los filtros de villa y canal y la casilla de propietario (desmarcada, no hay noches de propietario que restar). Resumen por villa (villaSummary con la ventana): columna ordenable "Ocup." detrás de "Prop.", la cifra global en la fila Total y en la hoja "Por villa" del Excel (número, 38.9 = 38,9 %); la ficha de la villa lleva su tarjeta "Ocupación". Excel: hoja nueva "Resumen" (la primera) con periodo, reservas, noches, estancias de propietario, ingresos y la fila "Ocupación" con el % y las noches ocupadas y disponibles. Pruebas informe-reservas.test.js (caso de dos villas y 10 días: 7 noches de pago, 2 de propietario, 18 disponibles, 38,9 %; recorte de estancias que empiezan antes o acaban después; canceladas fuera; recorte hasta hoy; ocupacion por villa; fila Ocupación de la hoja Resumen; versión). | v3 - 13/10/2026 — estancias de propietario en el informe (bro). Gary: "owner stays need to be in the report as well". La Analítica de Hostaway cuenta las estancias de propietario en sus check-ins (4.430 en 2026 = 4.246 de pago + 169 de propietario + 15 apartamentos extra de reservas de grupo), y Marta espera verlas. Datos: el Worker v61 devuelve en action=hostaway-report-page también las reservas con status 'ownerStay' (las mismas 28 claves; totalPrice suele venir a 0 o vacío, el canal vacío o 'direct', las noches sí, y el huésped puede traer el nombre del propietario o "PROPIETARIA"); hasta que el Worker v61 esté desplegado no llega ninguna y el informe queda como en v2. Reglas: enrichRow marca owner (status ownerStay), canal propio "Propietario" (clave ownerStay), total 0, neto 0, precio/día y neto/día vacíos (—), sin aviso de comisión; filterRows deja pasar ownerStay además de new y modified. Casilla nueva "Incluir estancias de propietario", marcada por defecto, junto a "Incluir canceladas"; se aplica en el navegador sin volver a leer Hostaway: desmarcada, las estancias de propietario salen de todas las cifras, tablas, gráficos, chips de canal y ficheros. Cifras (computeStats): las estancias de propietario suman en Reservas y Noches y en las nuevas propietario y nochesPropietario; no suman en total, neto, comisión, totalConDato ni nochesConDato; Precio medio/noche = total ÷ noches de pago (nochesPagadas) y el neto medio igual. Tarjetas: nueva "Estancias propietario" (con "N noches"); Reservas dice "incl. N de propietario"; Precio medio/noche dice "sobre noches de pago"; aviso gris cuando hay estancias de propietario. Por canal: barra propia "Propietario" (total 0, neto 0, con su número); el gráfico mensual de € no las suma. Resumen por villa (villaSummary): suman en Reservas y Noches, columna nueva "Prop." detrás de Noches (también en la hoja "Por villa" del Excel), €/noche y neto €/noche solo con noches de pago. Detalle global y ficha de la villa: etiqueta neutra "propietario" en la celda Canal (sin tachar), Precio total y neto 0,00, por día —, Huésped tal como llega, Pago —; la ficha lleva las mismas tarjetas. Ficheros (Excel y CSV, global y por villa): fila con Canal "Propietario", total 0, neto 0, por día vacío, Pago vacío. Pruebas informe-reservas.test.js (fila de propietario, filtro de estado y casilla, cifras, nochesPagadas, columna Prop. y medias por villa, fila del fichero, etiqueta del canal, versión). | v2 - 13/10/2026 — ficha por villa (bro). Mismo día, tras la primera revisión de Gary: la tabla de la ficha cabe entera en un portátil (sin ancho mínimo, letra algo menor, la celda Huésped se parte en dos líneas; desplazamiento lateral solo por debajo de 900 px) y botón 'Copiar tabla' en la ficha (villaTsv: cabecera y filas de esa villa separadas por tabuladores, al portapapeles, 'Copiado ✓' dos segundos), porque Marta tiene que llevarse los datos de la villa abierta, no solo el total. Segunda revisión: el botón '← Volver al resumen' pasa a rojo y se repite debajo de la tabla, y la tecla Esc cierra la ficha (Gary: 'i need a back button as well once you click into a villa'). Gary, señalando el resumen por villa: "for each of these ... i need to be able to select and click into that villa to see the booking info such as who booked the villa and when and price and all of the details". Cada fila del "Resumen por villa" (también los alojamientos sin villa) se puede pulsar o abrir con Intro y lleva "Ver reservas ›"; abre la ficha de la villa, que sustituye al resumen y al detalle hasta "← Volver al resumen": número en rojo, nombre, fechas de llegada, cifras de la villa (Reservas, Noches, Total €, Neto €, €/noche, Neto €/noche, Comisión €) y sus reservas por check-in con las columnas Huésped, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Personas, Pago, Código (el huésped primero y luego las columnas de Marta, a petición de Gary), fila de totales y canceladas tachadas con la casilla. Huésped = guestName o nombre + apellidos, con el correo (enlace mailto) y el teléfono debajo; Personas = numberOfGuests o adultos + niños; Pago = paymentStatus en español (paid Pagado, partially_paid o partial Parcial, unpaid Pendiente, otro valor tal cual); Código = hostawayReservationId y debajo channelReservationId. Botones "Descargar Excel de esta villa" y "Descargar CSV de esta villa", fichero informe-reservas-villa-<nº>-<desde>-<hasta> con las columnas de la ficha y Correo y Teléfono detrás de Código. Tabla "Detalle de reservas": nueva columna Huésped (solo el nombre) detrás de Canal; la hoja "Reservas" del Excel y el CSV guardan las columnas de Marta en su orden y añaden Huésped al final. Datos: el Worker v59 añade a action=hostaway-report-page guestName, guestFirstName, guestLastName, guestEmail, phone, numberOfGuests, adults, children, infants, paymentStatus, channelReservationId y confirmationCode; hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —. Todos los datos del huésped pasan por esc(). Pruebas informe-reservas.test.js (agrupación por villa, Pago, Personas, celda Huésped, fila de la ficha, cabeceras de pantalla y de ficheros, versión). | v1 - 13/10/2026 — primera versión (bro): informe de solo lectura de las reservas de Hostaway por villa y canal para el estudio de precios. Lo pidió Marta (Reservas) en la reunión de Precios 2027 del 13/10/2026, que cada otoño rehace a mano esta tabla villa por villa; sus columnas: "número de la villa, check-in date, check-out date, number of days, booking date, channel, total price, net price, daily price, daily price neto". Encargo de Gary: elegir una casa, varias o todas, verlo en la página con aspecto de cuadro de mando y descargar un Excel para llevarlo a su hoja. Temporada = llegadas en las fechas elegidas (por defecto del 1/1 al 31/12 del año actual en hora de Madrid, botones 2025, 2026 y 2027), todos los canales. Permiso Auth.require('informe-reservas'), clave nueva de auth.js para admin, manager y staff (Marta = staff); nav.js v18 la pone en el bloque Listados de _menuAdmin, debajo de 'Prospección mensual', y en _menuStaff, debajo de 'Historial WhatsApp'. Datos: action=hostaway-report-page del Worker (arrivalStartDate, arrivalEndDate, afterId, hwToken, includeCancelled=1 con "Incluir canceladas"), paginado como loadHostaway de hostaway-comprobar-fechas-reservas.html (reenvía afterId y hwToken, para en done, tope de 100 páginas); campos id, hostawayReservationId, listingMapId, listingName, channelName, channelId, status, arrivalDate, departureDate, nights, reservationDate, totalPrice, currency, channelCommissionAmount, airbnbListingHostFee, cancellationDate; sin nombres, correos ni teléfonos de huéspedes. Nº de villa: TaVillas (villaid, Name, Hostawayid) por listingMapId = Hostawayid; sin villa = Nº vacío, nombre del alojamiento de Hostaway y aviso. Regla del neto (comprobada con datos reales de Hostaway el 13/10/2026): Booking.com (bookingcom) neto = total − channelCommissionAmount; Airbnb (airbnbOfficial) neto = total − airbnbListingHostFee; cualquier otro canal (directa, web 3Villas, Vrbo…) neto = total − channelCommissionAmount o neto = total si no hay; si Booking.com o Airbnb no traen el dato, neto y neto/día vacíos y aviso "N reservas sin dato de comisión". Precio/día = total ÷ noches; neto/día = neto ÷ noches; 0 noches = vacío. Las canceladas solo salen con la casilla, tachadas, y no suman en las cifras. Cuadro: Reservas, Noches, Ingresos totales, Ingresos netos, Precio medio/noche, Precio neto medio/noche, Comisión portales y su % sobre el total con dato; barras por canal y por mes de llegada (CSS, sin librería); resumen por villa ordenable con varias villas; detalle Nº villa, Villa, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Código, ordenado por villa y check-in, con fila de totales. Filtros de villa (lista con buscador, "Todas", "N de M villas") y de canal al momento en el navegador; las fechas y "Incluir canceladas" vuelven a leer Hostaway. Descargas: Excel (.xlsx con hojas "Reservas" y "Por villa", SheetJS 0.18.5 de cdnjs; si no carga, se baja el CSV y se avisa) y CSV (BOM UTF-8, ';', coma decimal, fechas dd/mm/yyyy); nombre informe-reservas-<desde>-<hasta>, o informe-reservas-villa-<nº>-<desde>-<hasta> con una sola villa. Error: "No se pudieron cargar las reservas." y el texto; 403 = "Tu usuario no tiene permiso para este informe.". Pruebas informe-reservas.test.js. -->
