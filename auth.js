@@ -109,6 +109,7 @@ const Auth = (function () {
     // ── NOTAS ──────────────────────────────────────────────────
     'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
     'notas-villamanager'    : ['admin', 'manager', 'staff'],
+    'informe-reservas' : ['admin', 'manager', 'staff'],  // 13/10/2026: Informe de reservas (Marta, Reservas = staff), solo lectura
 
     // ── WELCOMEPACKS ───────────────────────────────────────────
     'pedir-wellcomepacks'   : ['admin', 'manager', 'staff'],
