@@ -1,6 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    police-url.js — CONSTRUCTOR UNICO del link de registro de policia.
-   VERSION ACTUAL: v2
+   VERSION ACTUAL: v3
+   v3 (13/10/2026): en una reserva de EMPRESA el link usa el nombre y el apellido de la
+   persona responsable (Fiscal_responsable_nombre / Fiscal_responsable_apellido, columnas
+   nuevas de TaBookings2021 que rellena checkin-pasos v113), si los dos tienen texto. Si
+   falta alguno, se sigue usando el nombre de la reserva, como en la v2. Por que: Jordi,
+   WhatsApp 13/10/2026 19:00, reserva 51605085: el nombre de la reserva ('Hugo & Jaime')
+   no traia apellido y el registro de policia lo exige.
    v2 (02/10/2026): un nombre fiscal CON documento fiscal y SIN apellido fiscal no se usa
    en el link. Desde checkin-pasos v108 esa combinacion es una EMPRESA (razon social en
    Fiscal_guest_name),
@@ -139,6 +145,13 @@
     var isCompany = !!(fisc && !String(get('Fiscal_guest_surename') || '').trim()
                             && String(get('Fiscal_guest_DNI_passport') || '').trim());
     var useFisc = !!(fisc && fisc !== ' ') && !isCompany;
+    /* v3: empresa con persona responsable (checkin-pasos v113): mandan su nombre y su
+       apellido, solo si los dos tienen texto. Si falta uno, la regla v2 de abajo. */
+    if (isCompany) {
+      var rn = String(get('Fiscal_responsable_nombre') || '').trim();
+      var ra = String(get('Fiscal_responsable_apellido') || '').trim();
+      if (rn && ra) return { first: rn, last: ra };
+    }
     return {
       first: useFisc ? fisc
                      : String(get('Guest_Full_Name') || get('Guest_Name') || ''),

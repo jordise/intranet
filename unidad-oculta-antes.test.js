@@ -19,8 +19,8 @@ function fnSource(name) {
 console.log(FILE);
 
 /* 1. Versión e historial */
-ok('v112 en cabecera, título y PAGE_VERSION', /VERSIÓN ACTUAL: v112 \|/.test(s) && /<title>Check-in Pasos v112/.test(s) && s.indexOf('var PAGE_VERSION = 112;') > 0);
-ok('historial v112 delante de la v111', /<!-- HISTORIAL: v112 - .*? \| v111 - /.test(s));
+ok('v113 en cabecera, título y PAGE_VERSION', /VERSIÓN ACTUAL: v113 \|/.test(s) && /<title>Check-in Pasos v113/.test(s) && s.indexOf('var PAGE_VERSION = 113;') > 0);
+ok('historial v113 delante de la v112 y de la v111', /<!-- HISTORIAL: v113 - .*? \| v112 - .*? \| v111 - /.test(s));
 
 /* 2. Marcado y textos */
 ok('#p0KiUnitLater debajo de #p0KiUnit y nace oculto', /id="p0KiUnit"[^\n]*\n\s*<div class="kc-addr-note" id="p0KiUnitLater" style="display:none">/.test(s));

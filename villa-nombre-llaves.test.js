@@ -20,8 +20,8 @@ function fnSource(name) {
 }
 
 console.log(f);
-ok('v111 en PAGE_VERSION, cabecera y titulo', /var PAGE_VERSION = 112;/.test(s) && /VERSIÓN ACTUAL: v112 \|/.test(s) && /<title>Check-in Pasos v112/.test(s));
-ok('historial v111 delante de v110 y conserva la v109', /<!-- HISTORIAL: v112 - .*? \| v110 - .*? \| v109 - /.test(s));
+ok('v111 en PAGE_VERSION, cabecera y titulo', /var PAGE_VERSION = 113;/.test(s) && /VERSIÓN ACTUAL: v113 \|/.test(s) && /<title>Check-in Pasos v113/.test(s));
+ok('historial v111 delante de v110 y conserva la v109', /<!-- HISTORIAL: v113 - .*? \| v110 - .*? \| v109 - /.test(s));
 
 /* 1. Marcado: tres tarjetas en orden Dónde estás, llaves, wifi; el bloque del villa manager despues */
 var iReady = s.indexOf('id="p0KeysReady"'), iPlace = s.indexOf('id="p0KcPlace"'), iKey = s.indexOf('id="p0KiKeyboxRow"'),
