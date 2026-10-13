@@ -1,4 +1,5 @@
-/* Pruebas de informe-reservas.html v5 (v5 = ocupación en temporada, 1/4–31/10, Gary: "change occupancy to begin on April 1st", "occupancy ends on October 31st"; v4 = ocupación, Gary: "occupancy needs to be on the top level"; 13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
+/* Pruebas de informe-reservas.html v6 (v6 = ocupación sobre los días abiertos del calendario de Hostaway de cada villa, Gary: "check the occupancy against open days",
+   "in the report under the occupency percentage put the open and blocked dates"; v5 = ocupación en temporada, 1/4–31/10, ya sustituida; v4 = ocupación, Gary: "occupancy needs to be on the top level"; 13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
    v3 = estancias de propietario, Gary: "owner stays need to be in the report as well").
    Neto por canal, precio por día, villa por Hostawayid, filtros de estado, villa y canal,
    CSV en español, cifras del cuadro, la clave de auth.js y las entradas de nav.js v18.
@@ -38,9 +39,10 @@ var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commi
   'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween',
   'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv', 'villaTsv',
   'huespedCell', 'villaDetailRowHtml', 'esc', 'ownerTag', 'reservasSub', 'nochesSub',
-  'madridToday', 'isoDayNum', 'computeOccupancy', 'fmtPct', 'occSub', 'resumenMatrix', 'isoFromDayNum', 'fmtDiaMes'];
+  'madridToday', 'isoDayNum', 'computeOccupancy', 'fmtPct', 'occSub', 'resumenMatrix', 'isoFromDayNum', 'fmtDiaMes',
+  'openUnitsOf', 'fmtDiaMesAno', 'rangoTexto', 'occSub2', 'aperturaOf', 'aperturaText', 'listingIdsOf', 'calendarBatches', 'calRangeOf', 'buildCalendarUrl'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
-  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS', 'SEASON_START_MMDD', 'SEASON_END_MMDD'];
+  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS', 'CAL_BATCH', 'CAL_PARALLEL'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
   FNS.map(function (f) { return fnSource(SRC, f); }).join('\n') +
   '\nreturn {' + FNS.concat(VARS).map(function (n) { return n + ':' + n; }).join(',') + '};';
@@ -267,8 +269,8 @@ var v12 = vsO.filter(function (v) { return v.villaKey === 'V12'; })[0];
 eq('resumen por villa: propietario en reservas, noches y Prop.; medias con noches de pago',
   [v12.reservas, v12.noches, v12.propietario, v12.nochesPagadas, v12.total, v12.neto, v12.porNoche, v12.netoPorNoche], [4, 26, 1, 21, 4800, 2650, 228.57, 189.29]);
 eq('resumen por villa: villa sin propietario = Prop. 0', vsO.filter(function (v) { return v.villaKey === 'V3'; })[0].propietario, 0);
-eq('cabecera del resumen: Prop. detrás de Noches (v4: Ocup. detrás de Prop.)', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Ocup.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
-eq('hoja "Por villa": Prop. en su columna (v4: Ocup. vacía sin ventana)', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, '', 4800, 2650, 228.57, 189.29]);
+eq('cabecera del resumen: Prop. detrás de Noches (v4: Ocup. detrás de Prop.; v6: Apertura detrás de Ocup.)', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Ocup.', 'Apertura', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
+eq('hoja "Por villa": Prop. en su columna (v4: Ocup. vacía sin ventana; v6: Apertura vacía sin ventana)', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, '', '', 4800, 2650, 228.57, 189.29]);
 eq('fichero global: fila de propietario', P.buildCsv([own]).slice(1).split('\r\n')[1], '12;Villa Prueba;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;8001;PROPIETARIA');
 eq('Excel global: fila de propietario', P.detailMatrix([own])[0], ['12', 'Villa Prueba', '01/09/2026', '06/09/2026', 5, '01/02/2026', 'Propietario', 0, 0, '', '', '8001', 'PROPIETARIA']);
 eq('fichero de la villa: fila de propietario, Pago vacío', P.buildVillaCsv([own]).slice(1).split('\r\n')[1], 'PROPIETARIA;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;;;8001;;');
@@ -288,11 +290,11 @@ eq('etiqueta solo en propietario', [P.ownerTag(own), P.ownerTag(di)], ['<span cl
   ok('chips de canal sin Propietario con la casilla desmarcada', /if\(r\.owner && !withOwner\) return;/.test(fnSource(SRC, 'channelOptions')));
   ok('tarjetas: Estancias propietario, "sobre noches de pago" y "incl." en el cuadro y en la ficha', [rsrc, psrc].every(function (s) {
     return s.indexOf("'Estancias propietario', '', nochesSub(s.nochesPropietario)") > 0 && s.indexOf("'sobre noches de pago'") > 0 && s.indexOf('reservasSub(s)') > 0; }));
-  ok('resumen por villa en pantalla: columna propietario ordenable y en el total (v4: con Ocup. detrás)', rsrc.indexOf("'noches', 'propietario', 'ocupacion', 'total'") > 0 && rsrc.indexOf("'</td><td>' + v.propietario + '</td><td>' + fmtPct(v.ocupacion) + '</td>'") > 0 && rsrc.indexOf("s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtPct(o.ocupacion) + '</td><td>' + fmtMoney(s.total)") > 0);
+  ok('resumen por villa en pantalla: columna propietario ordenable y en el total (v4: con Ocup. detrás; v6: apertura debajo del %)', rsrc.indexOf("'noches', 'propietario', 'ocupacion', 'total'") > 0 && rsrc.indexOf("'</td><td>' + v.propietario + '</td><td>' + fmtPct(v.ocupacion) + '<div class=\"occ-note\">' + esc(v.apertura) + '</div></td>'") > 0 && rsrc.indexOf("s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtPct(o.ocupacion) + '</td><td>' + fmtMoney(s.total)") > 0);
 })();
 
 console.log('v4: ocupación');
-/* Dos villas, ventana de 10 días (1-10/4/2026, v5: dentro de la temporada), hoy fuera de la ventana: pago 4 + 3 noches, propietario 2 noches. */
+/* Dos villas, ventana de 10 días (1-10/4/2026), hoy fuera de la ventana: pago 4 + 3 noches, propietario 2 noches. Sin calendarios (regla v4). */
 var W0 = '2026-04-01', W1 = '2026-04-10', HOY = '2026-10-13';
 var occRows = [
   R({ hostawayReservationId: 9001, listingMapId: 1001, arrivalDate: '2026-04-02', departureDate: '2026-04-06', nights: 4 }),
@@ -300,12 +302,13 @@ var occRows = [
   R({ hostawayReservationId: 9003, listingMapId: 1001, arrivalDate: '2026-04-08', departureDate: '2026-04-10', nights: 2, status: 'ownerStay' })
 ];
 var oc = P.computeOccupancy(occRows, W0, W1, HOY);
-eq('ocupación: 2 villas × 10 días − 2 de propietario = 18 disponibles, 7 ocupadas, 38,9 %', oc,
-  { ocupacion: 38.9, nochesOcupadas: 7, nochesPropietario: 2, disponibles: 18, dias: 10, villas: 2, hastaHoy: false, desde: '2026-04-01', hasta: '2026-04-10' });
+eq('ocupación sin calendarios: 2 villas × 10 días − 2 de propietario = 18 disponibles, 7 ocupadas, 38,9 % (v6: 20 abiertas, 2 sin calendario)', oc,
+  { ocupacion: 38.9, nochesOcupadas: 7, nochesPropietario: 2, disponibles: 18, abiertas: 20, sinCalendario: 2, dias: 10, villas: 2, hastaHoy: false, desde: '2026-04-01', hasta: '2026-04-10' });
 eq('formato del %: coma decimal y — sin dato', [P.fmtPct(oc.ocupacion), P.fmtPct(40), P.fmtPct(null)], ['38,9 %', '40,0 %', '—']);
-eq('subtítulo de la tarjeta Ocupación (v5: con el tramo desde · hasta)', [P.occSub(oc), P.occSub({ nochesOcupadas: 3, disponibles: 10, hastaHoy: true, desde: '2026-04-01', hasta: '2026-10-12' }),
-  P.occSub({ nochesOcupadas: 0, disponibles: 0, hastaHoy: false, desde: null, hasta: null })],
-  ['7 noches de 18 disponibles · desde 1 abr · hasta 10 abr · sin propietario', '3 noches de 10 disponibles · desde 1 abr · hasta hoy · sin propietario', '0 noches de 0 disponibles · sin propietario']);
+eq('subtítulo de la tarjeta Ocupación (v6: "N noches de M abiertas · desde–hasta · hasta hoy · sin propietario")', [P.occSub(oc), P.occSub({ nochesOcupadas: 3, disponibles: 10, hastaHoy: true, desde: '2026-01-01', hasta: '2026-10-12' }),
+  P.occSub({ nochesOcupadas: 0, disponibles: 0, hastaHoy: false, desde: null, hasta: null }), P.occSub({ nochesOcupadas: 1, disponibles: 2, hastaHoy: false, desde: '2025-12-30', hasta: '2026-01-02' })],
+  ['7 noches de 18 abiertas · 1 abr–10 abr · sin propietario', '3 noches de 10 abiertas · 1 ene–12 oct · hasta hoy · sin propietario', '0 noches de 0 abiertas · sin propietario',
+   '1 noches de 2 abiertas · 30 dic 2025–2 ene 2026 · sin propietario']);
 var clip = P.computeOccupancy([
   R({ listingMapId: 1001, arrivalDate: '2026-03-28', departureDate: '2026-04-03', nights: 6 }),
   R({ listingMapId: 1001, arrivalDate: '2026-04-09', departureDate: '2026-04-14', nights: 5 })
@@ -317,9 +320,9 @@ var ocC = P.computeOccupancy(occRows.concat([
 ]), W0, W1, HOY);
 eq('canceladas: no cuentan noches ni villas', [ocC.nochesOcupadas, ocC.villas, ocC.disponibles, ocC.ocupacion], [7, 2, 18, 38.9]);
 var ocY = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2026-04-08', departureDate: '2026-04-15', nights: 7 })], '2026-01-01', '2026-12-31', '2026-04-11');
-eq('año en curso: desde el 1/4 hasta ayer (10 días), 3 noches dentro, hasta hoy', [ocY.dias, ocY.nochesOcupadas, ocY.disponibles, ocY.ocupacion, ocY.hastaHoy], [10, 3, 10, 30, true]);
+eq('año en curso sin calendario: del 1/1 hasta ayer (100 días), 3 noches dentro, hasta hoy', [ocY.dias, ocY.nochesOcupadas, ocY.disponibles, ocY.ocupacion, ocY.hastaHoy, ocY.desde, ocY.hasta], [100, 3, 100, 3, true, '2026-01-01', '2026-04-10']);
 var ocF = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2027-07-10', departureDate: '2027-07-17', nights: 7 })], '2027-01-01', '2027-12-31', HOY);
-eq('ventana futura o pasada: sin recorte por hoy (v5: temporada 1/4–31/10 = 214 días)', [ocF.dias, ocF.hastaHoy, P.computeOccupancy([], '2025-01-01', '2025-12-31', HOY).dias], [214, false, 214]);
+eq('ventana futura o pasada: sin recorte por hoy (v6: el año entero, 365 días)', [ocF.dias, ocF.hastaHoy, P.computeOccupancy([], '2025-01-01', '2025-12-31', HOY).dias], [365, false, 365]);
 eq('hoy = primer día de la ventana: 0 días, ocupación —', (function () { var o = P.computeOccupancy(occRows, W0, W1, W0); return [o.dias, o.disponibles, o.ocupacion]; })(), [0, 0, null]);
 eq('madridToday en hora de Madrid', [P.madridToday('2026-12-31T23:30:00Z'), P.madridToday('2026-10-13T10:00:00Z')], ['2027-01-01', '2026-10-13']);
 var vsOcc = P.villaSummary(occRows, W0, W1, HOY);
@@ -327,49 +330,129 @@ eq('villaSummary: ocupacion por villa (V3 3/10, V12 4/(10−2))', vsOcc.map(func
 eq('villaSummary sin ventana: ocupacion null', P.villaSummary(occRows).map(function (v) { return v.ocupacion; }), [null, null]);
 eq('hoja "Por villa": Ocup. como número', P.villaMatrix(vsOcc)[1].slice(4, 6), [1, 50]);
 var resRows = P.resumenMatrix(P.computeStats(occRows), oc, W0, W1);
-eq('hoja "Resumen": fila Ocupación con el %, las dos cifras de noches y el tramo desde–hasta', resRows[resRows.length - 1], ['Ocupación', '38,9 %', 7, 18, '01/04/2026–10/04/2026 · sin propietario']);
+eq('hoja "Resumen": fila Ocupación con el %, las dos cifras de noches y el tramo desde–hasta (v6: noches abiertas según el calendario)', resRows.filter(function (r) { return r[0] === 'Ocupación'; })[0],
+  ['Ocupación', '38,9 %', 7, 18, 'noches abiertas según el calendario de Hostaway · 01/04/2026–10/04/2026 · sin propietario']);
+eq('hoja "Resumen" (v6): fila "Villas sin calendario" al final cuando hay alguna', resRows[resRows.length - 1], ['Villas sin calendario', 2, '', '', 'cuentan todos los días como abiertos']);
 eq('hoja "Resumen": cabecera', P.RESUMEN_HEADERS, ['Concepto', 'Valor', 'Noches ocupadas', 'Noches disponibles', 'Nota']);
 (function () {
   var rsrc = fnSource(SRC, 'render'), psrc = fnSource(SRC, 'renderVillaPanel');
-  ok('tarjeta Ocupación primera en el cuadro y en la ficha', [rsrc, psrc].every(function (s) { return /\(fmtPct\(o\.ocupacion\), 'Ocupación', 'green', occSub\(o\)\)/.test(s); }) &&
-    rsrc.indexOf("kpi(fmtPct(o.ocupacion)") < rsrc.indexOf("'Reservas', '', reservasSub(s)"));
-  ok('aviso gris de la ocupación (v5: temporada)', rsrc.indexOf('La ocupación se mide en temporada, del 1 de abril al 31 de octubre (o hasta hoy en el año en curso); cuenta solo las villas con alguna reserva en el periodo; las noches de propietario se restan de las noches disponibles.') > 0 &&
-    rsrc.indexOf('La ocupación cuenta solo las villas') < 0);
-  ok('Excel: hoja "Resumen" con resumenMatrix y "Por villa" con la ventana', /book_append_sheet\(wb, ws0, 'Resumen'\)/.test(SRC) && /resumenMatrix\(computeStats\(rows\), occOf\(rows\)/.test(SRC) &&
-    /villaMatrix\(villaSummary\(rows, loadInfo\.desde, loadInfo\.hasta, madridToday\(\)\)\)/.test(SRC));
+  ok('tarjeta Ocupación primera en el cuadro y en la ficha (v6: segunda línea en el cuadro, apertura de la villa en la ficha)',
+    rsrc.indexOf("kpi(fmtPct(o.ocupacion), 'Ocupación', 'green', occSub(o), occSub2(o))") > 0 &&
+    psrc.indexOf("kpiBox(fmtPct(o.ocupacion), 'Ocupación', 'green', o.nochesOcupadas.toLocaleString('es-ES') + ' noches de ' + o.disponibles.toLocaleString('es-ES') + ' abiertas · ' + esc(aperturaText(apOf(f.listingMapId))) + ' · sin propietario')") > 0 &&
+    rsrc.indexOf("kpi(fmtPct(o.ocupacion)") < rsrc.indexOf("'Reservas', '', reservasSub(s)") && psrc.indexOf("kpiBox(fmtPct(o.ocupacion)") < psrc.indexOf("'Reservas', '', reservasSub(s)"));
+  ok('aviso gris de la ocupación (v6: días abiertos del calendario; sin el texto de temporada de la v5)', rsrc.indexOf('La ocupación se mide sobre los días abiertos en el calendario de Hostaway de cada villa: los días bloqueados y las noches de propietario no cuentan como disponibles; en el año en curso se mide hasta ayer. Debajo del porcentaje de cada villa se indican sus fechas de apertura y sus bloqueos. Cuenta solo las villas con alguna reserva en el periodo. Para edificios de varios apartamentos cuenta las unidades abiertas cada día.') > 0 &&
+    rsrc.indexOf('se mide en temporada') < 0 && rsrc.indexOf('La ocupación cuenta solo las villas') < 0);
+  ok('Excel: hoja "Resumen" con resumenMatrix y "Por villa" con la ventana y los calendarios (v6)', /book_append_sheet\(wb, ws0, 'Resumen'\)/.test(SRC) && /resumenMatrix\(computeStats\(rows\), occOf\(rows\)/.test(SRC) &&
+    /villaMatrix\(villaSummary\(rows, loadInfo\.desde, loadInfo\.hasta, madridToday\(\), calsOf\(\), loadInfo\.calRange\)\)/.test(SRC));
   ok('HISTORIAL v4: pedido de Gary y regla de propietario', SRC.trim().split('\n').pop().indexOf('but owner stay does not count against occupancy') > 0);
 })();
 
-console.log('v5: ocupación en temporada (1 de abril – 31 de octubre)');
-eq('constantes de temporada', [P.SEASON_START_MMDD, P.SEASON_END_MMDD], ['04-01', '10-31']);
-var o26 = P.computeOccupancy([], '2026-01-01', '2026-12-31', '2026-10-13');
-eq('2026 completo con hoy 13/10: del 1/4 a ayer, 195 días, hasta hoy', [o26.desde, o26.hasta, o26.dias, o26.hastaHoy], ['2026-04-01', '2026-10-12', 195, true]);
+console.log('v6: ocupación sobre los días abiertos del calendario de Hostaway');
+/* Calendario de prueba como lo da el Worker v63: [fecha, estado, unidades, bloqueadas]. st(iso) da el estado; units y blk opcionales. */
+function CAL(from, to, st, units, blk) {
+  var out = [], a = P.isoDayNum(from), b = P.isoDayNum(to);
+  for (var x = a; x <= b; x++) { var d = P.isoFromDayNum(x), s0 = st ? st(d) : 'available'; out.push([d, s0, units || 1, blk ? blk(d, s0) : (s0 === 'blocked' ? 1 : 0)]); }
+  return out;
+}
+function between(d, x, y) { return d >= x && d <= y; }
+ok('sin constantes de temporada en el código (SEASON_START_MMDD y SEASON_END_MMDD solo quedan en el historial)', (function () { var c = SRC.replace(/<!--[\s\S]*?-->/g, ''); return c.indexOf('SEASON_START_MMDD') < 0 && c.indexOf('SEASON_END_MMDD') < 0; })());
+var calA = CAL(W0, W1), calB = CAL(W0, W1, function (d) { return between(d, '2026-04-01', '2026-04-04') ? 'blocked' : 'available'; });
+var o2 = P.computeOccupancy(occRows, W0, W1, HOY, { '1001': calA, '1003': calB });
+eq('dos villas, 10 días: A abierta 10, B con 4 bloqueados = 16 abiertas − 2 de propietario = 14 disponibles, 7 ocupadas, 50 %',
+  [o2.abiertas, o2.nochesPropietario, o2.disponibles, o2.nochesOcupadas, o2.ocupacion, o2.sinCalendario, o2.villas, o2.dias], [16, 2, 14, 7, 50, 0, 2, 10]);
+eq('por villa con calendario: V3 3 de 6, V12 4 de 10 − 2', P.villaSummary(occRows, W0, W1, HOY, { '1001': calA, '1003': calB }).map(function (v) { return [v.villaKey, v.ocupacion]; }), [['V3', 50], ['V12', 50]]);
+var o3 = P.computeOccupancy(occRows, W0, W1, HOY, { '1001': calA });
+eq('villa sin calendario: sus 10 días cuentan abiertos y sinCalendario = 1', [o3.abiertas, o3.disponibles, o3.sinCalendario, o3.ocupacion], [20, 18, 1, 38.9]);
+eq('calendars null (no se pudo leer ninguno): como la v4, todas sin calendario', [P.computeOccupancy(occRows, W0, W1, HOY, null).disponibles, P.computeOccupancy(occRows, W0, W1, HOY, null).sinCalendario], [18, 2]);
+var calHalf = CAL('2026-04-01', '2026-04-05', function (d) { return d === '2026-04-02' ? 'blocked' : 'reserved'; });
+eq('día del tramo que el calendario no trae: cuenta abierto (4 de 5 + 5)', P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2026-04-02', departureDate: '2026-04-04', nights: 2 })], W0, W1, HOY, { '1001': calHalf }).abiertas, 9);
+/* Varias unidades: 3 unidades, 1 bloqueada los días 3 y 4; una reserva de 2 unidades y 3 noches = 6 noches-unidad. */
+var calMU = CAL(W0, W1, null, 3, function (d) { return d === '2026-04-03' || d === '2026-04-04' ? 1 : 0; });
+var muRow = R({ listingMapId: 1040, arrivalDate: '2026-04-05', departureDate: '2026-04-08', nights: 3, units: 2 });
+eq('enrichRow: units de la reserva (Worker v63), 1 si falta o no vale; listingMapId como texto', [muRow.units, R({}).units, R({ units: 0 }).units, R({ units: 'x' }).units, muRow.listingMapId, R({ listingMapId: null }).listingMapId], [2, 1, 1, 1, '1040', null]);
+var oMU = P.computeOccupancy([muRow], W0, W1, HOY, { '1040': calMU });
+eq('varias unidades: 3 × 10 − 2 = 28 abiertas; reserva de 2 unidades × 3 noches = 6; 21,4 %', [oMU.abiertas, oMU.nochesOcupadas, oMU.disponibles, oMU.ocupacion], [28, 6, 28, 21.4]);
+eq('una unidad: manda el estado, no unidades − bloqueadas', [P.openUnitsOf(['2026-04-01', 'blocked', 1, 0]), P.openUnitsOf(['2026-04-01', 'reserved', 1, 1]), P.openUnitsOf(['2026-04-01', 'available', 1, 0]),
+  P.openUnitsOf(['2026-04-01', 'blocked', 3, 3]), P.openUnitsOf(['2026-04-01', 'available', 3, 1]), P.openUnitsOf(['2026-04-01', 'available', 2, 5])], [0, 1, 1, 0, 2, 0]);
+/* Villa Torre Vea (ejemplo del 13/10/2026): bloqueada 1/1–30/3, abierta 31/3–31/10, bloqueada 1/11–31/12. */
+function torreVea(st) { return CAL('2026-01-01', '2026-12-31', function (d) { return between(d, '2026-03-31', '2026-10-31') ? (st ? st(d) : 'available') : 'blocked'; }); }
+var o26 = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2026-07-01', departureDate: '2026-07-11', nights: 10 })], '2026-01-01', '2026-12-31', '2026-10-13', { '1001': torreVea() });
+eq('2026 completo con hoy 13/10: del 1/1 al 12/10 (285 días), sin recorte de temporada; enero a marzo bloqueados cuentan 0 (196 abiertas)',
+  [o26.desde, o26.hasta, o26.dias, o26.hastaHoy, o26.abiertas, o26.nochesOcupadas, o26.ocupacion], ['2026-01-01', '2026-10-12', 285, true, 196, 10, 5.1]);
 var o25 = P.computeOccupancy([], '2025-01-01', '2025-12-31', '2026-10-13');
-eq('2025 completo: del 1/4 al 31/10, 214 días', [o25.desde, o25.hasta, o25.dias, o25.hastaHoy], ['2025-04-01', '2025-10-31', 214, false]);
-var o15 = P.computeOccupancy([], '2026-05-15', '2026-09-15', '2026-10-13');
-eq('periodo 15/5–15/9: se mantienen las dos fechas', [o15.desde, o15.hasta, o15.dias], ['2026-05-15', '2026-09-15', 124]);
-eq('tarjeta con un periodo dentro de la temporada', P.occSub(o15), '0 noches de 0 disponibles · desde 15 may · hasta 15 sep · sin propietario');
-var oQ1 = P.computeOccupancy(occRows, '2026-01-01', '2026-03-31', '2026-10-13');
-eq('periodo 1/1–31/3: fuera de temporada, ocupación —, 0 disponibles, 0 días', [oQ1.ocupacion, oQ1.disponibles, oQ1.dias, oQ1.desde, oQ1.hasta], [null, 0, 0, null, null]);
-var oNov = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2025-11-02', departureDate: '2025-11-09', nights: 7 })], '2025-11-01', '2025-12-31', '2026-10-13');
-eq('periodo 1/11–31/12: fuera de temporada, ocupación —, 0 disponibles, 0 días', [oNov.ocupacion, oNov.disponibles, oNov.dias, oNov.nochesOcupadas], [null, 0, 0, 0]);
-var oOwn = P.computeOccupancy([
-  R({ listingMapId: 1001, arrivalDate: '2025-03-20', departureDate: '2025-03-30', nights: 10, status: 'ownerStay' }),
-  R({ listingMapId: 1001, arrivalDate: '2025-03-29', departureDate: '2025-04-03', nights: 5, status: 'ownerStay' }),
-  R({ listingMapId: 1001, arrivalDate: '2025-06-01', departureDate: '2025-06-08', nights: 7 })
-], '2025-01-01', '2025-12-31', '2026-10-13');
-eq('propietario antes de abril no cuenta; solo las 2 noches de abril restan (214 − 2 = 212)', [oOwn.nochesPropietario, oOwn.disponibles, oOwn.nochesOcupadas, oOwn.ocupacion], [2, 212, 7, 3.3]);
-var oOct = P.computeOccupancy([R({ listingMapId: 1001, arrivalDate: '2025-10-28', departureDate: '2025-11-05', nights: 8 })], '2025-01-01', '2025-12-31', '2026-10-13');
-eq('noches de noviembre no cuentan (28–31/10 = 4 noches de 214)', [oOct.nochesOcupadas, oOct.disponibles, oOct.ocupacion], [4, 214, 1.9]);
-var oNovHoy = P.computeOccupancy([], '2026-01-01', '2026-12-31', '2026-11-05');
-eq('hoy después del 31/10 en el año en curso: acaba el 31/10, sin "hasta hoy"', [oNovHoy.hasta, oNovHoy.dias, oNovHoy.hastaHoy], ['2026-10-31', 214, false]);
-var oFeb = P.computeOccupancy(occRows, '2026-01-01', '2026-12-31', '2026-02-10');
-eq('hoy antes del 1/4 en el año en curso: aún no hay temporada, ocupación —', [oFeb.ocupacion, oFeb.dias, oFeb.disponibles], [null, 0, 0]);
+eq('2025 completo: del 1/1 al 31/12, 365 días, sin "hasta hoy"', [o25.desde, o25.hasta, o25.dias, o25.hastaHoy], ['2025-01-01', '2025-12-31', 365, false]);
+eq('periodo 1/1–31/3 ya no queda vacío: cuenta lo que esté abierto (Torre Vea abre el 31/3: 1 día por villa)', P.computeOccupancy(occRows, '2026-01-01', '2026-03-31', '2026-10-13', { '1001': torreVea(), '1003': torreVea() }).abiertas, 2);
+eq('hoy = primer día de la ventana: 0 días, ocupación — (también con calendario)', (function () { var o = P.computeOccupancy(occRows, W0, W1, W0, { '1001': calA }); return [o.dias, o.disponibles, o.ocupacion, o.desde]; })(), [0, 0, null, null]);
+eq('segunda línea de la tarjeta', [P.occSub2({ sinCalendario: 0 }), P.occSub2({ sinCalendario: 1 }), P.occSub2({ sinCalendario: 3 })],
+  ['según el calendario de Hostaway de cada villa; los días bloqueados no cuentan', 'según el calendario de Hostaway de cada villa; los días bloqueados no cuentan · 1 villa sin calendario',
+   'según el calendario de Hostaway de cada villa; los días bloqueados no cuentan · 3 villas sin calendario']);
+
+console.log('v6: apertura de cada villa (aperturaOf, aperturaText)');
+var Y0 = '2026-01-01', Y1 = '2026-12-31';
+function apt(days, y0, y1) { return P.aperturaText(P.aperturaOf(days, y0 || Y0, y1 || Y1)); }
+eq('sin calendario', [apt(null), apt([]), P.aperturaText(null), P.aperturaOf(undefined, Y0, Y1).sinCalendario], ['Sin calendario en Hostaway: todos los días cuentan', 'Sin calendario en Hostaway: todos los días cuentan', 'Sin calendario en Hostaway: todos los días cuentan', true]);
+eq('cerrada todo el periodo', [apt(CAL(Y0, Y1, function () { return 'blocked'; })), P.aperturaOf(CAL(Y0, Y1, function () { return 'blocked'; }), Y0, Y1).cerrada], ['Cerrada todo el periodo en el calendario', true]);
+eq('abierta todo el año (reservada o libre)', [apt(CAL(Y0, Y1, function (d) { return d < '2026-06-01' ? 'available' : 'reserved'; })), P.aperturaOf(CAL(Y0, Y1), Y0, Y1).todoElAno], ['Abierta todo el año', true]);
+var apTV = P.aperturaOf(torreVea(), Y0, Y1);
+eq('Villa Torre Vea: abre el 31/3 y cierra el 31/10, sin bloqueos dentro', [apTV.abre, apTV.cierra, apTV.bloqueos.length, apTV.todoElAno, P.aperturaText(apTV)], ['2026-03-31', '2026-10-31', 0, false, 'Abierta del 31 mar al 31 oct']);
+var tvBlk = torreVea(function (d) { return between(d, '2026-05-12', '2026-05-14') || d === '2026-06-02' ? 'blocked' : 'available'; });
+var apBlk = P.aperturaOf(tvBlk, Y0, Y1);
+eq('bloqueos dentro: 12–14 may (3 noches) y un día, 2 jun', [apBlk.bloqueos, P.aperturaText(apBlk)],
+  [[{ desde: '2026-05-12', hasta: '2026-05-14', noches: 3, unidades: 1 }, { desde: '2026-06-02', hasta: '2026-06-02', noches: 1, unidades: 1 }], 'Abierta del 31 mar al 31 oct · bloqueada 12–14 may, 2 jun']);
+eq('bloqueo que cambia de mes: 30 abr–2 may', apt(torreVea(function (d) { return between(d, '2026-04-30', '2026-05-02') ? 'blocked' : 'reserved'; })), 'Abierta del 31 mar al 31 oct · bloqueada 30 abr–2 may');
+var five = torreVea(function (d) { return ['2026-04-10', '2026-05-10', '2026-06-10', '2026-07-10', '2026-08-10'].indexOf(d) >= 0 ? 'blocked' : 'available'; });
+eq('como mucho 3 tramos y luego " y N más"', apt(five), 'Abierta del 31 mar al 31 oct · bloqueada 10 abr, 10 may, 10 jun y 2 más');
+var muCal = CAL(Y0, Y1, null, 3, function (d) { return between(d, '2026-05-12', '2026-05-14') ? 1 : 0; });
+var apMU = P.aperturaOf(muCal, Y0, Y1);
+eq('varias unidades: "1 de 3 unidades bloqueadas 12–14 may"', [apMU.unidades, apMU.bloqueos, P.aperturaText(apMU)],
+  [3, [{ desde: '2026-05-12', hasta: '2026-05-14', noches: 3, unidades: 1 }], 'Abierta del 1 ene al 31 dic · 1 de 3 unidades bloqueadas 12–14 may']);
+var muCal2 = CAL(Y0, Y1, null, 3, function (d) { return d === '2026-07-01' ? 1 : d === '2026-07-02' ? 2 : 0; });
+eq('varias unidades: un tramo nuevo cuando cambia el número de bloqueadas', apt(muCal2), 'Abierta del 1 ene al 31 dic · 1 de 3 unidades bloqueadas 1 jul, 2 de 3 unidades bloqueadas 2 jul');
+var twoYears = CAL('2025-01-01', '2026-12-31', function (d) { return between(d, '2025-03-27', '2026-11-07') ? 'available' : 'blocked'; });
+eq('abre y cierra en años distintos: con el año', apt(twoYears, '2025-01-01', '2026-12-31'), 'Abierta del 27 mar 2025 al 7 nov 2026');
+eq('solo cuenta los días entre yearStart y yearEnd', P.aperturaOf(twoYears, '2026-01-01', '2026-12-31').abre, '2026-01-01');
+eq('rangoTexto: un día, mismo mes, otro mes', [P.rangoTexto('2026-05-12', '2026-05-12'), P.rangoTexto('2026-05-12', '2026-05-14'), P.rangoTexto('2026-04-30', '2026-05-02'), P.rangoTexto('2025-12-30', '2026-01-02', true)],
+  ['12 may', '12–14 may', '30 abr–2 may', '30 dic 2025–2 ene 2026']);
+var vsAp = P.villaSummary(occRows, W0, W1, HOY, { '1001': torreVea() }, { desde: Y0, hasta: Y1 });
+eq('villaSummary: apertura de cada villa (V3 sin calendario, V12 Torre Vea)', vsAp.map(function (v) { return [v.villaKey, v.apertura]; }),
+  [['V3', 'Sin calendario en Hostaway: todos los días cuentan'], ['V12', 'Abierta del 31 mar al 31 oct']]);
+eq('hoja "Por villa": Apertura justo detrás de Ocup.', [P.VILLA_HEADERS.indexOf('Apertura') - P.VILLA_HEADERS.indexOf('Ocup.'), P.villaMatrix(vsAp)[1].slice(5, 8)], [1, [50, 'Abierta del 31 mar al 31 oct', 1400]]);
+eq('hoja "Por villa": tantas columnas como cabeceras', P.villaMatrix(vsAp)[0].length, P.VILLA_HEADERS.length);
+var oRes = P.computeOccupancy(occRows, W0, W1, '2026-04-05', { '1001': calA });
+var resV6 = P.resumenMatrix(P.computeStats(occRows), oRes, W0, W1);
+eq('hoja "Resumen": nota v6 con "hasta hoy" y fila "Villas sin calendario"', resV6.slice(-2),
+  [['Ocupación', P.fmtPct(oRes.ocupacion), oRes.nochesOcupadas, oRes.disponibles, 'noches abiertas según el calendario de Hostaway · 01/04/2026–04/04/2026 · sin propietario · hasta hoy'],
+   ['Villas sin calendario', 1, '', '', 'cuentan todos los días como abiertos']]);
+eq('hoja "Resumen": sin fila "Villas sin calendario" si todas tienen', P.resumenMatrix(P.computeStats(occRows), o2, W0, W1).map(function (r) { return r[0]; }).indexOf('Villas sin calendario'), -1);
+
+console.log('v6: lectura de los calendarios');
+var cu = P.buildCalendarUrl(['92782', '92783'], '2026-01-01', '2026-12-31', 'tok');
+ok('buildCalendarUrl: action=hostaway-calendar, listingIds, startDate, endDate y hwToken', /\?action=hostaway-calendar&listingIds=92782%2C92783&startDate=2026-01-01&endDate=2026-12-31&hwToken=tok$/.test(cu), cu);
+ok('buildCalendarUrl sin hwToken no lo manda', P.buildCalendarUrl(['1'], '2026-01-01', '2026-12-31', null).indexOf('hwToken') < 0);
+var ids23 = Array.from({ length: 23 }, function (_, i) { return String(100 + i); });
+eq('lotes: 23 ids → 10, 10 y 3 (CAL_BATCH 10, CAL_PARALLEL 3)', [P.calendarBatches(ids23, P.CAL_BATCH).map(function (b) { return b.length; }), P.calendarBatches(ids23, P.CAL_BATCH)[2][0], P.calendarBatches([], 10).length, P.CAL_BATCH, P.CAL_PARALLEL], [[10, 10, 3], '120', 0, 10, 3]);
+eq('años leídos: el año de desde al de hasta, como mucho dos', [P.calRangeOf('2026-01-01', '2026-12-31'), P.calRangeOf('2026-05-15', '2026-09-15'), P.calRangeOf('2025-05-01', '2028-02-01')],
+  [{ desde: '2026-01-01', hasta: '2026-12-31' }, { desde: '2026-01-01', hasta: '2026-12-31' }, { desde: '2025-01-01', hasta: '2026-12-31' }]);
+eq('listingIdsOf: distintos, sin vacíos, canceladas también, en orden numérico', P.listingIdsOf(rows.concat([R({ listingMapId: 99 }), R({ listingMapId: null }), R({ listingMapId: 1001, status: 'cancelled' })])), ['99', '1001', '1003', '1040', '7777']);
+(function () {
+  var lsrc = fnSource(SRC, 'loadReservas'), csrc = fnSource(SRC, 'loadCalendars'), rsrc = fnSource(SRC, 'render');
+  ok('texto de carga "Leyendo el calendario de las villas… N de M"', csrc.indexOf("'Leyendo el calendario de las villas… ' + done + ' de ' + ids.length") > 0);
+  ok('lotes en paralelo: CAL_PARALLEL carriles con Promise.all; un lote que falla no para', /Math\.min\(CAL_PARALLEL, batches\.length\)/.test(csrc) && /await Promise\.all\(lanes\)/.test(csrc) && /catch\(e\)\{ console\.warn/.test(csrc));
+  ok('loadReservas lee los calendarios con el hwToken de las reservas y guarda calendars, calRange, calFailed y sinCalendario',
+    /loadCalendars\(calIds, calRange, res\.hwToken, myId\)/.test(lsrc) && /calendars: cal\.calendars, calRange: calRange, calFailed: cal\.failed/.test(lsrc) && /sinCalendario: calIds\.filter/.test(lsrc) &&
+    /hwToken: hwToken \}/.test(fnSource(SRC, 'loadHostawayReport')));
+  ok('aviso naranja si no se pudo leer ningún calendario', rsrc.indexOf("if(loadInfo.calFailed) av.push('<div class=\"info-box orange\">No se pudo leer el calendario de Hostaway: la ocupación cuenta todos los días como abiertos.</div>');") > 0);
+  ok('pantalla: sin columna Apertura en la cabecera (va debajo del %)', rsrc.indexOf("VILLA_HEADERS.filter(function(h){ return h !== 'Apertura'; })") > 0 && /\.occ-note\{[^}]*font-size:11px[^}]*white-space:normal/.test(SRC));
+  ok('ocupación con los calendarios (null si fallaron todos)', /function calsOf\(\)\{ return loadInfo && !loadInfo\.calFailed \? loadInfo\.calendars : null; \}/.test(SRC) &&
+    /computeOccupancy\(rows, loadInfo\.desde, loadInfo\.hasta, madridToday\(\), calsOf\(\)\)/.test(fnSource(SRC, 'occOf')));
+})();
+ok('HISTORIAL v6: los dos pedidos de Gary, la regla, la alternativa y las varias unidades', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('check the occupancy against open days') > 0 &&
+  h.indexOf('in the report under the occupency percentage put the open and blocked dates so that the user understands whats being measured') > 0 && h.indexOf('hostaway-calendar') > 0 &&
+  h.indexOf('No se pudo leer el calendario de Hostaway') > 0 && h.indexOf('Edificios de varios apartamentos') > 0 && h.indexOf('Abierta del 31 mar al 31 oct') > 0; })());
+ok('HISTORIAL v5: los dos pedidos de Gary y las constantes (siguen en el historial)', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('change occupancy to begin on April 1st') > 0 &&
+  h.indexOf('occupancy ends on October 31st') > 0 && h.indexOf("SEASON_START_MMDD = '04-01'") > 0 && h.indexOf("SEASON_END_MMDD = '10-31'") > 0; })());
 eq('fmtDiaMes: "1 abr", "15 may", vacío sin fecha', [P.fmtDiaMes('2026-04-01'), P.fmtDiaMes('2026-05-15'), P.fmtDiaMes('')], ['1 abr', '15 may', '']);
 eq('isoFromDayNum ida y vuelta con isoDayNum', P.isoFromDayNum(P.isoDayNum('2026-10-31')), '2026-10-31');
-eq('villaSummary: periodo fuera de temporada, ocupación — por villa', P.villaSummary(occRows, '2026-01-01', '2026-03-31', HOY).map(function (v) { return v.ocupacion; }), [null, null]);
-ok('HISTORIAL v5: los dos pedidos de Gary y las constantes', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('change occupancy to begin on April 1st') > 0 &&
-  h.indexOf('occupancy ends on October 31st') > 0 && h.indexOf("SEASON_START_MMDD = '04-01'") > 0 && h.indexOf("SEASON_END_MMDD = '10-31'") > 0; })());
 
 console.log('Lectura del Worker');
 var u = P.buildPageUrl('2026-01-01', '2026-12-31', '123', 'tok', true);
@@ -384,9 +467,9 @@ eq('año de Madrid: 31/12 23:30 UTC ya es año nuevo', P.madridYear('2026-12-31T
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v5 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v5 | Historial completo al final -->' && /PAGE_VERSION = 5;/.test(SRC) && /<title>Informe de reservas v5/.test(SRC) &&
-  SRC.indexOf("'[Informe reservas v5]'") > 0 && SRC.indexOf('PAGE_VERSION = 4;') < 0);
-ok('HISTORIAL es la última línea y empieza por v5, con v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v6 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v6 | Historial completo al final -->' && /PAGE_VERSION = 6;/.test(SRC) && /<title>Informe de reservas v6/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v6]'") > 0 && SRC.indexOf('PAGE_VERSION = 5;') < 0 && SRC.indexOf("'[Informe reservas v5]'") < 0);
+ok('HISTORIAL es la última línea y empieza por v6, con v5, v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v6 - 13\/10\/2026 [\s\S]* \| v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
 ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('owner stays need to be in the report as well') > 0 &&
   h.indexOf('Worker v61') > 0 && h.indexOf("status 'ownerStay'") > 0; })());
 ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&
