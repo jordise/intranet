@@ -35,7 +35,7 @@ var SRC = fs.readFileSync(path.join(__dirname, 'informe-reservas.html'), 'utf8')
 var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commissionOf', 'buildVillaMap', 'enrichRow', 'cmpVillaNum',
   'sortDetail', 'filterRows', 'computeStats', 'villaSummary', 'fmtDate', 'fmtMoney', 'csvNum', 'csvCell', 'detailMatrix', 'villaMatrix',
   'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween',
-  'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv',
+  'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv', 'villaTsv',
   'huespedCell', 'villaDetailRowHtml', 'esc'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
   'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS'];
@@ -144,7 +144,17 @@ eq('fila 0 noches: por día vacío', lines[3], '12;Villa Prueba;10/07/2026;17/07
 eq('un ; en el nombre va entre comillas', P.csvCell('Villa; "A"'), '"Villa; ""A"""');
 eq('un texto que empieza por = no se ejecuta en Excel (apostrofo delante)', P.csvCell('=1+1'), "'=1+1");
 eq('un telefono con + delante se queda como esta (solo digitos y espacios)', P.csvCell('+34 600 000 000'), '+34 600 000 000');
+var VILLA_FILE_HEADERS_LEN = (function(){ var m = SRC.match(/var VILLA_FILE_HEADERS = \[([^\]]*)\]/); return m ? m[1].split(',').length : 0; })();
 eq('un texto que empieza por - o + seguido de letras lleva apostrofo', P.csvCell('-cmd|calc'), "'-cmd|calc");
+(function(){
+  var r = P.enrichRow ? null : null;
+  var rows = [{ guest:'Ana López', email:'ana@example.com', phone:'+34 600 000 000', checkin:'2026-07-10', checkout:'2026-07-17', nights:7, reservationDate:'2026-02-01', channelLabel:'Airbnb', total:1400, net:1260, daily:200, dailyNet:180, persons:4, payment:'paid', code:'7001', channelCode:'' }];
+  var tsv = P.villaTsv(rows.map(function(x){ return Object.assign({}, x); }));
+  var lines = tsv.split('\n');
+  ok('Copiar tabla: la cabecera va separada por tabuladores y empieza por Huésped', lines[0].split('\t')[0] === 'Huésped' && lines[0].split('\t').length === VILLA_FILE_HEADERS_LEN);
+  ok('Copiar tabla: una fila por reserva', lines.length === 2);
+  ok('Copiar tabla: sin tabuladores dentro de una celda', lines[1].split('\t').length === VILLA_FILE_HEADERS_LEN);
+})();
 eq('un numero normal no cambia', P.csvCell('1.234,50'), '1.234,50');
 eq('Excel: números como números, fechas como texto', P.detailMatrix([bk])[0], ['12', 'Villa Prueba', '10/07/2026', '17/07/2026', 7, '01/02/2026', 'Booking.com', 2000, 1700, 285.71, 242.86, '5000001', '']);
 eq('nombres de archivo', [P.fileName('2026-01-01', '2026-12-31', '', 'xlsx'), P.fileName('2026-01-01', '2026-12-31', '12', 'csv')],
