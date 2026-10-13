@@ -1,4 +1,5 @@
-/* Pruebas de informe-reservas.html v2 (13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary).
+/* Pruebas de informe-reservas.html v3 (13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
+   v3 = estancias de propietario, Gary: "owner stays need to be in the report as well").
    Neto por canal, precio por día, villa por Hostawayid, filtros de estado, villa y canal,
    CSV en español, cifras del cuadro, la clave de auth.js y las entradas de nav.js v18.
    Datos inventados.
@@ -36,7 +37,7 @@ var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commi
   'sortDetail', 'filterRows', 'computeStats', 'villaSummary', 'fmtDate', 'fmtMoney', 'csvNum', 'csvCell', 'detailMatrix', 'villaMatrix',
   'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween',
   'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv', 'villaTsv',
-  'huespedCell', 'villaDetailRowHtml', 'esc'];
+  'huespedCell', 'villaDetailRowHtml', 'esc', 'ownerTag', 'reservasSub', 'nochesSub'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
   'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
@@ -229,6 +230,66 @@ ok('filas del resumen pulsables con Intro y "Ver reservas ›"', SRC.indexOf('<t
   SRC.indexOf('Ver reservas ›') > 0 && /e\.key !== 'Enter'/.test(SRC));
 ok('ficha: volver, descargas y título', ['← Volver al resumen', 'Descargar Excel de esta villa', 'Descargar CSV de esta villa', 'downloadVillaXlsx: downloadVillaXlsx', 'closeVilla: closeVilla'].every(function (t) { return SRC.indexOf(t) >= 0; }));
 
+console.log('v3: estancias de propietario');
+var own = R({ hostawayReservationId: 8001, listingMapId: 1001, status: 'ownerStay', channelName: 'direct', totalPrice: null, nights: 5,
+  arrivalDate: '2026-09-01', departureDate: '2026-09-06', guestName: 'PROPIETARIA', paymentStatus: 'unpaid' });
+eq('fila de propietario: owner, canal Propietario, total 0, neto 0, por día vacío, sin aviso de comisión',
+  [own.owner, own.channel, own.channelLabel, own.total, own.net, own.commission, own.daily, own.dailyNet, own.sinComision, own.guest, own.nights],
+  [true, 'ownerStay', 'Propietario', 0, 0, 0, null, null, false, 'PROPIETARIA', 5]);
+var ownPrice = R({ status: 'ownerStay', totalPrice: 500, channelName: '', channelCommissionAmount: 20 });
+eq('propietario con precio en Hostaway: total y neto siguen a 0', [ownPrice.total, ownPrice.net, ownPrice.daily, ownPrice.channelLabel], [0, 0, null, 'Propietario']);
+eq('reserva normal: owner = false', [di.owner, bk.owner, R({ status: 'cancelled' }).owner], [false, false, false]);
+eq('etiqueta del canal ownerStay', P.channelLabel('ownerStay'), 'Propietario');
+var rowsO = rows.concat([own]);
+eq('filtro de estado: ownerStay pasa con new y modified', codes(P.filterRows(rowsO, {})), ['1', '2', '3', '4', '8001']);
+eq('casilla marcada (includeOwner true): incluidas', codes(P.filterRows(rowsO, { includeOwner: true })), ['1', '2', '3', '4', '8001']);
+eq('casilla desmarcada (includeOwner false): fuera; el resto igual', [codes(P.filterRows(rowsO, { includeOwner: false })), codes(P.filterRows(rowsO, { includeOwner: false, includeCancelled: true }))],
+  [['1', '2', '3', '4'], ['1', '2', '3', '4', '5']]);
+eq('canal Propietario en el filtro de canal', codes(P.filterRows(rowsO, { channels: ['ownerStay'] })), ['8001']);
+var stO = P.computeStats(sel.concat([own]));
+eq('cifras: propietario suma en reservas, noches, propietario y nochesPropietario',
+  [stO.reservas, stO.noches, stO.propietario, stO.nochesPropietario, stO.nochesPagadas, stO.canceladas], [7, 47, 1, 5, 42, 1]);
+eq('cifras: importes, comisión y medias sin el propietario (iguales que sin él)',
+  [stO.total, stO.neto, stO.comision, stO.comisionPct, stO.totalConDato, stO.nochesConDato, stO.medioNoche, stO.netoMedioNoche, stO.sinComision],
+  [st.total, st.neto, st.comision, st.comisionPct, st.totalConDato, st.nochesConDato, st.medioNoche, st.netoMedioNoche, st.sinComision]);
+eq('nochesPagadas sin propietario = noches', [st.nochesPagadas, st.noches, st.propietario], [42, 42, 0]);
+eq('medio/noche sobre noches de pago (no sobre todas)', [stO.medioNoche, P.round2(stO.total / stO.noches) !== stO.medioNoche], [214.29, true]);
+eq('canal Propietario en las barras: total 0, neto 0, con su número, al final',
+  stO.canales[stO.canales.length - 1], { channel: 'ownerStay', label: 'Propietario', reservas: 1, total: 0, neto: 0, conDato: 1, sinDato: 0, share: 0 });
+eq('mes de llegada: el propietario no suma €', stO.porMes, st.porMes);
+eq('solo propietario: medias vacías', (function () { var s = P.computeStats([own]); return [s.reservas, s.total, s.medioNoche, s.netoMedioNoche, s.comisionPct]; })(), [1, 0, null, null, null]);
+eq('tarjeta Reservas: "incl. N de propietario" y canceladas', [P.reservasSub(stO), P.reservasSub(st), P.reservasSub(P.computeStats([own]))],
+  ['1 canceladas, fuera de los totales · incl. 1 de propietario', '1 canceladas, fuera de los totales', 'incl. 1 de propietario']);
+eq('tarjeta Estancias propietario: N noches', [P.nochesSub(5), P.nochesSub(1), P.nochesSub(0)], ['5 noches', '1 noche', '0 noches']);
+var vsO = P.villaSummary(sel.concat([own]));
+var v12 = vsO.filter(function (v) { return v.villaKey === 'V12'; })[0];
+eq('resumen por villa: propietario en reservas, noches y Prop.; medias con noches de pago',
+  [v12.reservas, v12.noches, v12.propietario, v12.nochesPagadas, v12.total, v12.neto, v12.porNoche, v12.netoPorNoche], [4, 26, 1, 21, 4800, 2650, 228.57, 189.29]);
+eq('resumen por villa: villa sin propietario = Prop. 0', vsO.filter(function (v) { return v.villaKey === 'V3'; })[0].propietario, 0);
+eq('cabecera del resumen: Prop. detrás de Noches', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
+eq('hoja "Por villa": Prop. en su columna', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, 4800, 2650, 228.57, 189.29]);
+eq('fichero global: fila de propietario', P.buildCsv([own]).slice(1).split('\r\n')[1], '12;Villa Prueba;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;8001;PROPIETARIA');
+eq('Excel global: fila de propietario', P.detailMatrix([own])[0], ['12', 'Villa Prueba', '01/09/2026', '06/09/2026', 5, '01/02/2026', 'Propietario', 0, 0, '', '', '8001', 'PROPIETARIA']);
+eq('fichero de la villa: fila de propietario, Pago vacío', P.buildVillaCsv([own]).slice(1).split('\r\n')[1], 'PROPIETARIA;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;;;8001;;');
+var ownHtml = P.villaDetailRowHtml(own), ownCells = cells(ownHtml);
+ok('ficha: propietario sin tachar', /^<tr>/.test(ownHtml), ownHtml.slice(0, 40));
+eq('ficha: etiqueta propietario en Canal, 0,00, por día —, Pago —',
+  [ownCells[0], ownCells[5], ownCells[6], ownCells[7], ownCells[8], ownCells[9], ownCells[11]],
+  ['PROPIETARIA', 'Propietario<span class="tag">propietario</span>', '0,00', '0,00', '—', '—', '—']);
+eq('etiqueta solo en propietario', [P.ownerTag(own), P.ownerTag(di)], ['<span class="tag">propietario</span>', '']);
+(function () {
+  var rsrc = fnSource(SRC, 'render'), psrc = fnSource(SRC, 'renderVillaPanel');
+  ok('detalle global: etiqueta en la celda Canal', rsrc.indexOf("esc(r.channelLabel) + ownerTag(r) + '</td>'") > 0);
+  ok('casilla "Incluir estancias de propietario" marcada por defecto', SRC.indexOf('<input type="checkbox" id="fOwner" checked> Incluir estancias de propietario</label>') > 0);
+  ok('la casilla filtra en el navegador (render, sin loadReservas ni la clave de carga)',
+    SRC.indexOf("g('fOwner').addEventListener('change', function(){ renderChannelChips(); render(); });") > 0 &&
+    /includeOwner: includeOwner\(\)/.test(fnSource(SRC, 'currentRows')) && fnSource(SRC, 'loadReservas').indexOf('fOwner') < 0);
+  ok('chips de canal sin Propietario con la casilla desmarcada', /if\(r\.owner && !withOwner\) return;/.test(fnSource(SRC, 'channelOptions')));
+  ok('tarjetas: Estancias propietario, "sobre noches de pago" y "incl." en el cuadro y en la ficha', [rsrc, psrc].every(function (s) {
+    return s.indexOf("'Estancias propietario', '', nochesSub(s.nochesPropietario)") > 0 && s.indexOf("'sobre noches de pago'") > 0 && s.indexOf('reservasSub(s)') > 0; }));
+  ok('resumen por villa en pantalla: columna propietario ordenable y en el total', rsrc.indexOf("'noches', 'propietario', 'total'") > 0 && rsrc.indexOf("'</td><td>' + v.propietario + '</td>'") > 0 && rsrc.indexOf("s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtMoney(s.total)") > 0);
+})();
+
 console.log('Lectura del Worker');
 var u = P.buildPageUrl('2026-01-01', '2026-12-31', '123', 'tok', true);
 ok('action=hostaway-report-page con afterId, hwToken e includeCancelled', /\?action=hostaway-report-page&arrivalStartDate=2026-01-01&arrivalEndDate=2026-12-31&afterId=123&hwToken=tok&includeCancelled=1$/.test(u), u);
@@ -242,8 +303,11 @@ eq('año de Madrid: 31/12 23:30 UTC ya es año nuevo', P.madridYear('2026-12-31T
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v2 en cabecera (línea 3), PAGE_VERSION y título', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->' && /PAGE_VERSION = 2;/.test(SRC) && /<title>Informe de reservas v2/.test(SRC));
-ok('HISTORIAL es la última línea y empieza por v2, con v1 detrás', /^<!-- HISTORIAL: v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v3 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->' && /PAGE_VERSION = 3;/.test(SRC) && /<title>Informe de reservas v3/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v3]'") > 0 && SRC.indexOf('PAGE_VERSION = 2;') < 0);
+ok('HISTORIAL es la última línea y empieza por v3, con v2 y v1 detrás', /^<!-- HISTORIAL: v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('owner stays need to be in the report as well') > 0 &&
+  h.indexOf('Worker v61') > 0 && h.indexOf("status 'ownerStay'") > 0; })());
 ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&
   h.indexOf('hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —') > 0; })());
 ok('textos de avisos y errores', ['Lectura de Hostaway a las ', 'sin dato de comisión (neto vacío)', 'de alojamientos sin villa en la intranet',

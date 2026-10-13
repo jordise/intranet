@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Informe de reservas v2 — 3Villas</title>
+<title>Informe de reservas v3 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -217,6 +217,10 @@ td.guest{max-width:260px;overflow:hidden;text-overflow:ellipsis}
       </div>
       <div class="f-group" style="min-width:auto">
         <span class="f-label">&nbsp;</span>
+        <label class="check-line"><input type="checkbox" id="fOwner" checked> Incluir estancias de propietario</label>
+      </div>
+      <div class="f-group" style="min-width:auto">
+        <span class="f-label">&nbsp;</span>
         <button class="btn" id="btnLoad" onclick="loadReservas()">Cargar reservas</button>
       </div>
     </div>
@@ -292,7 +296,7 @@ td.guest{max-width:260px;overflow:hidden;text-overflow:ellipsis}
 'use strict';
 
 var WORKER = 'https://www.3villas.com/intranet/api';
-var PAGE_VERSION = 2;
+var PAGE_VERSION = 3;
 
 /* ── v1: auto-detección de versión (Opción B), igual que reports-prospeccion-mensual.html ── */
 (function checkForNewerVersion(){
@@ -317,7 +321,8 @@ var PAGE_VERSION = 2;
    ════════════════════════════════════════════════════════════════════ */
 
 var MAX_PAGES = 100;
-var CHANNEL_LABELS = { airbnbOfficial:'Airbnb', bookingcom:'Booking.com', homeaway:'Vrbo', bookingengine:'Web 3Villas', direct:'Directa' };
+/* v3: ownerStay = canal propio de las estancias de propietario (status 'ownerStay' de Hostaway, Worker v61). */
+var CHANNEL_LABELS = { airbnbOfficial:'Airbnb', bookingcom:'Booking.com', homeaway:'Vrbo', bookingengine:'Web 3Villas', direct:'Directa', ownerStay:'Propietario' };
 /* v2: tabla de detalle en pantalla con Huésped detrás de Canal; los ficheros guardan el orden de Marta y Huésped al final. */
 var DETAIL_HEADERS = ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Huésped', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código'];
 var FILE_HEADERS = ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código', 'Huésped'];
@@ -325,7 +330,7 @@ var FILE_HEADERS = ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fe
 var VILLA_DETAIL_HEADERS = ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código'];
 var VILLA_FILE_HEADERS = ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código', 'Correo', 'Teléfono'];
 var PAGO_LABELS = { paid:'Pagado', partially_paid:'Parcial', partiallypaid:'Parcial', partial:'Parcial', unpaid:'Pendiente' };
-var VILLA_HEADERS = ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Total €', 'Neto €', '€/noche', 'Neto €/noche'];
+var VILLA_HEADERS = ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Total €', 'Neto €', '€/noche', 'Neto €/noche'];
 var MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 /* Año actual en hora de Madrid (no la del dispositivo). */
@@ -403,14 +408,16 @@ function pagoLabel(s){
   return Object.prototype.hasOwnProperty.call(PAGO_LABELS, k) ? PAGO_LABELS[k] : raw;
 }
 
-/* Una reserva de Hostaway → una fila del informe. v2: con los datos del huésped (Worker v59). */
+/* Una reserva de Hostaway → una fila del informe. v2: con los datos del huésped (Worker v59).
+   v3: estancia de propietario (status 'ownerStay', Worker v61) = canal Propietario, total 0, neto 0, por día vacío. */
 function enrichRow(r, villaMap){
   var v = (villaMap || {})[String(r.listingMapId == null ? '' : r.listingMapId).trim()];
-  var total = toNum(r.totalPrice);
+  var owner = String(r.status || '') === 'ownerStay';
+  var total = owner ? 0 : toNum(r.totalPrice);
   var nights = toNum(r.nights);
-  var com = commissionOf(r);
-  var net = (total === null || com === null) ? null : round2(total - com);
-  var hasNights = nights !== null && nights > 0;
+  var com = owner ? 0 : commissionOf(r);
+  var net = owner ? 0 : (total === null || com === null) ? null : round2(total - com);
+  var hasNights = !owner && nights !== null && nights > 0;
   return {
     villaKey: v ? 'V' + v.num : 'L' + r.listingMapId,
     num: v ? v.num : '',
@@ -420,8 +427,8 @@ function enrichRow(r, villaMap){
     checkout: String(r.departureDate || '').slice(0, 10),
     nights: nights,
     reservationDate: String(r.reservationDate || '').slice(0, 10),
-    channel: String(r.channelName || ''),
-    channelLabel: channelLabel(r.channelName),
+    channel: owner ? 'ownerStay' : String(r.channelName || ''),
+    channelLabel: channelLabel(owner ? 'ownerStay' : r.channelName),
     total: total,
     commission: com,
     net: net,
@@ -431,6 +438,7 @@ function enrichRow(r, villaMap){
     code: String(r.hostawayReservationId == null ? (r.id == null ? '' : r.id) : r.hostawayReservationId),
     status: String(r.status || ''),
     cancelled: String(r.status || '') === 'cancelled',
+    owner: owner,
     guest: guestNameOf(r),
     email: cleanText(r.guestEmail),
     phone: cleanText(r.phone),
@@ -459,13 +467,15 @@ function sortDetail(rows){
 }
 
 /* Filtros en el navegador. opts.villas = lista de villaKey o null (todas);
-   opts.channels = lista de channelName o null (todos); canceladas solo con opts.includeCancelled. */
+   opts.channels = lista de channelName o null (todos); canceladas solo con opts.includeCancelled.
+   v3: las estancias de propietario (ownerStay) pasan salvo con opts.includeOwner === false (casilla desmarcada). */
 function filterRows(rows, opts){
   var o = opts || {};
   var vs = o.villas ? o.villas.reduce(function(m, k){ m[k] = 1; return m; }, {}) : null;
   var cs = o.channels ? o.channels.reduce(function(m, k){ m[k] = 1; return m; }, {}) : null;
   return (rows || []).filter(function(r){
     if(r.status === 'cancelled'){ if(!o.includeCancelled) return false; }
+    else if(r.status === 'ownerStay'){ if(o.includeOwner === false) return false; }
     else if(r.status !== 'new' && r.status !== 'modified') return false;
     if(vs && !vs[r.villaKey]) return false;
     if(cs && !cs[r.channel]) return false;
@@ -474,16 +484,25 @@ function filterRows(rows, opts){
 }
 
 /* Cifras de la selección. Las canceladas se listan pero no suman.
-   Neto y comisión solo con las reservas que traen el dato. */
+   Neto y comisión solo con las reservas que traen el dato.
+   v3: las estancias de propietario suman en reservas, noches, propietario y nochesPropietario, y en su canal
+   (total 0, neto 0); no suman en importes, comisión ni precios medios (medioNoche = total ÷ nochesPagadas). */
 function computeStats(rows){
-  var s = { reservas:0, noches:0, total:0, neto:0, comision:0, totalConDato:0, nochesConDato:0, canceladas:0,
+  var s = { reservas:0, noches:0, nochesPagadas:0, propietario:0, nochesPropietario:0, total:0, neto:0, comision:0, totalConDato:0, nochesConDato:0, canceladas:0,
             sinComision:0, sinVilla:0, porCanal:{}, porMes:{} };
   (rows || []).forEach(function(r){
     if(r.cancelled){ s.canceladas++; return; }
     s.reservas++;
     s.noches += r.nights || 0;
-    s.total += r.total || 0;
     if(!r.mapped) s.sinVilla++;
+    if(r.owner){
+      s.propietario++; s.nochesPropietario += r.nights || 0;
+      var co = s.porCanal[r.channel] || (s.porCanal[r.channel] = { channel:r.channel, label:r.channelLabel, reservas:0, total:0, neto:0, conDato:0, sinDato:0 });
+      co.reservas++; co.conDato++;
+      return;
+    }
+    s.nochesPagadas += r.nights || 0;
+    s.total += r.total || 0;
     if(r.net === null){ s.sinComision++; }
     else { s.neto += r.net; s.comision += (r.total || 0) - r.net; s.totalConDato += r.total || 0; s.nochesConDato += r.nights || 0; }
     var c = s.porCanal[r.channel] || (s.porCanal[r.channel] = { channel:r.channel, label:r.channelLabel, reservas:0, total:0, neto:0, conDato:0, sinDato:0 });
@@ -494,7 +513,7 @@ function computeStats(rows){
   });
   s.total = round2(s.total); s.neto = round2(s.neto); s.comision = round2(s.comision);
   s.comisionPct = s.totalConDato > 0 ? round2(s.comision / s.totalConDato * 100) : null;
-  s.medioNoche = s.noches > 0 ? round2(s.total / s.noches) : null;
+  s.medioNoche = s.nochesPagadas > 0 ? round2(s.total / s.nochesPagadas) : null;
   s.netoMedioNoche = s.nochesConDato > 0 ? round2(s.neto / s.nochesConDato) : null;
   s.canales = Object.keys(s.porCanal).map(function(k){
     var c = s.porCanal[k];
@@ -505,6 +524,17 @@ function computeStats(rows){
   return s;
 }
 
+/* v3: subtítulo de la tarjeta Reservas: canceladas y "incl. N de propietario". */
+function reservasSub(s){
+  var out = [];
+  if(s.canceladas) out.push(s.canceladas + ' canceladas, fuera de los totales');
+  if(s.propietario) out.push('incl. ' + s.propietario + ' de propietario');
+  return out.join(' · ');
+}
+
+/* v3: "N noches" de la tarjeta Estancias propietario. */
+function nochesSub(n){ return n === 1 ? '1 noche' : (n || 0) + ' noches'; }
+
 /* v2: las reservas de una villa (villaKey, también las sin villa 'L…'), por check-in. */
 function rowsOfVilla(rows, villaKey){
   return (rows || []).filter(function(r){ return r.villaKey === villaKey; }).sort(function(a, b){
@@ -512,19 +542,22 @@ function rowsOfVilla(rows, villaKey){
   });
 }
 
-/* Resumen por villa (sin canceladas). */
+/* Resumen por villa (sin canceladas). v3: las estancias de propietario suman en reservas, noches y propietario;
+   €/noche y neto €/noche solo con las noches de pago. */
 function villaSummary(rows){
   var m = {};
   (rows || []).forEach(function(r){
     if(r.cancelled) return;
-    var v = m[r.villaKey] || (m[r.villaKey] = { villaKey:r.villaKey, num:r.num, villa:r.villa, mapped:r.mapped, reservas:0, noches:0, total:0, neto:0, nochesNeto:0 });
-    v.reservas++; v.noches += r.nights || 0; v.total += r.total || 0;
+    var v = m[r.villaKey] || (m[r.villaKey] = { villaKey:r.villaKey, num:r.num, villa:r.villa, mapped:r.mapped, reservas:0, noches:0, propietario:0, nochesPagadas:0, total:0, neto:0, nochesNeto:0 });
+    v.reservas++; v.noches += r.nights || 0;
+    if(r.owner){ v.propietario++; return; }
+    v.nochesPagadas += r.nights || 0; v.total += r.total || 0;
     if(r.net !== null){ v.neto += r.net; v.nochesNeto += r.nights || 0; }
   });
   return Object.keys(m).map(function(k){
     var v = m[k];
     v.total = round2(v.total); v.neto = round2(v.neto);
-    v.porNoche = v.noches > 0 ? round2(v.total / v.noches) : null;
+    v.porNoche = v.nochesPagadas > 0 ? round2(v.total / v.nochesPagadas) : null;
     v.netoPorNoche = v.nochesNeto > 0 ? round2(v.neto / v.nochesNeto) : null;
     return v;
   }).sort(cmpVillaNum);
@@ -570,7 +603,7 @@ function detailMatrix(rows){
 function villaFileValues(r, csv){
   function n(v, dec){ return v === null || v === undefined ? '' : (csv ? csvNum(v, dec) : v); }
   return [r.guest || '', fmtDate(r.checkin), fmtDate(r.checkout), n(r.nights, 0), fmtDate(r.reservationDate), r.channelLabel,
-    n(r.total), n(r.net), n(r.daily), n(r.dailyNet), n(r.persons, 0), r.payment ? pagoLabel(r.payment) : '', r.code, r.email || '', r.phone || ''];
+    n(r.total), n(r.net), n(r.daily), n(r.dailyNet), n(r.persons, 0), (r.payment && !r.owner) ? pagoLabel(r.payment) : '', r.code, r.email || '', r.phone || ''];
 }
 
 function villaDetailMatrix(rows){ return rows.map(function(r){ return villaFileValues(r, false); }); }
@@ -590,23 +623,26 @@ function huespedCell(r){
   return (r.guest ? esc(r.guest) : '—') + (sub.length ? '<div class="sub">' + sub.join(' · ') + '</div>' : '');
 }
 
-/* v2: una fila de la ficha de la villa (VILLA_DETAIL_HEADERS). */
+/* v3: etiqueta neutra de la estancia de propietario en la celda Canal (sin tachar). */
+function ownerTag(r){ return r.owner ? '<span class="tag">propietario</span>' : ''; }
+
+/* v2: una fila de la ficha de la villa (VILLA_DETAIL_HEADERS). v3: propietario con su etiqueta y Pago —. */
 function villaDetailRowHtml(r){
   function money(n){ return n === null ? '<td class="empty">—</td>' : '<td>' + fmtMoney(n) + '</td>'; }
   return '<tr' + (r.cancelled ? ' class="cancel"' : '') + '>' +
     '<td class="l guest">' + huespedCell(r) + '</td>' +
     '<td>' + fmtDate(r.checkin) + '</td><td>' + fmtDate(r.checkout) + '</td><td>' + (r.nights === null ? '' : r.nights) + '</td>' +
-    '<td>' + fmtDate(r.reservationDate) + '</td><td class="l">' + esc(r.channelLabel) + '</td>' +
+    '<td>' + fmtDate(r.reservationDate) + '</td><td class="l">' + esc(r.channelLabel) + ownerTag(r) + '</td>' +
     money(r.total) + money(r.net) + money(r.daily) + money(r.dailyNet) +
     (r.persons === null ? '<td class="empty">—</td>' : '<td>' + esc(r.persons) + '</td>') +
-    '<td class="l">' + esc(pagoLabel(r.payment)) + '</td>' +
+    '<td class="l">' + esc(r.owner ? '—' : pagoLabel(r.payment)) + '</td>' +
     '<td class="l code">' + esc(r.code) + (r.cancelled ? '<span class="tag">cancelada</span>' : '') +
       (r.channelCode ? '<div class="sub">' + esc(r.channelCode) + '</div>' : '') + '</td></tr>';
 }
 
 function villaMatrix(sum){
   return sum.map(function(v){
-    return [v.num, v.villa, v.reservas, v.noches, v.total, v.neto, v.porNoche === null ? '' : v.porNoche, v.netoPorNoche === null ? '' : v.netoPorNoche];
+    return [v.num, v.villa, v.reservas, v.noches, v.propietario, v.total, v.neto, v.porNoche === null ? '' : v.porNoche, v.netoPorNoche === null ? '' : v.netoPorNoche];
   });
 }
 
@@ -678,6 +714,8 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   g('fDesde').addEventListener('change', markYearChips); g('fHasta').addEventListener('change', markYearChips);
   g('fCancel').addEventListener('change', loadReservas);
+  /* v3: la casilla de propietario filtra en el navegador, sin volver a leer Hostaway. */
+  g('fOwner').addEventListener('change', function(){ renderChannelChips(); render(); });
   g('vselBtn').addEventListener('click', function(){ g('vsel').classList.toggle('open'); if(g('vsel').classList.contains('open')) g('vselSearch').focus(); });
   document.addEventListener('click', function(e){ if(!g('vsel').contains(e.target)) g('vsel').classList.remove('open'); });
   g('vselSearch').addEventListener('input', renderVillaList);
@@ -783,7 +821,7 @@ async function loadReservas(){
     renderVillaList(); renderChannelChips(); render();
   }catch(err){
     if(myId !== reqId) return;
-    console.error('[Informe reservas v2]', err);
+    console.error('[Informe reservas v3]', err);
     showError(err.status === 403 ? 'Tu usuario no tiene permiso para este informe.' : 'No se pudieron cargar las reservas. ' + (err.message || err));
   }finally{
     if(myId === reqId) g('btnLoad').disabled = false;
@@ -803,7 +841,8 @@ function villaOptions(){
 }
 function channelOptions(){
   var m = {};
-  allRows.forEach(function(r){ if(!m[r.channel]) m[r.channel] = { channel:r.channel, label:r.channelLabel, n:0 }; m[r.channel].n++; });
+  var withOwner = includeOwner();
+  allRows.forEach(function(r){ if(r.owner && !withOwner) return; if(!m[r.channel]) m[r.channel] = { channel:r.channel, label:r.channelLabel, n:0 }; m[r.channel].n++; });
   return Object.keys(m).map(function(k){ return m[k]; }).sort(function(a, b){ return b.n - a.n; });
 }
 function selectedVillaKeys(){ return selVillas ? Object.keys(selVillas) : null; }
@@ -832,8 +871,11 @@ function renderChannelChips(){
   }).join('') || '<span style="font-size:12px;color:var(--gray-4)">Sin canales</span>';
 }
 
+/* v3: casilla "Incluir estancias de propietario" (marcada por defecto). */
+function includeOwner(){ return !g('fOwner') || g('fOwner').checked; }
+
 function currentRows(){
-  return sortDetail(filterRows(allRows, { villas: selectedVillaKeys(), channels: selChannels ? Object.keys(selChannels) : null, includeCancelled: loadInfo && loadInfo.inc }));
+  return sortDetail(filterRows(allRows, { villas: selectedVillaKeys(), channels: selChannels ? Object.keys(selChannels) : null, includeCancelled: loadInfo && loadInfo.inc, includeOwner: includeOwner() }));
 }
 
 /* ══ PINTAR ══ */
@@ -846,11 +888,12 @@ function render(){
 
   function kpi(v, l, cls, sub){ return '<div class="kpi' + (cls ? ' ' + cls : '') + '"><div class="v">' + v + '</div><div class="l">' + l + '</div>' + (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>'; }
   g('kpis').innerHTML =
-    kpi(s.reservas.toLocaleString('es-ES'), 'Reservas', '', s.canceladas ? s.canceladas + ' canceladas, fuera de los totales' : '') +
+    kpi(s.reservas.toLocaleString('es-ES'), 'Reservas', '', reservasSub(s)) +
     kpi(s.noches.toLocaleString('es-ES'), 'Noches') +
+    kpi(s.propietario.toLocaleString('es-ES'), 'Estancias propietario', '', nochesSub(s.nochesPropietario)) +
     kpi(fmtMoney(s.total) + ' €', 'Ingresos totales €') +
     kpi(fmtMoney(s.neto) + ' €', 'Ingresos netos €', 'green', s.sinComision ? 'sin ' + s.sinComision + ' reservas sin dato' : '') +
-    kpi(s.medioNoche === null ? '—' : fmtMoney(s.medioNoche) + ' €', 'Precio medio/noche €') +
+    kpi(s.medioNoche === null ? '—' : fmtMoney(s.medioNoche) + ' €', 'Precio medio/noche €', '', 'sobre noches de pago') +
     kpi(s.netoMedioNoche === null ? '—' : fmtMoney(s.netoMedioNoche) + ' €', 'Precio neto medio/noche €', 'green') +
     kpi(fmtMoney(s.comision) + ' €', 'Comisión portales €', 'orange', s.comisionPct === null ? '' : String(s.comisionPct).replace('.', ',') + ' % del total');
 
@@ -859,6 +902,7 @@ function render(){
   if(s.sinComision) av.push('<div class="info-box orange">' + s.sinComision + (s.sinComision === 1 ? ' reserva sin dato de comisión (neto vacío)' : ' reservas sin dato de comisión (neto vacío)') + '</div>');
   if(s.sinVilla) av.push('<div class="info-box orange">' + s.sinVilla + (s.sinVilla === 1 ? ' reserva de alojamientos sin villa en la intranet' : ' reservas de alojamientos sin villa en la intranet') + '</div>');
   av.push('<div class="info-box gray">Precio neto = precio total menos la comisión del portal (Booking.com y Airbnb). Reservas directas y web: neto = total.</div>');
+  if(s.propietario) av.push('<div class="info-box gray">Estancias de propietario: cuentan en reservas y noches; no suman en los importes ni en los precios medios.</div>');
   g('avisos').innerHTML = av.join('');
 
   var maxC = s.canales.reduce(function(m, c){ return Math.max(m, c.total); }, 0) || 1;
@@ -889,16 +933,16 @@ function render(){
       var x = a[K] === null ? -Infinity : a[K], y = b[K] === null ? -Infinity : b[K];
       return D * (x - y);
     });
-    var keys = ['num', 'villa', 'reservas', 'noches', 'total', 'neto', 'porNoche', 'netoPorNoche'];
+    var keys = ['num', 'villa', 'reservas', 'noches', 'propietario', 'total', 'neto', 'porNoche', 'netoPorNoche'];
     g('villaHead').innerHTML = VILLA_HEADERS.map(function(h, i){
       return '<th class="sortable' + (i < 2 ? ' l' : '') + '" data-sort="' + keys[i] + '">' + esc(h) + (villaSort.key === keys[i] ? (villaSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
     }).join('') + '<th class="l"></th>';
     g('villaBody').innerHTML = sum.map(function(v){
       return '<tr class="vrow" tabindex="0" role="button" data-vk="' + esc(v.villaKey) + '" title="Ver las reservas de ' + esc(v.villa) + '">' +
-        '<td class="l vn">' + esc(v.num) + '</td><td class="l villa">' + esc(v.villa) + '</td><td>' + v.reservas + '</td><td>' + v.noches + '</td>' +
+        '<td class="l vn">' + esc(v.num) + '</td><td class="l villa">' + esc(v.villa) + '</td><td>' + v.reservas + '</td><td>' + v.noches + '</td><td>' + v.propietario + '</td>' +
         '<td>' + fmtMoney(v.total) + '</td><td>' + fmtMoney(v.neto) + '</td><td>' + fmtMoney(v.porNoche) + '</td><td>' + fmtMoney(v.netoPorNoche) + '</td>' +
         '<td class="l"><span class="vhint">Ver reservas ›</span></td></tr>';
-    }).join('') + '<tr class="tot"><td class="l">Total</td><td class="l">' + sum.length + ' villas</td><td>' + s.reservas + '</td><td>' + s.noches + '</td><td>' + fmtMoney(s.total) + '</td><td>' + fmtMoney(s.neto) + '</td><td>' + fmtMoney(s.medioNoche) + '</td><td>' + fmtMoney(s.netoMedioNoche) + '</td><td></td></tr>';
+    }).join('') + '<tr class="tot"><td class="l">Total</td><td class="l">' + sum.length + ' villas</td><td>' + s.reservas + '</td><td>' + s.noches + '</td><td>' + s.propietario + '</td><td>' + fmtMoney(s.total) + '</td><td>' + fmtMoney(s.neto) + '</td><td>' + fmtMoney(s.medioNoche) + '</td><td>' + fmtMoney(s.netoMedioNoche) + '</td><td></td></tr>';
     g('villaBlock').style.display = 'block';
   } else {
     g('villaBlock').style.display = 'none';
@@ -910,7 +954,7 @@ function render(){
   g('detBody').innerHTML = rows.map(function(r){
     return '<tr' + (r.cancelled ? ' class="cancel"' : '') + '><td class="l vn">' + esc(r.num) + '</td><td class="l villa" title="' + esc(r.villa) + '">' + esc(r.villa) + '</td>' +
       '<td>' + fmtDate(r.checkin) + '</td><td>' + fmtDate(r.checkout) + '</td><td>' + (r.nights === null ? '' : r.nights) + '</td>' +
-      '<td>' + fmtDate(r.reservationDate) + '</td><td class="l">' + esc(r.channelLabel) + '</td>' +
+      '<td>' + fmtDate(r.reservationDate) + '</td><td class="l">' + esc(r.channelLabel) + ownerTag(r) + '</td>' +
       (r.guest ? '<td class="l guest" title="' + esc(r.guest) + '">' + esc(r.guest) + '</td>' : '<td class="l empty">—</td>') +
       money(r.total) + money(r.net) + money(r.daily) + money(r.dailyNet) +
       '<td class="l code">' + esc(r.code) + (r.cancelled ? '<span class="tag">cancelada</span>' : '') + '</td></tr>';
@@ -945,11 +989,12 @@ function renderVillaPanel(vr){
           '<button type="button" class="btn ghost" id="btnCopyVilla" onclick="copyVillaTable()">Copiar tabla</button></div>' +
       '</div>' +
       '<div class="kpis">' +
-        kpiBox(s.reservas.toLocaleString('es-ES'), 'Reservas', '', s.canceladas ? s.canceladas + ' canceladas, fuera de los totales' : '') +
+        kpiBox(s.reservas.toLocaleString('es-ES'), 'Reservas', '', reservasSub(s)) +
         kpiBox(s.noches.toLocaleString('es-ES'), 'Noches') +
+        kpiBox(s.propietario.toLocaleString('es-ES'), 'Estancias propietario', '', nochesSub(s.nochesPropietario)) +
         kpiBox(fmtMoney(s.total) + ' €', 'Total €') +
         kpiBox(fmtMoney(s.neto) + ' €', 'Neto €', 'green', s.sinComision ? 'sin ' + s.sinComision + ' reservas sin dato' : '') +
-        kpiBox(euro(s.medioNoche), '€/noche') +
+        kpiBox(euro(s.medioNoche), '€/noche', '', 'sobre noches de pago') +
         kpiBox(euro(s.netoMedioNoche), 'Neto €/noche', 'green') +
         kpiBox(fmtMoney(s.comision) + ' €', 'Comisión €', 'orange') +
       '</div>' +
@@ -998,7 +1043,7 @@ function downloadXlsx(){
   ws1['!cols'] = [6, 28, 11, 11, 7, 12, 13, 12, 12, 11, 12, 12, 26].map(function(w){ return { wch:w }; });
   XLSX.utils.book_append_sheet(wb, ws1, 'Reservas');
   var ws2 = XLSX.utils.aoa_to_sheet([VILLA_HEADERS].concat(villaMatrix(villaSummary(rows))));
-  ws2['!cols'] = [6, 28, 9, 8, 12, 12, 10, 12].map(function(w){ return { wch:w }; });
+  ws2['!cols'] = [6, 28, 9, 8, 7, 12, 12, 10, 12].map(function(w){ return { wch:w }; });
   XLSX.utils.book_append_sheet(wb, ws2, 'Por villa');
   XLSX.writeFile(wb, exportName('xlsx'));
 }
@@ -1043,4 +1088,4 @@ Object.assign(window, { loadReservas: loadReservas, downloadCsv: downloadCsv, do
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v2 - 13/10/2026 — ficha por villa (bro). Mismo día, tras la primera revisión de Gary: la tabla de la ficha cabe entera en un portátil (sin ancho mínimo, letra algo menor, la celda Huésped se parte en dos líneas; desplazamiento lateral solo por debajo de 900 px) y botón 'Copiar tabla' en la ficha (villaTsv: cabecera y filas de esa villa separadas por tabuladores, al portapapeles, 'Copiado ✓' dos segundos), porque Marta tiene que llevarse los datos de la villa abierta, no solo el total. Segunda revisión: el botón '← Volver al resumen' pasa a rojo y se repite debajo de la tabla, y la tecla Esc cierra la ficha (Gary: 'i need a back button as well once you click into a villa'). Gary, señalando el resumen por villa: "for each of these ... i need to be able to select and click into that villa to see the booking info such as who booked the villa and when and price and all of the details". Cada fila del "Resumen por villa" (también los alojamientos sin villa) se puede pulsar o abrir con Intro y lleva "Ver reservas ›"; abre la ficha de la villa, que sustituye al resumen y al detalle hasta "← Volver al resumen": número en rojo, nombre, fechas de llegada, cifras de la villa (Reservas, Noches, Total €, Neto €, €/noche, Neto €/noche, Comisión €) y sus reservas por check-in con las columnas Huésped, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Personas, Pago, Código (el huésped primero y luego las columnas de Marta, a petición de Gary), fila de totales y canceladas tachadas con la casilla. Huésped = guestName o nombre + apellidos, con el correo (enlace mailto) y el teléfono debajo; Personas = numberOfGuests o adultos + niños; Pago = paymentStatus en español (paid Pagado, partially_paid o partial Parcial, unpaid Pendiente, otro valor tal cual); Código = hostawayReservationId y debajo channelReservationId. Botones "Descargar Excel de esta villa" y "Descargar CSV de esta villa", fichero informe-reservas-villa-<nº>-<desde>-<hasta> con las columnas de la ficha y Correo y Teléfono detrás de Código. Tabla "Detalle de reservas": nueva columna Huésped (solo el nombre) detrás de Canal; la hoja "Reservas" del Excel y el CSV guardan las columnas de Marta en su orden y añaden Huésped al final. Datos: el Worker v59 añade a action=hostaway-report-page guestName, guestFirstName, guestLastName, guestEmail, phone, numberOfGuests, adults, children, infants, paymentStatus, channelReservationId y confirmationCode; hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —. Todos los datos del huésped pasan por esc(). Pruebas informe-reservas.test.js (agrupación por villa, Pago, Personas, celda Huésped, fila de la ficha, cabeceras de pantalla y de ficheros, versión). | v1 - 13/10/2026 — primera versión (bro): informe de solo lectura de las reservas de Hostaway por villa y canal para el estudio de precios. Lo pidió Marta (Reservas) en la reunión de Precios 2027 del 13/10/2026, que cada otoño rehace a mano esta tabla villa por villa; sus columnas: "número de la villa, check-in date, check-out date, number of days, booking date, channel, total price, net price, daily price, daily price neto". Encargo de Gary: elegir una casa, varias o todas, verlo en la página con aspecto de cuadro de mando y descargar un Excel para llevarlo a su hoja. Temporada = llegadas en las fechas elegidas (por defecto del 1/1 al 31/12 del año actual en hora de Madrid, botones 2025, 2026 y 2027), todos los canales. Permiso Auth.require('informe-reservas'), clave nueva de auth.js para admin, manager y staff (Marta = staff); nav.js v18 la pone en el bloque Listados de _menuAdmin, debajo de 'Prospección mensual', y en _menuStaff, debajo de 'Historial WhatsApp'. Datos: action=hostaway-report-page del Worker (arrivalStartDate, arrivalEndDate, afterId, hwToken, includeCancelled=1 con "Incluir canceladas"), paginado como loadHostaway de hostaway-comprobar-fechas-reservas.html (reenvía afterId y hwToken, para en done, tope de 100 páginas); campos id, hostawayReservationId, listingMapId, listingName, channelName, channelId, status, arrivalDate, departureDate, nights, reservationDate, totalPrice, currency, channelCommissionAmount, airbnbListingHostFee, cancellationDate; sin nombres, correos ni teléfonos de huéspedes. Nº de villa: TaVillas (villaid, Name, Hostawayid) por listingMapId = Hostawayid; sin villa = Nº vacío, nombre del alojamiento de Hostaway y aviso. Regla del neto (comprobada con datos reales de Hostaway el 13/10/2026): Booking.com (bookingcom) neto = total − channelCommissionAmount; Airbnb (airbnbOfficial) neto = total − airbnbListingHostFee; cualquier otro canal (directa, web 3Villas, Vrbo…) neto = total − channelCommissionAmount o neto = total si no hay; si Booking.com o Airbnb no traen el dato, neto y neto/día vacíos y aviso "N reservas sin dato de comisión". Precio/día = total ÷ noches; neto/día = neto ÷ noches; 0 noches = vacío. Las canceladas solo salen con la casilla, tachadas, y no suman en las cifras. Cuadro: Reservas, Noches, Ingresos totales, Ingresos netos, Precio medio/noche, Precio neto medio/noche, Comisión portales y su % sobre el total con dato; barras por canal y por mes de llegada (CSS, sin librería); resumen por villa ordenable con varias villas; detalle Nº villa, Villa, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Código, ordenado por villa y check-in, con fila de totales. Filtros de villa (lista con buscador, "Todas", "N de M villas") y de canal al momento en el navegador; las fechas y "Incluir canceladas" vuelven a leer Hostaway. Descargas: Excel (.xlsx con hojas "Reservas" y "Por villa", SheetJS 0.18.5 de cdnjs; si no carga, se baja el CSV y se avisa) y CSV (BOM UTF-8, ';', coma decimal, fechas dd/mm/yyyy); nombre informe-reservas-<desde>-<hasta>, o informe-reservas-villa-<nº>-<desde>-<hasta> con una sola villa. Error: "No se pudieron cargar las reservas." y el texto; 403 = "Tu usuario no tiene permiso para este informe.". Pruebas informe-reservas.test.js. -->
+<!-- HISTORIAL: v3 - 13/10/2026 — estancias de propietario en el informe (bro). Gary: "owner stays need to be in the report as well". La Analítica de Hostaway cuenta las estancias de propietario en sus check-ins (4.430 en 2026 = 4.246 de pago + 169 de propietario + 15 apartamentos extra de reservas de grupo), y Marta espera verlas. Datos: el Worker v61 devuelve en action=hostaway-report-page también las reservas con status 'ownerStay' (las mismas 28 claves; totalPrice suele venir a 0 o vacío, el canal vacío o 'direct', las noches sí, y el huésped puede traer el nombre del propietario o "PROPIETARIA"); hasta que el Worker v61 esté desplegado no llega ninguna y el informe queda como en v2. Reglas: enrichRow marca owner (status ownerStay), canal propio "Propietario" (clave ownerStay), total 0, neto 0, precio/día y neto/día vacíos (—), sin aviso de comisión; filterRows deja pasar ownerStay además de new y modified. Casilla nueva "Incluir estancias de propietario", marcada por defecto, junto a "Incluir canceladas"; se aplica en el navegador sin volver a leer Hostaway: desmarcada, las estancias de propietario salen de todas las cifras, tablas, gráficos, chips de canal y ficheros. Cifras (computeStats): las estancias de propietario suman en Reservas y Noches y en las nuevas propietario y nochesPropietario; no suman en total, neto, comisión, totalConDato ni nochesConDato; Precio medio/noche = total ÷ noches de pago (nochesPagadas) y el neto medio igual. Tarjetas: nueva "Estancias propietario" (con "N noches"); Reservas dice "incl. N de propietario"; Precio medio/noche dice "sobre noches de pago"; aviso gris cuando hay estancias de propietario. Por canal: barra propia "Propietario" (total 0, neto 0, con su número); el gráfico mensual de € no las suma. Resumen por villa (villaSummary): suman en Reservas y Noches, columna nueva "Prop." detrás de Noches (también en la hoja "Por villa" del Excel), €/noche y neto €/noche solo con noches de pago. Detalle global y ficha de la villa: etiqueta neutra "propietario" en la celda Canal (sin tachar), Precio total y neto 0,00, por día —, Huésped tal como llega, Pago —; la ficha lleva las mismas tarjetas. Ficheros (Excel y CSV, global y por villa): fila con Canal "Propietario", total 0, neto 0, por día vacío, Pago vacío. Pruebas informe-reservas.test.js (fila de propietario, filtro de estado y casilla, cifras, nochesPagadas, columna Prop. y medias por villa, fila del fichero, etiqueta del canal, versión). | v2 - 13/10/2026 — ficha por villa (bro). Mismo día, tras la primera revisión de Gary: la tabla de la ficha cabe entera en un portátil (sin ancho mínimo, letra algo menor, la celda Huésped se parte en dos líneas; desplazamiento lateral solo por debajo de 900 px) y botón 'Copiar tabla' en la ficha (villaTsv: cabecera y filas de esa villa separadas por tabuladores, al portapapeles, 'Copiado ✓' dos segundos), porque Marta tiene que llevarse los datos de la villa abierta, no solo el total. Segunda revisión: el botón '← Volver al resumen' pasa a rojo y se repite debajo de la tabla, y la tecla Esc cierra la ficha (Gary: 'i need a back button as well once you click into a villa'). Gary, señalando el resumen por villa: "for each of these ... i need to be able to select and click into that villa to see the booking info such as who booked the villa and when and price and all of the details". Cada fila del "Resumen por villa" (también los alojamientos sin villa) se puede pulsar o abrir con Intro y lleva "Ver reservas ›"; abre la ficha de la villa, que sustituye al resumen y al detalle hasta "← Volver al resumen": número en rojo, nombre, fechas de llegada, cifras de la villa (Reservas, Noches, Total €, Neto €, €/noche, Neto €/noche, Comisión €) y sus reservas por check-in con las columnas Huésped, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Personas, Pago, Código (el huésped primero y luego las columnas de Marta, a petición de Gary), fila de totales y canceladas tachadas con la casilla. Huésped = guestName o nombre + apellidos, con el correo (enlace mailto) y el teléfono debajo; Personas = numberOfGuests o adultos + niños; Pago = paymentStatus en español (paid Pagado, partially_paid o partial Parcial, unpaid Pendiente, otro valor tal cual); Código = hostawayReservationId y debajo channelReservationId. Botones "Descargar Excel de esta villa" y "Descargar CSV de esta villa", fichero informe-reservas-villa-<nº>-<desde>-<hasta> con las columnas de la ficha y Correo y Teléfono detrás de Código. Tabla "Detalle de reservas": nueva columna Huésped (solo el nombre) detrás de Canal; la hoja "Reservas" del Excel y el CSV guardan las columnas de Marta en su orden y añaden Huésped al final. Datos: el Worker v59 añade a action=hostaway-report-page guestName, guestFirstName, guestLastName, guestEmail, phone, numberOfGuests, adults, children, infants, paymentStatus, channelReservationId y confirmationCode; hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —. Todos los datos del huésped pasan por esc(). Pruebas informe-reservas.test.js (agrupación por villa, Pago, Personas, celda Huésped, fila de la ficha, cabeceras de pantalla y de ficheros, versión). | v1 - 13/10/2026 — primera versión (bro): informe de solo lectura de las reservas de Hostaway por villa y canal para el estudio de precios. Lo pidió Marta (Reservas) en la reunión de Precios 2027 del 13/10/2026, que cada otoño rehace a mano esta tabla villa por villa; sus columnas: "número de la villa, check-in date, check-out date, number of days, booking date, channel, total price, net price, daily price, daily price neto". Encargo de Gary: elegir una casa, varias o todas, verlo en la página con aspecto de cuadro de mando y descargar un Excel para llevarlo a su hoja. Temporada = llegadas en las fechas elegidas (por defecto del 1/1 al 31/12 del año actual en hora de Madrid, botones 2025, 2026 y 2027), todos los canales. Permiso Auth.require('informe-reservas'), clave nueva de auth.js para admin, manager y staff (Marta = staff); nav.js v18 la pone en el bloque Listados de _menuAdmin, debajo de 'Prospección mensual', y en _menuStaff, debajo de 'Historial WhatsApp'. Datos: action=hostaway-report-page del Worker (arrivalStartDate, arrivalEndDate, afterId, hwToken, includeCancelled=1 con "Incluir canceladas"), paginado como loadHostaway de hostaway-comprobar-fechas-reservas.html (reenvía afterId y hwToken, para en done, tope de 100 páginas); campos id, hostawayReservationId, listingMapId, listingName, channelName, channelId, status, arrivalDate, departureDate, nights, reservationDate, totalPrice, currency, channelCommissionAmount, airbnbListingHostFee, cancellationDate; sin nombres, correos ni teléfonos de huéspedes. Nº de villa: TaVillas (villaid, Name, Hostawayid) por listingMapId = Hostawayid; sin villa = Nº vacío, nombre del alojamiento de Hostaway y aviso. Regla del neto (comprobada con datos reales de Hostaway el 13/10/2026): Booking.com (bookingcom) neto = total − channelCommissionAmount; Airbnb (airbnbOfficial) neto = total − airbnbListingHostFee; cualquier otro canal (directa, web 3Villas, Vrbo…) neto = total − channelCommissionAmount o neto = total si no hay; si Booking.com o Airbnb no traen el dato, neto y neto/día vacíos y aviso "N reservas sin dato de comisión". Precio/día = total ÷ noches; neto/día = neto ÷ noches; 0 noches = vacío. Las canceladas solo salen con la casilla, tachadas, y no suman en las cifras. Cuadro: Reservas, Noches, Ingresos totales, Ingresos netos, Precio medio/noche, Precio neto medio/noche, Comisión portales y su % sobre el total con dato; barras por canal y por mes de llegada (CSS, sin librería); resumen por villa ordenable con varias villas; detalle Nº villa, Villa, Check-in, Check-out, Noches, Fecha reserva, Canal, Precio total, Precio neto, Precio/día, Precio neto/día, Código, ordenado por villa y check-in, con fila de totales. Filtros de villa (lista con buscador, "Todas", "N de M villas") y de canal al momento en el navegador; las fechas y "Incluir canceladas" vuelven a leer Hostaway. Descargas: Excel (.xlsx con hojas "Reservas" y "Por villa", SheetJS 0.18.5 de cdnjs; si no carga, se baja el CSV y se avisa) y CSV (BOM UTF-8, ';', coma decimal, fechas dd/mm/yyyy); nombre informe-reservas-<desde>-<hasta>, o informe-reservas-villa-<nº>-<desde>-<hasta> con una sola villa. Error: "No se pudieron cargar las reservas." y el texto; 403 = "Tu usuario no tiene permiso para este informe.". Pruebas informe-reservas.test.js. -->
