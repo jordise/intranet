@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    cuadro-comercial-data.js — CALCULO del Cuadro de mando comercial
-   VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo
+   VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo
 
    Módulo puro: sin DOM, sin red, sin fecha del dispositivo. La página
    cuadro-comercial.html lee las filas (Worker caspio-proxy, action=data) y
@@ -38,6 +38,12 @@
      targets     [] en fase 1. {scope:'socios'|'agente', agent?, metric, period, value}.
      datos       [] en fase 1. Solo se leen {kind:'riesgo'|'oportunidad', text}.
      external    undefined en fase 1; no se lee.
+     lang        opcional 'es' (por defecto, salida igual que en v1) o 'en': idioma de todo texto que lee
+                   una persona (etiquetas, partes, frases, avisos, filas del equipo, mes, bono, referencias).
+                   Las claves de estado ('sin dato', 'fase 2', 'sin objetivo', 'ok', 'sin confirmar') y
+                   varianceBase ('objetivo' | 'año anterior') no cambian; varianceBaseText lleva el texto.
+                   Todos los textos salen de la tabla STR { es, en } con t(clave, {param}); en 'en' el
+                   decimal es un punto. Las cifras son las mismas en los dos idiomas.
 
    REGLAS
    - Semana = lunes a domingo; cada fila cuenta en la semana de su Fecha (la misma regla
@@ -65,7 +71,162 @@
 (function (root) {
   'use strict';
 
-  var VERSION = 1;
+  var VERSION = 2;
+
+  /* ── v2: textos para una persona, en español y en inglés. Claves estables, no el texto español.
+     {n} = parámetro. Una pareja [singular, plural] es un nombre para cnt(). La salida en español es
+     la misma de v1, byte a byte. ── */
+  var STR = {
+    es: {
+      sin_dato: 'sin dato', sin_agente: '(sin agente)', equipo: 'Equipo',
+      week: 'semana {n} ({d})',
+      months: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+      n_fila: ['fila', 'filas'], n_vivienda: ['vivienda', 'viviendas'], n_baja: ['baja', 'bajas'], n_alta: ['alta', 'altas'],
+      n_perdida: ['vivienda perdida', 'viviendas perdidas'], n_arras2: ['firma de arras', 'arras firmadas'], n_arras7: ['firma de arras', 'arras'],
+      n_escritura: ['escritura', 'escrituras'], n_captacion: ['captación', 'captaciones'], n_contrato: ['contrato', 'contratos'],
+      n_carta: ['carta de intención', 'cartas de intención'], n_semana: ['semana', 'semanas'],
+      pf_Prosp_Llamadas: 'Llamadas', pf_Prosp_No_Contestan: 'No contestan', pf_Prosp_No_Interesado: 'No interesado', pf_Prosp_Otra_Agencia: 'Otra agencia',
+      pf_Prosp_Seguimiento: 'Seguimiento', pf_Visitas_Ventas: 'Visitas', pf_Prosp_Cartas_Intenciones: 'Cartas de intenciones', pf_Prosp_Contratos: 'Contratos',
+      eq_contratos_gestion: 'Contratos de gestión firmados', eq_captaciones_exclusiva: 'Captaciones de venta en exclusiva',
+      eq_captacion_inmobiliaria: 'Captación Inmobiliaria (campo del informe)', eq_arras: 'Arras firmadas', eq_ofertas: 'Ofertas',
+      eq_cartas: 'Cartas de intención enviadas', eq_visitas: 'Visitas (ventas + vacacional)', eq_valoraciones: 'Valoraciones',
+      eq_leads_fuente: 'Leads nuevos por fuente', eq_conversaciones: 'Conversaciones', eq_llamadas: 'Llamadas',
+      ren_2: 'PENDIENTE', ren_10: 'Fecha fija en contrato', ren_20: 'Anualmente tácitamente',
+      mot_bajasSinFin: '{n} sin año de fin', mot_sinInicio: '{n} sin año de inicio',
+      nt_sinFecha_1: '1 fila del informe semanal no se cuenta: su fecha no se puede leer.',
+      nt_sinFecha_n: '{n} filas del informe semanal no se cuentan: su fecha no se puede leer.',
+      nt_sinAgente_1: '1 fila del informe semanal no tiene agente.', nt_sinAgente_n: '{n} filas del informe semanal no tienen agente.',
+      nt_dup: 'Atención: {name} tiene {rows} en la {week}; se suman los contadores.',
+      nt_prospDesde: 'En estas 13 semanas, las columnas de prospección (llamadas, cartas, contratos) tienen dato desde la {week}; antes salen "sin dato".',
+      nt_prospNone: 'En estas 13 semanas, las columnas de prospección (llamadas, cartas, contratos) no tienen ningún dato.',
+      nt_noUsar_1: '1 ficha de villa con "NO USAR" en el nombre no se cuenta.', nt_noUsar_n: '{n} fichas de villa con "NO USAR" en el nombre no se cuentan.',
+      nt_years: 'Las fichas de villas guardan solo el año del contrato: el inicio se toma el 1 de enero y el fin el 31 de diciembre.',
+      nt_sinInicio_1: '{n} de {total} en gestión no tiene año de inicio del contrato (sin año): su alta no se puede fechar.',
+      nt_sinInicio_n: '{n} de {total} en gestión no tienen año de inicio del contrato (sin año): sus altas no se pueden fechar.',
+      nt_sinFin_1: '{n} de {total} en gestión no tiene año de fin del contrato (sin año).',
+      nt_sinFin_n: '{n} de {total} en gestión no tienen año de fin del contrato (sin año).',
+      nt_vencidos_1: '{n} en gestión tiene un año de fin del contrato ya pasado: revisa la ficha de la villa.',
+      nt_vencidos_n: '{n} en gestión tienen un año de fin del contrato ya pasado: revisa sus fichas.',
+      nt_bajasSinFin_1: '{n} no tiene año de fin del contrato: no entra en la tasa de bajas.',
+      nt_bajasSinFin_n: '{n} no tienen año de fin del contrato: no entran en la tasa de bajas.',
+      nt_noVillas: 'No se han leído fichas de villas: los bloques de viviendas salen "sin dato".',
+      src_w: 'Reporte semanal (Ta_raport_ventas)', src_v: 'Fichas de villas (TaVillas)', src_holded: 'Holded (fase 2)',
+      src_gaelle: 'Texto de Gaëlle (Ta_comercial_datos, fase 2)',
+      src_fact: ': Facturado_Ciu + Facturado_Mao, acumulado del año autodeclarado por agente',
+      src_fincas: ': Fincas_Actuales, suma de agentes de la última semana con dato',
+      sin_comp: 'mes en curso, sin comparación', vb_objetivo: 'objetivo', vb_ly: 'año anterior',
+      tl1: 'Honorarios cobrados', tl2: 'Arras firmadas, 90 días', tl3: 'Captaciones de venta nuevas, % exclusiva',
+      tl4: 'Viviendas en gestión: altas, bajas, total', tl5: 'Tasa de bajas de propietarios, 12 meses',
+      tl6: 'Contratos de gestión firmados; % leads → contrato', tl7: 'Pipeline de ventas: cartera activa, ofertas, arras, escrituras',
+      tl8: 'Dos riesgos, dos oportunidades',
+      s1: 'Sin dato hasta la lectura de Holded (fase 2).',
+      s2_none: 'Sin arras registradas en los últimos 90 días.',
+      s2: '{a90} en los últimos 90 días ({a30} en 30, {a60} en 60); {e90} en 90 días.',
+      s3_none: 'Sin dato de captaciones en {mes}.',
+      s3: '{n} en {mes}, suma de los dos campos ({s} Captación Inmobiliaria y {e} Captación Exclusiva); % exclusiva sin confirmar; {comp}.',
+      s3_ly: '{n} el año anterior',
+      s4_noVillas: 'Sin fichas de villas leídas.',
+      s4_nofech: '{total} en gestión hoy; altas y bajas sin dato: {motivo}.',
+      s4: '{total} en gestión hoy; {altas} y {bajas} en 12 meses; {inicio} al inicio del periodo.',
+      s5_nofech: 'Sin dato: {motivo}.',
+      s5_zero: 'Sin viviendas al inicio del periodo: la tasa no se puede calcular.',
+      s5: '{bajas} de {base} al inicio del periodo ({pct} %).',
+      s6_none: 'Sin dato de contratos en {mes}', s6_head: '{n} en {mes}',
+      s6_nocartas: 'sin cartas de intención en {w} para calcular el %',
+      s6_pct: '{c} de {k} en {w} ({p} %)',
+      s6_prosp: 'las columnas de prospección tienen dato desde la {week}',
+      s6_prospNone: 'las columnas de prospección no tienen dato en estas 13 semanas',
+      s7_none: 'Sin dato de arras en {mes}.', s7: '{a} y {e} en {mes}; {comp}.', s7_lm: 'el mes anterior {a} y {e}',
+      s8: 'Sin texto todavía.',
+      ref5_best: 'EE. UU., alquiler residencial, mejores gestoras', ref5_avg: 'EE. UU., alquiler residencial, media',
+      ltc_base: 'cartas de intención enviadas, 13 semanas', ref6: 'proveedor EE. UU.',
+      p7_cartera: 'Cartera activa', p7_ofertas: 'Ofertas', p7_arras: 'Arras', p7_escrituras: 'Escrituras',
+      garantia_base: '{n} en gestión con el tipo de acuerdo informado',
+      vencen_label: 'con año de fin {a} o {b}',
+      regla: 'Bono fijo de {e} € con {n} o más llamadas en el mes.'
+    },
+    en: {
+      sin_dato: 'no data', sin_agente: '(no agent)', equipo: 'Team',
+      week: 'week {n} ({d})',
+      months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      n_fila: ['row', 'rows'], n_vivienda: ['home', 'homes'], n_baja: ['lost home', 'lost homes'], n_alta: ['new home', 'new homes'],
+      n_perdida: ['lost home', 'lost homes'], n_arras2: ['deposit signed', 'deposits signed'], n_arras7: ['deposit', 'deposits'],
+      n_escritura: ['deed', 'deeds'], n_captacion: ['sale listing', 'sale listings'], n_contrato: ['contract', 'contracts'],
+      n_carta: ['letter of intent', 'letters of intent'], n_semana: ['week', 'weeks'],
+      pf_Prosp_Llamadas: 'Calls', pf_Prosp_No_Contestan: 'No answer', pf_Prosp_No_Interesado: 'Not interested', pf_Prosp_Otra_Agencia: 'Other agency',
+      pf_Prosp_Seguimiento: 'Follow-up', pf_Visitas_Ventas: 'Viewings', pf_Prosp_Cartas_Intenciones: 'Letters of intent', pf_Prosp_Contratos: 'Contracts',
+      eq_contratos_gestion: 'Management contracts signed', eq_captaciones_exclusiva: 'Exclusive sale listings',
+      eq_captacion_inmobiliaria: 'Captación Inmobiliaria (report field)', eq_arras: 'Deposits signed', eq_ofertas: 'Offers',
+      eq_cartas: 'Letters of intent sent', eq_visitas: 'Viewings (sales + holiday rental)', eq_valoraciones: 'Valuations',
+      eq_leads_fuente: 'New leads by source', eq_conversaciones: 'Conversations', eq_llamadas: 'Calls',
+      ren_2: 'PENDING', ren_10: 'Fixed date in the contract', ren_20: 'Renews every year unless cancelled',
+      mot_bajasSinFin: '{n} without an end year', mot_sinInicio: '{n} without a start year',
+      nt_sinFecha_1: '1 weekly report row is not counted: its date cannot be read.',
+      nt_sinFecha_n: '{n} weekly report rows are not counted: their date cannot be read.',
+      nt_sinAgente_1: '1 weekly report row has no agent.', nt_sinAgente_n: '{n} weekly report rows have no agent.',
+      nt_dup: 'Note: {name} has {rows} in {week}; the counts are added up.',
+      nt_prospDesde: 'In these 13 weeks, the prospecting columns (calls, letters, contracts) have data from {week}; before that they show "no data".',
+      nt_prospNone: 'In these 13 weeks, the prospecting columns (calls, letters, contracts) have no data at all.',
+      nt_noUsar_1: '1 villa record with "NO USAR" (do not use) in its name is not counted.',
+      nt_noUsar_n: '{n} villa records with "NO USAR" (do not use) in their name are not counted.',
+      nt_years: 'Villa records keep only the contract year: the start is taken as 1 January and the end as 31 December.',
+      nt_sinInicio_1: '{n} of {total} under management has no contract start year: its addition cannot be dated.',
+      nt_sinInicio_n: '{n} of {total} under management have no contract start year: their additions cannot be dated.',
+      nt_sinFin_1: '{n} of {total} under management has no contract end year.',
+      nt_sinFin_n: '{n} of {total} under management have no contract end year.',
+      nt_vencidos_1: '{n} under management has a contract end year in the past: check the villa record.',
+      nt_vencidos_n: '{n} under management have a contract end year in the past: check their records.',
+      nt_bajasSinFin_1: '{n} has no contract end year: it is left out of the churn rate.',
+      nt_bajasSinFin_n: '{n} have no contract end year: they are left out of the churn rate.',
+      nt_noVillas: 'No villa records were read: the home blocks show "no data".',
+      src_w: 'Weekly report (Ta_raport_ventas)', src_v: 'Villa records (TaVillas)', src_holded: 'Holded (phase 2)',
+      src_gaelle: 'Text from Gaëlle (Ta_comercial_datos, phase 2)',
+      src_fact: ': Facturado_Ciu + Facturado_Mao, year-to-date total reported by each agent',
+      src_fincas: ': Fincas_Actuales, sum over the agents of the latest week with data',
+      sin_comp: 'month in progress, no comparison', vb_objetivo: 'target', vb_ly: 'last year',
+      tl1: 'Fees collected', tl2: 'Deposits (arras) signed, 90 days', tl3: 'New sale listings, % exclusive',
+      tl4: 'Homes under management: added, lost, total', tl5: 'Owner churn, 12 months',
+      tl6: 'Management contracts signed; % leads → contract', tl7: 'Sales pipeline: active portfolio, offers, deposits, deeds',
+      tl8: 'Two risks, two opportunities',
+      s1: 'No data until Holded is read (phase 2).',
+      s2_none: 'No deposits recorded in the last 90 days.',
+      s2: '{a90} in the last 90 days ({a30} in 30, {a60} in 60); {e90} in 90 days.',
+      s3_none: 'No sale listings data in {mes}.',
+      s3: '{n} in {mes}, the sum of the two report fields ({s} Captación Inmobiliaria and {e} Captación Exclusiva); % exclusive not confirmed; {comp}.',
+      s3_ly: '{n} last year',
+      s4_noVillas: 'No villa records read.',
+      s4_nofech: '{total} under management today; no data for added and lost: {motivo}.',
+      s4: '{total} under management today; {altasN} added and {bajasN} lost in 12 months; {inicio} at the start of the period.',
+      s5_nofech: 'No data: {motivo}.',
+      s5_zero: 'No homes at the start of the period: the rate cannot be calculated.',
+      s5: '{bajas} out of {base} at the start of the period ({pct} %).',
+      s6_none: 'No contracts data in {mes}', s6_head: '{n} in {mes}',
+      s6_nocartas: 'no letters of intent in {w} to calculate the %',
+      s6_pct: '{c} out of {k} in {w} ({p} %)',
+      s6_prosp: 'the prospecting columns have data from {week}',
+      s6_prospNone: 'the prospecting columns have no data in these 13 weeks',
+      s7_none: 'No deposits data in {mes}.', s7: '{a} and {e} in {mes}; {comp}.', s7_lm: 'last month {a} and {e}',
+      s8: 'No text yet.',
+      ref5_best: 'US, residential rental, best managers', ref5_avg: 'US, residential rental, average',
+      ltc_base: 'letters of intent sent, 13 weeks', ref6: 'US vendor',
+      p7_cartera: 'Active portfolio', p7_ofertas: 'Offers', p7_arras: 'Deposits', p7_escrituras: 'Deeds',
+      garantia_base: '{n} under management with the deal type filled in',
+      vencen_label: 'with end year {a} or {b}',
+      regla: 'Fixed bonus of {e} € with {n} or more calls in the month.'
+    }
+  };
+  /* Idioma del cálculo en curso: buildDashboard lo pone y lo devuelve a 'es' al terminar (try/finally). */
+  var CUR = 'es';
+  function S() { return STR[CUR] || STR.es; }
+  /* Texto de la tabla con sus {param}. */
+  function t(key, params) {
+    var s = S()[key];
+    if (s === undefined) s = STR.es[key];
+    if (typeof s !== 'string' || !params) return s;
+    return s.replace(/\{(\w+)\}/g, function (m, k) { return params[k] === undefined ? m : String(params[k]); });
+  }
+  /* Clave en singular (_1) o plural (_n) según n. */
+  function t1n(key, n, params) { return t(key + (n === 1 ? '_1' : '_n'), params); }
 
   /* ── Nombres de campo (lectura de la definición de Caspio, 13/10/2026) ── */
   var W = {
@@ -121,7 +282,6 @@
   ];
   var SNAPSHOT_FIELDS = {}; SNAPSHOT_FIELDS[W.fincas] = 1; SNAPSHOT_FIELDS[W.factCiu] = 1; SNAPSHOT_FIELDS[W.factMao] = 1;
 
-  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   var WEEKS = 13;
 
   /* ════════ Utilidades ════════ */
@@ -170,9 +330,9 @@
     var week = Math.floor((thu - toDays(tY + '-01-01')) / 7) + 1;
     return tY + '-W' + pad(week);
   }
-  /* Semana para una frase o un aviso: 'semana 40 (28/09/2026)', número ISO y fecha del lunes. */
+  /* Semana para una frase o un aviso: 'semana 40 (28/09/2026)' ('week 40 (28/09/2026)' en inglés), número ISO y fecha del lunes. */
   function weekTxt(monday) {
-    return 'semana ' + (+isoWeekLabel(monday).slice(6)) + ' (' + monday.slice(8, 10) + '/' + monday.slice(5, 7) + '/' + monday.slice(0, 4) + ')';
+    return t('week', { n: +isoWeekLabel(monday).slice(6), d: monday.slice(8, 10) + '/' + monday.slice(5, 7) + '/' + monday.slice(0, 4) });
   }
   /* Suma meses a 'YYYY-MM-DD' (día recortado al último del mes). */
   function addMonthsDay(ymd, delta) {
@@ -182,18 +342,20 @@
     return ny + '-' + pad(nm + 1) + '-' + pad(Math.min(d, last));
   }
   function shiftMonth(ym, delta) { return addMonthsDay(ym + '-01', delta).slice(0, 7); }
-  function monthLabel(ym) { return MESES[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4); }
+  function monthLabel(ym) { return S().months[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4); }
   function monthEnd(ym) { return fromDays(toDays(shiftMonth(ym, 1) + '-01') - 1); }
   function round1(x) { return Math.round(x * 10) / 10; }
   function round100(x) { return x === null ? null : Math.round(x / 100) * 100; }
   function pct(a, b) { return (a === null || b === null || !(b > 0)) ? null : round1(a / b * 100); }
   function variance(value, base) { return (value === null || base === null || base === undefined || base === 0) ? null : round1((value - base) / Math.abs(base) * 100); }
-  /* Número para una frase: coma decimal (66,7), "sin dato" si falta. */
-  function fmtN(x) { return x === null || x === undefined ? 'sin dato' : String(x).replace('.', ','); }
+  /* Número para una frase: coma decimal (66,7), "sin dato" si falta; en inglés punto decimal (66.7) y "no data". */
+  function fmtN(x) { return x === null || x === undefined ? t('sin_dato') : (CUR === 'en' ? String(x) : String(x).replace('.', ',')); }
   /* Concordancia: la palabra en singular con 1, en plural con otro número o sin dato. */
   function pl(n, uno, varios) { return n === 1 ? uno : varios; }
   /* Cuenta para una frase: '1 baja', '2 bajas', 'sin dato bajas'. */
   function cnt(n, uno, varios) { return fmtN(n) + ' ' + pl(n, uno, varios); }
+  /* Cuenta con el nombre de la tabla STR: cntK(2, 'n_baja') = '2 bajas' / '2 lost homes'. */
+  function cntK(n, key) { var w = S()[key] || STR.es[key]; return cnt(n, w[0], w[1]); }
 
   /* Año válido de Iniciocontrato / Fincontrato, o null (vacío, 0, 1111, 2999 o fuera de rango). */
   function anioValido(v) {
@@ -270,7 +432,7 @@
       else if (fin < anioHoy) vencidos++;
       else if (fin <= anioHoy + 1) {
         var rt = num(v, V.renov);
-        vencen.push({ villa: nombre, fin: fin, finFecha: fin + '-12-31', renovacion: rt !== null && RENOVACION[rt] ? RENOVACION[rt] : null });
+        vencen.push({ villa: nombre, fin: fin, finFecha: fin + '-12-31', renovacion: rt !== null && RENOVACION[rt] ? t('ren_' + rt) : null });
       }
       var u = num(v, V.units);
       if (u !== null && u > 1) { multi++; unidades += u; } else { simples++; unidades += 1; }
@@ -288,8 +450,8 @@
     /* Altas y bajas solo se pueden fechar si TODAS las bajas tienen año de fin y TODAS las viviendas en
        gestión tienen año de inicio; si no, la tasa y las altas/bajas salen "sin dato" con el motivo. */
     var motivos = [];
-    if (bajasSinFin) motivos.push(cnt(bajasSinFin, 'baja', 'bajas') + ' sin año de fin');
-    if (sinInicio) motivos.push(cnt(sinInicio, 'alta', 'altas') + ' sin año de inicio');
+    if (bajasSinFin) motivos.push(t('mot_bajasSinFin', { n: cntK(bajasSinFin, 'n_baja') }));
+    if (sinInicio) motivos.push(t('mot_sinInicio', { n: cntK(sinInicio, 'n_alta') }));
     var fechable = motivos.length === 0;
     return {
       total: total, altas: altas, bajas: bajas, alInicio: alInicio, desde: desde,
@@ -304,8 +466,15 @@
 
   /* ════════ buildDashboard ════════ */
 
+  /* v2: input.lang 'en' = textos en inglés; cualquier otro valor = español. El idioma vuelve a 'es' al terminar. */
   function buildDashboard(input) {
     input = input || {};
+    var prev = CUR;
+    CUR = input.lang === 'en' ? 'en' : 'es';
+    try { return buildCore(input); } finally { CUR = prev; }
+  }
+
+  function buildCore(input) {
     var today = parseFecha(input.today);
     if (!today) throw new Error('buildDashboard: today debe ser YYYY-MM-DD');
     var month = (input.month && /^\d{4}-\d{2}$/.test(input.month)) ? input.month : today.slice(0, 7);
@@ -321,12 +490,11 @@
       userName[id] = String(u.Name || u.name || id).trim();
       if (isActiveSales(u)) salesIds.push(id);
     });
-    var nameOf = function (id) { return id ? (userName[id] || id) : '(sin agente)'; };
+    var nameOf = function (id) { return id ? (userName[id] || id) : t('sin_agente'); };
 
     var P = prepRows(input.weeklyRows);
-    if (P.sinFecha) notices.push(P.sinFecha === 1 ? '1 fila del informe semanal no se cuenta: su fecha no se puede leer.'
-      : P.sinFecha + ' filas del informe semanal no se cuentan: su fecha no se puede leer.');
-    if (P.sinAgente) notices.push(P.sinAgente === 1 ? '1 fila del informe semanal no tiene agente.' : P.sinAgente + ' filas del informe semanal no tienen agente.');
+    if (P.sinFecha) notices.push(t1n('nt_sinFecha', P.sinFecha, { n: P.sinFecha }));
+    if (P.sinAgente) notices.push(t1n('nt_sinAgente', P.sinAgente, { n: P.sinAgente }));
 
     /* Ventana de 13 semanas, la última es la semana de today (abierta). */
     var lastMon = mondayOf(today), weekStarts = [];
@@ -347,7 +515,7 @@
     /* Duplicados: más de una fila del mismo agente en una semana de la ventana */
     Object.keys(cells).forEach(function (a) {
       Object.keys(cells[a]).forEach(function (m) {
-        if (cells[a][m].length > 1) notices.push('Atención: ' + nameOf(a) + ' tiene ' + cnt(cells[a][m].length, 'fila', 'filas') + ' en la ' + weekTxt(m) + '; se suman los contadores.');
+        if (cells[a][m].length > 1) notices.push(t('nt_dup', { name: nameOf(a), rows: cntK(cells[a][m].length, 'n_fila'), week: weekTxt(m) }));
       });
     });
 
@@ -358,11 +526,11 @@
       });
     }
     function goalFor(agentName, agentId, metric) {
-      var t = targets.filter(function (x) {
+      var hit = targets.filter(function (x) {
         return x && x.scope === 'agente' && x.metric === metric && x.period === openWeek &&
           (x.agent === agentName || x.agent === agentId);
       })[0];
-      return t && isFinite(+t.value) ? +t.value : null;
+      return hit && isFinite(+hit.value) ? +hit.value : null;
     }
     function cpv(calls, visits) {
       return calls.map(function (c, k) { var v = visits[k]; return (c === null || v === null || !(v > 0)) ? null : round1(c / v); });
@@ -373,7 +541,7 @@
         var values = d.fase2 ? weekStarts.map(function () { return null; }) : valuesFor(d.fields);
         var goal = d.fase2 ? null : goalFor(agentName, agentId, d.metric);
         var row = {
-          metric: d.metric, label: d.label, values: values, goal: goal,
+          metric: d.metric, label: t('eq_' + d.metric), values: values, goal: goal,
           goalState: goal === null ? 'sin objetivo' : 'ok',
           state: d.fase2 ? 'fase 2' : (values.every(function (x) { return x === null; }) ? 'sin dato' : 'ok')
         };
@@ -390,7 +558,7 @@
     });
     var missingByWeek = weekStarts.map(function (m) { return agentList.filter(function (a) { return !(cells[a.id] && cells[a.id][m]); }).length; });
     var total = {
-      name: 'Equipo',
+      name: t('equipo'),
       rows: buildRows(function (f) {
         return weekStarts.map(function (m, k) {
           return agentList.reduce(function (s, a) { return add(s, weekValues(a.id, f)[k]); }, null);
@@ -412,8 +580,8 @@
     /* Primera semana de la ventana con dato de prospección (algún Prosp_Llamadas no nulo) */
     var prospDesde = P.rows.filter(function (p) { return wIdx[p.monday] !== undefined && num(p.r, W.llamadas) !== null; })
       .map(function (p) { return p.monday; }).sort()[0] || null;
-    if (prospDesde && prospDesde !== weekStarts[0]) notices.push('En estas 13 semanas, las columnas de prospección (llamadas, cartas, contratos) tienen dato desde la ' + weekTxt(prospDesde) + '; antes salen "sin dato".');
-    else if (!prospDesde) notices.push('En estas 13 semanas, las columnas de prospección (llamadas, cartas, contratos) no tienen ningún dato.');
+    if (prospDesde && prospDesde !== weekStarts[0]) notices.push(t('nt_prospDesde', { week: weekTxt(prospDesde) }));
+    else if (!prospDesde) notices.push(t('nt_prospNone'));
 
     /* ── Sumas por mes del equipo ── */
     var byMonth = {};
@@ -430,19 +598,19 @@
     }
     function withState(o) { o.state = o.value === null ? 'sin dato' : 'ok'; return o; }
     function target(metric) {
-      var t = targets.filter(function (x) { return x && x.scope === 'socios' && x.metric === metric && x.period === month; })[0];
-      return t && isFinite(+t.value) ? +t.value : null;
+      var hit = targets.filter(function (x) { return x && x.scope === 'socios' && x.metric === metric && x.period === month; })[0];
+      return hit && isFinite(+hit.value) ? +hit.value : null;
     }
     function teamWeekly(fields) {
       return weekStarts.map(function (m) {
         return agentList.reduce(function (s, a) { var g = cells[a.id] && cells[a.id][m]; return add(s, g ? groupValue(g, fields) : null); }, null);
       });
     }
-    var srcW = 'Reporte semanal (Ta_raport_ventas)', srcV = 'Fichas de villas (TaVillas)';
+    var srcW = t('src_w'), srcV = t('src_v');
     /* Mes abierto (el de today): un mes a medias no se compara con un mes entero. Las cifras 3, 6 y 7
        no llevan año anterior, mes anterior ni variación; dicen "mes en curso, sin comparación". */
     var openMonth = month === today.slice(0, 7);
-    var SIN_COMP = 'mes en curso, sin comparación';
+    var SIN_COMP = t('sin_comp');
     var mesTxt = monthLabel(month);
 
     function tile(id, label, unit, metric, value, opts) {
@@ -450,22 +618,24 @@
       var tg = metric ? target(metric) : null;
       var ly = opts.lastYear === undefined || opts.noCompare ? null : opts.lastYear;
       var base = tg !== null ? tg : ly;
-      var t = {
+      /* varianceBase es una clave ('objetivo' | 'año anterior'); varianceBaseText, su texto en el idioma pedido. */
+      var vb = opts.fase2 || opts.noCompare || base === null ? null : (tg !== null ? 'objetivo' : 'año anterior');
+      var o = {
         id: id, label: label, value: value, unit: unit, target: tg, lastYear: ly,
         variancePct: opts.fase2 || opts.noCompare ? null : variance(value, base),
-        varianceBase: opts.fase2 || opts.noCompare || base === null ? null : (tg !== null ? 'objetivo' : 'año anterior'),
+        varianceBase: vb, varianceBaseText: vb === null ? null : t(vb === 'objetivo' ? 'vb_objetivo' : 'vb_ly'),
         sentence: opts.sentence || '', source: opts.source || '', readAt: readAt,
         state: opts.fase2 ? 'fase 2' : (value === null ? 'sin dato' : (tg === null ? 'sin objetivo' : 'ok'))
       };
-      if (opts.noCompare) t.comparison = SIN_COMP;
-      Object.keys(opts.extra || {}).forEach(function (k) { t[k] = opts.extra[k]; });
-      return t;
+      if (opts.noCompare) o.comparison = SIN_COMP;
+      Object.keys(opts.extra || {}).forEach(function (k) { o[k] = opts.extra[k]; });
+      return o;
     }
     /* Final de frase con la comparación, o "mes en curso, sin comparación" en el mes abierto. */
     function compTxt(txt) { return openMonth ? SIN_COMP : txt; }
     /* Aviso de prospección para la cifra 6, si la ventana empieza antes del primer dato. */
-    var prospTxt = prospDesde && prospDesde !== weekStarts[0] ? 'las columnas de prospección tienen dato desde la ' + weekTxt(prospDesde)
-      : (!prospDesde ? 'las columnas de prospección no tienen dato en estas 13 semanas' : '');
+    var prospTxt = prospDesde && prospDesde !== weekStarts[0] ? t('s6_prosp', { week: weekTxt(prospDesde) })
+      : (!prospDesde ? t('s6_prospNone') : '');
 
     var VI = villaInfo(input.villas, today);
 
@@ -484,32 +654,43 @@
     var riesgos = datos.filter(function (d) { return d && d.kind === 'riesgo' && d.text; }).map(function (d) { return String(d.text); });
     var oport = datos.filter(function (d) { return d && d.kind === 'oportunidad' && d.text; }).map(function (d) { return String(d.text); });
 
+    /* Frase de la cifra 6: contratos del mes, % leads → contrato en 13 semanas y desde cuándo hay prospección. */
+    function sentence6() {
+      var s, p6 = pct(contr13, cartas13), w13 = cntK(WEEKS, 'n_semana');
+      if (contr.value === null) s = t('s6_none', { mes: mesTxt });
+      else s = t('s6_head', { n: cntK(contr.value, 'n_contrato'), mes: mesTxt }) + '; ' +
+        (p6 === null ? t('s6_nocartas', { w: w13 })
+          : t('s6_pct', { c: cntK(contr13, 'n_contrato'), k: cntK(cartas13, 'n_carta'), w: w13, p: fmtN(p6) })) +
+        (openMonth ? '; ' + SIN_COMP : '');
+      return s + (prospTxt ? '; ' + prospTxt : '') + '.';
+    }
+
     var tiles = [
-      tile(1, 'Honorarios cobrados', 'EUR', 'honorarios_cobrados', null, {
-        fase2: true, source: 'Holded (fase 2)',
-        sentence: 'Sin dato hasta la lectura de Holded (fase 2).'
+      tile(1, t('tl1'), 'EUR', 'honorarios_cobrados', null, {
+        fase2: true, source: t('src_holded'),
+        sentence: t('s1')
       }),
       /* Cifra 2 en fase 1 = recuento de arras y escrituras; "Honorarios pendientes" vuelve en la fase 2 con importes. */
-      tile(2, 'Arras firmadas, 90 días', 'n', 'arras_90d', a90, {
+      tile(2, t('tl2'), 'n', 'arras_90d', a90, {
         source: srcW,
-        sentence: a90 === null ? 'Sin arras registradas en los últimos 90 días.'
-          : cnt(a90, 'firma de arras', 'arras firmadas') + ' en los últimos 90 días (' + fmtN(a30) + ' en 30, ' + fmtN(a60) + ' en 60); ' + cnt(e90, 'escritura', 'escrituras') + ' en 90 días.',
+        sentence: a90 === null ? t('s2_none')
+          : t('s2', { a90: cntK(a90, 'n_arras2'), a30: fmtN(a30), a60: fmtN(a60), e90: cntK(e90, 'n_escritura') }),
         extra: { arras30d: a30, arras60d: a60, arras90d: a90, escrituras90d: e90, importe: null, importeState: 'fase 2' }
       }),
       /* % exclusiva sin confirmar: no se sabe si Captacion_Inmobiliaria es "sin exclusiva" o el total. */
-      tile(3, 'Captaciones de venta nuevas, % exclusiva', 'n', 'captaciones_venta', capT.value, {
+      tile(3, t('tl3'), 'n', 'captaciones_venta', capT.value, {
         lastYear: capT.lastYear, noCompare: openMonth, source: srcW,
-        sentence: capT.value === null ? 'Sin dato de captaciones en ' + mesTxt + '.'
-          : cnt(capT.value, 'captación', 'captaciones') + ' en ' + mesTxt + ', suma de los dos campos (' + fmtN(capS.value) + ' Captación Inmobiliaria y ' +
-            fmtN(capE.value) + ' Captación Exclusiva); % exclusiva sin confirmar; ' + compTxt(fmtN(capT.lastYear) + ' el año anterior') + '.',
+        sentence: capT.value === null ? t('s3_none', { mes: mesTxt })
+          : t('s3', { n: cntK(capT.value, 'n_captacion'), mes: mesTxt, s: fmtN(capS.value), e: fmtN(capE.value), comp: compTxt(t('s3_ly', { n: fmtN(capT.lastYear) })) }),
         extra: { exclusivas: capE.value, captacionInmobiliaria: capS.value, exclusivePct: null, exclusiveState: 'sin confirmar', series13w: teamWeekly([W.captExcl, W.captSimple]) }
       }),
       /* Cifra 4: el total de hoy es firme; altas, bajas y el año anterior solo si se pueden fechar. */
-      tile(4, 'Viviendas en gestión: altas, bajas, total', 'n', 'viviendas_gestion', VI.leidas ? VI.total : null, {
+      tile(4, t('tl4'), 'n', 'viviendas_gestion', VI.leidas ? VI.total : null, {
         lastYear: VI.leidas && VI.fechable ? VI.alInicio : null, source: srcV,
-        sentence: !VI.leidas ? 'Sin fichas de villas leídas.'
-          : !VI.fechable ? cnt(VI.total, 'vivienda', 'viviendas') + ' en gestión hoy; altas y bajas sin dato: ' + VI.motivo + '.'
-          : cnt(VI.total, 'vivienda', 'viviendas') + ' en gestión hoy; ' + cnt(VI.altas.length, 'alta', 'altas') + ' y ' + cnt(VI.bajas.length, 'baja', 'bajas') + ' en 12 meses; ' + fmtN(VI.alInicio) + ' al inicio del periodo.',
+        sentence: !VI.leidas ? t('s4_noVillas')
+          : !VI.fechable ? t('s4_nofech', { total: cntK(VI.total, 'n_vivienda'), motivo: VI.motivo })
+          : t('s4', { total: cntK(VI.total, 'n_vivienda'), altas: cntK(VI.altas.length, 'n_alta'), bajas: cntK(VI.bajas.length, 'n_baja'),
+            altasN: fmtN(VI.altas.length), bajasN: fmtN(VI.bajas.length), inicio: fmtN(VI.alInicio) }),
         extra: (function () {
           var ok4 = VI.leidas && VI.fechable;
           return { altas12m: ok4 ? VI.altas.length : null, bajas12m: ok4 ? VI.bajas.length : null, alInicio: ok4 ? VI.alInicio : null,
@@ -517,48 +698,45 @@
         })()
       }),
       /* Cifra 5: sin bajas fechables no hay tasa ni líneas de referencia. */
-      tile(5, 'Tasa de bajas de propietarios, 12 meses', '%', 'tasa_bajas', VI.tasa, {
+      tile(5, t('tl5'), '%', 'tasa_bajas', VI.tasa, {
         source: srcV,
-        sentence: !VI.leidas ? 'Sin fichas de villas leídas.'
-          : !VI.fechable ? 'Sin dato: ' + VI.motivo + '.'
-          : VI.tasa === null ? 'Sin viviendas al inicio del periodo: la tasa no se puede calcular.'
-          : cnt(VI.bajas.length, 'baja', 'bajas') + ' de ' + cnt(VI.alInicio, 'vivienda', 'viviendas') + ' al inicio del periodo (' + fmtN(VI.tasa) + ' %).',
+        sentence: !VI.leidas ? t('s4_noVillas')
+          : !VI.fechable ? t('s5_nofech', { motivo: VI.motivo })
+          : VI.tasa === null ? t('s5_zero')
+          : t('s5', { bajas: cntK(VI.bajas.length, 'n_baja'), base: cntK(VI.alInicio, 'n_vivienda'), pct: fmtN(VI.tasa) }),
         extra: {
           bajas: VI.tasa === null ? null : VI.bajas.length, base: VI.tasa === null ? null : VI.alInicio, desde: VI.desde,
-          referencias: VI.tasa === null ? [] : [{ value: 9.6, label: 'EE. UU., alquiler residencial, mejores gestoras' }, { value: 19.5, label: 'EE. UU., alquiler residencial, media' }]
+          referencias: VI.tasa === null ? [] : [{ value: 9.6, label: t('ref5_best') }, { value: 19.5, label: t('ref5_avg') }]
         }
       }),
-      tile(6, 'Contratos de gestión firmados; % leads → contrato', 'n', 'contratos_gestion', contr.value, {
+      tile(6, t('tl6'), 'n', 'contratos_gestion', contr.value, {
         lastYear: contr.lastYear, noCompare: openMonth, source: srcW,
-        sentence: (contr.value === null ? 'Sin dato de contratos en ' + mesTxt
-          : cnt(contr.value, 'contrato', 'contratos') + ' en ' + mesTxt + '; ' + (pct(contr13, cartas13) === null ? 'sin cartas de intención en ' + cnt(WEEKS, 'semana', 'semanas') + ' para calcular el %'
-            : cnt(contr13, 'contrato', 'contratos') + ' de ' + cnt(cartas13, 'carta de intención', 'cartas de intención') + ' en ' + cnt(WEEKS, 'semana', 'semanas') + ' (' + fmtN(pct(contr13, cartas13)) + ' %)') +
-            (openMonth ? '; ' + SIN_COMP : '')) + (prospTxt ? '; ' + prospTxt : '') + '.',
+        sentence: sentence6(),
         extra: {
-          leadToContract: { contratos: contr13, cartas: cartas13, pct: pct(contr13, cartas13), base: 'cartas de intención enviadas, 13 semanas' },
-          referenceBand: { min: 10, max: 25, label: 'proveedor EE. UU.' },
+          leadToContract: { contratos: contr13, cartas: cartas13, pct: pct(contr13, cartas13), base: t('ltc_base') },
+          referenceBand: { min: 10, max: 25, label: t('ref6') },
           prospeccionDesde: prospDesde ? isoWeekLabel(prospDesde) : null,
           series13w: teamWeekly([W.contratos])
         }
       }),
-      tile(7, 'Pipeline de ventas: cartera activa, ofertas, arras, escrituras', 'n', 'arras', arrasM.value, {
+      tile(7, t('tl7'), 'n', 'arras', arrasM.value, {
         lastYear: arrasM.lastYear, noCompare: openMonth, source: srcW,
-        sentence: arrasM.value === null ? 'Sin dato de arras en ' + mesTxt + '.'
-          : cnt(arrasM.value, 'firma de arras', 'arras') + ' y ' + cnt(notM.value, 'escritura', 'escrituras') + ' en ' + mesTxt + '; ' + compTxt('el mes anterior ' + fmtN(arrasM.lastMonth) + ' y ' + fmtN(notM.lastMonth)) + '.',
+        sentence: arrasM.value === null ? t('s7_none', { mes: mesTxt })
+          : t('s7', { a: cntK(arrasM.value, 'n_arras7'), e: cntK(notM.value, 'n_escritura'), mes: mesTxt, comp: compTxt(t('s7_lm', { a: fmtN(arrasM.lastMonth), e: fmtN(notM.lastMonth) })) }),
         extra: {
           lastMonth: openMonth ? null : arrasM.lastMonth,
           parts: [
-            { key: 'cartera', label: 'Cartera activa', value: null, state: 'fase 2' },
-            { key: 'ofertas', label: 'Ofertas', value: null, state: 'fase 2' },
-            withState({ key: 'arras', label: 'Arras', value: arrasM.value, lastMonth: openMonth ? null : arrasM.lastMonth, lastYear: openMonth ? null : arrasM.lastYear }),
-            withState({ key: 'escrituras', label: 'Escrituras', value: notM.value, lastMonth: openMonth ? null : notM.lastMonth, lastYear: openMonth ? null : notM.lastYear })
+            { key: 'cartera', label: t('p7_cartera'), value: null, state: 'fase 2' },
+            { key: 'ofertas', label: t('p7_ofertas'), value: null, state: 'fase 2' },
+            withState({ key: 'arras', label: t('p7_arras'), value: arrasM.value, lastMonth: openMonth ? null : arrasM.lastMonth, lastYear: openMonth ? null : arrasM.lastYear }),
+            withState({ key: 'escrituras', label: t('p7_escrituras'), value: notM.value, lastMonth: openMonth ? null : notM.lastMonth, lastYear: openMonth ? null : notM.lastYear })
           ],
           series13w: teamWeekly([W.arras])
         }
       }),
-      tile(8, 'Dos riesgos, dos oportunidades', 'n', null, (riesgos.length || oport.length) ? riesgos.length + oport.length : null, {
-        source: 'Texto de Gaëlle (Ta_comercial_datos, fase 2)',
-        sentence: (riesgos.length || oport.length) ? '' : 'Sin texto todavía.',
+      tile(8, t('tl8'), 'n', null, (riesgos.length || oport.length) ? riesgos.length + oport.length : null, {
+        source: t('src_gaelle'),
+        sentence: (riesgos.length || oport.length) ? '' : t('s8'),
         extra: { riesgos: riesgos.slice(0, 2), oportunidades: oport.slice(0, 2) }
       })
     ];
@@ -623,7 +801,7 @@
         facturado: {
           value: factMesTot, ytd: factYtdTot, porAgente: factAgents, unit: 'EUR',
           state: factYtdTot === null ? 'sin dato' : 'ok',
-          source: srcW + ': Facturado_Ciu + Facturado_Mao, acumulado del año autodeclarado por agente'
+          source: srcW + t('src_fact')
         },
         cobrado: { value: null, state: 'fase 2' },
         diferencia: { value: null, state: 'fase 2' },
@@ -631,7 +809,7 @@
       },
       ventas: {
         inmueblesEnVenta: { value: null, state: 'fase 2' },
-        fincasActuales: { value: fincasVal, week: fincasWeek ? isoWeekLabel(fincasWeek) : null, state: fincasVal === null ? 'sin dato' : 'ok', source: srcW + ': Fincas_Actuales, suma de agentes de la última semana con dato' },
+        fincasActuales: { value: fincasVal, week: fincasWeek ? isoWeekLabel(fincasWeek) : null, state: fincasVal === null ? 'sin dato' : 'ok', source: srcW + t('src_fincas') },
         arras: withState(trio([W.arras])),
         escrituras: withState(trio([W.notario])),
         seguros: { count: withState(trio([W.seguros])), valor: { value: null, state: 'fase 2' } },
@@ -646,7 +824,7 @@
         unidades: VI.leidas ? VI.unidades : null,
         simples: VI.leidas ? VI.simples : null,
         multi: VI.leidas ? VI.multi : null,
-        conGarantia: { n: VI.garantia, pct: pct(VI.garantia, VI.dealConDato), base: cnt(VI.dealConDato, 'vivienda', 'viviendas') + ' en gestión con el tipo de acuerdo informado', source: 'TaVillas.Deal_Type = 2 (Warranty)' },
+        conGarantia: { n: VI.garantia, pct: pct(VI.garantia, VI.dealConDato), base: t('garantia_base', { n: cntK(VI.dealConDato, 'n_vivienda') }), source: 'TaVillas.Deal_Type = 2 (Warranty)' },
         renovacion: VI.renov,
         leads: { value: null, state: 'fase 2' },
         cartas: withState(trio([W.cartas])),
@@ -658,30 +836,29 @@
         bajasMotivoTexto: { value: null, state: 'fase 2' },
         /* Fincontrato guarda solo el año: vencen = año de fin este año o el siguiente. */
         vencen12m: VI.vencen,
-        vencen12mLabel: 'con año de fin ' + VI.vencenAnios[0] + ' o ' + VI.vencenAnios[1]
+        vencen12mLabel: t('vencen_label', { a: VI.vencenAnios[0], b: VI.vencenAnios[1] })
       },
       prospeccion: {
-        fields: PROSP_FIELDS, agents: prospAgents, totales: prospTot, bonus: bonus,
-        regla: 'Bono fijo de ' + BONO_EUROS + ' € con ' + BONO_LLAMADAS + ' o más llamadas en el mes.',
+        fields: PROSP_FIELDS.map(function (f) { return { key: f.key, label: t('pf_' + f.key) }; }), agents: prospAgents, totales: prospTot, bonus: bonus,
+        regla: t('regla', { e: BONO_EUROS, n: BONO_LLAMADAS }),
         fuentes: { value: null, state: 'fase 2' }
       }
     };
 
     /* Avisos de los datos de villas */
-    if (VI.noUsar) notices.push(VI.noUsar === 1 ? '1 ficha de villa con "NO USAR" en el nombre no se cuenta.'
-      : VI.noUsar + ' fichas de villa con "NO USAR" en el nombre no se cuentan.');
+    if (VI.noUsar) notices.push(t1n('nt_noUsar', VI.noUsar, { n: VI.noUsar }));
     if (VI.leidas) {
-      notices.push('Las fichas de villas guardan solo el año del contrato: el inicio se toma el 1 de enero y el fin el 31 de diciembre.');
-      if (VI.sinInicio) notices.push(VI.sinInicio + ' de ' + cnt(VI.total, 'vivienda', 'viviendas') + ' en gestión ' + pl(VI.sinInicio, 'no tiene', 'no tienen') + ' año de inicio del contrato (sin año): ' + pl(VI.sinInicio, 'su alta no se puede fechar.', 'sus altas no se pueden fechar.'));
-      if (VI.sinFin) notices.push(VI.sinFin + ' de ' + cnt(VI.total, 'vivienda', 'viviendas') + ' en gestión ' + pl(VI.sinFin, 'no tiene', 'no tienen') + ' año de fin del contrato (sin año).');
-      if (VI.vencidos) notices.push(cnt(VI.vencidos, 'vivienda', 'viviendas') + ' en gestión ' + pl(VI.vencidos, 'tiene', 'tienen') + ' un año de fin del contrato ya pasado: ' + pl(VI.vencidos, 'revisa la ficha de la villa.', 'revisa sus fichas.'));
-      if (VI.bajasSinFin) notices.push(cnt(VI.bajasSinFin, 'vivienda perdida', 'viviendas perdidas') + ' ' + pl(VI.bajasSinFin, 'no tiene', 'no tienen') + ' año de fin del contrato: ' + pl(VI.bajasSinFin, 'no entra', 'no entran') + ' en la tasa de bajas.');
+      notices.push(t('nt_years'));
+      if (VI.sinInicio) notices.push(t1n('nt_sinInicio', VI.sinInicio, { n: VI.sinInicio, total: cntK(VI.total, 'n_vivienda') }));
+      if (VI.sinFin) notices.push(t1n('nt_sinFin', VI.sinFin, { n: VI.sinFin, total: cntK(VI.total, 'n_vivienda') }));
+      if (VI.vencidos) notices.push(t1n('nt_vencidos', VI.vencidos, { n: cntK(VI.vencidos, 'n_vivienda') }));
+      if (VI.bajasSinFin) notices.push(t1n('nt_bajasSinFin', VI.bajasSinFin, { n: cntK(VI.bajasSinFin, 'n_perdida') }));
     } else {
-      notices.push('No se han leído fichas de villas: los bloques de viviendas salen "sin dato".');
+      notices.push(t('nt_noVillas'));
     }
 
     return {
-      version: VERSION, today: today, readAt: readAt,
+      version: VERSION, lang: CUR, today: today, readAt: readAt,
       socios: { month: month, tiles: tiles },
       equipo: { weeks: weeks, weekStarts: weekStarts, openWeek: openWeek, agents: agents, total: total, leaderboard: leaderboard },
       mensual: mensual,
@@ -695,6 +872,8 @@
     FIELDS: { weekly: W, villas: V },
     EQUIPO_ROWS: EQUIPO_ROWS, PROSP_FIELDS: PROSP_FIELDS,
     STATUS_GESTION: STATUS_GESTION, STATUS_BAJA: STATUS_BAJA, RENOVACION: RENOVACION,
+    /* v2: tabla de textos { es, en } (las pruebas comprueban que los dos idiomas tienen las mismas claves) */
+    STR: STR,
     /* expuesto solo para las pruebas */
     _internals: {
       parseFecha: parseFecha, mondayOf: mondayOf, isoWeekLabel: isoWeekLabel, weekTxt: weekTxt, cnt: cnt, addMonthsDay: addMonthsDay,
@@ -705,7 +884,15 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
 
-/* HISTORIAL: v1 2026-10-13 — primera versión: cálculo puro del Cuadro de mando comercial (spec
+/* HISTORIAL: v2 2026-10-13 — textos en inglés (Gary, 13/10/2026: "i need an english toggle as well so i can
+   read it"). Entrada nueva input.lang 'es' (por defecto) | 'en'. Todo texto que lee una persona (etiquetas de
+   las ocho cifras, partes de la cifra 7, frases, avisos, motivos, filas del equipo semanal, nombre del total,
+   columnas de prospección, mes, renovación, etiqueta de los que vencen, base de la garantía, regla del bono,
+   referencias, fuentes) sale de la tabla STR { es, en } con t(clave, {param}); los nombres para contar son
+   parejas [singular, plural] (cntK). En inglés el decimal es un punto. Las claves de estado y varianceBase no
+   cambian; varianceBaseText lleva su texto. Las cifras son las mismas en los dos idiomas; la salida en español
+   es la de v1, byte a byte. STR se publica en CuadroComercialData.STR para las pruebas; la salida lleva lang.
+   v1 2026-10-13 — primera versión: cálculo puro del Cuadro de mando comercial (spec
    3villas context/cuadro-comercial-gaelle-build-2026-10-13.md §3 y §4). Socios: ocho tiles con
    estado 'ok' | 'sin dato' | 'sin objetivo' | 'fase 2'; tiles 1 y 8 y las partes cartera y ofertas
    del tile 7 en fase 2. Equipo: 13 semanas de lunes a domingo con etiqueta ISO, filas por agente

@@ -99,10 +99,10 @@ function row(html, label) { var i = html.indexOf('>' + label + '<'); return i < 
 
 test('página: versión, título, historial, permiso y módulo', function () {
   var first5 = SRC.split('\n').slice(0, 5).join('\n');
-  assert.ok(/VERSIÓN ACTUAL: v2/.test(first5), 'versión en las cinco primeras líneas');
-  assert.ok(SRC.indexOf('<title>Cuadro de mando comercial v2 — 3Villas</title>') > 0);
-  assert.ok(/var PAGE_VERSION = 2;/.test(SRC));
-  assert.ok(/^<!-- HISTORIAL: v1 - 13\/10\/2026 [\s\S]* v2 - 13\/10\/2026 — [\s\S]* -->$/.test(SRC.trim().split('\n').pop()), 'historial v1 y v2');
+  assert.ok(/VERSIÓN ACTUAL: v3/.test(first5), 'versión en las cinco primeras líneas');
+  assert.ok(SRC.indexOf('<title>Cuadro de mando comercial v3 — 3Villas</title>') > 0);
+  assert.ok(/var PAGE_VERSION = 3;/.test(SRC));
+  assert.ok(/^<!-- HISTORIAL: v1 - 13\/10\/2026 [\s\S]* v2 - 13\/10\/2026 — [\s\S]* v3 - 13\/10\/2026 — [\s\S]* -->$/.test(SRC.trim().split('\n').pop()), 'historial v1, v2 y v3');
   assert.ok(SRC.indexOf("<script>window.__ccSession = null; window.__ccSession = Auth.require('cuadro-comercial');</script>") > 0);
   assert.ok(/\(function\(\)\{\n'use strict';\n[^\n]*\nif \(!window\.__ccSession\) return;/.test(SRC), 'el script principal sale sin sesión');
   ['auth.js', 'nav.js', 'nav-component.js', 'cuadro-comercial-data.js'].forEach(function (f) {
@@ -432,7 +432,8 @@ function runPage(opts) {
   var ctx = {
     console: { error: function () {}, log: function () {} },
     document: { getElementById: el, addEventListener: function (t, f) { (listeners[t] = listeners[t] || []).push(f); }, querySelectorAll: function () { return []; } },
-    location: { protocol: 'https:', pathname: '/intranet/cuadro-comercial.html', hash: '' },
+    location: { protocol: 'https:', pathname: '/intranet/cuadro-comercial.html', hash: '', search: opts.search || '' },
+    localStorage: opts.localStorage,
     history: { replaceState: function () {} },
     sessionStorage: { getItem: function () { return '1'; }, setItem: function () {} },
     navigator: {},
@@ -624,4 +625,112 @@ test('nav.js: dos entradas del cuadro y NAV_VERSION igual a la cabecera', functi
   var head = NAV.match(/VERSIÓN ACTUAL: v(\d+)/), nv = NAV.match(/var NAV_VERSION = (\d+);/);
   assert.ok(head && nv && head[1] === nv[1], 'NAV_VERSION = versión de la cabecera');
   assert.ok(new RegExp('// HISTORIAL: v' + head[1] + ' - [^|]*cuadro-comercial').test(NAV), 'el historial empieza por esa versión y nombra la página');
+});
+
+/* ── v3: español e inglés ── */
+
+test('v3: botones ES / EN, guardado en cc_lang y ?lang=en', function () {
+  var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
+  var hr = VIVO.slice(VIVO.indexOf('<div class="head-row">'), VIVO.indexOf('<div id="stLoad"'));
+  assert.ok(hr.indexOf('<div class="lang" id="langBtns" role="group"') > 0, 'el grupo de idioma está en la fila del título y las pestañas');
+  assert.ok(hr.indexOf('<button type="button" class="on" data-lang="es" aria-pressed="true">ES</button>') > 0);
+  assert.ok(hr.indexOf('<button type="button" data-lang="en" aria-pressed="false">EN</button>') > 0);
+  assert.ok(/\.lang button\{height:28px;[^}]*font-size:11px;font-weight:800/.test(SRC) && /\.lang button\.on\{background:var\(--red\)/.test(SRC), 'pastillas de 28 px, Montserrat 800 11 px, roja la activa');
+  assert.ok(SRC.indexOf("localStorage.setItem('cc_lang', LANG)") > 0 && SRC.indexOf("localStorage.getItem('cc_lang')") > 0);
+  assert.ok(/\[\?&\]lang=\(es\|en\)/.test(SRC), '?lang= en la dirección');
+  assert.ok(SRC.indexOf('<title>Cuadro de mando comercial v3 — 3Villas</title>') > 0, 'el título de la pestaña sigue en español');
+});
+
+test('v3: UI.es y UI.en con las mismas claves; STR del módulo también', function () {
+  function same(a, b, path) {
+    assert.deepEqual(Object.keys(a).sort(), Object.keys(b).sort(), path);
+    Object.keys(a).forEach(function (k) {
+      if (Array.isArray(a[k])) assert.ok(Array.isArray(b[k]) && a[k].length === b[k].length, path + '.' + k);
+      else if (a[k] && typeof a[k] === 'object') same(a[k], b[k], path + '.' + k);
+      else assert.equal(typeof b[k], 'string', path + '.' + k);
+    });
+  }
+  same(P.UI.es, P.UI.en, 'UI');
+  same(P.UI.en, P.UI.es, 'UI (al revés)');
+  var C = require(path.join(__dirname, 'cuadro-comercial-data.js'));
+  assert.deepEqual(Object.keys(C.STR.es).sort(), Object.keys(C.STR.en).sort(), 'STR');
+  /* Cada data-i18n de la página tiene su texto en UI. */
+  (SRC.match(/data-i18n="(\w+)"/g) || []).forEach(function (m) { var k = m.slice(11, -1); assert.equal(typeof P.UI.en[k], 'string', k); assert.equal(typeof P.UI.es[k], 'string', k); });
+});
+
+test('v3: en inglés, ninguna palabra española en las cifras, el equipo y el mes (salvo entre paréntesis)', function () {
+  var C = require(path.join(__dirname, 'cuadro-comercial-data.js'));
+  var rows = [];
+  ['2026-08-03', '2026-08-10', '2026-09-07', '2026-09-14', '2026-09-21', '2026-10-05', '2025-09-08'].forEach(function (d, i) {
+    rows.push({ registro_id: 'R' + i, Fecha: d, Agente: 'U1', Captacion_Inmobiliaria: i % 2, Captacion_Inmobiliaria_Exclusiva: 1, Visitas_Ventas: 3, Visita_Alquiler_Vacacional: 1,
+      Firma_Arras: i % 3 === 0 ? 1 : 0, Firma_Notario: 0, Seguros: 1, Prosp_Llamadas: 15, Prosp_Cartas_Intenciones: 2, Prosp_Contratos: i % 2, Fincas_Actuales: 20, Facturado_Ciu: 1000 * i, Facturado_Mao: 0 });
+  });
+  var users = [{ UserID: 'U1', Name: 'Agente Uno', Role: 'sales', User_Status: true }];
+  var good = [{ villaid: 1, Name: 'Villa Uno', Status: 1, Iniciocontrato: 2020, Fincontrato: 2026, ContractRenovationType: 10, Unidades_multiunit: 1, Deal_Type: 2 },
+    { villaid: 2, Name: 'Villa Dos', Status: 1, Iniciocontrato: 2026, Fincontrato: 2030, ContractRenovationType: 20, Unidades_multiunit: 3, Deal_Type: 1 },
+    { villaid: 3, Name: 'Villa Tres', Status: 12, Iniciocontrato: 2018, Fincontrato: 2026 }];
+  var bad = [{ villaid: 1, Name: 'Villa Uno', Status: 1, Iniciocontrato: 1111, Fincontrato: 2999 }, { villaid: 2, Name: 'Villa Dos', Status: 13, Iniciocontrato: 2015, Fincontrato: null }];
+  var BLACK = ['sin dato', 'semana', 'vivienda', 'arras', 'fase 2', 'objetivo', 'leído', 'fuente'];
+  /* Texto visible: sin etiquetas HTML y sin lo que va entre paréntesis (nombres de tabla y de campo, "(arras)"). */
+  function visible(html) { return html.replace(/<[^>]*>/g, ' ').replace(/&#39;/g, "'").replace(/\([^()]*\)/g, ' ').toLowerCase(); }
+  try {
+    P.setLang('en');
+    [good, bad, []].forEach(function (villas, n) {
+      [undefined, '2026-09'].forEach(function (month) {
+        var out = C.buildDashboard({ today: '2026-10-13', month: month, weeklyRows: n === 2 ? [] : rows, villas: villas, users: users, targets: [], datos: [], lang: 'en' });
+        var tiles = P.socioTiles(out.socios).map(P.tileHtml).join('');
+        var eq = out.equipo, weekly = eq.agents.map(function (a) { return P.agentBlockHtml(a, eq.weeks, false, eq.openWeek); }).join('') + P.agentBlockHtml(eq.total, eq.weeks, true, eq.openWeek);
+        var monthly = P.M_BLOCKS.map(function (b) { return P.blockRows(out.mensual[b.key]).map(function (r) { return r.label + ' ' + r.text + ' ' + r.sub; }).join(' | ') + P.mBlockTitle(b); }).join(' ');
+        [['cifras', tiles], ['equipo', weekly], ['mensual', monthly], ['csv', P.buildMensualCsv(out.mensual)], ['tsv', P.equipoTsv(eq)]].forEach(function (pair) {
+          var txt = visible(pair[1]);
+          BLACK.forEach(function (w) { assert.ok(txt.indexOf(w) < 0, pair[0] + ' (villas ' + n + ', mes ' + month + '): "' + w + '" en ' + txt.slice(Math.max(0, txt.indexOf(w) - 80), txt.indexOf(w) + 40)); });
+        });
+        if (n === 0 && !month) {
+          assert.ok(tiles.indexOf('Fees collected') > 0 && tiles.indexOf('pending (phase 2)') > 0 && tiles.indexOf('Source: Weekly report (Ta_raport_ventas) · read 13/10/2026') > 0, 'etiqueta, estado y fuente en inglés');
+          assert.ok(tiles.indexOf('<span class="t-pill">no target</span>') > 0 && /class="spark-cap">13 weeks</.test(tiles));
+          assert.ok(weekly.indexOf('<td class="l">Weekly report</td>') > 0 && weekly.indexOf('no report') > 0 && weekly.indexOf('in progress') > 0 && weekly.indexOf('Calls per viewing') > 0 && />W42<span/.test(weekly));
+          assert.ok(P.equipoTsv(eq).split('\n')[0].indexOf('Agent\tIndicator\tW30 20/07') === 0);
+        }
+      });
+    });
+    assert.equal(P.fmtValue(12345, 'EUR'), '12,300 €');
+    assert.equal(P.fmtValue(9.6, '%'), '9.6 %');
+    assert.equal(P.fmtVariance(-2.67), '-2.7 %');
+    assert.equal(P.csvNum(2.25), '2.3');
+    assert.equal(P.monthLabel('2026-09'), 'September 2026');
+    assert.equal(P.stateText('fase 2'), 'pending (phase 2)');
+    assert.equal(P.varianceBase({ varianceBase: 'año anterior' }), 'vs last year');
+    assert.equal(P.plainNotice('In these 13 weeks, the prospecting columns (calls, letters, contracts) have data from week 41 (28/09/2026); before that they show "no data".'),
+      "The prospecting columns (calls, letters, contracts) have data from week 40 (28/09/2026); before that they show 'no data'.", 'la semana sale de la fecha, en inglés');
+    assert.equal(P.buildMensualCsv(OUT.mensual).slice(1).split('\r\n')[0], 'Block;Indicator;Value;Last month;Last year');
+  } finally { P.setLang('es'); }
+  assert.equal(P.fmtValue(12345, 'EUR'), '12.300 €', 'de vuelta en español');
+});
+
+test('v3: ?lang=en y cc_lang abren en inglés; el cambio de idioma recalcula sin leer de nuevo', async function () {
+  var langs = [];
+  var page = runPage({ require: function () { return { role: 'admin' }; }, search: '?lang=en', build: function (inp) { langs.push(inp.lang); return OUT; } });
+  await settle(page, function () { return page.el('report').style.display === 'block'; });
+  assert.deepEqual(langs, ['en'], 'el módulo recibe lang en');
+  assert.equal(page.el('fase2Note').textContent, 'phase 2 = figure that arrives in the next delivery (Holded, eGO, targets).');
+  assert.ok(page.el('avisos').innerHTML.indexOf('<p class="readline">Read from Caspio at ') === 0 && page.el('avisos').innerHTML.indexOf('1 note on the data') > 0);
+  assert.ok(page.el('navSub').textContent.indexOf('Read at ') === 0);
+  var reads = page.calls.length;
+  page.ctx.switchLang('es');
+  assert.deepEqual(langs, ['en', 'es'], 'un cálculo más, en español');
+  assert.equal(page.calls.length, reads, 'sin lecturas nuevas');
+  assert.equal(page.el('fase2Note').textContent, 'fase 2 = cifra que llega en la siguiente entrega (Holded, eGO, objetivos).');
+  var saved = {};
+  var store = { getItem: function (k) { return saved[k] === undefined ? null : saved[k]; }, setItem: function (k, v) { saved[k] = v; } };
+  var p2 = runPage({ require: function () { return { role: 'admin' }; }, localStorage: store, build: function () { return OUT; } });
+  await settle(p2, function () { return p2.el('report').style.display === 'block'; });
+  assert.ok(p2.el('avisos').innerHTML.indexOf('Lectura de Caspio a las ') > 0, 'sin elección guardada: español');
+  p2.ctx.switchLang('en');
+  assert.equal(saved.cc_lang, 'en', 'la elección se guarda');
+  var p3 = runPage({ require: function () { return { role: 'admin' }; }, localStorage: store, build: function () { return OUT; } });
+  await settle(p3, function () { return p3.el('report').style.display === 'block'; });
+  assert.ok(p3.el('avisos').innerHTML.indexOf('Read from Caspio at ') > 0, 'la elección guardada manda');
+  var p4 = runPage({ require: function () { return { role: 'admin' }; }, localStorage: store, search: '?lang=es', build: function () { return OUT; } });
+  await settle(p4, function () { return p4.el('report').style.display === 'block'; });
+  assert.ok(p4.el('avisos').innerHTML.indexOf('Lectura de Caspio a las ') > 0 && saved.cc_lang === 'en', '?lang=es manda en esa carga y no se guarda');
 });

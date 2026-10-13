@@ -378,5 +378,54 @@ ok('la lectura de TaUsers sigue con limit=300', PAGE.indexOf("'?action=data&tabl
 ok('comprueba el tope con >= USERS_LIMIT', PAGE.indexOf('var usersCapped = users.length >= USERS_LIMIT;') > 0 && PAGE.indexOf('users: { rows: users.length, capped: usersCapped }') > 0);
 ok('aviso naranja como las otras lecturas', PAGE.indexOf("if(loadInfo.users && loadInfo.users.capped) av.push('<div class=\"info-box orange\">La lectura de agentes llegó al tope de ' + USERS_LIMIT + ' filas: puede faltar el nombre de algún agente.</div>');") > 0);
 
+console.log('v2: textos en inglés (input.lang = "en")');
+function keysOf(o) { return Object.keys(o).sort().join(','); }
+ok('STR: es y en tienen las mismas claves', !!C.STR && keysOf(C.STR.es) === keysOf(C.STR.en), J(Object.keys(C.STR.es).filter(function (k) { return !(k in C.STR.en); }).concat(Object.keys(C.STR.en).filter(function (k) { return !(k in C.STR.es); }))));
+ok('STR: misma forma en los dos idiomas (texto o lista de igual largo)', Object.keys(C.STR.es).every(function (k) {
+  var a = C.STR.es[k], b = C.STR.en[k];
+  return Array.isArray(a) ? Array.isArray(b) && a.length === b.length : typeof a === 'string' && typeof b === 'string';
+}));
+ok('STR: los {param} de cada texto son los mismos en es y en (s4 usa altasN/bajasN en inglés)', Object.keys(C.STR.es).every(function (k) {
+  if (typeof C.STR.es[k] !== 'string' || k === 's4') return true;
+  var p = function (s) { return (s.match(/\{\w+\}/g) || []).sort().join(','); };
+  return p(C.STR.es[k]) === p(C.STR.en[k]);
+}));
+var INP = { today: '2026-10-13', weeklyRows: ROWS, villas: VILLAS_OK, users: USERS, targets: [], datos: [] };
+var ES = C.buildDashboard(INP), ES2 = C.buildDashboard(Object.assign({}, INP, { lang: 'es' })), EN = C.buildDashboard(Object.assign({}, INP, { lang: 'en' }));
+ok('sin lang = lang "es" (misma salida); un valor raro = español', J(ES) === J(ES2) && J(C.buildDashboard(Object.assign({}, INP, { lang: 'fr' }))) === J(ES) && ES.lang === 'es' && EN.lang === 'en');
+/* Todos los números de la salida, en orden: los dos idiomas dan las mismas cifras. */
+function nums(o, out) { out = out || []; if (typeof o === 'number') out.push(o); else if (o && typeof o === 'object') Object.keys(o).forEach(function (k) { nums(o[k], out); }); return out; }
+ok('las ocho cifras valen lo mismo en inglés', J(EN.socios.tiles.map(function (x) { return x.value; })) === J(ES.socios.tiles.map(function (x) { return x.value; })), J(EN.socios.tiles.map(function (x) { return x.value; })));
+ok('todos los números de la salida son los mismos en los dos idiomas (' + nums(ES).length + ')', J(nums(EN)) === J(nums(ES)));
+ok('las claves de estado y varianceBase no cambian en inglés', J(EN.socios.tiles.map(function (x) { return [x.state, x.varianceBase, x.exclusiveState || null]; })) === J(ES.socios.tiles.map(function (x) { return [x.state, x.varianceBase, x.exclusiveState || null]; })) &&
+  J(EN.equipo.agents.map(function (a) { return a.rows.map(function (r) { return r.state + r.goalState; }); })) === J(ES.equipo.agents.map(function (a) { return a.rows.map(function (r) { return r.state + r.goalState; }); })));
+ok('inglés: etiquetas de las ocho cifras', J(EN.socios.tiles.map(function (x) { return x.label; })) === J(['Fees collected', 'Deposits (arras) signed, 90 days', 'New sale listings, % exclusive',
+  'Homes under management: added, lost, total', 'Owner churn, 12 months', 'Management contracts signed; % leads → contract',
+  'Sales pipeline: active portfolio, offers, deposits, deeds', 'Two risks, two opportunities']), J(EN.socios.tiles.map(function (x) { return x.label; })));
+ok('inglés: frase de la cifra 2', tile(EN, 2).sentence === '1 deposit signed in the last 90 days (0 in 30, 0 in 60); 1 deed in 90 days.', tile(EN, 2).sentence);
+ok('inglés: frase de la cifra 4', tile(EN, 4).sentence === '6 homes under management today; 1 added and 1 lost in 12 months; 6 at the start of the period.', tile(EN, 4).sentence);
+ok('inglés: frase de la cifra 5 con punto decimal', tile(EN, 5).sentence === '1 lost home out of 6 homes at the start of the period (16.7 %).', tile(EN, 5).sentence);
+ok('inglés: cifra 6 con la semana en inglés', /^3 contracts in October 2026; 3 contracts out of 4 letters of intent in 13 weeks \(75 %\); month in progress, no comparison; the prospecting columns have data from week 41 \(05\/10\/2026\)\.$/.test(tile(EN, 6).sentence), tile(EN, 6).sentence);
+ok('inglés: varianceBaseText, partes de la cifra 7, referencias y banda', tile(EN, 7).parts.map(function (p) { return p.label; }).join('|') === 'Active portfolio|Offers|Deposits|Deeds' &&
+  tile(EN, 6).referenceBand.label === 'US vendor' && tile(EN, 5).referencias[0].label === 'US, residential rental, best managers' && tile(EN, 6).leadToContract.base === 'letters of intent sent, 13 weeks');
+ok('inglés: avisos', EN.notices.indexOf('Note: Mari has 2 rows in week 41 (05/10/2026); the counts are added up.') >= 0 &&
+  EN.notices.indexOf('1 weekly report row is not counted: its date cannot be read.') >= 0 &&
+  EN.notices.indexOf('Villa records keep only the contract year: the start is taken as 1 January and the end as 31 December.') >= 0 && EN.notices.length === ES.notices.length, J(EN.notices));
+ok('inglés: filas del equipo semanal y nombre del total', EN.equipo.agents[0].rows.map(function (r) { return r.label; }).join('|') ===
+  'Management contracts signed|Exclusive sale listings|Captación Inmobiliaria (report field)|Deposits signed|Offers|Letters of intent sent|Viewings (sales + holiday rental)|Valuations|New leads by source|Conversations|Calls' &&
+  EN.equipo.total.name === 'Team', J(EN.equipo.agents[0].rows.map(function (r) { return r.label; })));
+ok('inglés: mes, columnas de prospección, bono, vencen y garantía', EN.mensual.label === 'October 2026' && EN.mensual.prospeccion.fields[0].label === 'Calls' &&
+  EN.mensual.prospeccion.regla === 'Fixed bonus of 150 € with 50 or more calls in the month.' && EN.mensual.captacion.vencen12mLabel === 'with end year 2026 or 2027' &&
+  EN.mensual.captacion.conGarantia.base === '6 homes under management with the deal type filled in', J([EN.mensual.label, EN.mensual.captacion.conGarantia.base]));
+var DVen = C.buildDashboard({ today: '2026-10-13', villas: VILLAS, lang: 'en' });
+ok('inglés: motivo sin fechas, renovación y avisos de villas', tile(DVen, 5).sentence === 'No data: 1 lost home without an end year; 6 new homes without a start year.' &&
+  DVen.mensual.captacion.vencen12m[1].renovacion === 'Fixed date in the contract' &&
+  DVen.notices.indexOf('1 lost home has no contract end year: it is left out of the churn rate.') >= 0, J([tile(DVen, 5).sentence, DVen.notices]));
+var enTxt = [];
+[EN, DVen, C.buildDashboard({ today: '2026-10-13', lang: 'en' })].forEach(function (d) { d.socios.tiles.forEach(function (x) { enTxt.push(x.sentence, x.label); }); d.notices.forEach(function (n) { enTxt.push(n); }); });
+ok('inglés: ninguna frase ni aviso con coma decimal ni "sin dato" (' + enTxt.length + ' textos)', enTxt.every(function (s) { return !/\d,\d/.test(s) && !/sin dato|semana|vivienda/i.test(s); }), J(enTxt.filter(function (s) { return /\d,\d/.test(s) || /sin dato|semana|vivienda/i.test(s); })));
+ok('tras un cálculo en inglés el idioma vuelve a español', I.weekTxt('2026-09-28') === 'semana 40 (28/09/2026)' && I.cnt(null, 'baja', 'bajas') === 'sin dato bajas');
+ok('las tablas publicadas no cambian (PROSP_FIELDS, EQUIPO_ROWS, RENOVACION en español)', C.PROSP_FIELDS[0].label === 'Llamadas' && C.EQUIPO_ROWS[0].label === 'Contratos de gestión firmados' && C.RENOVACION[10] === 'Fecha fija en contrato');
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);
