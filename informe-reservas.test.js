@@ -1,4 +1,4 @@
-/* Pruebas de informe-reservas.html v1 (13/10/2026, petición de Marta, Reservas).
+/* Pruebas de informe-reservas.html v2 (13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary).
    Neto por canal, precio por día, villa por Hostawayid, filtros de estado, villa y canal,
    CSV en español, cifras del cuadro, la clave de auth.js y las entradas de nav.js v18.
    Datos inventados.
@@ -34,8 +34,11 @@ function varSource(src, name) {
 var SRC = fs.readFileSync(path.join(__dirname, 'informe-reservas.html'), 'utf8');
 var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commissionOf', 'buildVillaMap', 'enrichRow', 'cmpVillaNum',
   'sortDetail', 'filterRows', 'computeStats', 'villaSummary', 'fmtDate', 'fmtMoney', 'csvNum', 'csvCell', 'detailMatrix', 'villaMatrix',
-  'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween'];
-var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS'];
+  'buildCsv', 'fileName', 'buildPageUrl', 'monthsBetween',
+  'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv',
+  'huespedCell', 'villaDetailRowHtml', 'esc'];
+var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
+  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
   FNS.map(function (f) { return fnSource(SRC, f); }).join('\n') +
   '\nreturn {' + FNS.concat(VARS).map(function (n) { return n + ':' + n; }).join(',') + '};';
@@ -85,7 +88,10 @@ eq('Hostawayid numérico se compara como texto', [v3.num, v3.villa], ['3', 'Vill
 eq('sin Name usa el nombre para inquilinos; espacios fuera', R({ listingMapId: 1040 }).villa, 'Solo Inquilinos');
 var un = R({ listingMapId: 7777, listingName: 'Apartamento Fuera' });
 eq('sin villa: Nº vacío y nombre de Hostaway', [un.num, un.villa, un.mapped], ['', 'Apartamento Fuera', false]);
-ok('la fila no lleva datos del huésped', Object.keys(di).every(function (k) { return !/guest|name$|email|phone/i.test(k) || k === 'channelLabel'; }));
+/* v2: la fila lleva solo estos datos del huésped (Worker v59), con nombres propios; nada más del objeto de Hostaway. */
+eq('v2: claves de la fila', Object.keys(di).filter(function (k) { return /guest|email|phone|persons|payment|channelCode/i.test(k); }),
+  ['guest', 'email', 'phone', 'persons', 'payment', 'channelCode']);
+eq('v2: Worker sin v59 (campos ausentes): huésped vacío', [di.guest, di.email, di.phone, di.persons, di.payment, di.channelCode], ['', '', '', null, '', '']);
 
 console.log('Filtros');
 var rows = [
@@ -131,14 +137,81 @@ eq('dinero: miles con punto, decimales con coma', [P.fmtMoney(1234567.891), P.fm
 var csv = P.buildCsv(P.sortDetail([bk, bkNo, n0]));
 ok('CSV empieza con BOM', csv.charCodeAt(0) === 0xFEFF);
 var lines = csv.slice(1).split('\r\n');
-eq('cabecera exacta', lines[0], 'Nº villa;Villa;Check-in;Check-out;Noches;Fecha reserva;Canal;Precio total;Precio neto;Precio/día;Precio neto/día;Código');
-eq('fila Booking.com', lines[1], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;1700,00;285,71;242,86;5000001');
-eq('fila sin comisión: neto vacío', lines[2], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;;285,71;;5000001');
-eq('fila 0 noches: por día vacío', lines[3], '12;Villa Prueba;10/07/2026;17/07/2026;0;01/02/2026;Directa;1400,00;1400,00;;;5000001');
+eq('cabecera exacta (v2: Huésped al final)', lines[0], 'Nº villa;Villa;Check-in;Check-out;Noches;Fecha reserva;Canal;Precio total;Precio neto;Precio/día;Precio neto/día;Código;Huésped');
+eq('fila Booking.com', lines[1], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;1700,00;285,71;242,86;5000001;');
+eq('fila sin comisión: neto vacío', lines[2], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;;285,71;;5000001;');
+eq('fila 0 noches: por día vacío', lines[3], '12;Villa Prueba;10/07/2026;17/07/2026;0;01/02/2026;Directa;1400,00;1400,00;;;5000001;');
 eq('un ; en el nombre va entre comillas', P.csvCell('Villa; "A"'), '"Villa; ""A"""');
-eq('Excel: números como números, fechas como texto', P.detailMatrix([bk])[0], ['12', 'Villa Prueba', '10/07/2026', '17/07/2026', 7, '01/02/2026', 'Booking.com', 2000, 1700, 285.71, 242.86, '5000001']);
+eq('un texto que empieza por = no se ejecuta en Excel (apostrofo delante)', P.csvCell('=1+1'), "'=1+1");
+eq('un telefono con + delante se queda como esta (solo digitos y espacios)', P.csvCell('+34 600 000 000'), '+34 600 000 000');
+eq('un texto que empieza por - o + seguido de letras lleva apostrofo', P.csvCell('-cmd|calc'), "'-cmd|calc");
+eq('un numero normal no cambia', P.csvCell('1.234,50'), '1.234,50');
+eq('Excel: números como números, fechas como texto', P.detailMatrix([bk])[0], ['12', 'Villa Prueba', '10/07/2026', '17/07/2026', 7, '01/02/2026', 'Booking.com', 2000, 1700, 285.71, 242.86, '5000001', '']);
 eq('nombres de archivo', [P.fileName('2026-01-01', '2026-12-31', '', 'xlsx'), P.fileName('2026-01-01', '2026-12-31', '12', 'csv')],
   ['informe-reservas-2026-01-01-2026-12-31.xlsx', 'informe-reservas-villa-12-2026-01-01-2026-12-31.csv']);
+
+console.log('v2: ficha por villa');
+var G = { guestName: ' Ana López ', guestEmail: 'ana@example.com', phone: '+34 600 000 000', numberOfGuests: 4, adults: 2, children: 1,
+  paymentStatus: 'paid', channelReservationId: 'HM123' };
+var gr = R(Object.assign({ hostawayReservationId: 7001, channelName: 'airbnbOfficial', airbnbListingHostFee: 140 }, G));
+eq('huésped, correo, teléfono, personas, pago y código del canal', [gr.guest, gr.email, gr.phone, gr.persons, gr.payment, gr.channelCode],
+  ['Ana López', 'ana@example.com', '+34 600 000 000', 4, 'paid', 'HM123']);
+eq('guestName vacío: nombre + apellidos', P.guestNameOf({ guestName: null, guestFirstName: 'Ana', guestLastName: 'López' }), 'Ana López');
+eq('solo nombre o nada', [P.guestNameOf({ guestFirstName: 'Ana' }), P.guestNameOf({}), P.guestNameOf(null)], ['Ana', '', '']);
+eq('personas: numberOfGuests, si no adultos + niños, si no null',
+  [P.personasOf({ numberOfGuests: 5, adults: 2 }), P.personasOf({ adults: 2, children: 1 }), P.personasOf({ adults: 3 }), P.personasOf({ children: 2 }), P.personasOf({}), P.personasOf({ numberOfGuests: null, adults: null })],
+  [5, 3, 3, 2, null, null]);
+eq('pago en español', [P.pagoLabel('paid'), P.pagoLabel('Paid'), P.pagoLabel('partially_paid'), P.pagoLabel('partial'), P.pagoLabel('Partially paid'),
+  P.pagoLabel('unpaid'), P.pagoLabel('refunded'), P.pagoLabel(''), P.pagoLabel(null), P.pagoLabel(undefined)],
+  ['Pagado', 'Pagado', 'Parcial', 'Parcial', 'Parcial', 'Pendiente', 'refunded', '—', '—', '—']);
+var vRows = [
+  R({ hostawayReservationId: 11, listingMapId: 1001, arrivalDate: '2026-08-20' }),
+  R({ hostawayReservationId: 12, listingMapId: 1003, arrivalDate: '2026-05-01' }),
+  R({ hostawayReservationId: 13, listingMapId: 1001, arrivalDate: '2026-06-02' }),
+  R({ hostawayReservationId: 14, listingMapId: 7777, arrivalDate: '2026-07-01' }),
+  R({ hostawayReservationId: 15, listingMapId: 1001, arrivalDate: '2026-07-15', status: 'cancelled' })
+];
+eq('rowsOfVilla: solo esa villa, por check-in, canceladas incluidas si vienen', P.rowsOfVilla(vRows, 'V12').map(function (r) { return r.code; }), ['13', '15', '11']);
+eq('rowsOfVilla: alojamiento sin villa (L…)', P.rowsOfVilla(vRows, 'L7777').map(function (r) { return r.code; }), ['14']);
+eq('rowsOfVilla: villa sin reservas', P.rowsOfVilla(vRows, 'V99'), []);
+eq('cada villa del resumen tiene sus filas', P.villaSummary(vRows).map(function (v) { return [v.villaKey, v.reservas, P.rowsOfVilla(vRows, v.villaKey).filter(function (r) { return !r.cancelled; }).length]; }),
+  [['V3', 1, 1], ['V12', 2, 2], ['L7777', 1, 1]]);
+var evil = R({ guestName: '<img src=x onerror=alert(1)>', guestEmail: 'a"b@x.com', phone: '<b>1</b>', paymentStatus: '<i>x</i>', channelReservationId: '<s>c</s>' });
+var hc = P.huespedCell(gr);
+eq('celda Huésped: nombre, mailto y teléfono debajo', hc, 'Ana López<div class="sub"><a href="mailto:ana@example.com">ana@example.com</a> · +34 600 000 000</div>');
+eq('celda Huésped vacía = —', P.huespedCell(di), '—');
+var evilHtml = P.villaDetailRowHtml(evil);
+ok('datos del huésped escapados (esc)', evilHtml.indexOf('<img') < 0 && evilHtml.indexOf('<b>') < 0 && evilHtml.indexOf('<i>') < 0 && evilHtml.indexOf('<s>') < 0 &&
+  evilHtml.indexOf('&lt;img src=x onerror=alert(1)&gt;') > 0 && evilHtml.indexOf('mailto:a&quot;b@x.com') > 0, evilHtml);
+function cells(html) { var out = [], re = /<td[^>]*>([\s\S]*?)<\/td>/g, m; while ((m = re.exec(html))) out.push(m[1]); return out; }
+var rowCells = cells(P.villaDetailRowHtml(gr));
+eq('fila de la ficha: 13 celdas en el orden de las cabeceras', rowCells.length, P.VILLA_DETAIL_HEADERS.length);
+eq('fila de la ficha: valores', rowCells.slice(1),
+  ['10/07/2026', '17/07/2026', '7', '01/02/2026', 'Airbnb', '1.400,00', '1.260,00', '200,00', '180,00', '4', 'Pagado', '7001<div class="sub">HM123</div>']);
+var emptyCells = cells(P.villaDetailRowHtml(di));
+eq('fila de la ficha sin datos del huésped: —', [emptyCells[0], emptyCells[10], emptyCells[11], emptyCells[12]], ['—', '—', '—', '5000001']);
+var cRow = P.villaDetailRowHtml(R({ status: 'cancelled' }));
+ok('cancelada: tachada y con la etiqueta', /^<tr class="cancel">/.test(cRow) && cRow.indexOf('<span class="tag">cancelada</span>') > 0);
+eq('cabeceras de la ficha (huésped primero, luego Marta)', P.VILLA_DETAIL_HEADERS,
+  ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código']);
+eq('detalle global en pantalla: Huésped justo detrás de Canal', P.DETAIL_HEADERS,
+  ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Huésped', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código']);
+eq('fichero global: columnas de Marta, Villa, Código y Huésped al final', P.FILE_HEADERS,
+  ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código', 'Huésped']);
+var vcsv = P.buildVillaCsv([gr, di]);
+ok('CSV de la villa empieza con BOM', vcsv.charCodeAt(0) === 0xFEFF);
+var vl = vcsv.slice(1).split('\r\n');
+eq('CSV de la villa: cabecera exacta', vl[0], 'Huésped;Check-in;Check-out;Noches;Fecha reserva;Canal;Precio total;Precio neto;Precio/día;Precio neto/día;Personas;Pago;Código;Correo;Teléfono');
+eq('CSV de la villa: fila con huésped', vl[1], 'Ana López;10/07/2026;17/07/2026;7;01/02/2026;Airbnb;1400,00;1260,00;200,00;180,00;4;Pagado;7001;ana@example.com;+34 600 000 000');
+eq('CSV de la villa: fila sin huésped', vl[2], ';10/07/2026;17/07/2026;7;01/02/2026;Directa;1400,00;1400,00;200,00;200,00;;;5000001;;');
+eq('Excel de la villa: números como números', P.villaDetailMatrix([gr])[0],
+  ['Ana López', '10/07/2026', '17/07/2026', 7, '01/02/2026', 'Airbnb', 1400, 1260, 200, 180, 4, 'Pagado', '7001', 'ana@example.com', '+34 600 000 000']);
+ok('Excel de la villa usa VILLA_FILE_HEADERS y el nombre por villa', /aoa_to_sheet\(\[VILLA_FILE_HEADERS\]\.concat\(villaDetailMatrix\(x\.rows\)\)\)/.test(SRC) &&
+  /fileName\(loadInfo\.desde, loadInfo\.hasta, vr\.length \? \(vr\[0\]\.num \|\| 'sin-numero'\) : 'sin-numero', ext\)/.test(SRC));
+ok('Excel global usa FILE_HEADERS', /aoa_to_sheet\(\[FILE_HEADERS\]\.concat\(detailMatrix\(rows\)\)\)/.test(SRC));
+ok('filas del resumen pulsables con Intro y "Ver reservas ›"', SRC.indexOf('<tr class="vrow" tabindex="0" role="button" data-vk="\' + esc(v.villaKey)') > 0 &&
+  SRC.indexOf('Ver reservas ›') > 0 && /e\.key !== 'Enter'/.test(SRC));
+ok('ficha: volver, descargas y título', ['← Volver al resumen', 'Descargar Excel de esta villa', 'Descargar CSV de esta villa', 'downloadVillaXlsx: downloadVillaXlsx', 'closeVilla: closeVilla'].every(function (t) { return SRC.indexOf(t) >= 0; }));
 
 console.log('Lectura del Worker');
 var u = P.buildPageUrl('2026-01-01', '2026-12-31', '123', 'tok', true);
@@ -153,8 +226,10 @@ eq('año de Madrid: 31/12 23:30 UTC ya es año nuevo', P.madridYear('2026-12-31T
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v1 en cabecera (línea 3), PAGE_VERSION y título', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->' && /PAGE_VERSION = 1;/.test(SRC) && /<title>Informe de reservas v1/.test(SRC));
-ok('HISTORIAL es la última línea', /^<!-- HISTORIAL: v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v2 en cabecera (línea 3), PAGE_VERSION y título', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->' && /PAGE_VERSION = 2;/.test(SRC) && /<title>Informe de reservas v2/.test(SRC));
+ok('HISTORIAL es la última línea y empieza por v2, con v1 detrás', /^<!-- HISTORIAL: v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&
+  h.indexOf('hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —') > 0; })());
 ok('textos de avisos y errores', ['Lectura de Hostaway a las ', 'sin dato de comisión (neto vacío)', 'de alojamientos sin villa en la intranet',
   'Precio neto = precio total menos la comisión del portal (Booking.com y Airbnb). Reservas directas y web: neto = total.',
   'No se pudieron cargar las reservas. ', 'Tu usuario no tiene permiso para este informe.'].every(function (t) { return VIVO.indexOf(t) >= 0; }));
