@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cuadro de mando comercial v1 — 3Villas</title>
+<title>Cuadro de mando comercial v2 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Mismos tokens que informe-reservas.html v2 (variables, cabecera, tarjetas, tabla, avisos, estados). */
-:root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+:root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--shadow-soft:0 1px 2px rgba(0,0,0,.04),0 2px 10px rgba(0,0,0,.05);--r:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow-x:hidden}
 body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
@@ -34,10 +34,14 @@ body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gra
 .user-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
 
 main{padding:16px;max-width:1300px;margin:0 auto}
+/* v2: título y pestañas en una fila por encima de 760 px; apilados por debajo */
+.head-row{margin-bottom:6px}
+.head-row .tabs{margin-bottom:10px}
+@media (min-width:761px){.head-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}.head-row .page-head{margin-bottom:0;min-width:0}.head-row .tabs{margin-bottom:0;justify-content:flex-end;flex-shrink:0}}
 .page-head{margin-bottom:12px}
 .page-head h1{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:900;color:var(--gray-5)}
 .page-head p{font-size:13px;color:var(--gray-4);margin-top:2px}
-.card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:14px}
+.card{background:#fff;border-radius:12px;box-shadow:var(--shadow-soft);padding:14px 16px;margin-bottom:14px}
 .card h3{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:10px}
 .f-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
 .f-input{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none}
@@ -60,49 +64,76 @@ main{padding:16px;max-width:1300px;margin:0 auto}
 .info-box{border-radius:8px;padding:9px 14px;font-size:12px;margin-bottom:8px;line-height:1.5}
 .info-box.orange{background:var(--orange-light);border:1.5px solid var(--orange);color:var(--orange)}
 .info-box.gray{background:#fff;border:1.5px solid var(--gray-2);color:var(--gray-4)}
-#avisos{margin-bottom:14px}
+#avisos{margin-bottom:12px}
 .small-print{font-size:11px;color:var(--gray-4);margin:4px 2px 14px}
+/* v2: la línea de lectura, sin caja; las notas del módulo plegadas en un solo <details> */
+.readline{font-size:11px;color:var(--gray-4);margin:0 2px 8px;line-height:1.4}
+details.notas{margin:2px 2px 8px}
+details.notas summary{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-4);cursor:pointer;list-style:none;user-select:none}
+details.notas summary::-webkit-details-marker{display:none}
+details.notas summary::before{content:'';width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s}
+details.notas[open] summary::before{transform:rotate(45deg)}
+details.notas summary:hover{color:var(--gray-5)}
+details.notas ul{font-size:12px;color:var(--gray-5);line-height:1.5;margin:6px 0 0 18px}
+details.notas li{margin-bottom:2px}
+
+/* v2: leyenda de Socios en una fila (mes a la izquierda, signos de la barra a la derecha) */
+.legend-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;font-size:11px;color:var(--gray-4);margin:0 2px 12px}
+.legend-row .lg-month{font-family:'Montserrat',sans-serif;font-weight:700;color:var(--gray-5)}
+.lg-items{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px}
+.lg-item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.lg-item.muted{color:var(--gray-3);white-space:normal}
+.g-real{display:inline-block;width:14px;height:6px;border-radius:3px;background:var(--red)}
+.g-target{display:inline-block;width:3px;height:11px;border-radius:1px;background:var(--gray-5)}
+.g-ly{display:inline-block;width:8px;height:9px;border:2px solid var(--gray-4);border-radius:2px}
+#refNote::before{content:'';display:inline-block;width:0;height:11px;border-left:2px dashed var(--gray-4)}
 
 /* SOCIOS: ocho cifras en una rejilla de 4 x 2 */
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
 @media (max-width:1000px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.tiles{grid-template-columns:1fr}}
-.tile{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:12px 14px 10px;border-top:3px solid var(--red);display:flex;flex-direction:column;min-width:0}
-.tile.grey{border-top-color:var(--gray-3);background:#fafbfc}
-.t-head{display:flex;gap:6px;align-items:baseline;min-height:30px}
-.t-num{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:900;color:var(--red);flex-shrink:0}
-.tile.grey .t-num{color:var(--gray-4)}
-.t-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;color:var(--gray-5);line-height:1.3}
-.t-value{font-family:'Montserrat',sans-serif;font-size:24px;font-weight:900;color:var(--gray-5);line-height:1.15;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.t-parts{font-size:11px;color:var(--gray-4);margin-top:2px}
-.t-state{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;color:var(--gray-4);margin-top:8px}
-.t-pill{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10px;font-weight:700;background:var(--gray-2);color:var(--gray-4);margin-left:4px;vertical-align:middle}
-.bullet{position:relative;height:18px;background:var(--gray-1);border-radius:4px;margin:8px 0 4px;overflow:hidden}
-.b-fill{position:absolute;left:0;top:5px;height:8px;background:var(--red);border-radius:4px}
-.b-target{position:absolute;top:1px;width:3px;height:16px;background:var(--gray-5);margin-left:-1.5px;border-radius:1px}
-.b-ly{position:absolute;top:3px;width:8px;height:12px;border:2px solid var(--gray-4);background:transparent;margin-left:-4px;border-radius:2px}
-.b-ref{position:absolute;top:0;height:18px;border-left:2px dashed var(--orange)}
-.b-band{position:absolute;top:0;height:18px;background:rgba(224,123,0,.16)}
+.tile{background:#fff;border-radius:12px;box-shadow:var(--shadow-sm);padding:14px 16px 12px;border-left:4px solid var(--red);display:flex;flex-direction:column;min-width:0;transition:box-shadow .12s ease}
+.tile:hover{box-shadow:var(--shadow-md)}
+/* Sin número ('sin dato', 'fase 2' o sin valor): fondo blanco, borde discontinuo, número gris. */
+.tile[data-empty]{background:#fff;border:1.5px dashed var(--gray-2);border-left:4px solid var(--gray-3)}
+.t-head{display:flex;gap:8px;align-items:flex-start;min-height:30px}
+.t-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:900;line-height:1;flex-shrink:0}
+.tile[data-empty] .t-num{background:var(--gray-3)}
+.t-label{font-family:'Montserrat',sans-serif;font-size:11.5px;font-weight:800;color:var(--gray-5);line-height:1.3;padding-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.t-value{font-family:'Montserrat',sans-serif;font-size:34px;font-weight:900;color:var(--gray-5);line-height:1.05;letter-spacing:-.5px;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-pill{align-self:flex-start;display:inline-block;margin-top:5px;padding:1px 7px;border-radius:9px;border:1px solid var(--gray-3);font-size:10px;font-weight:600;color:var(--gray-4);background:#fff;line-height:1.5}
+.t-parts{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.t-parts.sub{display:block;font-size:11px;color:var(--gray-4)}
+.chip{display:inline-block;font-size:11px;color:var(--gray-5);background:var(--gray-1);border-radius:6px;padding:2px 8px;line-height:1.45}
+.t-state{align-self:flex-start;display:inline-block;margin-top:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-4);background:var(--gray-1);border-radius:6px;padding:3px 10px}
+.bullet{position:relative;height:10px;background:var(--gray-1);border-radius:5px;margin:10px 0 5px}
+.b-fill{position:absolute;left:0;top:0;height:10px;background:var(--red);border-radius:5px}
+.b-target{position:absolute;top:-3px;width:3px;height:16px;background:var(--gray-5);margin-left:-1.5px;border-radius:1px}
+.b-ly{position:absolute;top:-2px;width:8px;height:14px;border:2px solid var(--gray-4);background:transparent;margin-left:-4px;border-radius:2px}
+.b-ref{position:absolute;top:-3px;height:16px;border-left:2px dashed var(--gray-4)}
+.b-band{position:absolute;top:0;height:10px;background:rgba(122,129,148,.22);border-radius:5px}
 .t-legend{font-size:10.5px;color:var(--gray-4);line-height:1.45}
 .t-legend i{display:inline-block;vertical-align:middle;margin-right:3px}
 .t-legend .lg-t{width:3px;height:10px;background:var(--gray-5)}
 .t-legend .lg-ly{width:7px;height:9px;border:2px solid var(--gray-4);border-radius:2px}
-.t-legend .lg-ref{width:0;height:10px;border-left:2px dashed var(--orange)}
+.t-legend .lg-ref{width:0;height:10px;border-left:2px dashed var(--gray-4)}
 .t-var{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;margin-top:3px}
 .t-var.up{color:var(--green)}
 .t-var.down{color:var(--red)}
 .t-var.flat{color:var(--gray-4)}
-.t-sentence{font-size:12px;color:var(--gray-5);margin-top:6px;line-height:1.4;flex:1}
-.t-items{font-size:12px;margin:6px 0 0 16px;line-height:1.4}
-.t-src{font-size:10px;color:var(--gray-4);margin-top:8px}
-.spark{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:6px}
-.spark span{flex:1;background:var(--gray-3);border-radius:1px;min-height:1px}
+.t-sentence{font-size:12px;color:var(--gray-4);margin:8px 0 10px;line-height:1.45}
+.t-items{font-size:12px;color:var(--gray-5);margin:8px 0 10px 16px;line-height:1.45}
+.t-src{font-size:10px;color:var(--gray-3);margin-top:auto;padding-top:7px;border-top:1px solid var(--gray-2);line-height:1.4}
+.spark-row{display:flex;align-items:flex-end;gap:8px;margin-top:10px}
+.spark-cap{font-size:10px;color:var(--gray-4);white-space:nowrap;flex-shrink:0;padding-bottom:1px}
+.spark{flex:1;display:flex;align-items:flex-end;gap:3px;height:30px;border-bottom:1px solid var(--gray-2);min-width:0}
+.spark span{flex:1;background:var(--gray-2);border-radius:3px 3px 0 0;min-height:1px}
 .spark span:last-child{background:var(--red)}
 
 /* TABLAS (desplazamiento lateral en móvil, primera columna fija) */
 .tbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .tbar h3{margin:0}
-.twrap{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:3px solid var(--red);margin-bottom:14px}
+.twrap{background:#fff;border-radius:12px;box-shadow:var(--shadow-soft);overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:3px solid var(--red);margin-bottom:14px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead tr{background:var(--red)}
 th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;padding:7px 5px;text-align:right;white-space:nowrap;word-break:keep-all;hyphens:none;line-height:1.25;border-right:1px solid rgba(255,255,255,.12)}
@@ -126,7 +157,7 @@ tr.tot td{background:var(--gray-2);font-family:'Montserrat',sans-serif;font-weig
 .wk tbody tr:hover td:first-child{background:var(--gray-1)}
 .wk td.goal{border-left:2px solid var(--gray-2)}
 .ag-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:4px 2px 6px}
-.ag-head b{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;color:var(--gray-5)}
+.ag-head b{font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;color:var(--gray-5)}
 .ag-head span{font-size:11px;color:var(--gray-4)}
 .ag-head span.warn{color:var(--orange);font-weight:700}
 .lb{max-width:520px}
@@ -160,7 +191,8 @@ details.lst summary{font-size:11px;color:var(--red);cursor:pointer;font-weight:6
 .state-box{text-align:center;padding:50px 20px;color:var(--gray-4)}
 .spinner{display:block;width:56px;height:56px;margin:0 auto 12px;background:url('icon-corazon-rojo-fondo-transparente.png') center/contain no-repeat;animation:spin-3v .9s linear infinite}
 @keyframes spin-3v{to{transform:rotate(360deg)}}
-@media (max-width:520px){main{padding:10px}.page-head h1{font-size:19px}.t-value{font-size:21px}}
+@media (max-width:560px){.t-value{font-size:30px}}
+@media (max-width:520px){main{padding:10px}.page-head h1{font-size:19px}}
 </style>
 <script src="auth.js"></script>
 <script src="nav.js"></script>
@@ -184,15 +216,17 @@ details.lst summary{font-size:11px;color:var(--red);cursor:pointer;font-weight:6
 </nav>
 
 <main>
-  <div class="page-head">
-    <h1>Cuadro de mando comercial</h1>
-    <p>Cifras de ventas y captación para los socios y el equipo comercial</p>
-  </div>
+  <div class="head-row">
+    <div class="page-head">
+      <h1>Cuadro de mando comercial</h1>
+      <p>Cifras de ventas y captación para los socios y el equipo comercial</p>
+    </div>
 
-  <div class="tabs" role="tablist" id="tabs">
-    <button type="button" class="tab on" role="tab" data-tab="socios" aria-selected="true">Socios</button>
-    <button type="button" class="tab" role="tab" data-tab="equipo" aria-selected="false">Equipo semanal</button>
-    <button type="button" class="tab" role="tab" data-tab="mensual" aria-selected="false">Mensual</button>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" class="tab on" role="tab" data-tab="socios" aria-selected="true">Socios</button>
+      <button type="button" class="tab" role="tab" data-tab="equipo" aria-selected="false">Equipo semanal</button>
+      <button type="button" class="tab" role="tab" data-tab="mensual" aria-selected="false">Mensual</button>
+    </div>
   </div>
 
   <div id="stLoad" class="state-box"><div class="spinner"></div><p id="loadMsg">Leyendo los informes…</p></div>
@@ -205,10 +239,17 @@ details.lst summary{font-size:11px;color:var(--red);cursor:pointer;font-weight:6
     <div id="avisos"></div>
 
     <section class="tabpane on" id="pane-socios" role="tabpanel">
-      <p class="small-print" id="sociosMes" style="margin-top:0"></p>
-      <p class="small-print" id="fase2Note" style="margin-top:0"></p>
+      <div class="legend-row">
+        <span class="lg-month" id="sociosMes"></span>
+        <span class="lg-items">
+          <span class="lg-item"><i class="g-real"></i>real</span>
+          <span class="lg-item"><i class="g-target"></i>objetivo</span>
+          <span class="lg-item"><i class="g-ly"></i>año anterior</span>
+          <span class="lg-item" id="refNote" style="display:none"></span>
+          <span class="lg-item muted" id="fase2Note"></span>
+        </span>
+      </div>
       <div class="tiles" id="tiles"></div>
-      <p class="small-print" id="refNote" style="display:none"></p>
     </section>
 
     <section class="tabpane" id="pane-equipo" role="tabpanel">
@@ -242,7 +283,7 @@ details.lst summary{font-size:11px;color:var(--red);cursor:pointer;font-weight:6
 /* Sin sesión o sin permiso, Auth.require lanza un error en su propio bloque: aquí no se pinta ni se lee nada. */
 if (!window.__ccSession) return;
 
-var PAGE_VERSION = 1;
+var PAGE_VERSION = 2;
 
 /* ── v1: auto-detección de versión (Opción B), igual que informe-reservas.html ── */
 (function checkForNewerVersion(){
@@ -528,13 +569,34 @@ function humanize(key){
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
-/* Mini barras de 13 semanas. */
+/* Mini barras de 13 semanas, con el rótulo "13 semanas" a la izquierda (v2). */
 function sparkHtml(series){
   if(!Array.isArray(series) || !series.length) return '';
   var nums = series.map(toNum), max = nums.reduce(function(a, b){ return Math.max(a, b || 0); }, 0) || 1;
-  return '<div class="spark" title="Últimas ' + series.length + ' semanas">' + nums.map(function(n){
+  return '<div class="spark-row"><span class="spark-cap">' + series.length + ' semanas</span><div class="spark" title="Últimas ' + series.length + ' semanas">' + nums.map(function(n){
     return '<span style="height:' + (n === null ? 0 : Math.max(4, n / max * 100)).toFixed(0) + '%"></span>';
-  }).join('') + '</div>';
+  }).join('') + '</div></div>';
+}
+
+/* v2: el desglose en fichas, una por parte separada por ' · '; el texto de cada parte no cambia. */
+function partsHtml(parts){
+  if(!parts) return '';
+  return '<div class="t-parts">' + String(parts).split(' · ').map(function(p){ return '<span class="chip">' + esc(p) + '</span>'; }).join('') + '</div>';
+}
+
+/* v2: la barra solo se dibuja si hay algo con lo que comparar: objetivo, año anterior o una referencia.
+   Una cifra sola, sin comparación, no lleva barra (una barra llena al 85 % sin objetivo parece "casi en objetivo"). */
+function hasBullet(t){
+  if(!t) return false;
+  return toNum(t.target) !== null || toNum(t.lastYear) !== null || tileRefs(t).length > 0;
+}
+
+/* v2: las notas del módulo (o.notices) en un solo bloque plegado; nada si no hay ninguna. */
+function notesHtml(list){
+  var L = (list || []).map(plainNotice).filter(function(s){ return s; });
+  if(!L.length) return '';
+  return '<details class="notas"><summary>' + L.length + (L.length === 1 ? ' nota sobre los datos' : ' notas sobre los datos') + '</summary><ul>' +
+    L.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></details>';
 }
 
 /* La barra de una cifra (o de la barra secundaria) con sus marcas. */
@@ -562,34 +624,40 @@ function refLegend(t){
 function tileHtml(tile){
   var st = tileState(tile), grey = isGreyState(st), noValue = st === 'sin dato' || st === 'fase 2';
   var label = (tile && tile.label) || TILE_LABELS[tile && tile.id] || '';
-  var h = '<div class="tile' + (grey ? ' grey' : '') + '" data-id="' + esc(tile && tile.id) + '" data-state="' + esc(st) + '">' +
+  /* v2: data-empty = sin número a la vista (tarjeta discontinua, número gris). */
+  var empty = noValue || primaryValue(tile) === null;
+  var h = '<div class="tile' + (grey ? ' grey' : '') + '" data-id="' + esc(tile && tile.id) + '" data-state="' + esc(st) + '"' + (empty ? ' data-empty="1"' : '') + '>' +
     '<div class="t-head"><span class="t-num">' + esc(tile && tile.id) + '</span><span class="t-label">' + esc(label) + '</span></div>';
   if(noValue){
     h += '<div class="t-state">' + esc(stateText(st)) + '</div>';
   } else {
     var pv = primaryValue(tile), unit = tile.unit;
-    if(pv !== null) h += '<div class="t-value">' + esc(fmtValue(pv, unit)) + (st === 'sin objetivo' ? '<span class="t-pill">sin objetivo</span>' : '') + '</div>';
+    if(pv !== null) h += '<div class="t-value">' + esc(fmtValue(pv, unit)) + '</div>' + (st === 'sin objetivo' ? '<span class="t-pill">sin objetivo</span>' : '');
     else if(st === 'sin objetivo') h += '<div class="t-state">sin objetivo</div>';
-    var parts = valueParts(tile);
-    if(parts) h += '<div class="t-parts">' + esc(parts) + '</div>';
+    h += partsHtml(valueParts(tile));
     if(pv !== null && tile.id !== 8){
-      h += bulletHtml(tile);
+      if(hasBullet(tile)) h += bulletHtml(tile);
       var leg = [];
       if(toNum(tile.target) !== null) leg.push('<i class="lg-t"></i>Objetivo ' + esc(fmtValue(tile.target, unit)));
       else if(st !== 'sin objetivo') leg.push('sin objetivo');
       if(toNum(tile.lastYear) !== null) leg.push('<i class="lg-ly"></i>Año anterior ' + esc(fmtValue(tile.lastYear, unit)));
-      h += '<div class="t-legend">' + leg.concat(refLegend(tile)).join(' · ') + '</div>';
+      leg = leg.concat(refLegend(tile));
+      if(leg.length) h += '<div class="t-legend">' + leg.join(' · ') + '</div>';
       var vp = fmtVariance(tile.variancePct);
       if(vp) h += '<div class="t-var ' + varianceClass(tile.variancePct) + '">' + esc(vp) + ' ' + esc(varianceBase(tile)) + '</div>';
       var sb = subBar(tile);
       if(sb){
-        h += '<div class="t-parts" style="margin-top:8px"><b>' + esc(sb.label) + ': ' + esc(sb.value === null ? 'sin dato' : fmtValue(sb.value, '%')) + '</b>' + (sb.detail ? ' (' + esc(sb.detail) + ')' : '') + '</div>';
-        if(sb.value !== null) h += bulletHtml(sb) + '<div class="t-legend">' + refLegend(sb).join(' · ') + '</div>';
+        h += '<div class="t-parts sub" style="margin-top:10px"><b>' + esc(sb.label) + ': ' + esc(sb.value === null ? 'sin dato' : fmtValue(sb.value, '%')) + '</b>' + (sb.detail ? ' (' + esc(sb.detail) + ')' : '') + '</div>';
+        if(sb.value !== null && hasBullet(sb)){
+          var sl = refLegend(sb);
+          h += bulletHtml(sb) + (sl.length ? '<div class="t-legend">' + sl.join(' · ') + '</div>' : '');
+        }
       }
       h += sparkHtml(tile.series13w);
     }
   }
-  if(tile && tile.sentence) h += '<div class="t-sentence">' + esc(tile.sentence) + '</div>';
+  var sentence = tile && tile.sentence ? tile.sentence : (tile && tile.id === 8 && !tileItems(tile).length ? 'Sin texto todavía.' : '');
+  if(sentence) h += '<div class="t-sentence">' + esc(sentence) + '</div>';
   var items = tileItems(tile);
   if(items.length) h += '<ul class="t-items">' + items.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
   var src = [];
@@ -1068,7 +1136,7 @@ async function loadAll(){
     recompute(null);
   }catch(err){
     if(myId !== reqId) return;
-    console.error('[Cuadro comercial v1]', err);
+    console.error('[Cuadro comercial v2]', err);
     showError(err.status === 403 ? 'Tu usuario no tiene permiso para este cuadro.' : 'No se pudieron cargar los datos. ' + (err.message || err));
   }
 }
@@ -1079,7 +1147,7 @@ function recompute(month){
     var inp = month ? Object.assign({}, input, { month: month }) : input;
     output = window.CuadroComercialData.buildDashboard(inp);
   }catch(err){
-    console.error('[Cuadro comercial v1] buildDashboard', err);
+    console.error('[Cuadro comercial v2] buildDashboard', err);
     showError('El cálculo del cuadro falló. ' + (err.message || err));
     return;
   }
@@ -1097,23 +1165,24 @@ function render(askedMonth){
   var o = output || {};
   g('navSub').textContent = 'Lectura de las ' + loadInfo.at + ' · ' + loadInfo.ventas.rows.length + ' informes semanales · ' + loadInfo.villas.rows.length + ' villas';
 
-  var av = ['<div class="info-box gray">Lectura de Caspio a las ' + esc(loadInfo.at) + ': ' + loadInfo.ventas.rows.length + ' informes semanales (' +
-    loadInfo.ventas.reads + ' lecturas), ' + loadInfo.villas.rows.length + ' villas (' + loadInfo.villas.reads + (loadInfo.villas.reads === 1 ? ' lectura' : ' lecturas') + ').</div>'];
+  var av = ['<p class="readline">Lectura de Caspio a las ' + esc(loadInfo.at) + ': ' + loadInfo.ventas.rows.length + ' informes semanales (' +
+    loadInfo.ventas.reads + ' lecturas), ' + loadInfo.villas.rows.length + ' villas (' + loadInfo.villas.reads + (loadInfo.villas.reads === 1 ? ' lectura' : ' lecturas') + ').</p>'];
   if(loadInfo.ventas.capped || loadInfo.villas.capped) av.push('<div class="info-box orange">Alguna lectura llegó al tope de ' + READ_LIMIT + ' filas: puede faltar algún registro.</div>');
   if(loadInfo.users && loadInfo.users.capped) av.push('<div class="info-box orange">La lectura de agentes llegó al tope de ' + USERS_LIMIT + ' filas: puede faltar el nombre de algún agente.</div>');
   var mm = o.mensual && o.mensual.month;
   if(askedMonth && mm && mm !== askedMonth) av.push('<div class="info-box orange">El cálculo devuelve ' + esc(monthLabel(mm)) + ', no ' + esc(monthLabel(askedMonth)) + '.</div>');
-  (o.notices || []).forEach(function(t){ av.push('<div class="info-box orange">' + esc(plainNotice(t)) + '</div>'); });
+  /* v2: las notas del módulo van plegadas; solo los tres avisos de arriba quedan en naranja. */
+  av.push(notesHtml(o.notices));
   g('avisos').innerHTML = av.join('');
 
   /* Socios */
   var tiles = socioTiles(o.socios);
   g('tiles').innerHTML = tiles.map(tileHtml).join('');
   var refs = hasRefs(tiles);
-  g('refNote').style.display = refs ? 'block' : 'none';
+  g('refNote').style.display = refs ? 'inline-flex' : 'none';
   g('refNote').textContent = refs ? REF_NOTE + '.' : '';
   g('fase2Note').textContent = PHASE2_LEGEND + '.';
-  g('sociosMes').textContent = o.socios && o.socios.month ? 'Cifras del mes: ' + monthLabel(o.socios.month) + '. Barra roja = real; raya negra = objetivo; cuadro gris = año anterior.' : '';
+  g('sociosMes').textContent = o.socios && o.socios.month ? 'Cifras del mes: ' + monthLabel(o.socios.month) + '.' : '';
 
   /* Equipo semanal */
   var eq = o.equipo || {}, W = eq.weeks || [];
@@ -1207,4 +1276,4 @@ Object.assign(window, { copyWeekTable: copyWeekTable, downloadCsv: downloadCsv, 
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v1 - 13/10/2026 — primera versión (bro): Cuadro de mando comercial para Gaëlle (Director Comercial), Rafa y los socios. Gary, 13/10/2026: "she says yes build it - also rafa and the partners need access as well". Spec: 3villas context/cuadro-comercial-gaelle-build-2026-10-13.md, secciones 2, 3 y 4. Página de solo lectura con tres pestañas. "Socios": ocho cifras en una rejilla de 4 x 2 (2 columnas por debajo de 1000 px, 1 en el móvil); cada cifra lleva una barra con el valor real, la marca del objetivo, la marca del año anterior, la variación en % (contra el objetivo si lo hay, si no contra el año anterior), una frase, la fuente y la fecha de lectura en letra pequeña gris; el dinero redondeado a 100 €; los estados 'sin dato' y 'fase 2' salen en una tarjeta gris con ese texto, nunca un 0; 'sin objetivo' sale gris con la cifra real si la hay; una cifra que falte en la salida sale gris como 'sin dato'. Cifra 5: líneas de referencia 9,6 % y 19,5 % (las de 'referencias' del módulo; si no vienen, las de la spec). Cifra 6: el número de contratos lleva su barra y, debajo, una barra secundaria con el % leads → contrato (leadToContract, con su base) y la franja 10–25 % "proveedor EE. UU." (referenceBand); la franja nunca se dibuja sobre el número de contratos. Desgloses bajo la cifra: arras a 30/60/90 días, exclusivas, altas/bajas/netas, partes del pipeline. Con una referencia dibujada sale la letra pequeña "Los valores de referencia extranjeros son orientación, no objetivos". "Equipo semanal": un bloque por agente y el total del equipo, 13 semanas de lunes a domingo (cabecera S<n> y el lunes dd/mm), fila "Informe semanal" con "sin informe" en naranja para la semana sin fila (la semana en curso sale "en curso" y no cuenta; en el total, "faltan N" con missingByWeek y las cifras del equipo no se borran), "Llamadas por visita" justo debajo de Llamadas, columna "Objetivo semanal" ("sin objetivo" hasta la fase 2), filas de fase 2 en gris, clasificación por visitas y contratos firmados (nunca por llamadas) y botón "Copiar tabla" (tabuladores, al portapapeles). "Mensual": selector de mes (24 meses), bloques Dinero, Ventas, Captación (cada fila con mes anterior y año anterior cuando el módulo los trae; altas y bajas de 12 meses con su lista; la lista de contratos que vencen en los próximos 12 meses con su renovación; Fincontrato guarda el año, así que el fin sale 31/12) y Prospección (las sumas del mes por agente y el bono de 150 € con 50 llamadas); "Descargar Excel" (SheetJS 0.18.5, hojas Resumen, Vencen 12 meses y Prospección; si no carga, se baja el CSV y se avisa) y "Descargar CSV" (BOM UTF-8, ';', coma decimal, apóstrofo delante de un texto que empieza por = + - @, como informe-reservas.html v2; aquí un número negativo con coma decimal, p. ej. -12,5, se queda como número). Las cifras las calcula cuadro-comercial-data.js (window.CuadroComercialData.buildDashboard), la página solo da formato a su salida. Datos: action=data del Worker, solo lectura: Ta_raport_ventas entera por ventanas de un año desde 2019 (Fecha>='AAAA-01-01' AND Fecha<'AAAA+1-01-01') más una ventana para el resto, TaVillas entera por ventanas de villaid, TaUsers (UserID y Name, porque Agente guarda el UserID), limit 1000 por lectura; una ventana que llega a 1000 filas se parte en dos (el caspio-proxy no aplica orderBy); aviso si alguna lectura llega al tope. Entrada del módulo: today (hoy en hora de Madrid), weeklyRows, villas, users, targets [], datos [], external undefined; month con el mes elegido en Mensual. Permiso Auth.require('cuadro-comercial'): la clave de auth.js y la entrada del menú las añade otro paso. Error: "No se pudieron cargar los datos." y el texto; 403 = "Tu usuario no tiene permiso para este cuadro.". Pruebas cuadro-comercial.test.js. Misma versión, mismo día: aviso naranja si la lectura de TaUsers llega a su tope de 300 filas (USERS_LIMIT), como las otras lecturas. Misma versión, tras la revisión: un usuario sin permiso ya no ve el cuadro debajo de "Acceso denegado" (window.__ccSession guarda la sesión de Auth.require; sin ella el script principal sale antes de leer o pintar nada); el estado 'fase 2' sale "pendiente (fase 2)" en cifras, filas, bloques y descargas, con la leyenda "fase 2 = cifra que llega en la siguiente entrega (Holded, eGO, objetivos)" bajo la línea del mes de Socios; los avisos de año de contrato y de inicio de la prospección salen en español llano (la semana y su lunes salen del aviso del módulo); "Sin datos" de la clasificación pasa a "sin dato", como en el resto. Misma versión, con el módulo corregido: la lista de contratos que vencen se titula con vencen12mLabel ("Contratos que vencen: con año de fin 2026 o 2027") y ese campo nunca sale como fila; la cifra 3 enseña "Captación Inmobiliaria (campo del informe) N" (campo captacionInmobiliaria, antes sinExclusiva) y "% exclusiva: sin confirmar" cuando el módulo manda exclusiveState; la etiqueta de reserva de la cifra 2 es "Arras firmadas, 90 días". -->
+<!-- HISTORIAL: v1 - 13/10/2026 — primera versión (bro): Cuadro de mando comercial para Gaëlle (Director Comercial), Rafa y los socios. Gary, 13/10/2026: "she says yes build it - also rafa and the partners need access as well". Spec: 3villas context/cuadro-comercial-gaelle-build-2026-10-13.md, secciones 2, 3 y 4. Página de solo lectura con tres pestañas. "Socios": ocho cifras en una rejilla de 4 x 2 (2 columnas por debajo de 1000 px, 1 en el móvil); cada cifra lleva una barra con el valor real, la marca del objetivo, la marca del año anterior, la variación en % (contra el objetivo si lo hay, si no contra el año anterior), una frase, la fuente y la fecha de lectura en letra pequeña gris; el dinero redondeado a 100 €; los estados 'sin dato' y 'fase 2' salen en una tarjeta gris con ese texto, nunca un 0; 'sin objetivo' sale gris con la cifra real si la hay; una cifra que falte en la salida sale gris como 'sin dato'. Cifra 5: líneas de referencia 9,6 % y 19,5 % (las de 'referencias' del módulo; si no vienen, las de la spec). Cifra 6: el número de contratos lleva su barra y, debajo, una barra secundaria con el % leads → contrato (leadToContract, con su base) y la franja 10–25 % "proveedor EE. UU." (referenceBand); la franja nunca se dibuja sobre el número de contratos. Desgloses bajo la cifra: arras a 30/60/90 días, exclusivas, altas/bajas/netas, partes del pipeline. Con una referencia dibujada sale la letra pequeña "Los valores de referencia extranjeros son orientación, no objetivos". "Equipo semanal": un bloque por agente y el total del equipo, 13 semanas de lunes a domingo (cabecera S<n> y el lunes dd/mm), fila "Informe semanal" con "sin informe" en naranja para la semana sin fila (la semana en curso sale "en curso" y no cuenta; en el total, "faltan N" con missingByWeek y las cifras del equipo no se borran), "Llamadas por visita" justo debajo de Llamadas, columna "Objetivo semanal" ("sin objetivo" hasta la fase 2), filas de fase 2 en gris, clasificación por visitas y contratos firmados (nunca por llamadas) y botón "Copiar tabla" (tabuladores, al portapapeles). "Mensual": selector de mes (24 meses), bloques Dinero, Ventas, Captación (cada fila con mes anterior y año anterior cuando el módulo los trae; altas y bajas de 12 meses con su lista; la lista de contratos que vencen en los próximos 12 meses con su renovación; Fincontrato guarda el año, así que el fin sale 31/12) y Prospección (las sumas del mes por agente y el bono de 150 € con 50 llamadas); "Descargar Excel" (SheetJS 0.18.5, hojas Resumen, Vencen 12 meses y Prospección; si no carga, se baja el CSV y se avisa) y "Descargar CSV" (BOM UTF-8, ';', coma decimal, apóstrofo delante de un texto que empieza por = + - @, como informe-reservas.html v2; aquí un número negativo con coma decimal, p. ej. -12,5, se queda como número). Las cifras las calcula cuadro-comercial-data.js (window.CuadroComercialData.buildDashboard), la página solo da formato a su salida. Datos: action=data del Worker, solo lectura: Ta_raport_ventas entera por ventanas de un año desde 2019 (Fecha>='AAAA-01-01' AND Fecha<'AAAA+1-01-01') más una ventana para el resto, TaVillas entera por ventanas de villaid, TaUsers (UserID y Name, porque Agente guarda el UserID), limit 1000 por lectura; una ventana que llega a 1000 filas se parte en dos (el caspio-proxy no aplica orderBy); aviso si alguna lectura llega al tope. Entrada del módulo: today (hoy en hora de Madrid), weeklyRows, villas, users, targets [], datos [], external undefined; month con el mes elegido en Mensual. Permiso Auth.require('cuadro-comercial'): la clave de auth.js y la entrada del menú las añade otro paso. Error: "No se pudieron cargar los datos." y el texto; 403 = "Tu usuario no tiene permiso para este cuadro.". Pruebas cuadro-comercial.test.js. Misma versión, mismo día: aviso naranja si la lectura de TaUsers llega a su tope de 300 filas (USERS_LIMIT), como las otras lecturas. Misma versión, tras la revisión: un usuario sin permiso ya no ve el cuadro debajo de "Acceso denegado" (window.__ccSession guarda la sesión de Auth.require; sin ella el script principal sale antes de leer o pintar nada); el estado 'fase 2' sale "pendiente (fase 2)" en cifras, filas, bloques y descargas, con la leyenda "fase 2 = cifra que llega en la siguiente entrega (Holded, eGO, objetivos)" bajo la línea del mes de Socios; los avisos de año de contrato y de inicio de la prospección salen en español llano (la semana y su lunes salen del aviso del módulo); "Sin datos" de la clasificación pasa a "sin dato", como en el resto. Misma versión, con el módulo corregido: la lista de contratos que vencen se titula con vencen12mLabel ("Contratos que vencen: con año de fin 2026 o 2027") y ese campo nunca sale como fila; la cifra 3 enseña "Captación Inmobiliaria (campo del informe) N" (campo captacionInmobiliaria, antes sinExclusiva) y "% exclusiva: sin confirmar" cuando el módulo manda exclusiveState; la etiqueta de reserva de la cifra 2 es "Arras firmadas, 90 días". v2 - 13/10/2026 — más bonita (bro). Gary, 13/10/2026, al verla en vivo: "this needs to be prettier". Solo cambia el aspecto. La línea "Lectura de Caspio…" pasa a una línea pequeña gris sin caja bajo las pestañas. En naranja quedan solo los tres avisos de la propia lectura (una lectura que llega al tope, el tope de agentes y un mes distinto del elegido); las notas del módulo sobre los datos van juntas en un bloque plegado "N notas sobre los datos" (nada si no hay ninguna). Las dos líneas de letra pequeña de Socios son ahora una fila de leyenda: el mes a la izquierda y, a la derecha, los signos dibujados (barra roja = real, raya negra = objetivo, cuadro gris = año anterior, raya discontinua gris = referencia extranjera si la hay) y la nota de fase 2. Cada cifra: número en un círculo, etiqueta en dos líneas como mucho, la cifra grande (34 px), "sin objetivo" en una ficha pequeña debajo de la cifra, el desglose en fichas (una por parte, el texto igual), la barra solo si hay algo que dibujar (objetivo, año anterior, referencia o un valor mayor que 0), la barra más fina y redondeada, las mini barras de 13 semanas más altas con el rótulo "13 semanas", la frase en gris claro y la fuente abajo del todo con una línea fina encima; borde rojo a la izquierda en las cifras con número; las cifras sin número ("sin dato", "pendiente (fase 2)") en blanco con borde discontinuo y el estado en una ficha gris. Las líneas y franjas de referencia pasan de naranja a gris. Título y pestañas en una fila por encima de 760 px. Equipo semanal y Mensual: sombra más suave y esquinas de 12 px; el nombre del agente a 15 px. Nada cambia en cuadro-comercial-data.js ni en las cifras. -->

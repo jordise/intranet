@@ -99,10 +99,10 @@ function row(html, label) { var i = html.indexOf('>' + label + '<'); return i < 
 
 test('página: versión, título, historial, permiso y módulo', function () {
   var first5 = SRC.split('\n').slice(0, 5).join('\n');
-  assert.ok(/VERSIÓN ACTUAL: v1/.test(first5), 'versión en las cinco primeras líneas');
-  assert.ok(SRC.indexOf('<title>Cuadro de mando comercial v1 — 3Villas</title>') > 0);
-  assert.ok(/var PAGE_VERSION = 1;/.test(SRC));
-  assert.ok(/^<!-- HISTORIAL: v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+  assert.ok(/VERSIÓN ACTUAL: v2/.test(first5), 'versión en las cinco primeras líneas');
+  assert.ok(SRC.indexOf('<title>Cuadro de mando comercial v2 — 3Villas</title>') > 0);
+  assert.ok(/var PAGE_VERSION = 2;/.test(SRC));
+  assert.ok(/^<!-- HISTORIAL: v1 - 13\/10\/2026 [\s\S]* v2 - 13\/10\/2026 — [\s\S]* -->$/.test(SRC.trim().split('\n').pop()), 'historial v1 y v2');
   assert.ok(SRC.indexOf("<script>window.__ccSession = null; window.__ccSession = Auth.require('cuadro-comercial');</script>") > 0);
   assert.ok(/\(function\(\)\{\n'use strict';\n[^\n]*\nif \(!window\.__ccSession\) return;/.test(SRC), 'el script principal sale sin sesión');
   ['auth.js', 'nav.js', 'nav-component.js', 'cuadro-comercial-data.js'].forEach(function (f) {
@@ -131,15 +131,24 @@ test('cifras: estados grises, nunca un 0 sin dato', function () {
   assert.ok(/class="tile grey"/.test(h[0]) && /<div class="t-state">pendiente \(fase 2\)<\/div>/.test(h[0]) && h[0].indexOf('t-value') < 0 && h[0].indexOf('bullet') < 0);
   assert.ok(/class="tile grey"/.test(h[1]) && /<div class="t-state">sin dato<\/div>/.test(h[1]), 'sin dato con value 0');
   assert.ok(h[1].indexOf('t-value') < 0 && h[1].indexOf('bullet') < 0, 'el 0 de una cifra sin dato no se pinta');
-  assert.ok(/class="tile grey"/.test(h[2]) && h[2].indexOf('<div class="t-value">5<span class="t-pill">sin objetivo</span></div>') > 0, 'sin objetivo: gris, con la cifra real');
+  /* v2: la ficha "sin objetivo" va debajo de la cifra, no pegada a ella. */
+  assert.ok(/class="tile grey"/.test(h[2]) && h[2].indexOf('<div class="t-value">5</div><span class="t-pill">sin objetivo</span>') > 0, 'sin objetivo: gris, con la cifra real');
   assert.ok(h[2].indexOf('Captaciones &lt;b&gt;nuevas&lt;/b&gt;') > 0, 'etiqueta escapada');
-  assert.ok(h[2].indexOf('En exclusiva 2 · Captación Inmobiliaria (campo del informe) 3 · % exclusiva: sin confirmar') > 0, 'desglose de la cifra 3');
+  /* v2: el desglose sale en fichas, una por parte, con el mismo texto. */
+  assert.ok(h[2].indexOf('<span class="chip">En exclusiva 2</span><span class="chip">Captación Inmobiliaria (campo del informe) 3</span><span class="chip">% exclusiva: sin confirmar</span>') > 0, 'desglose de la cifra 3');
   assert.ok(h[2].indexOf('<div class="t-var up">+25,0 % vs año anterior</div>') > 0);
   assert.ok(h[2].indexOf('Fuente: Reporte semanal (Ta_raport_ventas) · leído 13/10/2026 13:05') > 0, 'fuente y lectura en hora de Madrid');
   assert.ok(/class="spark"/.test(h[2]));
-  assert.ok(/class="tile"/.test(h[3]) && h[3].indexOf('<div class="t-value">219</div>') > 0 && h[3].indexOf('Altas 12 meses 3 · Bajas 12 meses 1 · Netas 12 meses 2') > 0);
+  assert.ok(/class="tile"/.test(h[3]) && h[3].indexOf('<div class="t-value">219</div>') > 0 && h[3].indexOf('<span class="chip">Altas 12 meses 3</span><span class="chip">Bajas 12 meses 1</span><span class="chip">Netas 12 meses 2</span>') > 0);
   assert.ok(h[3].indexOf('<div class="t-var down">-2,7 % vs objetivo</div>') > 0);
-  assert.ok(h[6].indexOf('Cartera activa pendiente (fase 2) · Arras 2') > 0, 'partes de la cifra 7');
+  assert.ok(h[6].indexOf('<span class="chip">Cartera activa pendiente (fase 2)</span><span class="chip">Arras 2</span>') > 0, 'partes de la cifra 7');
+  assert.equal(P.valueParts(OUT.socios.tiles[6]), 'Cartera activa pendiente (fase 2) · Arras 2', 'el texto del desglose no cambia');
+  /* v2: sin objetivo, sin año anterior, sin referencias y con valor 0, no hay barra. */
+  var flat0 = P.tileHtml({ id: 3, label: 'X', value: 0, unit: 'n', target: null, lastYear: null, state: 'sin objetivo', series13w: arr(function () { return 0; }) });
+  assert.ok(flat0.indexOf('<div class="t-value">0</div>') > 0 && flat0.indexOf('class="bullet"') < 0, 'valor 0 sin marcas: sin barra');
+  assert.ok(P.tileHtml({ id: 3, value: 4, unit: 'n', state: 'sin objetivo' }).indexOf('class="bullet"') < 0, 'valor sin comparación: sin barra');
+  assert.ok(P.tileHtml({ id: 3, value: 4, unit: 'n', target: 10 }).indexOf('class="bullet"') > 0, 'valor con objetivo: con barra');
+  assert.ok(/class="spark-cap">13 semanas</.test(h[2]), 'rótulo de las mini barras');
   assert.ok(/data-id="8" data-state="sin dato"/.test(h[7]) && h[7].indexOf('Sin texto todavía.') > 0);
   var h8 = P.tileHtml({ id: 8, value: 2, state: 'ok', riesgos: ['Uno'], oportunidades: ['Dos'] });
   assert.ok(h8.indexOf('<li>Riesgo: Uno</li><li>Oportunidad: Dos</li>') > 0 && h8.indexOf('bullet') < 0, 'cifra 8: texto, sin barra');
@@ -470,6 +479,11 @@ test('revisión 1 y 5: con permiso se lee y se pinta; aviso si TaUsers llega a 3
   assert.equal(page.el('report').style.display, 'block');
   assert.ok(page.calls.some(function (u) { return /table=TaUsers/.test(u); }), 'lee TaUsers');
   assert.ok(page.el('avisos').innerHTML.indexOf('La lectura de agentes llegó al tope de 300 filas') >= 0, 'aviso del tope de TaUsers');
+  /* v2: las notas del módulo, plegadas en un solo <details> con su número; nunca en naranja. */
+  var avH = page.el('avisos').innerHTML;
+  assert.ok(avH.indexOf('<details class="notas"><summary>1 nota sobre los datos</summary><ul><li>Aviso de prueba</li></ul></details>') >= 0, 'una nota: singular');
+  assert.ok(avH.indexOf('<div class="info-box orange">Aviso de prueba') < 0, 'la nota no es un aviso naranja');
+  assert.ok(P.notesHtml(['a', 'b', 'c']).indexOf('<summary>3 notas sobre los datos</summary>') > 0 && P.notesHtml([]) === '' && P.notesHtml(undefined) === '', 'plural y nada sin notas');
   var few = runPage({ require: function () { return { role: 'admin' }; }, users: users.slice(0, 299), build: function () { return OUT; } });
   await settle(few, function () { return few.el('report').style.display === 'block'; });
   assert.ok(few.el('avisos').innerHTML.indexOf('tope de 300') < 0, '299 filas: sin aviso');
