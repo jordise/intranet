@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuadro de mando comercial v1 — 3Villas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/intranet/sw.js').catch(()=>{}));</script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Mismos tokens que informe-reservas.html v2 (variables, cabecera, tarjetas, tabla, avisos, estados). */
+:root{--red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;--green:#1e9e4e;--green-light:#e6f7ee;--orange:#e07b00;--orange-light:#fff4e0;--gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;--shadow-sm:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.11);--shadow-lg:0 8px 28px rgba(0,0,0,.13);--r:10px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh}
+
+/* NAV */
+.top-nav{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+.nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+.nav-logo img{height:26px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 6px}
+.h-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--gray-5)}
+.h-sub{font-size:11px;color:var(--gray-4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.nav-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer}
+.nav-menu-btn:hover{background:var(--red-dark)}
+.user-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gray-1);border:1.5px solid var(--gray-2);color:var(--gray-4);padding:4px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;white-space:nowrap}
+
+main{padding:16px;max-width:1300px;margin:0 auto}
+.page-head{margin-bottom:12px}
+.page-head h1{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:900;color:var(--gray-5)}
+.page-head p{font-size:13px;color:var(--gray-4);margin-top:2px}
+.card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:14px}
+.card h3{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4);margin-bottom:10px}
+.f-label{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-4)}
+.f-input{height:36px;border:1.5px solid var(--gray-2);border-radius:7px;padding:0 10px;font-size:13px;color:var(--gray-5);background:#fff;outline:none}
+.f-input:focus{border-color:var(--red)}
+.btn{height:36px;padding:0 16px;border-radius:8px;border:none;background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--red-dark)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--gray-5);border:1.5px solid var(--gray-2)}
+.btn.ghost:hover{border-color:var(--red);color:var(--red)}
+
+/* PESTAÑAS */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{height:36px;padding:0 18px;border-radius:18px;border:1.5px solid var(--gray-2);background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;color:var(--gray-4);cursor:pointer;white-space:nowrap}
+.tab:hover{border-color:var(--red);color:var(--red)}
+.tab.on{background:var(--red);border-color:var(--red);color:#fff}
+.tabpane{display:none}
+.tabpane.on{display:block}
+
+/* Avisos */
+.info-box{border-radius:8px;padding:9px 14px;font-size:12px;margin-bottom:8px;line-height:1.5}
+.info-box.orange{background:var(--orange-light);border:1.5px solid var(--orange);color:var(--orange)}
+.info-box.gray{background:#fff;border:1.5px solid var(--gray-2);color:var(--gray-4)}
+#avisos{margin-bottom:14px}
+.small-print{font-size:11px;color:var(--gray-4);margin:4px 2px 14px}
+
+/* SOCIOS: ocho cifras en una rejilla de 4 x 2 */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+@media (max-width:1000px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.tiles{grid-template-columns:1fr}}
+.tile{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);padding:12px 14px 10px;border-top:3px solid var(--red);display:flex;flex-direction:column;min-width:0}
+.tile.grey{border-top-color:var(--gray-3);background:#fafbfc}
+.t-head{display:flex;gap:6px;align-items:baseline;min-height:30px}
+.t-num{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:900;color:var(--red);flex-shrink:0}
+.tile.grey .t-num{color:var(--gray-4)}
+.t-label{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;color:var(--gray-5);line-height:1.3}
+.t-value{font-family:'Montserrat',sans-serif;font-size:24px;font-weight:900;color:var(--gray-5);line-height:1.15;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-parts{font-size:11px;color:var(--gray-4);margin-top:2px}
+.t-state{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;color:var(--gray-4);margin-top:8px}
+.t-pill{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10px;font-weight:700;background:var(--gray-2);color:var(--gray-4);margin-left:4px;vertical-align:middle}
+.bullet{position:relative;height:18px;background:var(--gray-1);border-radius:4px;margin:8px 0 4px;overflow:hidden}
+.b-fill{position:absolute;left:0;top:5px;height:8px;background:var(--red);border-radius:4px}
+.b-target{position:absolute;top:1px;width:3px;height:16px;background:var(--gray-5);margin-left:-1.5px;border-radius:1px}
+.b-ly{position:absolute;top:3px;width:8px;height:12px;border:2px solid var(--gray-4);background:transparent;margin-left:-4px;border-radius:2px}
+.b-ref{position:absolute;top:0;height:18px;border-left:2px dashed var(--orange)}
+.b-band{position:absolute;top:0;height:18px;background:rgba(224,123,0,.16)}
+.t-legend{font-size:10.5px;color:var(--gray-4);line-height:1.45}
+.t-legend i{display:inline-block;vertical-align:middle;margin-right:3px}
+.t-legend .lg-t{width:3px;height:10px;background:var(--gray-5)}
+.t-legend .lg-ly{width:7px;height:9px;border:2px solid var(--gray-4);border-radius:2px}
+.t-legend .lg-ref{width:0;height:10px;border-left:2px dashed var(--orange)}
+.t-var{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;margin-top:3px}
+.t-var.up{color:var(--green)}
+.t-var.down{color:var(--red)}
+.t-var.flat{color:var(--gray-4)}
+.t-sentence{font-size:12px;color:var(--gray-5);margin-top:6px;line-height:1.4;flex:1}
+.t-items{font-size:12px;margin:6px 0 0 16px;line-height:1.4}
+.t-src{font-size:10px;color:var(--gray-4);margin-top:8px}
+.spark{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:6px}
+.spark span{flex:1;background:var(--gray-3);border-radius:1px;min-height:1px}
+.spark span:last-child{background:var(--red)}
+
+/* TABLAS (desplazamiento lateral en móvil, primera columna fija) */
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.tbar h3{margin:0}
+.twrap{background:#fff;border-radius:var(--r);box-shadow:var(--shadow-sm);overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:3px solid var(--red);margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--red)}
+th{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;padding:7px 5px;text-align:right;white-space:nowrap;word-break:keep-all;hyphens:none;line-height:1.25;border-right:1px solid rgba(255,255,255,.12)}
+th.l{text-align:left}
+th:last-child{border-right:none}
+th .wd{display:block;font-weight:600;font-size:8.5px;opacity:.85}
+tbody tr{border-bottom:1px solid var(--gray-2)}
+tbody tr:hover{background:var(--gray-1)}
+td{padding:6px 5px;vertical-align:middle;text-align:right;white-space:nowrap}
+td.l{text-align:left}
+td.empty{color:var(--gray-3)}
+td.grey{color:var(--gray-4);font-style:italic}
+td.miss{color:var(--orange);font-weight:700;background:var(--orange-light);font-size:10.5px}
+td.okw{color:var(--green);font-weight:700}
+td.sub-row{color:var(--gray-4);font-size:11px}
+tr.tot td{background:var(--gray-2);font-family:'Montserrat',sans-serif;font-weight:800;border-top:2px solid var(--gray-3)}
+.wk{min-width:980px}
+.wk th:first-child,.wk td:first-child{position:sticky;left:0;z-index:1;text-align:left}
+.wk th:first-child{background:var(--red)}
+.wk td:first-child{background:#fff;white-space:normal;min-width:170px;max-width:210px;line-height:1.25}
+.wk tbody tr:hover td:first-child{background:var(--gray-1)}
+.wk td.goal{border-left:2px solid var(--gray-2)}
+.ag-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:4px 2px 6px}
+.ag-head b{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:900;color:var(--gray-5)}
+.ag-head span{font-size:11px;color:var(--gray-4)}
+.ag-head span.warn{color:var(--orange);font-weight:700}
+.lb{max-width:520px}
+
+/* MENSUAL */
+.m-bar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.m-bar .f-group{display:flex;flex-direction:column;gap:4px}
+.m-bar .spacer{flex:1}
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+@media (max-width:820px){.blocks{grid-template-columns:1fr}}
+.blocks .card{margin-bottom:0}
+.blocks .card.wide{grid-column:1 / -1}
+.card.grey{background:#fafbfc}
+.card.grey h3::after{content:' · pendiente (fase 2)';color:var(--gray-3)}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--gray-2);font-size:12.5px}
+.kv:last-child{border-bottom:none}
+.kv b{font-family:'Montserrat',sans-serif;font-weight:800;white-space:nowrap;text-align:right}
+.kv b.grey{color:var(--gray-4);font-weight:600;font-style:italic}
+.kv .sub{display:block;font-size:10.5px;color:var(--gray-4);margin-top:1px}
+details.lst{margin:2px 0 6px}
+details.lst summary{font-size:11px;color:var(--red);cursor:pointer;font-weight:600}
+.blk-state{font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;color:var(--gray-4);margin:4px 0 8px}
+.bono{display:inline-block;padding:2px 8px;border-radius:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;white-space:nowrap}
+.bono.si{background:var(--green-light);color:var(--green)}
+.bono.no{background:var(--gray-1);color:var(--gray-4)}
+.inner{border:1.5px solid var(--gray-2);border-radius:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+.inner table{min-width:420px}
+.inner.prosp table{min-width:760px}
+.inner thead tr{background:var(--gray-5)}
+
+.state-box{text-align:center;padding:50px 20px;color:var(--gray-4)}
+.spinner{display:block;width:56px;height:56px;margin:0 auto 12px;background:url('icon-corazon-rojo-fondo-transparente.png') center/contain no-repeat;animation:spin-3v .9s linear infinite}
+@keyframes spin-3v{to{transform:rotate(360deg)}}
+@media (max-width:520px){main{padding:10px}.page-head h1{font-size:19px}.t-value{font-size:21px}}
+</style>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+<script src="cuadro-comercial-data.js"></script>
+</head>
+<body>
+<script>window.__ccSession = null; window.__ccSession = Auth.require('cuadro-comercial');</script>
+
+<!-- NAV -->
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="h-title">Cuadro de mando comercial</div>
+    <div class="h-sub" id="navSub">Cargando…</div>
+  </div>
+  <div class="nav-btns">
+    <div class="user-pill">👤 <span id="navUser"></span></div>
+    <button class="nav-menu-btn" onclick="NavComponent.open()">☰</button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-head">
+    <h1>Cuadro de mando comercial</h1>
+    <p>Cifras de ventas y captación para los socios y el equipo comercial</p>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button type="button" class="tab on" role="tab" data-tab="socios" aria-selected="true">Socios</button>
+    <button type="button" class="tab" role="tab" data-tab="equipo" aria-selected="false">Equipo semanal</button>
+    <button type="button" class="tab" role="tab" data-tab="mensual" aria-selected="false">Mensual</button>
+  </div>
+
+  <div id="stLoad" class="state-box"><div class="spinner"></div><p id="loadMsg">Leyendo los informes…</p></div>
+  <div id="stErr" class="state-box" style="display:none">
+    <p style="font-size:36px">⚠️</p>
+    <p id="errMsg" style="color:var(--red);font-weight:600;margin-top:8px"></p>
+  </div>
+
+  <div id="report" style="display:none">
+    <div id="avisos"></div>
+
+    <section class="tabpane on" id="pane-socios" role="tabpanel">
+      <p class="small-print" id="sociosMes" style="margin-top:0"></p>
+      <p class="small-print" id="fase2Note" style="margin-top:0"></p>
+      <div class="tiles" id="tiles"></div>
+      <p class="small-print" id="refNote" style="display:none"></p>
+    </section>
+
+    <section class="tabpane" id="pane-equipo" role="tabpanel">
+      <div class="tbar">
+        <h3 class="f-label" style="font-size:11px">Últimas 13 semanas, de lunes a domingo</h3>
+        <button type="button" class="btn ghost" id="btnCopyWeek" onclick="copyWeekTable()">Copiar tabla</button>
+      </div>
+      <div id="weekBlocks"></div>
+      <div class="tbar"><h3 class="f-label" style="font-size:11px">Clasificación: visitas y contratos firmados</h3></div>
+      <div class="twrap lb"><table><thead><tr><th class="l">#</th><th class="l">Agente</th><th>Visitas</th><th>Contratos firmados</th></tr></thead><tbody id="lbBody"></tbody></table></div>
+    </section>
+
+    <section class="tabpane" id="pane-mensual" role="tabpanel">
+      <div class="m-bar">
+        <div class="f-group">
+          <label class="f-label" for="fMes">Mes</label>
+          <select id="fMes" class="f-input"></select>
+        </div>
+        <div class="spacer"></div>
+        <button type="button" class="btn" onclick="downloadXlsx()">Descargar Excel</button>
+        <button type="button" class="btn ghost" onclick="downloadCsv()">Descargar CSV</button>
+      </div>
+      <div class="blocks" id="mBlocks"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+'use strict';
+/* Sin sesión o sin permiso, Auth.require lanza un error en su propio bloque: aquí no se pinta ni se lee nada. */
+if (!window.__ccSession) return;
+
+var PAGE_VERSION = 1;
+
+/* ── v1: auto-detección de versión (Opción B), igual que informe-reservas.html ── */
+(function checkForNewerVersion(){
+  try{
+    if(location.protocol === 'file:') return;
+    fetch(location.pathname, { cache:'reload' }).then(function(r){ return r.text(); }).then(function(html){
+      var m = html.match(/VERSIÓN ACTUAL:\s*v(\d+)/i);
+      if(!m) return;
+      var serverV = parseInt(m[1], 10);
+      if(serverV > PAGE_VERSION){
+        var key = '3v_vchk_' + location.pathname + '_v' + serverV;
+        if(!sessionStorage.getItem(key)){ sessionStorage.setItem(key, '1'); location.reload(); }
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   ▼▼ CALCULO — inicio. La prueba cuadro-comercial.test.js extrae este
+      bloque entero del HTML y lo ejecuta: no hay ninguna copia del
+      código en la prueba. Sin DOM y sin red aquí dentro. Las cifras las
+      calcula cuadro-comercial-data.js (buildDashboard); este bloque
+      solo da formato a su salida y prepara las lecturas.
+   ════════════════════════════════════════════════════════════════════ */
+
+var WORKER = 'https://www.3villas.com/intranet/api';
+/* Caspio sirve como mucho 1000 filas por lectura y el caspio-proxy no aplica orderBy en action=data:
+   cada tabla se lee por ventanas (fechas o villaid) y una ventana que llega al tope se parte en dos. */
+var READ_LIMIT = 1000;
+var USERS_LIMIT = 300;   /* limit de la lectura de TaUsers (como reports-ventas.html); aviso si se llega */
+var MAX_READS = 60;
+var VENTAS_FIRST_YEAR = 2019;
+var GREY_STATES = ['sin dato', 'sin objetivo', 'fase 2'];
+/* El estado 'fase 2' sale así en pantalla y en las descargas: un socio no sabe qué es "fase 2" a secas. */
+var PHASE2_TEXT = 'pendiente (fase 2)';
+var PHASE2_LEGEND = 'fase 2 = cifra que llega en la siguiente entrega (Holded, eGO, objetivos)';
+var REF_NOTE = 'Los valores de referencia extranjeros son orientación, no objetivos';
+var MESES_LARGOS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+/* Etiquetas de las ocho cifras (spec 3a), por si el módulo no trae alguna. */
+var TILE_LABELS = { 1:'Honorarios cobrados', 2:'Arras firmadas, 90 días', 3:'Captaciones de venta nuevas, % exclusiva',
+  4:'Viviendas en gestión: altas, bajas, total', 5:'Tasa de bajas de propietarios, 12 meses', 6:'Contratos de gestión firmados; % leads → contrato',
+  7:'Pipeline de ventas', 8:'Dos riesgos, dos oportunidades' };
+/* Líneas de referencia de la spec 3a (cifras 5 y 6), si el módulo no las trae. */
+var REF_DEFAULTS = {
+  5: [ { value:9.6, label:'EE. UU., alquiler residencial' }, { value:19.5, label:'EE. UU., alquiler residencial' } ],
+  6: [ { min:10, max:25, label:'proveedor EE. UU.' } ]
+};
+/* Nombres en español de los campos de los bloques mensuales; un campo que no está aquí sale con su nombre legible. */
+var FIELD_LABELS = {
+  facturado:'Facturado', cobrado:'Cobrado', diferencia:'Diferencia', pendiente:'Pendiente', pendientePorMes:'Pendiente por mes',
+  inmueblesEnVenta:'Inmuebles en venta', enVenta:'Inmuebles en venta', arras:'Arras firmadas', escrituras:'Escrituras', notario:'Escrituras',
+  seguros:'Seguros', segurosValor:'Seguros, valor', alquilerLAU:'Alquiler LAU', alquilerLau:'Alquiler LAU', captacionLAU:'Captación alquiler LAU',
+  diasEnMercado:'Días en mercado', caidasTrasArras:'Caídas tras arras', viviendasBajoContrato:'Viviendas bajo contrato',
+  unidadesSimples:'Unidades simples', unidadesMulti:'Unidades multi', pctGarantia:'% con garantía', conGarantiaPct:'% con garantía',
+  leads:'Leads', cartas:'Cartas de intención enviadas', cartasEnviadas:'Cartas de intención enviadas', contratos:'Contratos de gestión',
+  altas:'Altas', bajas:'Bajas', bajasConMotivo:'Bajas con motivo', total:'Total', captaciones:'Captaciones de venta',
+  exclusivas:'Captaciones en exclusiva', visitas:'Visitas', ytd:'Acumulado del año', fincasActuales:'Fincas actuales', carteles:'Carteles',
+  unidades:'Unidades', simples:'Viviendas de una unidad', multi:'Viviendas multiunidad', conGarantia:'Con garantía', renovacion:'Renovación del contrato',
+  fija:'Fecha fija', tacita:'Tácita anual', sinDato:'Sin dato', captacionAlquilerVacacional:'Captación alquiler vacacional',
+  altas12m:'Altas en 12 meses', bajas12m:'Bajas en 12 meses', bajasMotivoTexto:'Motivo de las bajas', count:'Número', valor:'Valor',
+  vencen12m:'Contratos que vencen en los próximos 12 meses', villa:'Villa', inicio:'Año de inicio', fin:'Año de fin', finFecha:'Fecha de fin', motivo:'Motivo', fuentes:'Fuentes de leads'
+};
+var MONEY_KEYS = /^(facturado|cobrado|diferencia|pendiente|importe|valor|honorarios|segurosValor)/i;
+var PCT_KEYS = /(^pct|Pct$|Porcentaje|porcentaje|^tasa)/;
+var SKIP_KEYS = { state:1, source:1, readAt:1, sentence:1, notes:1, label:1, month:1, regla:1, porAgente:1, vencen12mLabel:1 };
+var PROSP_LABELS = {
+  Prosp_Llamadas:'Llamadas', Prosp_No_Contestan:'No contestan', Prosp_No_Interesado:'No interesado', Prosp_Otra_Agencia:'Otra agencia',
+  Prosp_Seguimiento:'Seguimiento', Visitas_Ventas:'Visitas', Prosp_Cartas_Intenciones:'Cartas de intenciones', Prosp_Contratos:'Contratos',
+  llamadas:'Llamadas', noContestan:'No contestan', noInteresado:'No interesado', otraAgencia:'Otra agencia', seguimiento:'Seguimiento',
+  visitas:'Visitas', cartas:'Cartas de intenciones', cartasIntenciones:'Cartas de intenciones', contratos:'Contratos'
+};
+var NAME_KEYS = { name:1, nombre:1, agent:1, agente:1, id:1, sums:1, bono:1, bonus:1, filas:1, semanas:1 };
+
+function esc(s){ return String(s === undefined || s === null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;'); }
+
+function toNum(v){
+  if(v === null || v === undefined || v === '' || typeof v === 'boolean') return null;
+  var n = Number(v);
+  return isFinite(n) ? n : null;
+}
+
+/* Fecha de hoy 'YYYY-MM-DD' en hora de Madrid (no la del dispositivo). */
+function madridToday(now){
+  var d = (now === undefined) ? new Date() : new Date(now);
+  return new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+}
+
+function madridHHMM(now){
+  var d = (now === undefined) ? new Date() : new Date(now);
+  return new Intl.DateTimeFormat('es-ES', { timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit', hour12:false }).format(d);
+}
+
+/* 1234.5 → '1.234,5' con dec decimales; '' si no hay número. Nunca '-0'. */
+function fmtNum(n, dec){
+  if(n === null || n === undefined || !isFinite(n)) return '';
+  var d = dec || 0, s = Math.abs(n).toFixed(d), neg = n < 0 && Number(s) !== 0, p = s.split('.');
+  return (neg ? '-' : '') + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (p[1] ? ',' + p[1] : '');
+}
+
+/* El dinero se redondea a 100 € (spec 3a). */
+function round100(n){ return Math.round(n / 100) * 100; }
+
+/* Valor con su unidad: 'EUR' → '12.300 €', '%' → '9,6 %', 'n' → '12' (o '12,5'). '' si no hay número. */
+function fmtValue(v, unit){
+  var n = toNum(v);
+  if(n === null) return '';
+  if(unit === 'EUR') return fmtNum(round100(n), 0) + ' €';
+  if(unit === '%') return fmtNum(n, 1) + ' %';
+  return Number.isInteger(n) ? fmtNum(n, 0) : fmtNum(n, 1);
+}
+
+/* Variación en %: '+12,5 %', '-3,0 %', '0,0 %'; '' si no hay dato. */
+function fmtVariance(p){
+  var n = toNum(p);
+  if(n === null) return '';
+  var r = Math.round(n * 10) / 10;
+  return (r > 0 ? '+' : r < 0 ? '-' : '') + fmtNum(Math.abs(r), 1) + ' %';
+}
+function varianceClass(p){
+  var n = toNum(p);
+  if(n === null) return '';
+  var r = Math.round(n * 10) / 10;
+  return r > 0 ? 'up' : r < 0 ? 'down' : 'flat';
+}
+/* La variación es contra el objetivo si lo hay; si no, contra el año anterior. El módulo lo dice en varianceBase. */
+function varianceBase(tile){
+  if(tile && typeof tile.varianceBase === 'string' && tile.varianceBase) return 'vs ' + tile.varianceBase;
+  if(toNum(tile && tile.target) !== null) return 'vs objetivo';
+  if(toNum(tile && tile.lastYear) !== null) return 'vs año anterior';
+  return '';
+}
+
+/* Líneas de texto de una cifra: items, o riesgos y oportunidades (cifra 8). */
+function tileItems(tile){
+  var out = [];
+  if(!tile) return out;
+  if(Array.isArray(tile.items)) tile.items.forEach(function(it){ out.push(typeof it === 'string' ? it : ((it.kind ? it.kind + ': ' : '') + (it.text || ''))); });
+  (Array.isArray(tile.riesgos) ? tile.riesgos : []).forEach(function(t){ out.push('Riesgo: ' + t); });
+  (Array.isArray(tile.oportunidades) ? tile.oportunidades : []).forEach(function(t){ out.push('Oportunidad: ' + t); });
+  return out;
+}
+
+/* Estado de una cifra: el que trae el módulo; sin número y sin texto = 'sin dato'. */
+function tileState(tile){
+  var st = String((tile && tile.state) || '').toLowerCase().trim();
+  if(GREY_STATES.indexOf(st) >= 0) return st;
+  if(primaryValue(tile) === null && !tileItems(tile).length) return 'sin dato';
+  return 'ok';
+}
+function isGreyState(st){ return GREY_STATES.indexOf(st) >= 0; }
+/* Texto de un estado para el lector: 'fase 2' → 'pendiente (fase 2)'; los demás tal cual. */
+function stateText(st){ return st === 'fase 2' ? PHASE2_TEXT : st; }
+
+/* El número principal de una cifra: value, o value.total / value.value / el primer número de un objeto. */
+function primaryValue(tile){
+  var v = tile ? tile.value : null;
+  if(v && typeof v === 'object' && !Array.isArray(v)){
+    if(toNum(v.total) !== null) return toNum(v.total);
+    if(toNum(v.value) !== null) return toNum(v.value);
+    var ks = Object.keys(v);
+    for(var i = 0; i < ks.length; i++){ if(toNum(v[ks[i]]) !== null) return toNum(v[ks[i]]); }
+    return null;
+  }
+  return toNum(v);
+}
+
+/* Desgloses que el módulo pone en la cifra (spec 3a). [campo, etiqueta, unidad, campo de estado, separador].
+   Sin campo de estado se usa <campo>State. Cifra 3: el % exclusiva llega null con exclusiveState 'sin confirmar'. */
+var EXTRA_PARTS = [ ['arras30d', 'Arras 30 días', 'n'], ['arras60d', '60 días', 'n'], ['arras90d', '90 días', 'n'], ['escrituras90d', 'Escrituras 90 días', 'n'],
+  ['importe', 'Importe', 'EUR'], ['exclusivas', 'En exclusiva', 'n'], ['captacionInmobiliaria', 'Captación Inmobiliaria (campo del informe)', 'n'],
+  ['exclusivePct', '% exclusiva', '%', 'exclusiveState', ': '],
+  ['altas12m', 'Altas 12 meses', 'n'], ['bajas12m', 'Bajas 12 meses', 'n'], ['netas12m', 'Netas 12 meses', 'n'] ];
+
+/* Línea de desglose: partes de un valor compuesto, los campos de EXTRA_PARTS y la lista parts (cifra 7). */
+function valueParts(tile){
+  if(!tile) return '';
+  var out = [], v = tile.value;
+  if(v && typeof v === 'object' && !Array.isArray(v)){
+    Object.keys(v).forEach(function(k){ if(toNum(v[k]) !== null) out.push(labelOf(k) + ' ' + fmtValue(v[k], PCT_KEYS.test(k) ? '%' : (MONEY_KEYS.test(k) ? 'EUR' : 'n'))); });
+  }
+  EXTRA_PARTS.forEach(function(p){
+    if(!Object.prototype.hasOwnProperty.call(tile, p[0])) return;
+    var x = toNum(tile[p[0]]), st = String(tile[p[3] || (p[0] + 'State')] || '').toLowerCase().trim(), sep = p[4] || ' ';
+    if(x !== null) out.push(p[1] + sep + fmtValue(x, p[2]));
+    else out.push(p[1] + sep + (st && st !== 'ok' ? stateText(st) : 'sin dato'));
+  });
+  if(Array.isArray(tile.parts)) tile.parts.forEach(function(p){
+    var x = toNum(p && p.value), st = String((p && p.state) || '').toLowerCase();
+    out.push(String((p && (p.label || labelOf(p.key))) || '') + ' ' + (x !== null ? fmtValue(x, (p && p.unit) || 'n') : (isGreyState(st) ? stateText(st) : 'sin dato')));
+  });
+  return out.join(' · ');
+}
+
+/* Líneas o franjas de referencia: referencias / references / referenceBand del módulo, si no las de la spec (solo cifras 5 y 6, en %).
+   Una franja en % solo se dibuja sobre una barra en %: la de la cifra 6 (contratos, en número) va en su barra secundaria (subBar). */
+function tileRefs(tile){
+  if(!tile) return [];
+  var r = tile.referencias || tile.references || tile.reference || tile.refs || (tile.unit === '%' ? tile.referenceBand : null);
+  if(r && !Array.isArray(r)) r = [r];
+  if(!r){
+    if(tile.unit === '%' && REF_DEFAULTS[tile.id] && !isGreyState(tileState(tile))) r = REF_DEFAULTS[tile.id];
+    else r = [];
+  }
+  return r.map(function(x){
+    if(typeof x === 'number') return { value:x, min:null, max:null, label:'' };
+    return { value: toNum(x.value), min: toNum(x.min), max: toNum(x.max), label: String(x.label || '') };
+  }).filter(function(x){ return x.value !== null || (x.min !== null && x.max !== null); });
+}
+
+/* Barra secundaria de la cifra 6: % leads → contrato (leadToContract) con la franja de referencia 10–25 %. */
+function subBar(tile){
+  var l = tile && tile.leadToContract;
+  if(!l || typeof l !== 'object') return null;
+  var band = tile.referenceBand || (tile.id === 6 ? REF_DEFAULTS[6][0] : null);
+  var c = toNum(l.contratos), k = toNum(l.cartas);
+  return { label:'% leads → contrato', value: toNum(l.pct), unit:'%', references: band ? [band] : [],
+    detail: (c !== null && k !== null ? fmtNum(c, 0) + ' de ' + fmtNum(k, 0) : '') + (l.base ? (c !== null && k !== null ? '; ' : '') + 'base: ' + l.base : '') };
+}
+
+/* Geometría de la barra (bullet): escala = el mayor de real, objetivo, año anterior y referencias, más 15 %.
+   Devuelve porcentajes del ancho (0-100, una cifra decimal); null = sin marca. */
+function bulletGeometry(tile){
+  var v = primaryValue(tile), t = toNum(tile && tile.target), ly = toNum(tile && tile.lastYear), refs = tileRefs(tile);
+  var m = 0;
+  [v, t, ly].concat(refs.map(function(r){ return r.value; }), refs.map(function(r){ return r.max; })).forEach(function(x){
+    if(x !== null && x !== undefined && isFinite(x) && x > m) m = x;
+  });
+  var max = m > 0 ? m * 1.15 : 1;
+  function pct(x){ return (x === null || x === undefined || !isFinite(x)) ? null : Math.round(Math.max(0, Math.min(x, max)) / max * 1000) / 10; }
+  return {
+    max: max,
+    fillPct: v === null ? 0 : pct(v),
+    targetPct: pct(t),
+    lastYearPct: pct(ly),
+    refs: refs.map(function(r){
+      return (r.min !== null && r.max !== null && r.value === null) ? { fromPct: pct(r.min), toPct: pct(r.max), label: r.label } : { pct: pct(r.value), label: r.label };
+    })
+  };
+}
+
+/* 'YYYY-MM-DD' o una hora ISO → 'dd/mm/yyyy' o 'dd/mm/yyyy HH:MM' (hora de Madrid). */
+function fmtDate(s){
+  var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+/* Avisos del módulo en español llano para un socio. Dos avisos se reescriben a un solo texto; la semana y su lunes
+   salen de lo que trae el aviso ('2026-W40', el lunes 'YYYY-MM-DD' o '40 (28/09/2026)'), nunca de un texto fijo.
+   Acepta las dos redacciones del módulo (con nombres de campo o ya en llano). Los demás avisos, tal cual. */
+function plainNotice(t){
+  var s = String(t == null ? '' : t);
+  if(/guardan? solo (el|como) año/i.test(s) && /1 de enero/i.test(s) && /31 de diciembre/i.test(s)){
+    return 'El año de inicio y de fin del contrato se guardan solo como año: el inicio se toma el 1 de enero y el fin el 31 de diciembre.';
+  }
+  var m = s.match(/columnas de prospección \(llamadas, cartas, contratos\) tienen dato desde la semana (\d{4}-W\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2} \((\d{2})\/(\d{2})\/(\d{4})\))/i);
+  if(m){
+    var p = weekParts(m[2] ? m[4] + '-' + m[3] + '-' + m[2] : m[1]);
+    if(p.monday) return 'Las columnas de prospección (llamadas, cartas, contratos) tienen dato desde la semana ' + p.num.slice(1) +
+      ' (' + fmtDate(p.monday) + "); antes salen 'sin dato'.";
+  }
+  return s;
+}
+function fmtReadAt(s){
+  var str = String(s || '');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return fmtDate(str);
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)){
+    var d = new Date(str);
+    if(isNaN(d.getTime())) return fmtDate(str);
+    return fmtDate(madridToday(d)) + ' ' + madridHHMM(d);
+  }
+  return str;
+}
+
+function labelOf(key){
+  if(Object.prototype.hasOwnProperty.call(FIELD_LABELS, key)) return FIELD_LABELS[key];
+  if(Object.prototype.hasOwnProperty.call(PROSP_LABELS, key)) return PROSP_LABELS[key];
+  return humanize(key);
+}
+/* 'diasEnMercado' / 'dias_en_mercado' → 'Dias en mercado'. */
+function humanize(key){
+  var s = String(key || '').replace(/^Prosp_/, '').replace(/_/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+
+/* Mini barras de 13 semanas. */
+function sparkHtml(series){
+  if(!Array.isArray(series) || !series.length) return '';
+  var nums = series.map(toNum), max = nums.reduce(function(a, b){ return Math.max(a, b || 0); }, 0) || 1;
+  return '<div class="spark" title="Últimas ' + series.length + ' semanas">' + nums.map(function(n){
+    return '<span style="height:' + (n === null ? 0 : Math.max(4, n / max * 100)).toFixed(0) + '%"></span>';
+  }).join('') + '</div>';
+}
+
+/* La barra de una cifra (o de la barra secundaria) con sus marcas. */
+function bulletHtml(t){
+  var g = bulletGeometry(t);
+  return '<div class="bullet">' +
+    g.refs.map(function(r){
+      return r.pct === undefined
+        ? '<div class="b-band" style="left:' + r.fromPct + '%;width:' + Math.max(0, r.toPct - r.fromPct).toFixed(1) + '%" title="' + esc(r.label) + '"></div>'
+        : '<div class="b-ref" style="left:' + r.pct + '%" title="' + esc(r.label) + '"></div>';
+    }).join('') +
+    '<div class="b-fill" style="width:' + g.fillPct + '%"></div>' +
+    (g.targetPct === null ? '' : '<div class="b-target" style="left:' + g.targetPct + '%" title="Objetivo"></div>') +
+    (g.lastYearPct === null ? '' : '<div class="b-ly" style="left:' + g.lastYearPct + '%" title="Año anterior"></div>') +
+    '</div>';
+}
+function refLegend(t){
+  return tileRefs(t).map(function(r){
+    return '<i class="lg-ref"></i>' + esc(r.min !== null && r.max !== null && r.value === null ? fmtValue(r.min, t.unit) + '–' + fmtValue(r.max, t.unit) : fmtValue(r.value, t.unit)) + (r.label ? ' ' + esc(r.label) : '');
+  });
+}
+
+/* Una cifra de la pestaña Socios. Estados 'sin dato' y 'fase 2': tarjeta gris con ese texto, nunca un 0.
+   'sin objetivo': tarjeta gris con la cifra real (si la hay) y la etiqueta 'sin objetivo'. */
+function tileHtml(tile){
+  var st = tileState(tile), grey = isGreyState(st), noValue = st === 'sin dato' || st === 'fase 2';
+  var label = (tile && tile.label) || TILE_LABELS[tile && tile.id] || '';
+  var h = '<div class="tile' + (grey ? ' grey' : '') + '" data-id="' + esc(tile && tile.id) + '" data-state="' + esc(st) + '">' +
+    '<div class="t-head"><span class="t-num">' + esc(tile && tile.id) + '</span><span class="t-label">' + esc(label) + '</span></div>';
+  if(noValue){
+    h += '<div class="t-state">' + esc(stateText(st)) + '</div>';
+  } else {
+    var pv = primaryValue(tile), unit = tile.unit;
+    if(pv !== null) h += '<div class="t-value">' + esc(fmtValue(pv, unit)) + (st === 'sin objetivo' ? '<span class="t-pill">sin objetivo</span>' : '') + '</div>';
+    else if(st === 'sin objetivo') h += '<div class="t-state">sin objetivo</div>';
+    var parts = valueParts(tile);
+    if(parts) h += '<div class="t-parts">' + esc(parts) + '</div>';
+    if(pv !== null && tile.id !== 8){
+      h += bulletHtml(tile);
+      var leg = [];
+      if(toNum(tile.target) !== null) leg.push('<i class="lg-t"></i>Objetivo ' + esc(fmtValue(tile.target, unit)));
+      else if(st !== 'sin objetivo') leg.push('sin objetivo');
+      if(toNum(tile.lastYear) !== null) leg.push('<i class="lg-ly"></i>Año anterior ' + esc(fmtValue(tile.lastYear, unit)));
+      h += '<div class="t-legend">' + leg.concat(refLegend(tile)).join(' · ') + '</div>';
+      var vp = fmtVariance(tile.variancePct);
+      if(vp) h += '<div class="t-var ' + varianceClass(tile.variancePct) + '">' + esc(vp) + ' ' + esc(varianceBase(tile)) + '</div>';
+      var sb = subBar(tile);
+      if(sb){
+        h += '<div class="t-parts" style="margin-top:8px"><b>' + esc(sb.label) + ': ' + esc(sb.value === null ? 'sin dato' : fmtValue(sb.value, '%')) + '</b>' + (sb.detail ? ' (' + esc(sb.detail) + ')' : '') + '</div>';
+        if(sb.value !== null) h += bulletHtml(sb) + '<div class="t-legend">' + refLegend(sb).join(' · ') + '</div>';
+      }
+      h += sparkHtml(tile.series13w);
+    }
+  }
+  if(tile && tile.sentence) h += '<div class="t-sentence">' + esc(tile.sentence) + '</div>';
+  var items = tileItems(tile);
+  if(items.length) h += '<ul class="t-items">' + items.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+  var src = [];
+  if(tile && tile.source) src.push('Fuente: ' + tile.source);
+  if(tile && tile.readAt) src.push('leído ' + fmtReadAt(tile.readAt));
+  if(src.length) h += '<div class="t-src">' + esc(src.join(' · ')) + '</div>';
+  return h + '</div>';
+}
+
+/* Las ocho cifras en orden 1-8; una que falte sale gris como 'sin dato'. */
+function socioTiles(socios){
+  var list = (socios && socios.tiles) || [], byId = {};
+  list.forEach(function(t){ if(t && t.id !== undefined) byId[t.id] = t; });
+  var out = [];
+  for(var i = 1; i <= 8; i++) out.push(byId[i] || { id:i, label:TILE_LABELS[i], state:'sin dato' });
+  return out;
+}
+/* ¿Se dibuja alguna referencia extranjera? Entonces va la letra pequeña. */
+function hasRefs(tiles){
+  return (tiles || []).some(function(t){
+    var st = tileState(t);
+    if(st === 'sin dato' || st === 'fase 2' || primaryValue(t) === null || t.id === 8) return false;
+    var sb = subBar(t);
+    return tileRefs(t).length > 0 || !!(sb && sb.value !== null && tileRefs(sb).length);
+  });
+}
+
+/* Semana '2026-W42' (o el lunes 'YYYY-MM-DD') → { num:'S42', date:'12/10', monday:'2026-10-12' } (semana ISO, de lunes a domingo). */
+function weekParts(label){
+  var s = String(label || ''), m = s.match(/^(\d{4})-W(\d{1,2})$/), mon;
+  if(m){
+    var y = +m[1], w = +m[2], jan4 = new Date(Date.UTC(y, 0, 4)), dow = (jan4.getUTCDay() + 6) % 7;
+    mon = new Date(Date.UTC(y, 0, 4 - dow + (w - 1) * 7));
+  } else {
+    var d = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!d) return { num: s, date: '', monday: '' };
+    var x = new Date(Date.UTC(+d[1], +d[2] - 1, +d[3])), xd = (x.getUTCDay() + 6) % 7;
+    mon = new Date(Date.UTC(+d[1], +d[2] - 1, +d[3] - xd));
+    var th = new Date(mon.getTime() + 3 * 86400000), y1 = new Date(Date.UTC(th.getUTCFullYear(), 0, 1));
+    m = [null, null, String(Math.floor((th - y1) / 86400000 / 7) + 1)];
+  }
+  var iso = mon.toISOString().slice(0, 10);
+  return { num: 'S' + (+m[2]), date: iso.slice(8, 10) + '/' + iso.slice(5, 7), monday: iso };
+}
+function weekHeaderHtml(label, isOpen){
+  var p = weekParts(label);
+  return '<th title="Semana del ' + esc(fmtDate(p.monday)) + (isOpen ? ', en curso' : '') + '">' + esc(p.num) + '<span class="wd">' + esc(isOpen ? p.date + ' · en curso' : p.date) + '</span></th>';
+}
+
+/* Índices de las semanas sin informe de un agente: missingWeeks trae etiquetas de semana o índices. */
+function missingSet(agent, weeks){
+  var set = {};
+  ((agent && agent.missingWeeks) || []).forEach(function(w){
+    if(typeof w === 'number') set[w] = 1;
+    else { var i = (weeks || []).indexOf(w); if(i >= 0) set[i] = 1; }
+  });
+  return set;
+}
+/* Una fila de fase 2: solo cuando el módulo lo dice (state 'fase 2'). Una fila sin ningún número es 'sin dato', con '—'. */
+function isPhase2Row(row){
+  return !!row && (String(row.state || '').toLowerCase() === 'fase 2' || row.phase === 2 || row.phase2 === true);
+}
+function isPerVisitRow(row){ return /visita/i.test(String(row && row.metric || '')) && /por|per/i.test(String(row && row.metric || '')); }
+function fmtCell(v){ var n = toNum(v); return n === null ? '' : (Number.isInteger(n) ? fmtNum(n, 0) : fmtNum(n, 1)); }
+
+/* Filas de un bloque de agente, con "Llamadas por visita" justo debajo de Llamadas cuando el módulo trae callsPerVisit. */
+function expandRows(agent){
+  var rows = (agent && agent.rows) || [], out = [], hasPv = rows.some(isPerVisitRow);
+  rows.forEach(function(r){
+    out.push(r);
+    if(!hasPv && r && r.callsPerVisit !== undefined && r.callsPerVisit !== null){
+      var cpv = r.callsPerVisit;
+      out.push({ metric:'llamadas_por_visita', label:'Llamadas por visita', values: Array.isArray(cpv) ? cpv : [], single: Array.isArray(cpv) ? null : toNum(cpv), goal:null, _sub:true });
+    }
+  });
+  return out;
+}
+function rowValue(r, i, n){ return r._sub && r.single !== null && r.single !== undefined ? (i === n - 1 ? r.single : null) : (r.values || [])[i]; }
+
+/* Fila "Informe semanal" de un bloque: agente = ✓ / 'sin informe'; total = ✓ / 'faltan N' (missingByWeek); semana abierta = 'en curso'. */
+function informeCells(agent, W, isTotal, openIdx){
+  var miss = missingSet(agent, W), mbw = isTotal && agent && Array.isArray(agent.missingByWeek) ? agent.missingByWeek : null;
+  return W.map(function(w, i){
+    if(i === openIdx) return { text:'en curso', cls:'grey', miss:false };
+    if(mbw){ var n = toNum(mbw[i]) || 0; return n > 0 ? { text:'faltan ' + n, cls:'miss', miss:true } : { text:'✓', cls:'okw', miss:false }; }
+    if(miss[i]) return { text: isTotal ? 'falta alguno' : 'sin informe', cls:'miss', miss:true };
+    return { text:'✓', cls:'okw', miss:false };
+  });
+}
+
+/* Bloque HTML de un agente (o del total del equipo): fila "Informe semanal", filas de resultados, objetivo semanal. */
+function agentBlockHtml(agent, weeks, isTotal, openWeek){
+  var W = weeks || [], openIdx = openWeek ? W.indexOf(openWeek) : -1;
+  var hasInf = !!agent && (Array.isArray(agent.missingWeeks) || (isTotal && Array.isArray(agent.missingByWeek)));
+  var inf = hasInf ? informeCells(agent, W, isTotal, openIdx) : [];
+  var blank = isTotal ? {} : missingSet(agent, W);
+  var closed = W.length - (openIdx >= 0 ? 1 : 0), nMiss = inf.filter(function(c){ return c.miss; }).length;
+  var name = (agent && agent.name) || '(sin agente)';
+  var h = '<div class="ag-head"><b>' + esc(isTotal ? 'Total equipo' : name) + '</b>' +
+    (hasInf ? '<span class="' + (nMiss ? 'warn' : '') + '">' + (closed - nMiss) + ' de ' + closed + (openIdx >= 0 ? ' semanas cerradas' : ' semanas') +
+      (isTotal ? ' con todos los informes' : ' con informe') + '</span>' : '') + '</div>';
+  h += '<div class="twrap"><table class="wk"><thead><tr><th class="l">Indicador</th>' + W.map(function(w, i){ return weekHeaderHtml(w, i === openIdx); }).join('') + '<th>Objetivo semanal</th></tr></thead><tbody>';
+  if(hasInf) h += '<tr><td class="l">Informe semanal</td>' + inf.map(function(c){ return '<td class="' + c.cls + '">' + esc(c.text) + '</td>'; }).join('') + '<td class="goal"></td></tr>';
+  expandRows(agent).forEach(function(r){
+    var label = r.label || labelOf(r.metric);
+    if(!r._sub && isPhase2Row(r)){
+      h += '<tr><td class="l">' + esc(label) + '</td><td class="grey" colspan="' + (W.length || 1) + '" style="text-align:center">' + esc(PHASE2_TEXT) + '</td><td class="goal grey">' + esc(PHASE2_TEXT) + '</td></tr>';
+      return;
+    }
+    h += '<tr><td class="l' + (r._sub ? ' sub-row' : '') + '">' + esc(label) + '</td>';
+    W.forEach(function(w, i){
+      var v = rowValue(r, i, W.length);
+      if(blank[i] && i !== openIdx) h += '<td class="miss">—</td>';
+      else if(toNum(v) === null) h += '<td class="empty' + (r._sub ? ' sub-row' : '') + '">—</td>';
+      else h += '<td' + (r._sub ? ' class="sub-row"' : '') + '>' + esc(fmtCell(v)) + '</td>';
+    });
+    h += toNum(r.goal) === null ? '<td class="goal grey">' + (r._sub ? '' : 'sin objetivo') + '</td>' : '<td class="goal">' + esc(fmtCell(r.goal)) + '</td>';
+    h += '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function leaderboardHtml(list){
+  var L = list || [];
+  if(!L.length) return '<tr><td class="l empty" colspan="4">sin dato</td></tr>';
+  function c(v){ return toNum(v) === null ? '<td class="empty">—</td>' : '<td>' + esc(fmtCell(v)) + '</td>'; }
+  return L.map(function(a, i){
+    return '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(a.name) + '</td>' + c(a.visits) + c(a.contracts) + '</tr>';
+  }).join('');
+}
+
+/* Número para CSV y TSV: coma decimal, sin separador de miles. */
+function csvNum(n, dec){
+  var x = toNum(n);
+  if(x === null) return '';
+  return (dec === 0 || Number.isInteger(x) ? String(x) : x.toFixed(dec === undefined ? 1 : dec)).replace('.', ',');
+}
+/* Igual que informe-reservas.html v2: un texto que empieza por = + - @ o tabulador lleva apóstrofo delante para que Excel no lo ejecute.
+   Única diferencia: un número negativo con coma decimal ('-12,5', de csvNum) se queda como número. */
+function csvCell(v){
+  var s = String(v == null ? '' : v);
+  if (/^[=@\t\r]/.test(s) || /^[+\-](?![\d\s().,\-]+$)/.test(s)) s = "'" + s;
+  return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function tsvCell(v){ return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '); }
+
+/* "Copiar tabla" de Equipo semanal: una línea por agente e indicador, 13 semanas y el objetivo, separada por tabuladores. */
+function equipoTsv(equipo){
+  var W = (equipo && equipo.weeks) || [], openIdx = equipo && equipo.openWeek ? W.indexOf(equipo.openWeek) : -1;
+  var lines = [['Agente', 'Indicador'].concat(W.map(function(w, i){ var p = weekParts(w); return p.num + ' ' + p.date + (i === openIdx ? ' (en curso)' : ''); }), ['Objetivo semanal']).map(tsvCell).join('\t')];
+  var blocks = ((equipo && equipo.agents) || []).map(function(a){ return { a:a, total:false }; });
+  if(equipo && equipo.total) blocks.push({ a:equipo.total, total:true });
+  blocks.forEach(function(b){
+    var a = b.a, name = b.total ? 'Total equipo' : (a.name || ''), blank = b.total ? {} : missingSet(a, W);
+    if(Array.isArray(a.missingWeeks) || (b.total && Array.isArray(a.missingByWeek))){
+      lines.push([name, 'Informe semanal'].concat(informeCells(a, W, b.total, openIdx).map(function(c){ return c.text === '✓' ? 'sí' : c.text; }), ['']).map(tsvCell).join('\t'));
+    }
+    expandRows(a).forEach(function(r){
+      var label = r.label || labelOf(r.metric), p2 = !r._sub && isPhase2Row(r);
+      var cells = W.map(function(w, i){
+        if(p2) return PHASE2_TEXT;
+        if(blank[i] && i !== openIdx) return 'sin informe';
+        return csvNum(rowValue(r, i, W.length));
+      });
+      lines.push([name, label].concat(cells, [p2 ? PHASE2_TEXT : (toNum(r.goal) === null ? (r._sub ? '' : 'sin objetivo') : csvNum(r.goal))]).map(tsvCell).join('\t'));
+    });
+  });
+  return lines.join('\n');
+}
+
+/* Texto pequeño de comparación de una celda mensual: 'mes anterior 3 · año anterior sin dato'. */
+function trioSub(v, unit){
+  var out = [];
+  if(Object.prototype.hasOwnProperty.call(v, 'lastMonth')) out.push('mes anterior ' + (toNum(v.lastMonth) === null ? 'sin dato' : fmtValue(v.lastMonth, unit)));
+  if(Object.prototype.hasOwnProperty.call(v, 'lastYear')) out.push('año anterior ' + (toNum(v.lastYear) === null ? 'sin dato' : fmtValue(v.lastYear, unit)));
+  return out.join(' · ');
+}
+
+/* Una celda de los bloques mensuales → { text, grey, num, unit, sub, lastMonth, lastYear }.
+   Número, null, texto de estado o un objeto { value, unit, state, lastMonth, lastYear, count, pct, n, ytd, base }. */
+function normCell(v, key){
+  var unit = PCT_KEYS.test(key || '') ? '%' : (MONEY_KEYS.test(key || '') ? 'EUR' : 'n');
+  var NONE = { text:'sin dato', grey:true, num:null, unit:unit, sub:'', lastMonth:null, lastYear:null };
+  function mk(text, grey, num, u, sub, src){ return { text:text, grey:grey, num:num, unit:u, sub:sub || '', lastMonth: src ? toNum(src.lastMonth) : null, lastYear: src ? toNum(src.lastYear) : null }; }
+  if(v === null || v === undefined || v === '') return NONE;
+  if(typeof v === 'number') return isFinite(v) ? mk(fmtValue(v, unit), false, v, unit) : NONE;
+  if(typeof v === 'string'){
+    var ls = v.toLowerCase().trim();
+    if(isGreyState(ls)) return mk(stateText(ls), true, null, unit);
+    var n = toNum(v);
+    return n === null ? mk(v, false, null, unit) : mk(fmtValue(n, unit), false, n, unit);
+  }
+  if(typeof v !== 'object' || Array.isArray(v)) return NONE;
+  var st = String(v.state || '').toLowerCase().trim(), u = v.unit || unit, sub = trioSub(v, u);
+  if(toNum(v.pct) !== null) return mk(fmtValue(v.pct, '%') + (toNum(v.n) !== null ? ' (' + fmtNum(toNum(v.n), 0) + ')' : ''), false, toNum(v.pct), '%', v.base ? 'base: ' + v.base : '');
+  if(Object.prototype.hasOwnProperty.call(v, 'pct') && Object.prototype.hasOwnProperty.call(v, 'n')) return mk('sin dato', true, null, '%', v.base ? 'base: ' + v.base : '');
+  if(toNum(v.count) !== null && (toNum(v.value) !== null || toNum(v.amount) !== null)){
+    return mk(fmtNum(toNum(v.count), 0) + ' · ' + fmtValue(toNum(v.value) !== null ? v.value : v.amount, 'EUR'), false, toNum(v.count), 'n', sub, v);
+  }
+  if(toNum(v.ytd) !== null){
+    var ytdTxt = 'acumulado del año ' + fmtValue(v.ytd, u);
+    return toNum(v.value) !== null ? mk(fmtValue(v.value, u), false, toNum(v.value), u, ytdTxt, v) : mk('sin dato', true, null, u, ytdTxt, v);
+  }
+  if(toNum(v.value) !== null) return mk(fmtValue(v.value, u), false, toNum(v.value), u, sub, v);
+  if(isGreyState(st) || Object.prototype.hasOwnProperty.call(v, 'value')) return mk(isGreyState(st) ? stateText(st) : 'sin dato', true, null, u, sub, v);
+  if(toNum(v.count) !== null) return mk(fmtNum(toNum(v.count), 0), false, toNum(v.count), 'n', sub, v);
+  var ks = Object.keys(v).filter(function(k){ return toNum(v[k]) !== null; });
+  if(ks.length) return mk(ks.map(function(k){ return (/^\d{4}-\d{2}$/.test(k) ? monthLabel(k) : labelOf(k)) + ' ' + fmtValue(v[k], unit); }).join(' · '), false, null, unit);
+  return mk(stateText(st) || 'sin dato', true, null, unit);
+}
+
+/* Un objeto que solo agrupa celdas (p. ej. seguros: { count:{…}, valor:{…} }) se abre en una fila por celda. */
+function isGroupObj(v){
+  if(!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  var ks = Object.keys(v);
+  if(!ks.length) return false;
+  return ks.every(function(k){ return v[k] && typeof v[k] === 'object' && !Array.isArray(v[k]); });
+}
+
+/* Filas etiqueta/valor de un bloque mensual. Una lista (altas, bajas…) da una fila con el número de elementos y la lista. */
+function blockRows(obj){
+  if(!obj || typeof obj !== 'object') return [];
+  var out = [];
+  Object.keys(obj).forEach(function(k){
+    if(SKIP_KEYS[k]) return;
+    var v = obj[k];
+    if(Array.isArray(v)){
+      out.push({ key:k, label: k === 'vencen12m' ? vencenTitle(obj) : labelOf(k), text: fmtNum(v.length, 0), grey:false, num: v.length, unit:'n', sub:'', lastMonth:null, lastYear:null, list: v });
+      return;
+    }
+    if(isGroupObj(v)){
+      Object.keys(v).forEach(function(ck){
+        var c = normCell(v[ck], ck);
+        out.push(Object.assign({ key: k + '.' + ck, label: labelOf(k) + ', ' + labelOf(ck).toLowerCase() }, c));
+      });
+      return;
+    }
+    out.push(Object.assign({ key:k, label: labelOf(k) }, normCell(v, k)));
+  });
+  return out;
+}
+function blockState(obj){
+  if(!obj || typeof obj !== 'object') return 'sin dato';
+  var st = String(obj.state || '').toLowerCase().trim();
+  return isGreyState(st) ? st : 'ok';
+}
+/* Tabla de una lista de objetos: cabeceras = la unión de sus campos de texto o número. */
+function listTable(list){
+  var keys = [];
+  (list || []).forEach(function(x){ if(x && typeof x === 'object') Object.keys(x).forEach(function(k){ if(keys.indexOf(k) < 0 && (typeof x[k] !== 'object' || x[k] === null)) keys.push(k); }); });
+  return { headers: keys.map(labelOf), keys: keys, rows: (list || []).map(function(x){ return keys.map(function(k){ var v = x ? x[k] : null; return v === null || v === undefined ? '' : String(v); }); }) };
+}
+
+/* Título de la lista de contratos que vencen: con vencen12mLabel del módulo ('con año de fin 2026 o 2027')
+   sale 'Contratos que vencen: con año de fin 2026 o 2027'; sin él, el nombre fijo. */
+function vencenTitle(captacion){
+  var l = captacion && captacion.vencen12mLabel;
+  return l ? 'Contratos que vencen: ' + String(l) : FIELD_LABELS.vencen12m;
+}
+/* Contratos que vencen en los próximos 12 meses: [{villa, fin, finFecha?, renovacion?}] → por fecha de fin.
+   fin puede ser una fecha o solo el año (TaVillas.Fincontrato guarda el año). */
+function vencenRows(captacion){
+  var L = (captacion && captacion.vencen12m) || [];
+  return L.map(function(x){
+    var raw = String(x.finFecha || (x.fin === null || x.fin === undefined ? '' : x.fin)), iso = raw.slice(0, 10);
+    var finText = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? fmtDate(iso) : raw;
+    return { villa: String(x.villa == null ? '' : x.villa), fin: /^\d{4}$/.test(raw) ? raw + '-12-31' : iso, finText: finText, renovacion: x.renovacion ? String(x.renovacion) : '' };
+  }).sort(function(a, b){ return a.fin < b.fin ? -1 : a.fin > b.fin ? 1 : a.villa.localeCompare(b.villa, 'es'); });
+}
+
+function agentName(a){ return String((a && (a.name || a.nombre || a.agent || a.agente)) || '(sin agente)'); }
+/* Prospección del mes por agente: columnas = prosp.fields del módulo, o los campos numéricos que trae (sums o el propio objeto), y el bono. */
+function prospTable(prosp){
+  var agents = (prosp && prosp.agents) || [], bonus = (prosp && prosp.bonus) || [], cols = [], heads = [], seen = {};
+  if(prosp && Array.isArray(prosp.fields) && prosp.fields.length){
+    prosp.fields.forEach(function(f){ cols.push(f.key); heads.push(f.label || labelOf(f.key)); });
+  } else {
+    agents.forEach(function(a){
+      var s = (a && a.sums) || a || {};
+      Object.keys(s).forEach(function(k){ if(!NAME_KEYS[k] && !seen[k] && toNum(s[k]) !== null){ seen[k] = 1; cols.push(k); heads.push(labelOf(k)); } });
+    });
+  }
+  var rows = agents.map(function(a){
+    var s = (a && a.sums) || a || {}, name = agentName(a);
+    var b = bonus.find(function(x){ return agentName(x) === name; }) || a.bono || a.bonus || null;
+    return { name: name, values: cols.map(function(k){ return toNum(s[k]); }), bono: bonoText(b) };
+  });
+  var tot = prosp && prosp.totales ? cols.map(function(k){ return toNum(prosp.totales[k]); }) : null;
+  return { headers: heads, keys: cols, rows: rows, totals: tot };
+}
+/* Estado del bono: { ok, faltan } como Prospección mensual; también eligible / missing. ok null = 'sin dato'. */
+function bonoText(b){
+  if(b === null || b === undefined) return { text:'—', ok:null };
+  if(typeof b === 'boolean') return { text: b ? 'Sí' : 'No', ok: b };
+  var ok = b.ok !== undefined ? b.ok : (b.eligible !== undefined ? b.eligible : (b.bono !== undefined ? b.bono : b.cumple));
+  if(ok === undefined || ok === null) return { text: String(b.state || '').toLowerCase() === 'sin dato' || ok === null ? 'sin dato' : '—', ok:null };
+  var faltan = toNum(b.faltan !== undefined ? b.faltan : (b.missing !== undefined ? b.missing : b.remaining));
+  return ok ? { text:'Sí', ok:true } : { text: 'No' + (faltan !== null && faltan > 0 ? ', faltan ' + fmtNum(faltan, 0) : ''), ok:false };
+}
+
+var M_BLOCKS = [ { key:'dinero', title:'Dinero' }, { key:'ventas', title:'Ventas' }, { key:'captacion', title:'Captación', wide:true } ];
+
+/* Valor de una fila mensual para el Excel: número como número (dinero redondeado a 100 €), estado o texto compuesto como texto. */
+function cellValue(r){ return (r.grey || r.num === null || /·/.test(r.text)) ? r.text : (r.unit === 'EUR' ? round100(r.num) : r.num); }
+
+/* Hoja "Resumen" del Excel: Bloque, Indicador, Valor, Mes anterior, Año anterior. */
+function mensualMatrix(mensual){
+  var out = [];
+  M_BLOCKS.forEach(function(b){
+    var obj = mensual && mensual[b.key], st = blockState(obj), rows = blockRows(obj);
+    if(!rows.length) out.push([b.title, '', st === 'ok' ? 'sin dato' : stateText(st), '', '']);
+    rows.forEach(function(r){
+      out.push([b.title, r.label, cellValue(r), r.lastMonth === null || r.lastMonth === undefined ? '' : r.lastMonth, r.lastYear === null || r.lastYear === undefined ? '' : r.lastYear]);
+    });
+  });
+  return out;
+}
+var MATRIX_HEADERS = ['Bloque', 'Indicador', 'Valor', 'Mes anterior', 'Año anterior'];
+
+/* CSV del mes para Excel en español: BOM UTF-8, ';', coma decimal; secciones Resumen, Vencen en 12 meses y Prospección. */
+function buildMensualCsv(mensual){
+  var L = [MATRIX_HEADERS.map(csvCell).join(';')];
+  mensualMatrix(mensual).forEach(function(r){ L.push(r.map(function(x){ return typeof x === 'number' ? csvNum(x) : x; }).map(csvCell).join(';')); });
+  L.push('');
+  L.push([vencenTitle(mensual && mensual.captacion), 'Fin de contrato', 'Renovación'].map(csvCell).join(';'));
+  vencenRows(mensual && mensual.captacion).forEach(function(v){ L.push([v.villa, v.finText, v.renovacion].map(csvCell).join(';')); });
+  L.push('');
+  var pt = prospTable(mensual && mensual.prospeccion);
+  L.push(['Agente'].concat(pt.headers, ['Bono']).map(csvCell).join(';'));
+  pt.rows.forEach(function(r){ L.push([r.name].concat(r.values.map(function(v){ return csvNum(v); }), [r.bono.text]).map(csvCell).join(';')); });
+  if(pt.totals) L.push(['Total'].concat(pt.totals.map(function(v){ return csvNum(v); }), ['']).map(csvCell).join(';'));
+  return '﻿' + L.join('\r\n') + '\r\n';
+}
+
+function monthLabel(ym){
+  var m = String(ym || '').match(/^(\d{4})-(\d{2})$/);
+  return m ? MESES_LARGOS[+m[2] - 1] + ' ' + m[1] : String(ym || '');
+}
+function shiftMonth(ym, delta){
+  var m = String(ym).match(/^(\d{4})-(\d{2})$/);
+  if(!m) return ym;
+  var idx = (+m[1]) * 12 + (+m[2] - 1) + delta;
+  return Math.floor(idx / 12) + '-' + String(idx % 12 + 1).padStart(2, '0');
+}
+/* Los últimos n meses hasta el mes de hoy, del más nuevo al más viejo. */
+function monthOptions(today, n){
+  var cur = String(today || '').slice(0, 7), out = [];
+  for(var i = 0; i < (n || 24); i++) out.push(shiftMonth(cur, -i));
+  return out;
+}
+function fileName(month, ext){ return 'cuadro-comercial-' + String(month || '').replace(/[^0-9-]/g, '') + '.' + ext; }
+
+/* ── Lecturas por ventanas ── */
+function dataUrl(table, where, limit){
+  return WORKER + '?action=data&table=' + encodeURIComponent(table) + (where ? '&where=' + encodeURIComponent(where) : '') + '&limit=' + (limit || READ_LIMIT);
+}
+function addDays(iso, n){ var d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function dayDiff(a, b){ return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000); }
+/* Ventana → WHERE de Caspio. Fecha de Ta_raport_ventas es texto 'YYYY-MM-DD…': la comparación de texto vale. */
+function windowWhere(w){
+  if(w.raw) return w.raw;
+  if(w.type === 'date') return w.field + ">='" + w.lo + "' AND " + w.field + "<'" + w.hi + "'";
+  return w.field + '>=' + w.lo + ' AND ' + w.field + '<' + w.hi;
+}
+/* Parte una ventana en dos mitades; null si ya no se puede partir. */
+function splitWindow(w){
+  if(w.raw) return null;
+  if(w.type === 'date'){
+    var n = dayDiff(w.lo, w.hi);
+    if(n < 2) return null;
+    var mid = addDays(w.lo, Math.floor(n / 2));
+    return [ { type:'date', field:w.field, lo:w.lo, hi:mid }, { type:'date', field:w.field, lo:mid, hi:w.hi } ];
+  }
+  if(w.hi - w.lo < 2) return null;
+  var m = Math.floor((w.lo + w.hi) / 2);
+  return [ { type:'int', field:w.field, lo:w.lo, hi:m }, { type:'int', field:w.field, lo:m, hi:w.hi } ];
+}
+/* Ta_raport_ventas: un año por ventana desde VENTAS_FIRST_YEAR hasta el año que viene, más una ventana para el resto
+   (fechas anteriores, posteriores o con otro formato de texto, p. ej. 'dd/mm/aaaa'). */
+function ventasWindows(today){
+  var y = +String(today).slice(0, 4), out = [];
+  for(var yy = VENTAS_FIRST_YEAR; yy <= y + 1; yy++) out.push({ type:'date', field:'Fecha', lo: yy + '-01-01', hi: (yy + 1) + '-01-01' });
+  out.push({ raw: "Fecha<'" + VENTAS_FIRST_YEAR + "-01-01' OR Fecha>='" + (y + 2) + "-01-01'" });
+  return out;
+}
+function villasWindows(){ return [ { type:'int', field:'villaid', lo:0, hi:100000 } ]; }
+
+/* ════════════════════════════════════════════════════════════════════
+   ▲▲ CALCULO — fin
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ══ STATE ══ */
+var input = null, output = null, loadInfo = null, curTab = 'socios', reqId = 0;
+var g = function(id){ return document.getElementById(id); };
+
+function headers(){ return Object.assign({ 'Content-Type': 'application/json' }, Auth.headers()); }
+
+/* ══ INIT ══ */
+document.addEventListener('DOMContentLoaded', function(){
+  if(g('navUser')) g('navUser').textContent = (Auth.name() || '').split(' ')[0];
+  g('tabs').addEventListener('click', function(e){
+    var b = e.target.closest('[data-tab]'); if(b) showTab(b.getAttribute('data-tab'));
+  });
+  g('fMes').addEventListener('change', function(){ recompute(g('fMes').value); });
+  var h = String(location.hash || '').replace('#', '');
+  if(h === 'equipo' || h === 'mensual') showTab(h);
+  loadAll();
+});
+
+function showTab(t){
+  curTab = t;
+  Array.prototype.forEach.call(document.querySelectorAll('#tabs [data-tab]'), function(b){
+    var on = b.getAttribute('data-tab') === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  ['socios', 'equipo', 'mensual'].forEach(function(k){ g('pane-' + k).classList.toggle('on', k === t); });
+  if(history.replaceState) history.replaceState(null, '', '#' + t);
+}
+
+/* ══ CARGA (solo lectura) ══ */
+async function fetchRows(url){
+  var r = await fetch(Auth.url(url), { headers: headers() });
+  if(r.status === 403){ var e = new Error('403'); e.status = 403; throw e; }
+  var d = await r.json();
+  if(d.error) throw new Error(d.error);
+  return d.Result || d.result || [];
+}
+
+/* Lee una tabla entera por ventanas; una ventana que llega a READ_LIMIT filas se parte en dos. */
+async function readPaged(table, windows, myId, label){
+  var out = [], queue = windows.slice(), reads = 0, capped = 0;
+  while(queue.length){
+    if(myId !== reqId) return null;
+    var w = queue.shift();
+    g('loadMsg').textContent = 'Leyendo ' + label + '… ' + out.length;
+    var rows = await fetchRows(dataUrl(table, windowWhere(w), READ_LIMIT));
+    reads++;
+    if(rows.length >= READ_LIMIT){
+      var parts = splitWindow(w);
+      if(parts && reads < MAX_READS){ queue.unshift(parts[0], parts[1]); continue; }
+      capped++;
+    }
+    out.push.apply(out, rows);
+    if(reads >= MAX_READS && queue.length){ capped++; break; }
+  }
+  return { rows: out, reads: reads, capped: capped };
+}
+
+async function loadAll(){
+  var myId = ++reqId, today = madridToday();
+  g('stLoad').style.display = 'block'; g('stErr').style.display = 'none'; g('report').style.display = 'none';
+  try{
+    if(!window.CuadroComercialData || typeof window.CuadroComercialData.buildDashboard !== 'function'){
+      throw new Error('No se encontró el módulo de cálculo (cuadro-comercial-data.js).');
+    }
+    var ventas = await readPaged('Ta_raport_ventas', ventasWindows(today), myId, 'los informes semanales');
+    if(!ventas) return;
+    var villas = await readPaged('TaVillas', villasWindows(), myId, 'las villas');
+    if(!villas) return;
+    g('loadMsg').textContent = 'Leyendo los agentes…';
+    var users = await fetchRows(WORKER + '?action=data&table=TaUsers&limit=300');
+    if(myId !== reqId) return;
+    /* Tope de la lectura de TaUsers (limit=300): si llega, puede faltar el nombre de algún agente. */
+    var usersCapped = users.length >= USERS_LIMIT;
+    input = {
+      today: today,
+      weeklyRows: ventas.rows,
+      villas: villas.rows,
+      /* Ta_raport_ventas.Agente guarda el UserID: el módulo recibe el nombre de cada UserID (solo estos campos). */
+      users: users.map(function(u){ return { UserID: u.UserID, Name: u.Name || u.name, Role: u.Role || u.role, User_Status: u.User_Status }; }),
+      targets: [],
+      datos: [],
+      external: undefined
+    };
+    loadInfo = { at: madridHHMM(), ventas: ventas, villas: villas, users: { rows: users.length, capped: usersCapped } };
+    g('fMes').innerHTML = monthOptions(today, 24).map(function(ym){ return '<option value="' + ym + '">' + esc(monthLabel(ym)) + '</option>'; }).join('');
+    recompute(null);
+  }catch(err){
+    if(myId !== reqId) return;
+    console.error('[Cuadro comercial v1]', err);
+    showError(err.status === 403 ? 'Tu usuario no tiene permiso para este cuadro.' : 'No se pudieron cargar los datos. ' + (err.message || err));
+  }
+}
+
+/* Calcula con el módulo; month = mes elegido en Mensual (null = el que decida el módulo). */
+function recompute(month){
+  try{
+    var inp = month ? Object.assign({}, input, { month: month }) : input;
+    output = window.CuadroComercialData.buildDashboard(inp);
+  }catch(err){
+    console.error('[Cuadro comercial v1] buildDashboard', err);
+    showError('El cálculo del cuadro falló. ' + (err.message || err));
+    return;
+  }
+  g('stLoad').style.display = 'none'; g('stErr').style.display = 'none'; g('report').style.display = 'block';
+  render(month);
+}
+
+function showError(msg){
+  g('stLoad').style.display = 'none'; g('report').style.display = 'none';
+  g('stErr').style.display = 'block'; g('errMsg').textContent = msg;
+}
+
+/* ══ PINTAR ══ */
+function render(askedMonth){
+  var o = output || {};
+  g('navSub').textContent = 'Lectura de las ' + loadInfo.at + ' · ' + loadInfo.ventas.rows.length + ' informes semanales · ' + loadInfo.villas.rows.length + ' villas';
+
+  var av = ['<div class="info-box gray">Lectura de Caspio a las ' + esc(loadInfo.at) + ': ' + loadInfo.ventas.rows.length + ' informes semanales (' +
+    loadInfo.ventas.reads + ' lecturas), ' + loadInfo.villas.rows.length + ' villas (' + loadInfo.villas.reads + (loadInfo.villas.reads === 1 ? ' lectura' : ' lecturas') + ').</div>'];
+  if(loadInfo.ventas.capped || loadInfo.villas.capped) av.push('<div class="info-box orange">Alguna lectura llegó al tope de ' + READ_LIMIT + ' filas: puede faltar algún registro.</div>');
+  if(loadInfo.users && loadInfo.users.capped) av.push('<div class="info-box orange">La lectura de agentes llegó al tope de ' + USERS_LIMIT + ' filas: puede faltar el nombre de algún agente.</div>');
+  var mm = o.mensual && o.mensual.month;
+  if(askedMonth && mm && mm !== askedMonth) av.push('<div class="info-box orange">El cálculo devuelve ' + esc(monthLabel(mm)) + ', no ' + esc(monthLabel(askedMonth)) + '.</div>');
+  (o.notices || []).forEach(function(t){ av.push('<div class="info-box orange">' + esc(plainNotice(t)) + '</div>'); });
+  g('avisos').innerHTML = av.join('');
+
+  /* Socios */
+  var tiles = socioTiles(o.socios);
+  g('tiles').innerHTML = tiles.map(tileHtml).join('');
+  var refs = hasRefs(tiles);
+  g('refNote').style.display = refs ? 'block' : 'none';
+  g('refNote').textContent = refs ? REF_NOTE + '.' : '';
+  g('fase2Note').textContent = PHASE2_LEGEND + '.';
+  g('sociosMes').textContent = o.socios && o.socios.month ? 'Cifras del mes: ' + monthLabel(o.socios.month) + '. Barra roja = real; raya negra = objetivo; cuadro gris = año anterior.' : '';
+
+  /* Equipo semanal */
+  var eq = o.equipo || {}, W = eq.weeks || [];
+  g('weekBlocks').innerHTML = (eq.agents || []).map(function(a){ return agentBlockHtml(a, W, false, eq.openWeek); }).join('') +
+    (eq.total ? agentBlockHtml(eq.total, W, true, eq.openWeek) : '') || '<div class="info-box gray">Sin informes semanales en las últimas 13 semanas.</div>';
+  g('lbBody').innerHTML = leaderboardHtml(eq.leaderboard);
+
+  /* Mensual */
+  var m = o.mensual || {};
+  if(m.month){
+    if(!Array.prototype.some.call(g('fMes').options, function(op){ return op.value === m.month; })){
+      g('fMes').insertAdjacentHTML('afterbegin', '<option value="' + esc(m.month) + '">' + esc(monthLabel(m.month)) + '</option>');
+    }
+    g('fMes').value = m.month;
+  }
+  g('mBlocks').innerHTML = M_BLOCKS.map(function(b){ return mensualBlockHtml(b, m[b.key]); }).join('') + prospBlockHtml(m.prospeccion);
+}
+
+function mensualBlockHtml(b, obj){
+  var st = blockState(obj), rows = blockRows(obj), grey = st === 'fase 2';
+  var h = '<div class="card' + (grey ? ' grey' : '') + (b.wide ? ' wide' : '') + '"><h3>' + esc(b.title) + '</h3>';
+  if(st !== 'ok') h += '<div class="blk-state">' + esc(stateText(st)) + '</div>';
+  if(!rows.length && st === 'ok') h += '<div class="blk-state">sin dato</div>';
+  rows.forEach(function(r){
+    h += '<div class="kv"><span>' + esc(r.label) + (r.sub ? '<span class="sub">' + esc(r.sub) + '</span>' : '') + '</span><b' + (r.grey ? ' class="grey"' : '') + '>' + esc(r.text) + '</b></div>';
+    if(r.key === 'vencen12m'){
+      var v = vencenRows(obj);
+      if(v.length) h += '<div class="inner"><table><thead><tr><th class="l">Villa</th><th>Fin de contrato</th><th class="l">Renovación</th></tr></thead><tbody>' +
+        v.map(function(x){ return '<tr><td class="l">' + esc(x.villa) + '</td><td>' + esc(x.finText) + '</td><td class="l">' + esc(x.renovacion || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    } else if(r.list && r.list.length){
+      var t = listTable(r.list);
+      h += '<details class="lst"><summary>Ver la lista</summary><div class="inner"><table><thead><tr>' + t.headers.map(function(x, i){ return '<th class="' + (i === 0 ? 'l' : '') + '">' + esc(x) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        t.rows.map(function(row){ return '<tr>' + row.map(function(c, i){ return '<td class="' + (i === 0 ? 'l' : '') + '">' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div></details>';
+    }
+  });
+  return h + '</div>';
+}
+
+function prospBlockHtml(prosp){
+  var pt = prospTable(prosp), regla = (prosp && prosp.regla) || 'Bono fijo de 150 € con 50 o más llamadas en el mes.';
+  var h = '<div class="card wide"><h3>Prospección</h3><p style="font-size:12px;color:var(--gray-4);margin-bottom:6px">' + esc(regla) + '</p>';
+  if(!pt.rows.length) return h + '<div class="blk-state">sin dato</div></div>';
+  function c(v){ return v === null ? '<td class="empty">—</td>' : '<td>' + esc(fmtCell(v)) + '</td>'; }
+  h += '<div class="inner prosp"><table><thead><tr><th class="l">Agente</th>' + pt.headers.map(function(x){ return '<th>' + esc(x) + '</th>'; }).join('') + '<th>Bono</th></tr></thead><tbody>' +
+    pt.rows.map(function(r){
+      return '<tr><td class="l">' + esc(r.name) + '</td>' + r.values.map(c).join('') +
+        '<td>' + (r.bono.ok === null ? '<span class="bono no">' + esc(r.bono.text) + '</span>' : '<span class="bono ' + (r.bono.ok ? 'si' : 'no') + '">' + esc(r.bono.text) + '</span>') + '</td></tr>';
+    }).join('') +
+    (pt.totals ? '<tr class="tot"><td class="l">Total</td>' + pt.totals.map(c).join('') + '<td></td></tr>' : '') + '</tbody></table></div>';
+  var f = prosp && prosp.fuentes, fs = normCell(f, 'fuentes');
+  return h + '<p style="font-size:11px;color:var(--gray-4);margin-top:8px">Fuentes de leads: ' + esc(fs.text) + '.</p></div>';
+}
+
+/* ══ COPIAR Y DESCARGAR ══ */
+function copyWeekTable(){
+  if(!output) return;
+  var b = g('btnCopyWeek');
+  function done(ok){ b.textContent = ok ? 'Copiado ✓' : 'No se pudo copiar'; setTimeout(function(){ b.textContent = 'Copiar tabla'; }, 2000); }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(equipoTsv(output.equipo)).then(function(){ done(true); }, function(){ done(false); }); }
+  else { done(false); }
+}
+function curMonth(){ return (output && output.mensual && output.mensual.month) || g('fMes').value; }
+function saveBlob(blob, name){
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function downloadCsv(){
+  if(!output) return;
+  saveBlob(new Blob([buildMensualCsv(output.mensual)], { type:'text/csv;charset=utf-8' }), fileName(curMonth(), 'csv'));
+}
+function downloadXlsx(){
+  if(!output) return;
+  if(!window.XLSX){ alert('No se pudo cargar el generador de Excel. Se descarga el CSV, que también abre en Excel.'); downloadCsv(); return; }
+  var m = output.mensual || {}, wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.aoa_to_sheet([MATRIX_HEADERS].concat(mensualMatrix(m)));
+  ws1['!cols'] = [12, 40, 22, 14, 14].map(function(w){ return { wch:w }; });
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumen');
+  var ws2 = XLSX.utils.aoa_to_sheet([['Villa', 'Fin de contrato', 'Renovación']].concat(vencenRows(m.captacion).map(function(v){ return [v.villa, v.finText, v.renovacion]; })));
+  ws2['!cols'] = [32, 14, 24].map(function(w){ return { wch:w }; });
+  XLSX.utils.book_append_sheet(wb, ws2, 'Vencen 12 meses');
+  var pt = prospTable(m.prospeccion);
+  var ws3 = XLSX.utils.aoa_to_sheet([['Agente'].concat(pt.headers, ['Bono'])].concat(pt.rows.map(function(r){
+    return [r.name].concat(r.values.map(function(v){ return v === null ? '' : v; }), [r.bono.text]); }))
+    .concat(pt.totals ? [['Total'].concat(pt.totals.map(function(v){ return v === null ? '' : v; }), [''])] : []));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Prospección');
+  XLSX.writeFile(wb, fileName(curMonth(), 'xlsx'));
+}
+
+Object.assign(window, { copyWeekTable: copyWeekTable, downloadCsv: downloadCsv, downloadXlsx: downloadXlsx });
+})();
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v1 - 13/10/2026 — primera versión (bro): Cuadro de mando comercial para Gaëlle (Director Comercial), Rafa y los socios. Gary, 13/10/2026: "she says yes build it - also rafa and the partners need access as well". Spec: 3villas context/cuadro-comercial-gaelle-build-2026-10-13.md, secciones 2, 3 y 4. Página de solo lectura con tres pestañas. "Socios": ocho cifras en una rejilla de 4 x 2 (2 columnas por debajo de 1000 px, 1 en el móvil); cada cifra lleva una barra con el valor real, la marca del objetivo, la marca del año anterior, la variación en % (contra el objetivo si lo hay, si no contra el año anterior), una frase, la fuente y la fecha de lectura en letra pequeña gris; el dinero redondeado a 100 €; los estados 'sin dato' y 'fase 2' salen en una tarjeta gris con ese texto, nunca un 0; 'sin objetivo' sale gris con la cifra real si la hay; una cifra que falte en la salida sale gris como 'sin dato'. Cifra 5: líneas de referencia 9,6 % y 19,5 % (las de 'referencias' del módulo; si no vienen, las de la spec). Cifra 6: el número de contratos lleva su barra y, debajo, una barra secundaria con el % leads → contrato (leadToContract, con su base) y la franja 10–25 % "proveedor EE. UU." (referenceBand); la franja nunca se dibuja sobre el número de contratos. Desgloses bajo la cifra: arras a 30/60/90 días, exclusivas, altas/bajas/netas, partes del pipeline. Con una referencia dibujada sale la letra pequeña "Los valores de referencia extranjeros son orientación, no objetivos". "Equipo semanal": un bloque por agente y el total del equipo, 13 semanas de lunes a domingo (cabecera S<n> y el lunes dd/mm), fila "Informe semanal" con "sin informe" en naranja para la semana sin fila (la semana en curso sale "en curso" y no cuenta; en el total, "faltan N" con missingByWeek y las cifras del equipo no se borran), "Llamadas por visita" justo debajo de Llamadas, columna "Objetivo semanal" ("sin objetivo" hasta la fase 2), filas de fase 2 en gris, clasificación por visitas y contratos firmados (nunca por llamadas) y botón "Copiar tabla" (tabuladores, al portapapeles). "Mensual": selector de mes (24 meses), bloques Dinero, Ventas, Captación (cada fila con mes anterior y año anterior cuando el módulo los trae; altas y bajas de 12 meses con su lista; la lista de contratos que vencen en los próximos 12 meses con su renovación; Fincontrato guarda el año, así que el fin sale 31/12) y Prospección (las sumas del mes por agente y el bono de 150 € con 50 llamadas); "Descargar Excel" (SheetJS 0.18.5, hojas Resumen, Vencen 12 meses y Prospección; si no carga, se baja el CSV y se avisa) y "Descargar CSV" (BOM UTF-8, ';', coma decimal, apóstrofo delante de un texto que empieza por = + - @, como informe-reservas.html v2; aquí un número negativo con coma decimal, p. ej. -12,5, se queda como número). Las cifras las calcula cuadro-comercial-data.js (window.CuadroComercialData.buildDashboard), la página solo da formato a su salida. Datos: action=data del Worker, solo lectura: Ta_raport_ventas entera por ventanas de un año desde 2019 (Fecha>='AAAA-01-01' AND Fecha<'AAAA+1-01-01') más una ventana para el resto, TaVillas entera por ventanas de villaid, TaUsers (UserID y Name, porque Agente guarda el UserID), limit 1000 por lectura; una ventana que llega a 1000 filas se parte en dos (el caspio-proxy no aplica orderBy); aviso si alguna lectura llega al tope. Entrada del módulo: today (hoy en hora de Madrid), weeklyRows, villas, users, targets [], datos [], external undefined; month con el mes elegido en Mensual. Permiso Auth.require('cuadro-comercial'): la clave de auth.js y la entrada del menú las añade otro paso. Error: "No se pudieron cargar los datos." y el texto; 403 = "Tu usuario no tiene permiso para este cuadro.". Pruebas cuadro-comercial.test.js. Misma versión, mismo día: aviso naranja si la lectura de TaUsers llega a su tope de 300 filas (USERS_LIMIT), como las otras lecturas. Misma versión, tras la revisión: un usuario sin permiso ya no ve el cuadro debajo de "Acceso denegado" (window.__ccSession guarda la sesión de Auth.require; sin ella el script principal sale antes de leer o pintar nada); el estado 'fase 2' sale "pendiente (fase 2)" en cifras, filas, bloques y descargas, con la leyenda "fase 2 = cifra que llega en la siguiente entrega (Holded, eGO, objetivos)" bajo la línea del mes de Socios; los avisos de año de contrato y de inicio de la prospección salen en español llano (la semana y su lunes salen del aviso del módulo); "Sin datos" de la clasificación pasa a "sin dato", como en el resto. Misma versión, con el módulo corregido: la lista de contratos que vencen se titula con vencen12mLabel ("Contratos que vencen: con año de fin 2026 o 2027") y ese campo nunca sale como fila; la cifra 3 enseña "Captación Inmobiliaria (campo del informe) N" (campo captacionInmobiliaria, antes sinExclusiva) y "% exclusiva: sin confirmar" cuando el módulo manda exclusiveState; la etiqueta de reserva de la cifra 2 es "Arras firmadas, 90 días". -->
