@@ -148,7 +148,12 @@ const Auth = (function () {
   // 13/10/2026 (Gary: "this is for marta only"): el Informe de reservas lo abren los admin y Marta (Reservas).
   // La misma lista vive en el Worker caspio-proxy (REPORT_USERS, accion hostaway-report-page).
   const USER_PERMISSIONS = {
+    // 13/10/2026 (Gary: "she, rafa and the partners should have access to this info"): Marta, Rafa, Jose y Johannes.
+    // Jordi, Toni, Carlos y Gary son admin y entran por rol. La misma lista vive en el Worker caspio-proxy (REPORT_USERS, v60).
     'marta@3villas.com': ['informe-reservas'],
+    'rafa@3villas.com': ['informe-reservas'],
+    'jose@3villas.com': ['informe-reservas'],
+    'johannes@3villas.com': ['informe-reservas'],
   };
 
   // ── JWT decode (sin verificar firma — solo para leer payload) ──

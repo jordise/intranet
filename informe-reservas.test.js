@@ -274,7 +274,9 @@ function constSource(src, name) {
 }
 var A = new Function(constSource(AUTH, 'PERMISSIONS') + '\n' + constSource(AUTH, 'USER_PERMISSIONS') + '\n' + fnSource(AUTH, 'hasAccess') +
   '\nreturn { PERMISSIONS: PERMISSIONS, USER_PERMISSIONS: USER_PERMISSIONS, hasAccess: hasAccess };')();
-eq('USER_PERMISSIONS: marta@3villas.com -> informe-reservas', A.USER_PERMISSIONS, { 'marta@3villas.com': ['informe-reservas'] });
+eq('USER_PERMISSIONS: Marta, Rafa, Jose y Johannes -> informe-reservas (13/10/2026: "she, rafa and the partners should have access")', A.USER_PERMISSIONS,
+  { 'marta@3villas.com': ['informe-reservas'], 'rafa@3villas.com': ['informe-reservas'], 'jose@3villas.com': ['informe-reservas'], 'johannes@3villas.com': ['informe-reservas'] });
+eq('Rafa, Jose y Johannes (manager) abren el informe', [A.hasAccess('manager', 'informe-reservas', 'rafa@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'jose@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'Johannes@3villas.com')], [true, true, true]);
 eq('hasAccess admin (cualquier correo o ninguno)', [A.hasAccess('admin', 'informe-reservas', 'toni@3villas.com'), A.hasAccess('admin', 'informe-reservas')], [true, true]);
 eq('hasAccess Marta (manager), también con mayúsculas y espacios',
   [A.hasAccess('manager', 'informe-reservas', 'marta@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'Marta@3Villas.com'), A.hasAccess('manager', 'informe-reservas', ' marta@3villas.com ')], [true, true, true]);
