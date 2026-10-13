@@ -172,8 +172,28 @@ ok('los scripts inline compilan', (function () {
 console.log('auth.js y nav.js');
 var AUTH = fs.readFileSync(path.join(__dirname, 'auth.js'), 'utf8');
 var keyLines = AUTH.split('\n').filter(function (l) { return /'informe-reservas'\s*:/.test(l); });
-ok('auth.js: una clave informe-reservas para admin, manager y staff', keyLines.length === 1 && /'informe-reservas'\s*:\s*\['admin', 'manager', 'staff'\]/.test(keyLines[0]));
+ok('auth.js: una clave informe-reservas solo para admin', keyLines.length === 1 && /'informe-reservas'\s*:\s*\['admin'\]\s*,/.test(keyLines[0]));
 ok('la clave va justo debajo de notas-villamanager', (function () { var L = AUTH.split('\n'), i = L.findIndex(function (l) { return /'notas-villamanager'\s*:/.test(l); }); return /'informe-reservas'/.test(L[i + 1] || ''); })());
+/* 13/10/2026 (Gary: "this is for marta only"): Marta abre la página por su correo (USER_PERMISSIONS), no por su rol (manager).
+   Se ejecuta el texto real de PERMISSIONS, USER_PERMISSIONS y hasAccess de auth.js. */
+function constSource(src, name) {
+  var i = src.indexOf('const ' + name + ' =');
+  if (i < 0) throw new Error('no encuentro const ' + name);
+  return src.slice(i, blockEnd(src, src.indexOf('{', i), '{', '}')) + ';';
+}
+var A = new Function(constSource(AUTH, 'PERMISSIONS') + '\n' + constSource(AUTH, 'USER_PERMISSIONS') + '\n' + fnSource(AUTH, 'hasAccess') +
+  '\nreturn { PERMISSIONS: PERMISSIONS, USER_PERMISSIONS: USER_PERMISSIONS, hasAccess: hasAccess };')();
+eq('USER_PERMISSIONS: marta@3villas.com -> informe-reservas', A.USER_PERMISSIONS, { 'marta@3villas.com': ['informe-reservas'] });
+eq('hasAccess admin (cualquier correo o ninguno)', [A.hasAccess('admin', 'informe-reservas', 'toni@3villas.com'), A.hasAccess('admin', 'informe-reservas')], [true, true]);
+eq('hasAccess Marta (manager), también con mayúsculas y espacios',
+  [A.hasAccess('manager', 'informe-reservas', 'marta@3villas.com'), A.hasAccess('manager', 'informe-reservas', 'Marta@3Villas.com'), A.hasAccess('manager', 'informe-reservas', ' marta@3villas.com ')], [true, true, true]);
+eq('el correo de Marta da el permiso con cualquier rol', A.hasAccess('cleaner', 'informe-reservas', 'marta@3villas.com'), true);
+eq('otro manager, staff o sin correo: no', [A.hasAccess('manager', 'informe-reservas', 'toni@3villas.com'), A.hasAccess('staff', 'informe-reservas', 'kike@3villas.com'),
+  A.hasAccess('manager', 'informe-reservas', ''), A.hasAccess('manager', 'informe-reservas', null)], [false, false, false, false]);
+eq('el correo de Marta no abre otras páginas', [A.hasAccess('manager', 'permisos', 'marta@3villas.com'), A.hasAccess('staff', 'manuales', 'marta@3villas.com')], [false, false]);
+eq('los permisos por rol siguen igual', [A.hasAccess('manager', 'manuales'), A.hasAccess('staff', 'entradas', undefined), A.hasAccess('admin', 'no-existe', 'marta@3villas.com')], [true, true, false]);
+var reqSrc = (function () { var k = AUTH.indexOf('require(page) {'); return AUTH.slice(k, blockEnd(AUTH, AUTH.indexOf('{', k), '{', '}')); })();
+ok('require pasa el correo de la sesión a hasAccess', /hasAccess\(session\.role, page, session\.payload && session\.payload\.email\)/.test(reqSrc));
 var NAV = fs.readFileSync(path.join(__dirname, 'nav.js'), 'utf8');
 var ctxNav = { console: { log: function () {}, warn: function () {}, error: function () {} }, window: {},
   localStorage: { setItem: function () {} }, location: { pathname: '/intranet/x.html', protocol: 'file:' }, fetch: function () {} };
@@ -183,10 +203,11 @@ function count(role) { return flat(ctxNav.__all[role]).filter(function (x) { ret
 function after(role, url) { var L = flat(ctxNav.__all[role]), i = L.findIndex(function (x) { return x.url === url; }); return L[i + 1] && L[i + 1].url === 'informe-reservas.html'; }
 var listados = ctxNav.__all.admin.find(function (x) { return x.label === 'Listados'; });
 ok('admin: en Listados, justo debajo de Prospección mensual', count('admin') === 1 && after('admin', 'reports-prospeccion-mensual.html') && listados.children.some(function (c) { return c.url === 'informe-reservas.html'; }));
-ok('manager comparte el menú de admin', count('manager') === 1);
-ok('staff: justo debajo de Entradas y Salidas', count('staff') === 1 && after('staff', 'entradas.html'));
+ok('manager comparte el menú de admin (Marta es manager)', count('manager') === 1);
+ok('staff (y villamanager) ya no la ven', count('staff') === 0 && count('villamanager') === 0);
 ok('sales y cleaner no la ven', ['sales', 'cleaner'].every(function (r) { return !ctxNav.__all[r] || count(r) === 0; }));
-ok('nav.js v17: cabecera, NAV_VERSION e historial', /3Villas  v17/.test(NAV) && /VERSIÓN ACTUAL: v17 \|/.test(NAV) && NAV.indexOf('var NAV_VERSION = 17;') > 0 && /\/\/ HISTORIAL: v17 - Nueva entrada 'Informe de reservas'[^|]*Unico cambio\. \| v16 - /.test(NAV));
+ok('nav.js v18: cabecera, NAV_VERSION e historial', /3Villas  v18/.test(NAV) && /VERSIÓN ACTUAL: v18 \|/.test(NAV) && NAV.indexOf('var NAV_VERSION = 18;') > 0 && NAV.indexOf('var NAV_VERSION = 17;') < 0 &&
+  /\/\/ HISTORIAL: v18 - La entrada 'Informe de reservas' sale de _menuStaff[^|]*Unico cambio\. \| v17 - Nueva entrada 'Informe de reservas'[^|]*Unico cambio\. \| v16 - /.test(NAV));
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

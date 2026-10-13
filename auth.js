@@ -109,7 +109,7 @@ const Auth = (function () {
     // ── NOTAS ──────────────────────────────────────────────────
     'notas-equipo-reservas' : ['admin', 'manager', 'staff'],
     'notas-villamanager'    : ['admin', 'manager', 'staff'],
-    'informe-reservas' : ['admin', 'manager', 'staff'],  // 13/10/2026: Informe de reservas (Marta, Reservas = staff), solo lectura
+    'informe-reservas' : ['admin'],  // 13/10/2026: Informe de reservas, solo admin + Marta (USER_PERMISSIONS), solo lectura
 
     // ── WELCOMEPACKS ───────────────────────────────────────────
     'pedir-wellcomepacks'   : ['admin', 'manager', 'staff'],
@@ -142,6 +142,13 @@ const Auth = (function () {
     'contabilidad'          : ['admin'],
     'usuarios'              : ['admin'],
 
+  };
+
+  // Permisos por usuario (correo de la sesión, en minúsculas), además de los permisos por rol.
+  // 13/10/2026 (Gary: "this is for marta only"): el Informe de reservas lo abren los admin y Marta (Reservas).
+  // La misma lista vive en el Worker caspio-proxy (REPORT_USERS, accion hostaway-report-page).
+  const USER_PERMISSIONS = {
+    'marta@3villas.com': ['informe-reservas'],
   };
 
   // ── JWT decode (sin verificar firma — solo para leer payload) ──
@@ -195,11 +202,13 @@ const Auth = (function () {
   }
 
   // ── Comprobar permiso ──────────────────────────────────────
-  function hasAccess(role, page) {
+  function hasAccess(role, page, email) {
     const allowed = PERMISSIONS[page];
     if (!allowed) return false;
     if (allowed.includes('*')) return true;
-    return allowed.includes(role);
+    if (allowed.includes(role)) return true;
+    const u = USER_PERMISSIONS[String(email || '').toLowerCase().trim()];
+    return !!(u && u.includes(page));
   }
 
   // ── Redirect a login ───────────────────────────────────────
@@ -266,7 +275,7 @@ const Auth = (function () {
         throw new Error('No autenticado');
       }
 
-      if (!hasAccess(session.role, page)) {
+      if (!hasAccess(session.role, page, session.payload && session.payload.email)) {
         showNoAccess(session.role, page);
         throw new Error('Sin permiso');
       }
