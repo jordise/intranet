@@ -147,6 +147,12 @@ eq('un telefono con + delante se queda como esta (solo digitos y espacios)', P.c
 var VILLA_FILE_HEADERS_LEN = (function(){ var m = SRC.match(/var VILLA_FILE_HEADERS = \[([^\]]*)\]/); return m ? m[1].split(',').length : 0; })();
 eq('un texto que empieza por - o + seguido de letras lleva apostrofo', P.csvCell('-cmd|calc'), "'-cmd|calc");
 (function(){
+  var src = fnSource(SRC, 'renderVillaPanel');
+  ok('la ficha lleva el boton Volver al resumen arriba y abajo', (src.match(/Volver al resumen/g) || []).length === 2);
+  ok('los dos botones de volver llaman a closeVilla', (src.match(/onclick="closeVilla\(\)"/g) || []).length === 2);
+  ok('la tecla Esc cierra la ficha', /keydown[\s\S]{0,120}Escape[\s\S]{0,60}closeVilla\(\)/.test(SRC));
+})();
+(function(){
   var r = P.enrichRow ? null : null;
   var rows = [{ guest:'Ana López', email:'ana@example.com', phone:'+34 600 000 000', checkin:'2026-07-10', checkout:'2026-07-17', nights:7, reservationDate:'2026-02-01', channelLabel:'Airbnb', total:1400, net:1260, daily:200, dailyNet:180, persons:4, payment:'paid', code:'7001', channelCode:'' }];
   var tsv = P.villaTsv(rows.map(function(x){ return Object.assign({}, x); }));
