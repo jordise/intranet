@@ -1,4 +1,5 @@
-/* Pruebas de informe-reservas.html v6 (v6 = ocupación sobre los días abiertos del calendario de Hostaway de cada villa, Gary: "check the occupancy against open days",
+/* Pruebas de informe-reservas.html v7 (v7 = temporada por defecto, llegadas del 1 de abril al 31 de octubre, Marta 20/10/2026: "podemos fijar en el filtro llegadas desde el 1 abril al 31 octr. para que me calcule mejor el % de ocupacion";
+   v6 = ocupación sobre los días abiertos del calendario de Hostaway de cada villa, Gary: "check the occupancy against open days",
    "in the report under the occupency percentage put the open and blocked dates"; v5 = ocupación en temporada, 1/4–31/10, ya sustituida; v4 = ocupación, Gary: "occupancy needs to be on the top level"; 13/10/2026, petición de Marta, Reservas; v2 = ficha por villa, Gary;
    v3 = estancias de propietario, Gary: "owner stays need to be in the report as well").
    Neto por canal, precio por día, villa por Hostawayid, filtros de estado, villa y canal,
@@ -40,9 +41,11 @@ var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commi
   'cleanText', 'guestNameOf', 'personasOf', 'pagoLabel', 'rowsOfVilla', 'villaFileValues', 'villaDetailMatrix', 'buildVillaCsv', 'villaTsv',
   'huespedCell', 'villaDetailRowHtml', 'esc', 'ownerTag', 'reservasSub', 'nochesSub',
   'madridToday', 'isoDayNum', 'computeOccupancy', 'fmtPct', 'occSub', 'resumenMatrix', 'isoFromDayNum', 'fmtDiaMes',
-  'openUnitsOf', 'fmtDiaMesAno', 'rangoTexto', 'occSub2', 'aperturaOf', 'aperturaText', 'listingIdsOf', 'calendarBatches', 'calRangeOf', 'buildCalendarUrl'];
+  'openUnitsOf', 'fmtDiaMesAno', 'rangoTexto', 'occSub2', 'aperturaOf', 'aperturaText', 'listingIdsOf', 'calendarBatches', 'calRangeOf', 'buildCalendarUrl',
+  'seasonRange'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
-  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS', 'CAL_BATCH', 'CAL_PARALLEL'];
+  'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS', 'CAL_BATCH', 'CAL_PARALLEL',
+  'TEMPORADA_INICIO', 'TEMPORADA_FIN'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
   FNS.map(function (f) { return fnSource(SRC, f); }).join('\n') +
   '\nreturn {' + FNS.concat(VARS).map(function (n) { return n + ':' + n; }).join(',') + '};';
@@ -464,12 +467,29 @@ ok('cabeceras con Content-Type y Auth.headers()', /Object\.assign\(\{ 'Content-T
 ok('TaVillas con limit=1000', SRC.indexOf("'?action=data&table=TaVillas&limit=1000'") > 0);
 eq('año de Madrid: 31/12 23:30 UTC ya es año nuevo', P.madridYear('2026-12-31T23:30:00Z'), '2027');
 
+console.log('Temporada por defecto (v7: llegadas del 1 de abril al 31 de octubre, Marta 20/10/2026)');
+eq('TEMPORADA_INICIO y TEMPORADA_FIN', [P.TEMPORADA_INICIO, P.TEMPORADA_FIN], ['04-01', '10-31']);
+eq('seasonRange(año) = del 1/4 al 31/10 de ese año', [P.seasonRange('2026'), P.seasonRange(2025)],
+  [{ desde: '2026-04-01', hasta: '2026-10-31' }, { desde: '2025-04-01', hasta: '2025-10-31' }]);
+var INIT = fnSource(SRC, 'markYearChips');
+ok('al abrir la página: fDesde y fHasta = la temporada del año actual (seasonRange(madridYear()))', /var s0 = seasonRange\(madridYear\(\)\);\s*\n\s*g\('fDesde'\)\.value = s0\.desde; g\('fHasta'\)\.value = s0\.hasta;/.test(SRC));
+ok('botón de año: fDesde y fHasta = la temporada de ese año, y vuelve a leer Hostaway', /var sy = seasonRange\(c\.getAttribute\('data-year'\)\);\s*\n\s*g\('fDesde'\)\.value = sy\.desde; g\('fHasta'\)\.value = sy\.hasta;\s*\n\s*markYearChips\(\); loadReservas\(\);/.test(SRC));
+ok('botón de año marcado solo cuando las fechas son su temporada', INIT.indexOf("s = seasonRange(y);") > 0 && INIT.indexOf("g('fDesde').value === s.desde && g('fHasta').value === s.hasta") > 0);
+ok('ya no queda ningún 1/1 ni 31/12 fijo en el filtro (el calendario de Hostaway sigue leyéndose por años enteros en calRangeOf)', (function () {
+  var i = SRC.indexOf("document.addEventListener('DOMContentLoaded'"), v = SRC.slice(i, SRC.indexOf('/* ══ CARGA', i)) + INIT;
+  return i > 0 && v.indexOf("'-01-01'") < 0 && v.indexOf("'-12-31'") < 0 && fnSource(SRC, 'calRangeOf').indexOf("'-01-01'") > 0; })());
+ok('etiqueta de los botones: "Temporada" con la aclaración "1 abr – 31 oct"', /<span class="f-label">Temporada <span[^>]*>1 abr – 31 oct<\/span><\/span>/.test(SRC));
+ok('cada botón de año explica sus fechas en el title', SRC.indexOf("title=\"Llegadas del 1 de abril al 31 de octubre de ' + yy + '\"") > 0);
+ok('las fechas siguen siendo editables a mano (inputs type=date sin readonly ni disabled)', /<input type="date" id="fDesde" class="f-input">/.test(SRC) && /<input type="date" id="fHasta" class="f-input">/.test(SRC));
+
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v6 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v6 | Historial completo al final -->' && /PAGE_VERSION = 6;/.test(SRC) && /<title>Informe de reservas v6/.test(SRC) &&
-  SRC.indexOf("'[Informe reservas v6]'") > 0 && SRC.indexOf('PAGE_VERSION = 5;') < 0 && SRC.indexOf("'[Informe reservas v5]'") < 0);
-ok('HISTORIAL es la última línea y empieza por v6, con v5, v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v6 - 13\/10\/2026 [\s\S]* \| v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v7 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v7 | Historial completo al final -->' && /PAGE_VERSION = 7;/.test(SRC) && /<title>Informe de reservas v7/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v7]'") > 0 && SRC.indexOf('PAGE_VERSION = 6;') < 0 && SRC.indexOf("'[Informe reservas v6]'") < 0);
+ok('HISTORIAL es la última línea y empieza por v7, con v6, v5, v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v7 - 20\/10\/2026 [\s\S]* \| v6 - 13\/10\/2026 [\s\S]* \| v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('HISTORIAL v7: pedido de Marta y las fechas editables', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('podemos fijar en el filtro llegadas desde el 1 abril al 31 octr.') > 0 &&
+  h.indexOf('Las fechas siguen siendo editables a mano') > 0; })());
 ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('owner stays need to be in the report as well') > 0 &&
   h.indexOf('Worker v61') > 0 && h.indexOf("status 'ownerStay'") > 0; })());
 ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&
