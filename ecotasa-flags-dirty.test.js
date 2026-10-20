@@ -162,7 +162,7 @@ console.log('\n== checkin-testear-reserva.html (soloCambiados) ==');
 /* ── 4. Version de cada pagina y llamada dentro del guardado ── */
 console.log('\n== las tres paginas (HTML) ==');
 [
-  ['notas-equipo-reservas.html', 85, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
+  ['notas-equipo-reservas.html', 87, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
   ['notas-villamanager.html', 42, 'window.guardar=function(){', 'flagsCambiados(record,marcaPrev,'],
   ['checkin-testear-reserva.html', 10, 'async function saveAll(){', 'soloCambiados(fields,_booking,']
 ].forEach(function (t) {
