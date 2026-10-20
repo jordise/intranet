@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v24 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v25 | Historial completo al final -->
 <head>
   <base href="/intranet/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guardias e Intervenciones v24 — 3Villas</title>
+  <title>Guardias e Intervenciones v25 — 3Villas</title>
   <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <script>
     // ── AUTO-DETECCIÓN DE VERSIÓN (Opción B) ──
     (function(){
-      const PAGE_VERSION='v24';
+      const PAGE_VERSION='v25';
       try{
         if(location.protocol==='file:') return;
         fetch(location.pathname,{cache:'reload'}).then(r=>r.text()).then(html=>{
@@ -548,14 +548,18 @@
               <span class="toggle-switch"><input type="checkbox" id="mUrgente" checked><span class="toggle-slider"></span></span>
             </label>
           </div>
+        </div>
 
-          <div class="toggle-card terminada-card">
-            <label class="toggle-switch-row">
-              <span class="toggle-switch-label">✔️ Terminada</span>
-              <span class="toggle-switch"><input type="checkbox" id="mTerminada"><span class="toggle-slider"></span></span>
-            </label>
-          </div>
+        <!-- v25: la tarjeta Terminada vive fuera de mCamposCompletos para que una guardia también
+             pueda cerrarse (pedido de Jordi 20/10/2026). Las fotos tienen su propio envoltorio. -->
+        <div class="toggle-card terminada-card">
+          <label class="toggle-switch-row">
+            <span class="toggle-switch-label">✔️ Terminada</span>
+            <span class="toggle-switch"><input type="checkbox" id="mTerminada"><span class="toggle-slider"></span></span>
+          </label>
+        </div>
 
+        <div id="mFotosWrap">
           <div class="form-group">
             <label class="form-label">Fotos — antes</label>
             <div class="photos-grid" id="photosBefore"></div>
@@ -630,6 +634,18 @@ function fmtDate(s){if(!s)return '—';var d=new Date(s.includes('T')?s:s+'T00:0
 function isFlagOn(v){if(!v)return false;var s=String(v).toLowerCase().trim();return['1','yes','sí','si','true','on','-1'].includes(s);}
 /* v21 G14: una sola comprobación de rol para toda la página */
 function esAdminOManager(){return myRole==='admin'||myRole==='manager';}
+/* v25: filtro de estado, igual para guardias e intervenciones. f = 'all' | 'pend' | 'done' */
+function pasaFiltroEstado(r,f){
+  var done=isFlagOn(r.TaTasks_Tarea_terminada);
+  if(f==='pend') return !done;
+  if(f==='done') return done;
+  return true;
+}
+/* v25: el usuario asignado puede seguir editando su registro (intervención o guardia) mientras
+   siga pendiente, aunque hayan pasado 24 horas */
+function puedeSeguirRegistro(row,userId){
+  return !!userId && String(row.TaTasks_UserID_asigned_alfanum||'')===String(userId) && !isFlagOn(row.TaTasks_Tarea_terminada);
+}
 /* v21 G15: mismo criterio de usuario activo que tareas.html */
 function esUsuarioActivo(u){
   var st=u.User_Status;
@@ -920,11 +936,11 @@ function renderList(rows){
        que nunca tuvieron este campo explícito. */
     var esValida = r.TaTasks_Intervencion_guardia===undefined ? true : isFlagOn(r.TaTasks_Intervencion_guardia);
     if(!esValida) return false;
-    /* v21 G24: una guardia no tiene estado propio — solo se ve con el filtro "Todas" */
-    if(estadoFilter!=='all' && isGuardiaRow(r)) return false;
-    var done=isFlagOn(r.TaTasks_Tarea_terminada);
-    if(estadoFilter==='pend' && done) return false;
-    if(estadoFilter==='done' && !done) return false;
+    /* v25: una guardia tiene el mismo estado que una intervención (Tarea_terminada). Hasta v24 la
+       regla G24 de v21 la escondía en Pendientes/Terminadas aunque la tarjeta pintase "Pendiente",
+       y nadie podía cerrarla. Jordi 20/10/2026: "when in the filter I select pending this one
+       should be shown and is not". */
+    if(!pasaFiltroEstado(r, estadoFilter)) return false;
     if(g('fImportante').checked && !isFlagOn(r.TaTasks_importante)) return false;
     if(g('fUrgente').checked && !isFlagOn(r.TaTasks_urgente)) return false;
     return true;
@@ -932,8 +948,9 @@ function renderList(rows){
 
   var guardias=filtered.filter(isGuardiaRow);
   var intervenciones=filtered.filter(function(r){return !isGuardiaRow(r);});
-  var pendCnt=intervenciones.filter(function(r){return !isFlagOn(r.TaTasks_Tarea_terminada);}).length;
-  var doneCnt=intervenciones.length-pendCnt;
+  /* v25: pendientes y terminadas cuentan todas las filas, guardias incluidas */
+  var pendCnt=filtered.filter(function(r){return !isFlagOn(r.TaTasks_Tarea_terminada);}).length;
+  var doneCnt=filtered.length-pendCnt;
 
   g('sCnt').textContent=intervenciones.length;
   g('sPendStat').style.display='block'; g('sPendCnt').textContent=pendCnt;
@@ -1686,6 +1703,7 @@ window.abrirModal=function(taskId){
   if(!taskId){
     isGuardiaOnlyEdit=false;
     g('mCamposCompletos').style.display='block';
+    g('mFotosWrap').style.display='block';
     g('mValidezWrap').style.display='none';
     g('modalTitle').textContent='Nueva intervención';
     g('mFecha').value=todayStr();
@@ -1727,15 +1745,15 @@ window.abrirModal=function(taskId){
   /* v21 G35: el título dice qué se está abriendo */
   g('modalTitle').textContent=(isGuardiaOnlyEdit?'Guardia #':'Intervención #')+taskId;
   /* v21 G1: el Villa Manager asignado al seguimiento puede seguir editando su intervención pasadas
-     las 24 horas, mientras no esté Terminada. En las guardias no se abre esta puerta. */
-  var asignadoSoyYo = !!myUserId && String(row.TaTasks_UserID_asigned_alfanum||'')===String(myUserId) && !isFlagOn(row.TaTasks_Tarea_terminada);
-  var puedeSeguimiento = asignadoSoyYo && !isGuardiaOnlyEdit;
+     las 24 horas, mientras no esté Terminada. v25: la misma puerta se abre en una guardia, para que
+     el asignado pueda cerrarla (caso Irene/Anaís, Villa Bella, 20/10/2026). */
+  var puedeSeguimiento = puedeSeguirRegistro(row, myUserId);
   var canEdit = (hoursSince<=24) || esAdminOManager() || puedeSeguimiento;
   isLocked=!canEdit;
 
   /* v21 G13: el mensaje de bloqueo explica quién puede editar cada cosa */
   g('lockMsg').textContent = isGuardiaOnlyEdit
-    ? 'Esta guardia se registró hace más de 24 horas. Solo la puede editar un manager o admin.'
+    ? 'Esta guardia se registró hace más de 24 horas. Solo la puede editar el Villa Manager asignado mientras siga pendiente, o un manager/admin.'
     : 'Esta intervención se registró hace más de 24 horas. Solo la puede editar el Villa Manager asignado al seguimiento mientras siga pendiente, o un manager/admin.';
   g('lockMsg').style.display = isLocked?'block':'none';
   g('seguimientoBanner').style.display = (!isLocked && hoursSince>24 && puedeSeguimiento && !esAdminOManager()) ? 'block' : 'none';
@@ -1745,6 +1763,7 @@ window.abrirModal=function(taskId){
   g('btnGuardarModal').style.display = isLocked?'none':'';
   g('btnCerrarModal').textContent = isLocked?'Cerrar':'Cancelar';
   g('mCamposCompletos').style.display = isGuardiaOnlyEdit?'none':'block';
+  g('mFotosWrap').style.display = isGuardiaOnlyEdit?'none':'block';
 
   g('mAsignadoSearch').value=allUsersMap[row.TaTasks_UserID_asigned_alfanum]||row.TaTasks_UserID_asigned_alfanum||'';
   g('mAsignado').value=row.TaTasks_UserID_asigned_alfanum||'';
@@ -1855,9 +1874,9 @@ window.guardarModal=function(){
 
   var btn=g('btnGuardarModal'); btn.disabled=true; btn.classList.add('loading');
 
-  /* Edición restringida de una guardia: solo Fecha (+ validez si admin/manager) */
+  /* Edición restringida de una guardia: Fecha + Terminada (v25) (+ validez si admin/manager) */
   if(isGuardiaOnlyEdit){
-    var recordG={ Data_to_be_done_fixed: fecha+' 00:00:00' };
+    var recordG={ Data_to_be_done_fixed: fecha+' 00:00:00', Tarea_terminada: g('mTerminada').checked?'Yes':'No' };
     if(g('mValidezWrap').style.display!=='none'){ recordG.Intervencion_guardia=g('mValida').checked?'Yes':'No'; }
     fetch(Auth.url(WORKER+'?action=update&table=TaTasks&id='+encodeURIComponent(currentTaskId)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(recordG)})
       .then(function(r){ if(!r.ok) return r.json().then(function(e){throw new Error(e.Message||e.error||'HTTP '+r.status);}); return r.json(); })
@@ -2064,6 +2083,7 @@ window.debugTarea=function(taskId){
 
 </body>
 </html>
+<!-- HISTORIAL: v25 - Una guardia tiene estado propio, como una intervención (pedido de Jordi, WhatsApp 20/10/2026 12:07, reenviando a Irene: "una tarea de intervención de guardia en villa Bella que ni yo ni Anaís conseguimos cerrar"; Jordi: "when in the filter I select pending this one should be shown and is not"). Hasta v24 la regla G24 de v21 escondía toda guardia en Pendientes/Terminadas, el formulario de guardia no tenía interruptor Terminada (solo guardaba fecha y validez) y la tarjeta pintaba "Pendiente" igual: una guardia pendiente no se podía cerrar nunca. Cambios: (1) nueva pasaFiltroEstado(r,f) sin la excepción de guardia — Pendientes muestra las guardias pendientes y Terminadas las terminadas; (2) la tarjeta Terminada sale de mCamposCompletos y las fotos pasan a su propio envoltorio mFotosWrap, así el interruptor se ve también en una guardia y el guardado de guardia escribe Tarea_terminada; (3) los contadores pendientes/terminadas cuentan todas las filas, guardias incluidas (el "N intervenciones" y "N guardias" no cambian); (4) nueva puedeSeguirRegistro(row,userId): el Villa Manager asignado puede editar y cerrar su guardia pendiente pasadas 24 h, igual que una intervención; el aviso de bloqueo lo dice. Las guardias nuevas siguen naciendo Terminada=Yes como siempre. Pruebas: guardias-estado-guardia.test.js. -->
 <!-- HISTORIAL: v24 - La página rechaza los tipos de archivo que no admite, antes de subir nada. Hasta v23 el botón 📂 solo sugería qué elegir: el selector del sistema (accept) deja poner "todos los archivos", así que un .html, un .exe o un .zip llegaba al Worker y se guardaba. Ahora manda una sola lista, EXT_PERMITIDAS = jpg, jpeg, png, gif, webp, heic, heif, mp4, mov, m4v, webm, 3gp, pdf, doc, docx. El atributo accept del botón 📂 (ARCHIVO_ACCEPT) pasa a nombrar esos tipos uno a uno, sin los comodines image/* ni video/*. La comprobación de verdad la hace archivoPermitido(), que lee la extensión con extDeArchivo(): primero la del nombre del archivo (lo que va después del último punto, de 1 a 5 letras o números, en minúsculas) y, si el nombre no trae extensión, la que corresponde al tipo MIME; si tampoco se sabe, el archivo no pasa. setPhotoSlot() llama a archivoPermitido() antes del tope de 60 MB: si el tipo no está en la lista, avisa con un toast en español ("Tipo de archivo no admitido. Solo foto (jpg, png, heic), vídeo (mp4, mov) o documento (pdf, doc, docx)"), no sube nada y la ranura se queda como estaba. Vale para los dos botones, porque el 📷 de la cámara y el 📂 de archivos pasan los dos por setPhotoSlot(). El Worker recibe la misma lista en su propia versión (caspio-proxy v53), de modo que un archivo no admitido tampoco entra si alguien llama a action=upload por fuera de la página. SIN cambios en lo ya guardado: los registros, los campos Picture_cloudfare1 a 5 y Picture_cloudfare_after1 a 5 y los archivos subidos antes de v24 siguen viéndose y abriéndose igual. Pruebas: guardias-archivos.test.js. -->
 <!-- HISTORIAL: v23 - Vídeos y documentos en el registro de guardias (pedido de Nazaret, 16/09/2026: "subir videos y documentos en el registro de guardias... los técnicos mandan informes de lo que han hecho o videos"). Las cinco ranuras de Fotos antes y Fotos después admiten ahora foto, vídeo o documento: el botón 📂 acepta image/*,video/*,application/pdf,.doc,.docx y el botón 📷 sigue siendo solo cámara (image/* con capture). Tope de 60 MB por archivo (MAX_ARCHIVO = 60*1024*1024): si el archivo lo supera, setPhotoSlot avisa con un toast y no sube nada, así que el Worker nunca recibe un vídeo enorme. Las fotos se siguen comprimiendo a 1200 px con compressImage; el vídeo y el documento se suben tal cual y conservan su extensión en el mismo patrón de nombre fotos-guardias/año_guardia_fecha_usuario_posición.ext. Al pintar deciden dos funciones nuevas, isImageUrl() (por extensión: jpg, jpeg, png, gif, webp, heic, heif, bmp) y fileKind() (vídeo: mp4, mov, m4v, webm, avi, mkv, 3gp; el resto, documento): la foto sale como miniatura con lupa, el vídeo como enlace 🎬 Ver vídeo y el documento como enlace 📄 Ver archivo, los dos en pestaña nueva con rel=noopener; openLB() ya no abre la lupa con lo que no es imagen, lo abre en pestaña nueva. En la tarjeta del listado la cuenta suma todos los archivos y etiquetaArchivos() muestra 📎 cuando alguno no es foto y 📷 cuando son todas fotos. SIN cambios en el Worker: action=upload guarda cualquier archivo y los campos Picture_cloudfare1 a 5 y Picture_cloudfare_after1 a 5 siguen guardando la URL igual que antes. Pruebas: guardias-archivos.test.js. -->
 <!-- HISTORIAL: v22 - Filtros por URL (pedido de Nazaret 14/09/2026, para que Mia y el resumen puedan abrir esta página ya filtrada): nueva applyUrlFilters(p), llamada una vez en el Init con los lookups ya cargados y antes de la primera doSearch(). Parámetros: desde y hasta (YYYY-MM-DD, a fDesde/fHasta), vm (uno o varios UserID responsables separados por comas, a selectedManagers — solo los que existen en allUsersMap), estado (pend|done, misma píldora y mismo estadoFilter que un clic), villa (texto a fVilla) o vid (villaid, se traduce al nombre), tipo (id de Ta_tipo_intervencion_guardia, solo si existe). Si algún filtro llega, el panel Filtros se abre para que se vea. Lo que no valida se ignora sin error; ?editar y ?accion siguen igual. Sin cambios en buildWhere, el modal ni el guardado. | v21 - Barrido completo de la pantalla: 45 fallos vistos a la vez y arreglados en un solo envío, para que los Villa Managers puedan hacerse cargo de las incidencias que la guardia deja pendientes y para que la pantalla deje de mostrar marcas que engañan. G1: el Villa Manager asignado al seguimiento puede editar su intervención pasadas las 24 horas, mientras no esté Terminada; en las guardias no. G2: el campo Villa Manager asignado se marca como obligatorio, explica para qué sirve, y la tarjeta muestra la línea Seguimiento en las intervenciones pendientes. G3: no se puede guardar una intervención pendiente sin Villa Manager asignado; se quita el relleno automático que ponía al usuario que estaba mirando la pantalla. G4: la marca de validez solo se envía al crear el registro o cuando el bloque de validez está a la vista (manager o admin); un usuario normal ya no la reenvía nunca. G5: el selector de Tipo de intervención empieza con una opción vacía, así la comprobación de campo obligatorio funciona, y un tipo antiguo que ya no está en la tabla se conserva con una opción temporal. G6: la tarjeta de Terminada solo se pone verde cuando el interruptor está encendido; antes estaba verde siempre y parecía terminada aunque no lo estuviera. G7: un estado de huésped guardado que ya no está en la tabla también se conserva con una opción temporal. G8: la tarjeta dibuja la descripción y el resultado con glifos (punto rojo, casilla vacía, tachado con visto); ya no se leen marcas en crudo como [x] o [ ]. G9: el popup Ver más dibuja igual, con Descripción y Resultado separados. G10: la Descripción pasa a ser una lista sin casillas y se guarda con punto, porque no es una lista de tareas por hacer; el Resultado mantiene sus casillas. G11: Estado del huésped deja de estar marcado como obligatorio y una nota aclara que es la escala de satisfacción, no el estado de la incidencia. G12: la tarjeta muestra el identificador corto del estado del huésped. G13: el mensaje de bloqueo dice con exactitud quién puede editar, y el asignado ve un aviso propio cuando el permiso de seguimiento es lo que le deja editar. G14: el rol se lee siempre en minúsculas y toda la página usa la misma función esAdminOManager. G15: los autocompletados y los filtros solo ofrecen usuarios activos, pero los nombres de las bajas se siguen viendo en los registros antiguos. G16: al salir de un autocompletado, si lo escrito no es un elemento de la lista, se borra el identificador oculto; la guardia exige elegir el responsable de la lista. G17: quitar una foto ya guardada la borra de verdad, enviando el campo vacío. G18: si una foto no se puede subir, no se guarda nada y se avisa con el nombre de la foto. G19: Desplazamiento, Importante y Urgente se envían como Yes o No. G20: al registrar una guardia se avisa si ese Villa Manager ya tiene una guardia ese día; si la comprobación falla, se guarda igual. G21: una hora fin anterior a la de inicio se guarda con la fecha del día siguiente, y la nota lo explica. G22: el filtro Pendientes busca en todas las fechas, no solo en el rango elegido. G23: aviso cuando la consulta llega al tope de 1000 registros. G24: las guardias solo aparecen con el filtro Todas, porque no tienen estado propio. G25: la fecha de la tarjeta lleva debajo las horas de aviso, inicio y fin. G26: el enlace a la reserva usa el año de la fila, no el año en curso. G27: la cabecera avisa cuando se busca por Nº de tarea y el resto de filtros no cuentan. G28: las búsquedas que llegan tarde se descartan y ya no pisan el resultado bueno. G29: el filtro Inquilino corta en 100 coincidencias y pide escribir más letras. G30: en móvil el resumen plegado también muestra la fecha. G31: el aviso de Nueva intervención tiene pie con los botones Cerrar e Ir a Equipo. G34: nuevo filtro Villa Manager asignado (seguimiento), con la opción Yo. G35: el título del modal dice Guardia o Intervención según el registro. G36: fuera el campo oculto gVillaManagerId, que ya no servía para nada. G37: el pie del modal ya no desaparece al bloquear; solo se quita Guardar y el otro botón pasa a decir Cerrar. G38: el bloque que activa o desactiva el formulario se pone en una sola función, y una intervención nueva siempre se abre editable aunque antes se hubiera visto un registro bloqueado. G39: abrir una tarea por su identificador pone el filtro Nº tarea y recarga la lista, para que el registro se vea al cerrar el modal. G42: Importante y Urgente dejan de ser casillas ocultas, pasan a interruptores visibles y salen en la tarjeta con sus banderas. G43: el botón Ver más del estado del huésped solo aparece cuando hay un texto largo distinto del identificador. G44: el visor de fotos ya no se cierra al pulsar la imagen, y la tarjeta indica cuántas fotos tiene el registro. G45: la cabecera dice siempre qué rango de fechas se está mirando, el texto de lista vacía nombra guardias e intervenciones, y se retira el div #chips que estaba muerto. G40 y G41 quedan en espera por decisión de Gary. G32 y G33 se arreglan en listado-guardias-e-intervenciones.html v08. -->

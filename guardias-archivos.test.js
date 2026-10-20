@@ -105,7 +105,8 @@ ok('setPhotoSlot filtra el tipo antes del tope de 60 MB, con aviso en español',
 
 console.log('versión');
 var hv = S.match(/VERSIÓN ACTUAL: v(\d+) \|/), pv = S.match(/const PAGE_VERSION='v(\d+)'/), tv = S.match(/<title>Guardias e Intervenciones v(\d+)/);
-ok('v24 en cabecera, PAGE_VERSION y título', hv && pv && tv && hv[1] === '24' && pv[1] === '24' && tv[1] === '24', [hv && hv[1], pv && pv[1], tv && tv[1]].join('/'));
+/* v25: la versión sube con cada cambio; aquí se comprueba que las tres coinciden y son v24 o posterior */
+ok('cabecera, PAGE_VERSION y título coinciden, v24 o posterior', hv && pv && tv && hv[1] === pv[1] && pv[1] === tv[1] && parseInt(hv[1], 10) >= 24, [hv && hv[1], pv && pv[1], tv && tv[1]].join('/'));
 ok('historial v24', /<!-- HISTORIAL: v24 - /.test(S));
 ok('el historial v24 aparece una sola vez', S.split('<!-- HISTORIAL: v24 - ').length === 2);
 ok('el historial v24 va encima del v23 (el más nuevo primero)', S.indexOf('<!-- HISTORIAL: v24 - ') >= 0 && S.indexOf('<!-- HISTORIAL: v24 - ') < S.indexOf('<!-- HISTORIAL: v23 - '));
