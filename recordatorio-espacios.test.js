@@ -61,9 +61,9 @@ c.setRow({ TaBookings2021_Guest_phonenumber: '', TaBookings2021_Segundo_Telefono
 ok('ES por el segundo teléfono (0034…): saludo en español', c.msg(true).indexOf('Buenos días, Ana,') === 0);
 
 console.log('Versión');
-ok('v87 en cabecera, título y PAGE_VERSION', /VERSIÓN ACTUAL: v87 \|/.test(SRC) && /<title>Notas Equipo Reservas v87 — 3Villas<\/title>/.test(SRC) &&
-  SRC.indexOf('var PAGE_VERSION = 87;') > 0 && SRC.indexOf('var PAGE_VERSION = 86;') < 0);
-ok('HISTORIAL empieza por v87 - 20/10/2026 (recordatorio con espacio entre frases, pedido de Marta) y conserva la v86 (enlace Historial WhatsApp)', /<!-- HISTORIAL: v87 - 20\/10\/2026: recordatorio de check-in online/.test(SRC) &&
+ok('v88 en cabecera, título y PAGE_VERSION (v88 = codigo de 72 h, la v87 sigue en el historial)', /VERSIÓN ACTUAL: v88 \|/.test(SRC) && /<title>Notas Equipo Reservas v88 — 3Villas<\/title>/.test(SRC) &&
+  SRC.indexOf('var PAGE_VERSION = 88;') > 0 && SRC.indexOf('var PAGE_VERSION = 87;') < 0);
+ok('HISTORIAL lleva la v87 - 20/10/2026 (recordatorio con espacio entre frases, pedido de Marta) y conserva la v86 (enlace Historial WhatsApp)', / \| v87 - 20\/10\/2026: recordatorio de check-in online/.test(SRC) &&
   SRC.indexOf('bailando la jota') > 0 && / \| v86 - 12\/10\/2026: enlace "Historial WhatsApp"/.test(SRC));
 ok('los scripts inline compilan', (function () {
   var re = /<script>([\s\S]*?)<\/script>/g, mm, n = 0;

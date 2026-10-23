@@ -340,7 +340,7 @@ var PHONE_CASES = [
   eq('un enlace "Historial WhatsApp"', links.length, 1);
   ok('abre en pestaña nueva con ?tel=', /target="_blank"/.test(links[0] || '') && /historial-whatsapp\.html\?tel='\+encodeURIComponent\(document\.getElementById\('fPhone1'\)\.value/.test(links[0] || ''));
   ok('junto al teléfono de Hostaway', /id="fPhone1" disabled><a href="historial-whatsapp\.html"/.test(NOTAS));
-  ok('notas v87 (o posterior) con el enlace v86 en el historial', /VERSIÓN ACTUAL: v87 \|/.test(NOTAS) && NOTAS.indexOf('var PAGE_VERSION = 87;') > 0 && NOTAS.indexOf('<title>Notas Equipo Reservas v87') > 0 && / \| v86 - 12\/10\/2026: enlace "Historial WhatsApp"/.test(NOTAS));
+  ok('notas v88 (o posterior) con el enlace v86 en el historial', /VERSIÓN ACTUAL: v88 \|/.test(NOTAS) && NOTAS.indexOf('var PAGE_VERSION = 88;') > 0 && NOTAS.indexOf('<title>Notas Equipo Reservas v88') > 0 && / \| v86 - 12\/10\/2026: enlace "Historial WhatsApp"/.test(NOTAS));
 
   console.log('De punta a punta: el Worker real + las funciones de la página (base en memoria, datos inventados)');
   if (!W) {

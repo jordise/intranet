@@ -127,7 +127,8 @@ console.log('notas-equipo-reservas.html: bloque y llamada al Worker');
   ok('estado ocupado del boton mientras genera', SRC.indexOf("btn.textContent='Generando…'") > 0);
   ok('el error del Worker se muestra tal cual en un toast',
     /toast\('❌ '\+\(j\.error\|\|'No se pudo generar el código'\),'err'\)/.test(SRC));
-  ok('linea gris con el destinatario y el limite de tres codigos', SRC.indexOf("'vale una vez · no caduca · el equipo conserva los tres últimos'") > 0);
+  ok('linea gris con el destinatario, la caducidad de 72 h y el limite de tres codigos', SRC.indexOf("'vale una vez · caduca a las 72 h · el equipo conserva los tres últimos'") > 0);
+  ok('ninguna linea viva dice ya que el codigo no caduca (Worker v64.1-sec)', SRC.split('<!-- HISTORIAL:')[0].indexOf('no caduca') < 0);
   ok('el mensaje de WhatsApp se arma con los campos de la reserva',
     /buildCodigoMsg\(\s*fB\('Guest_phonenumber'\)\|\|fB\('Segundo_Telefono'\),/.test(SRC) &&
     /fB\('Fiscal_guest_name'\)\|\|fB\('Guest_Full_Name'\)\|\|'',/.test(SRC) &&
@@ -155,7 +156,7 @@ console.log('notas-equipo-reservas.html: codigo alternativo y textos');
   ok('y explica el boton del equipo',
     SRC.indexOf('<b>El equipo:</b> con el botón «Generar código» de arriba') > 0);
   ok('Tiempos de login cuenta las reglas de verdad',
-    SRC.indexOf('El código del huésped no caduca y vale una sola vez.') > 0 &&
+    SRC.indexOf('El código del huésped caduca a las 72 horas y vale una sola vez.') > 0 &&
     SRC.indexOf('los tres últimos siguen valiendo') > 0 &&
     SRC.indexOf('hasta 3 días después del checkout') > 0);
   ok('y ya no dice que la sesion dura un mes', SRC.indexOf('sesión dura ~1 mes') < 0);
@@ -274,14 +275,14 @@ console.log('notas-equipo-reservas.html: boton Enviar acceso y bloque del enlace
 /* ── version ── */
 console.log('notas-equipo-reservas.html: version');
 (function () {
-  ok('cabecera v87', /VERSIÓN ACTUAL: v87 \|/.test(SRC));
-  ok('titulo v87', /<title>Notas Equipo Reservas v87 — 3Villas<\/title>/.test(SRC));
+  ok('cabecera v88', /VERSIÓN ACTUAL: v88 \|/.test(SRC));
+  ok('titulo v88', /<title>Notas Equipo Reservas v88 — 3Villas<\/title>/.test(SRC));
   ok('PAGE_VERSION 83 (la auto-recarga mira este numero)',
-    SRC.indexOf('var PAGE_VERSION = 87;') > 0 && SRC.indexOf('var PAGE_VERSION = 86;') < 0);
+    SRC.indexOf('var PAGE_VERSION = 88;') > 0 && SRC.indexOf('var PAGE_VERSION = 87;') < 0);
   /* 14/09/2026: la v78 puso la pagina en su propia clave de permiso porque enseña
      el bloque fiscal del huesped. La v77 de Cristian sigue en el historial. */
-  ok('el historial empieza en v87 (recordatorio con espacio entre frases), sigue con la v86 (enlace Historial WhatsApp), la v85 (dia de la devolucion de la fianza), la v84 (envio por Whaticket), la v83 (Whaticket) y conserva la v82 (importe manual de la ecotasa), la v81, la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
-    /<!-- HISTORIAL: v87 - 20\/10\/2026: recordatorio de check-in online/.test(SRC) && / \| v86 - 12\/10\/2026: enlace "Historial WhatsApp"/.test(SRC) && / \| v85 - 12\/10\/2026: el resumen de la fianza dice el dia/.test(SRC) && / \| v84 - 11\/10\/2026: boton "Enviar recordatorio"/.test(SRC) && / \| v83 - Chat2Desk esta caido/.test(SRC) && / \| v82 - El importe manual de la ecotasa/.test(SRC) && / \| v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
+  ok('el historial empieza en v88 (codigo de 72 h), sigue con la v87 (recordatorio con espacio entre frases), la v86 (enlace Historial WhatsApp), la v85 (dia de la devolucion de la fianza), la v84 (envio por Whaticket), la v83 (Whaticket) y conserva la v82 (importe manual de la ecotasa), la v81, la v80, la v79 (opcion 14:00) y la v78 del cambio de permiso',
+    /<!-- HISTORIAL: v88 - 23\/10\/2026: el código del huésped caduca a las 72 horas/.test(SRC) && / \| v87 - 20\/10\/2026: recordatorio de check-in online/.test(SRC) && / \| v86 - 12\/10\/2026: enlace "Historial WhatsApp"/.test(SRC) && / \| v85 - 12\/10\/2026: el resumen de la fianza dice el dia/.test(SRC) && / \| v84 - 11\/10\/2026: boton "Enviar recordatorio"/.test(SRC) && / \| v83 - Chat2Desk esta caido/.test(SRC) && / \| v82 - El importe manual de la ecotasa/.test(SRC) && / \| v81 - Enlace del aviso por email/.test(SRC) && / \| v80 - /.test(SRC) && / \| v79 - /.test(SRC) && / \| v78 - /.test(SRC) && /notas-equipo-reservas/.test(SRC));
   /* v83 (11/10/2026): Chat2Desk caido, Reservas usa Whaticket con el mismo numero. */
   var vivo = SRC.split('<!-- HISTORIAL:')[0];
   ok('v83: el modal manda a Whaticket y ya no a Chat2Desk',
