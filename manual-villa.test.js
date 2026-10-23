@@ -1,5 +1,6 @@
-/* Pruebas de manual-villa.html v31: la clave wifi solo con sesion del equipo o con el
-   enlace firmado (Worker caspio-proxy v64.2-sec, revision de seguridad del 23/10/2026).
+/* Pruebas de manual-villa.html v32: la clave wifi con la sesion del equipo, o con el
+   check-in online del huesped en este mismo telefono, del dia de llegada al dia de salida
+   (Worker caspio-proxy v64.3-sec). El enlace de 30 dias de la v31 se retira.
    El enlace de siempre (?Hostawayid=) sigue abriendo el manual, sin la clave wifi.
    node manual-villa.test.js */
 var fs = require('fs');
@@ -22,23 +23,50 @@ function fnSource(src, name) {
 var SRC = fs.readFileSync('manual-villa.html', 'utf8');
 var LIVE = SRC.split('<!-- HISTORIAL:')[0];
 
-console.log('manual-villa.html v31');
-ok('cabecera, titulo e historial v31', /VERSIÓN ACTUAL: v31 \|/.test(SRC) && /<title>Manual Villa v31 — 3Villas<\/title>/.test(SRC) &&
-  /<!-- HISTORIAL: v31 - /.test(SRC) && / \| v30 - /.test(SRC));
+console.log('manual-villa.html v32');
+ok('cabecera, titulo e historial v32', /VERSIÓN ACTUAL: v32 \|/.test(SRC) && /<title>Manual Villa v32 — 3Villas<\/title>/.test(SRC) &&
+  /<!-- HISTORIAL: v32 - /.test(SRC) && / \| v31 - /.test(SRC));
 
 var F = fnSource(SRC, 'fetchVilla');
-ok('fetchVilla manda el enlace firmado (?k=) cuando viene en la URL', /params?\.get\('k'\)|_manualKey/.test(F) && /&k='\+encodeURIComponent/.test(F));
-ok('fetchVilla manda la sesion del equipo (3v_token) en Authorization si existe', /3v_token/.test(F) && /Authorization/.test(F));
-ok('con una sesion caducada (401) repite sin la sesion, el manual no se cae', /status===401/.test(F) && /fetch\(url\)/.test(F));
+ok('fetchVilla ya no manda ?k= (enlace de 30 dias retirado)', !/get\('k'\)/.test(F) && !/&k=/.test(F));
+ok('fetchVilla manda la sesion del equipo (3v_token) si existe', /3v_token/.test(F) && /Authorization/.test(F));
+ok('sin sesion del equipo, manda el token del check-in del huesped (3v_checkin_auth)', /guestCheckinToken\(\)/.test(F) && /3v_checkin_auth/.test(fnSource(SRC, 'guestCheckinToken')));
+ok('con un token caducado (401) repite sin token, el manual no se cae', /status===401/.test(F) && /fetch\(url\)/.test(F));
+
+var G = fnSource(SRC, 'guestCheckinToken');
+ok('guestCheckinToken: lee el token y no lo usa si la sesion ha caducado', /\.token/.test(G) && /expires/.test(G) && /Date\.now\(\)/.test(G));
+ok('guestCheckinToken: un JSON roto o sin localStorage no rompe la pagina', /try\{/.test(G) && /catch\(e\)/.test(G));
 
 var R = fnSource(SRC, 'renderVilla');
-ok('restricted: la clave wifi no sale y se dice que la pida al gestor', /v\.restricted/.test(R) && /t\('wifi_locked'\)/.test(R));
+ok('restricted: la clave wifi no sale, texto segun la fase de la estancia', /v\.restricted/.test(R) && /wifiLockText\(v\)/.test(R));
 ok('restricted: sin boton de copiar ni QR de la wifi', /copyPassBtn'\)\.style\.display='none'/.test(R) && /wifiQrBtn'\)\.style\.display='none'/.test(R));
-ok('shareKey (solo equipo): barra para copiar el enlace del huesped', /v\.shareKey/.test(R) && /shareBar/.test(LIVE));
-ok('el enlace del huesped lleva Hostawayid y k', /Hostawayid='\+encodeURIComponent\(_hwId\)\+'&k='\+encodeURIComponent\(_villa\.shareKey\)/.test(SRC));
-ok('wifi_locked en los cinco idiomas (ca, es, en, fr, de)', (SRC.match(/\bwifi_locked:/g) || []).length === 5);
-ok('share_btn en los cinco idiomas', (SRC.match(/\bshare_btn:/g) || []).length === 5);
+var W = fnSource(SRC, 'wifiLockText');
+ok('wifiLockText: before -> wifi_before con la fecha de llegada', /'before'/.test(W) && /wifi_before/.test(W) && /stayFrom/.test(W));
+ok('wifiLockText: after -> wifi_after; checkin -> wifi_checkin; el resto -> wifi_locked', /'after'/.test(W) && /wifi_after/.test(W) && /'checkin'/.test(W) && /wifi_checkin/.test(W) && /wifi_locked/.test(W));
+ok('sin barra de enlace ni copyGuestLink ni shareKey', !/shareBar/.test(LIVE) && !/copyGuestLink/.test(LIVE) && !/shareKey/.test(LIVE));
+ok('sin textos share_btn ni share_ok', !/\bshare_btn:/.test(SRC) && !/\bshare_ok:/.test(SRC));
+['wifi_locked', 'wifi_before', 'wifi_after', 'wifi_checkin'].forEach(function (k) {
+  ok(k + ' en los cinco idiomas (ca, es, en, fr, de)', (SRC.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 5);
+});
+ok('wifi_locked ya no habla del enlace que le enviamos', !/enlace que le enviamos|link we sent you/.test(SRC));
+ok('wifi_before lleva {date}', (SRC.match(/\bwifi_before:"[^"]*\{date\}/g) || []).length === 5);
 ok('copyWifiPass no copia el texto de bloqueo', /_villa\s*&&\s*_villa\.restricted/.test(fnSource(SRC, 'copyWifiPass')));
+
+/* La funcion pura del texto, ejecutada */
+var tSrc = 'var _T={wifi_before:"B ({date}).",wifi_after:"A",wifi_checkin:"C",wifi_locked:"L"};function t(k){return _T[k];}';
+var wlt = new Function(tSrc + W + ';return wifiLockText;')();
+ok('ejecuta: before con 2026-10-25 -> "B (25/10/2026)."', wlt({ stay: 'before', stayFrom: '2026-10-25' }) === 'B (25/10/2026).', wlt({ stay: 'before', stayFrom: '2026-10-25' }));
+ok('ejecuta: before sin fecha -> "B." sin {date} ni parentesis', wlt({ stay: 'before' }) === 'B.', wlt({ stay: 'before' }));
+ok('ejecuta: after -> A, checkin -> C, villa -> L, sin stay -> L', wlt({ stay: 'after' }) === 'A' && wlt({ stay: 'checkin' }) === 'C' && wlt({ stay: 'villa' }) === 'L' && wlt({}) === 'L');
+
+/* guestCheckinToken ejecutada con un localStorage de mentira */
+function runG(store) {
+  var ls = { getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; } };
+  return new Function('localStorage', G + ';return guestCheckinToken();')(ls);
+}
+ok('ejecuta: sesion vigente -> el token', runG({ '3v_checkin_auth': JSON.stringify({ code: 'BK1', token: 'tok', expires: Date.now() + 60000 }) }) === 'tok');
+ok('ejecuta: sesion caducada -> vacio', runG({ '3v_checkin_auth': JSON.stringify({ code: 'BK1', token: 'tok', expires: Date.now() - 1 }) }) === '');
+ok('ejecuta: sin sesion o JSON roto -> vacio', runG({}) === '' && runG({ '3v_checkin_auth': '{roto' }) === '');
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

@@ -130,10 +130,10 @@ ok('_p0IslandToggle vacia, apaga y gris; y vuelve a encender', /s\.value='';\s*s
 ok('estilo .sel.sel-off y .chk-row en la pagina', S.indexOf('.sel.sel-off{') > 0 && S.indexOf('.chk-row{') > 0);
 
 console.log('pagina: version');
-ok('v111 en cabecera', /VERSIÓN ACTUAL: v113 \|/.test(S));
-ok('v111 en titulo', S.indexOf('<title>Check-in Pasos v113 — 3Villas</title>') > 0);
-ok('PAGE_VERSION 111', S.indexOf('var PAGE_VERSION = 113;') > 0);
-ok('HISTORIAL empieza en v111 y conserva la v104', S.indexOf('<!-- HISTORIAL: v113 - ') > 0 && S.indexOf(' | v104 - ') > 0);
+ok('v111 en cabecera', /VERSIÓN ACTUAL: v114 \|/.test(S));
+ok('v111 en titulo', S.indexOf('<title>Check-in Pasos v114 — 3Villas</title>') > 0);
+ok('PAGE_VERSION 111', S.indexOf('var PAGE_VERSION = 114;') > 0);
+ok('HISTORIAL empieza en v111 y conserva la v104', S.indexOf('<!-- HISTORIAL: v114 - ') > 0 && S.indexOf(' | v104 - ') > 0);
 
 console.log('\n' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

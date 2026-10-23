@@ -19,8 +19,8 @@ function fnSource(name) {
 console.log(FILE);
 
 /* 1. Versión e historial */
-ok('v113 en cabecera, título y PAGE_VERSION', /VERSIÓN ACTUAL: v113 \|/.test(s) && /<title>Check-in Pasos v113/.test(s) && s.indexOf('var PAGE_VERSION = 113;') > 0);
-ok('historial v113 delante de la v112 y de la v111', /<!-- HISTORIAL: v113 - .*? \| v112 - .*? \| v111 - /.test(s));
+ok('v114 en cabecera, título y PAGE_VERSION', /VERSIÓN ACTUAL: v114 \|/.test(s) && /<title>Check-in Pasos v114/.test(s) && s.indexOf('var PAGE_VERSION = 114;') > 0);
+ok('historial v114 delante de la v112 y de la v111', /<!-- HISTORIAL: v114 - .*? \| v112 - .*? \| v111 - /.test(s));
 
 /* 2. Marcado y textos */
 ok('#p0KiUnitLater debajo de #p0KiUnit y nace oculto', /id="p0KiUnit"[^\n]*\n\s*<div class="kc-addr-note" id="p0KiUnitLater" style="display:none">/.test(s));
@@ -62,7 +62,7 @@ function run(booking, nowIso) {
   c2.Date.UTC = RealDate.UTC;
   vm.createContext(c2);
   ['_p0ParseCutoff', '_p0KeyboxVisible', '_p0KeyboxCountdown', '_p0MuIds', '_p0MuData', '_p0UnitLabel', '_p0UnitAddress', '_p0RenderUnit',
-   'p0SplitVillaName', 'p0StreetNumber', '_p0RenderPlace', 'p0HasUnit', 'p0WifiGuest', '_p0RenderLater', 'P0render'].forEach(function (f) {
+   'p0SplitVillaName', 'p0StreetNumber', '_p0RenderPlace', 'p0HasUnit', 'p0WifiGuest', '_p0RenderLater', 'p0StayText', '_p0RenderManual', 'P0render'].forEach(function (f) {
     vm.runInContext(fnSource(f), c2);
   });
   c2.window._bookingData = null;

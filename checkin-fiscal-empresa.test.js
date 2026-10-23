@@ -52,7 +52,7 @@ ok('fila vacia -> persona', isCo('', '', '') === false && isCo(null, undefined, 
 ok('apellido de solo espacios cuenta como vacio', isCo('ACME SL', '   ', 'B70807052') === true);
 
 console.log('la pagina usa las funciones');
-ok('version v111 en la cabecera', /VERSIÓN ACTUAL: v113/.test(S.slice(0, 400)));
+ok('version v111 en la cabecera', /VERSIÓN ACTUAL: v114/.test(S.slice(0, 400)));
 ok('el envio valida empresa o persona', S.indexOf("_isCo ? !validateCompanyId($('fCountry').value, $('fDni').value) : !validateDni(") > 0);
 ok('una empresa se guarda sin apellido', S.indexOf('Fiscal_guest_surename:             _isCo?null:') > 0);
 ok('el apellido no es obligatorio para una empresa', S.indexOf("required.filter(id=>!(_isCo&&id==='fLname')).filter(") > 0);

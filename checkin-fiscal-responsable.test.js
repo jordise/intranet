@@ -50,9 +50,9 @@ ok('persona: los campos se vacian', E.fRespFname.value === '' && E.fRespLname.va
 ok('persona: el apellido fiscal sigue obligatorio (sin cambio)', E.fLname.required === true);
 
 console.log('la pagina usa los campos');
-ok('version v113 en cabecera, titulo y PAGE_VERSION',
-   /VERSIÓN ACTUAL: v113 \|/.test(S.slice(0, 400)) && /<title>Check-in Pasos v113 — 3Villas<\/title>/.test(S) && S.indexOf('var PAGE_VERSION = 113;') > 0);
-ok('historial v113 delante de la v112', /<!-- HISTORIAL: v113 - .*? \| v112 - /.test(S));
+ok('version v114 en cabecera, titulo y PAGE_VERSION',
+   /VERSIÓN ACTUAL: v114 \|/.test(S.slice(0, 400)) && /<title>Check-in Pasos v114 — 3Villas<\/title>/.test(S) && S.indexOf('var PAGE_VERSION = 114;') > 0);
+ok('historial v114 delante de la v112', /<!-- HISTORIAL: v114 - .*? \| v112 - /.test(S));
 ok('police-url.js con cache nueva (?v=4)', S.indexOf('<script src="police-url.js?v=4">') > 0);
 ok('prerelleno desde la vista (prefijo TaBookings2021_)',
    S.indexOf("fRespFname:'TaBookings2021_Fiscal_responsable_nombre'") > 0 && S.indexOf("fRespLname:'TaBookings2021_Fiscal_responsable_apellido'") > 0);
