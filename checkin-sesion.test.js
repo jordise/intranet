@@ -92,10 +92,16 @@ console.log('checkin-auth.js: _sessionExpiry');
 /* ── el resto del cableado de la v22 (texto real del fichero) ── */
 console.log('checkin-auth.js: v22');
 (function () {
-  ok('cabecera v23', /checkin-auth\.js v23 — Autenticaci/.test(SRC) && /CAMBIOS v23 \(sobre v22\):/.test(SRC));
-  ok('y conserva los cambios de la v22', /CAMBIOS v22 \(sobre v21\):/.test(SRC));
-  ok('el historial empieza en v23 y conserva la v22 y la v21',
-    /\/\* HISTORIAL: v23 - /.test(SRC) && / \| v22 - /.test(SRC) && / \| v21 - /.test(SRC));
+  ok('cabecera v24', /checkin-auth\.js v24 — Autenticaci/.test(SRC) && /CAMBIOS v24 \(sobre v23\):/.test(SRC));
+  ok('y conserva los cambios de la v23 y la v22', /CAMBIOS v23 \(sobre v22\):/.test(SRC) && /CAMBIOS v22 \(sobre v21\):/.test(SRC));
+  ok('el historial empieza en v24 y conserva la v23, la v22 y la v21',
+    /\/\* HISTORIAL: v24 - /.test(SRC) && / \| v23 - /.test(SRC) && / \| v22 - /.test(SRC) && / \| v21 - /.test(SRC));
+  /* v24: codigo caducado (Worker caspio-proxy v64.1-sec, 72 h) */
+  ok('v24 wPost guarda la respuesta del Worker en el error (locked, expired)', /err\.data = j;/.test(SRC));
+  ok('v24 el catch del pin lee e.data antes que el texto', /let data = e\.data \|\| \{\};/.test(SRC));
+  ok('v24 un codigo caducado muestra err_expired y NO suma intento',
+    (function () { var i = SRC.indexOf('if(data.expired){'), j = SRC.indexOf('_att++;', i > 0 ? i : 0); return i > 0 && j > i && SRC.slice(i, j).indexOf("_t('err_expired')") > 0; })());
+  ok('v24 err_expired en los ocho idiomas', (SRC.match(/\berr_expired:/g) || []).length === 8);
 
   ok('setSession recibe el booking', /function setSession\(code, pin, email, token, booking\)\{/.test(SRC));
   ok('y calcula la caducidad con _sessionExpiry', /expires: _sessionExpiry\(booking \|\| null, Date\.now\(\)\)/.test(SRC));
@@ -208,10 +214,10 @@ console.log('checkin-auth.js: enlace de acceso (v23)');
 console.log('checkin-pasos.html: v113');
 (function () {
   var P = fs.readFileSync('checkin-pasos.html', 'utf8');
-  ok('carga checkin-auth.js?v=23', P.indexOf('<script src="checkin-auth.js?v=23"></script>') > 0);
+  ok('carga checkin-auth.js?v=24', P.indexOf('<script src="checkin-auth.js?v=24"></script>') > 0);
   ok('sin la carga antigua sin version', P.indexOf('<script src="checkin-auth.js"></script>') < 0);
-  ok('sin la carga de la v22 (fuera del historial)',
-    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=22') < 0);
+  ok('sin la carga de la v23 (fuera del historial)',
+    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=23') < 0);
   ok('cabecera v111', /VERSIÓN ACTUAL: v113 \|/.test(P));
   ok('titulo v111', /<title>Check-in Pasos v113 — 3Villas<\/title>/.test(P));
   ok('PAGE_VERSION 105 (la auto-deteccion mira este numero)',
@@ -223,9 +229,9 @@ console.log('checkin-pasos.html: v113');
 console.log('checkin-premium.html: v28 (v27 + bloqueo del waiver, 06/10/2026)');
 (function () {
   var P = fs.readFileSync('checkin-premium.html', 'utf8');
-  ok('carga checkin-auth.js?v=23', P.indexOf('<script src="checkin-auth.js?v=23"></script>') > 0);
-  ok('sin la carga de la v22 (fuera del historial)',
-    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=22') < 0);
+  ok('carga checkin-auth.js?v=24', P.indexOf('<script src="checkin-auth.js?v=24"></script>') > 0);
+  ok('sin la carga de la v23 (fuera del historial)',
+    P.split('<!-- HISTORIAL:')[0].indexOf('checkin-auth.js?v=23') < 0);
   ok('cabecera v28', /VERSIÓN ACTUAL: v28 \|/.test(P));
   ok('titulo v28', /<title>Checkin Premium v28 — 3Villas<\/title>/.test(P));
   ok('el historial empieza en v28 y conserva la v27 y la v26',
