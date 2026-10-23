@@ -45,7 +45,7 @@ var FNS = ['madridYear', 'madridHHMM', 'channelLabel', 'toNum', 'round2', 'commi
   'seasonRange'];
 var VARS = ['WORKER', 'MAX_PAGES', 'CHANNEL_LABELS', 'DETAIL_HEADERS', 'VILLA_HEADERS', 'MESES_CORTOS',
   'FILE_HEADERS', 'VILLA_DETAIL_HEADERS', 'VILLA_FILE_HEADERS', 'PAGO_LABELS', 'RESUMEN_HEADERS', 'CAL_BATCH', 'CAL_PARALLEL',
-  'TEMPORADA_INICIO', 'TEMPORADA_FIN'];
+  'TEMPORADA_INICIO', 'TEMPORADA_FIN', 'VRBO_COMISION_PCT'];
 var code = VARS.map(function (v) { return varSource(SRC, v); }).join('\n') + '\n' +
   FNS.map(function (f) { return fnSource(SRC, f); }).join('\n') +
   '\nreturn {' + FNS.concat(VARS).map(function (n) { return n + ':' + n; }).join(',') + '};';
@@ -72,8 +72,25 @@ var ab = R({ channelName: 'airbnbOfficial', totalPrice: 1000, channelCommissionA
 eq('Airbnb: neto = total − airbnbListingHostFee (no channelCommissionAmount)', [ab.net, ab.channelLabel], [844.5, 'Airbnb']);
 var di = R({ channelName: 'direct', totalPrice: 1400, channelCommissionAmount: null });
 eq('Directa: neto = total', [di.net, di.channelLabel, di.sinComision], [1400, 'Directa', false]);
+/* v8: Vrbo cobra un 15 % sobre el PRECIO TOTAL (Marta, 23/10/2026) y Hostaway no manda la comisión. */
+eq('v8: VRBO_COMISION_PCT = 15', P.VRBO_COMISION_PCT, 15);
 var ha = R({ channelName: 'homeaway', totalPrice: 900, channelCommissionAmount: 0 });
-eq('Vrbo con comisión 0: neto = total', [ha.net, ha.channelLabel], [900, 'Vrbo']);
+eq('v8: Vrbo con comisión 0: se resta el 15 % del total', [ha.commission, ha.net, ha.channelLabel, ha.sinComision], [135, 765, 'Vrbo', false]);
+var haM = R({ channelName: 'homeaway', totalPrice: 2915, nights: 7, channelCommissionAmount: null });
+eq('v8: ejemplo de Marta, Villa Monte Peñedo 2915 → neto 2477,75', [haM.commission, haM.net, haM.daily, haM.dailyNet], [437.25, 2477.75, 416.43, 353.96]);
+var haU2 = P.enrichRow({ channelName: 'homeaway', totalPrice: 900, nights: 3, listingMapId: 1001 }, VILLAS);
+eq('v8: Vrbo sin el campo de comisión: 15 %', [haU2.commission, haU2.net], [135, 765]);
+var haS = R({ channelName: 'homeaway', totalPrice: 900, channelCommissionAmount: 200 });
+eq('v8: Vrbo con comisión enviada por Hostaway: manda la de Hostaway', [haS.commission, haS.net], [200, 700]);
+var haT = R({ channelName: 'homeaway', totalPrice: '1000', channelCommissionAmount: '0' });
+eq('v8: Vrbo con importes en texto', [haT.commission, haT.net], [150, 850]);
+var haN = R({ channelName: 'homeaway', totalPrice: null, channelCommissionAmount: 0 });
+eq('v8: Vrbo sin total: neto vacío', [haN.net, haN.dailyNet], [null, null]);
+var haC = R({ channelName: 'homeaway', totalPrice: 900, status: 'cancelled' });
+eq('v8: Vrbo cancelada también lleva el neto calculado', haC.net, 765);
+var haO = R({ channelName: 'homeaway', totalPrice: 900, status: 'ownerStay' });
+eq('v8: estancia de propietario con canal Vrbo: total 0, neto 0', [haO.total, haO.net, haO.commission], [0, 0, 0]);
+eq('v8: otros canales sin cambio (directa sin comisión = total)', R({ channelName: 'direct', totalPrice: 900, channelCommissionAmount: 0 }).net, 900);
 var be = R({ channelName: 'bookingengine', totalPrice: 500, channelCommissionAmount: 25 });
 eq('Web 3Villas con comisión: se resta', [be.net, be.channelLabel], [475, 'Web 3Villas']);
 var bkNo = R({ channelName: 'bookingcom', totalPrice: 2000, channelCommissionAmount: null });
@@ -126,16 +143,16 @@ var st = P.computeStats(sel);
 eq('reservas sin canceladas, canceladas aparte', [st.reservas, st.canceladas], [6, 1]);
 eq('noches', st.noches, 42);
 eq('total', st.total, 9000);
-eq('neto (sin la de Booking.com sin dato)', st.neto, 6850);
-eq('comisión y % sobre el total con dato', [st.comision, st.comisionPct], [150, 2.14]);
-eq('precio medio/noche y neto medio/noche', [st.medioNoche, st.netoMedioNoche], [214.29, 195.71]);
+eq('neto (sin la de Booking.com sin dato; v8: Vrbo menos el 15 %)', st.neto, 6640);
+eq('comisión y % sobre el total con dato (v8: + 210 de Vrbo)', [st.comision, st.comisionPct], [360, 5.14]);
+eq('precio medio/noche y neto medio/noche', [st.medioNoche, st.netoMedioNoche], [214.29, 189.71]);
 eq('avisos: sin comisión y sin villa', [st.sinComision, st.sinVilla], [1, 1]);
 eq('por canal ordenado por total', st.canales.map(function (c) { return [c.label, c.reservas, c.total, c.neto]; }),
-  [['Booking.com', 2, 3400, 1300], ['Directa', 2, 2800, 2800], ['Airbnb', 1, 1400, 1350], ['Vrbo', 1, 1400, 1400]]);
+  [['Booking.com', 2, 3400, 1300], ['Directa', 2, 2800, 2800], ['Airbnb', 1, 1400, 1350], ['Vrbo', 1, 1400, 1190]]);
 eq('por mes de llegada', st.porMes, { '2026-08': 1400, '2026-06': 1400, '2026-07': 6200 });
 var vs = P.villaSummary(sel);
 eq('resumen por villa', vs.map(function (v) { return [v.num, v.reservas, v.noches, v.total, v.neto, v.porNoche, v.netoPorNoche]; }),
-  [['3', 1, 7, 1400, 1400, 200, 200], ['12', 3, 21, 4800, 2650, 228.57, 189.29], ['40', 1, 7, 1400, 1400, 200, 200], ['', 1, 7, 1400, 1400, 200, 200]]);
+  [['3', 1, 7, 1400, 1400, 200, 200], ['12', 3, 21, 4800, 2650, 228.57, 189.29], ['40', 1, 7, 1400, 1190, 200, 170], ['', 1, 7, 1400, 1400, 200, 200]]);
 eq('meses de la ventana', P.monthsBetween('2026-01-01', '2026-12-31').length, 12);
 
 console.log('Formato y CSV');
@@ -485,9 +502,12 @@ ok('las fechas siguen siendo editables a mano (inputs type=date sin readonly ni 
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v7 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v7 | Historial completo al final -->' && /PAGE_VERSION = 7;/.test(SRC) && /<title>Informe de reservas v7/.test(SRC) &&
-  SRC.indexOf("'[Informe reservas v7]'") > 0 && SRC.indexOf('PAGE_VERSION = 6;') < 0 && SRC.indexOf("'[Informe reservas v6]'") < 0);
-ok('HISTORIAL es la última línea y empieza por v7, con v6, v5, v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v7 - 20\/10\/2026 [\s\S]* \| v6 - 13\/10\/2026 [\s\S]* \| v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
+ok('versión v8 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v8 | Historial completo al final -->' && /PAGE_VERSION = 8;/.test(SRC) && /<title>Informe de reservas v8/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v8]'") > 0 && SRC.indexOf('PAGE_VERSION = 7;') < 0 && SRC.indexOf("'[Informe reservas v7]'") < 0);
+ok('v8: aviso del neto nombra Vrbo y el 15 %', SRC.indexOf('(Booking.com y Airbnb; Vrbo: 15 % del precio total)') > 0);
+ok('HISTORIAL v8: pedido de Marta (Vrbo 15 %)', (function () { var h = SRC.trim().split('\n').pop(); return /^<!-- HISTORIAL: v8 - 23\/10\/2026 /.test(h) &&
+  h.indexOf('Las reservas de VRBO tienen una comision del 15%') > 0 && h.indexOf('de la columna que pone PRECIO TOTAL hay que restarle un 15%') > 0; })());
+ok('HISTORIAL es la última línea y empieza por v8, con v7, v6, v5, v4, v3, v2 y v1 detrás', /^<!-- HISTORIAL: v8 - 23\/10\/2026 [\s\S]* \| v7 - 20\/10\/2026 [\s\S]* \| v6 - 13\/10\/2026 [\s\S]* \| v5 - 13\/10\/2026 [\s\S]* \| v4 - 13\/10\/2026 [\s\S]* \| v3 - 13\/10\/2026 [\s\S]* \| v2 - 13\/10\/2026 [\s\S]* \| v1 - 13\/10\/2026 [\s\S]* -->$/.test(SRC.trim().split('\n').pop()));
 ok('HISTORIAL v7: pedido de Marta y las fechas editables', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('podemos fijar en el filtro llegadas desde el 1 abril al 31 octr.') > 0 &&
   h.indexOf('Las fechas siguen siendo editables a mano') > 0; })());
 ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('owner stays need to be in the report as well') > 0 &&
@@ -495,7 +515,7 @@ ok('HISTORIAL v3: pedido de Gary y dependencia del Worker v61', (function () { v
 ok('HISTORIAL v2: pedido de Gary y aviso del Worker v59', (function () { var h = SRC.trim().split('\n').pop(); return h.indexOf('i need to be able to select and click into that villa') > 0 &&
   h.indexOf('hasta que el Worker v59 esté desplegado los campos del huésped llegan vacíos y se muestran como —') > 0; })());
 ok('textos de avisos y errores', ['Lectura de Hostaway a las ', 'sin dato de comisión (neto vacío)', 'de alojamientos sin villa en la intranet',
-  'Precio neto = precio total menos la comisión del portal (Booking.com y Airbnb). Reservas directas y web: neto = total.',
+  'Precio neto = precio total menos la comisión del portal (Booking.com y Airbnb; Vrbo: 15 % del precio total). Reservas directas y web: neto = total.',
   'No se pudieron cargar las reservas. ', 'Tu usuario no tiene permiso para este informe.'].every(function (t) { return VIVO.indexOf(t) >= 0; }));
 ok('botones y filtros', ['Descargar Excel', 'Descargar CSV', 'Cargar reservas', 'Incluir canceladas', 'Llegada desde', 'Llegada hasta', "' de ' + opts.length + ' villas'"].every(function (t) { return VIVO.indexOf(t) >= 0; }));
 ok('SheetJS 0.18.5 con defer y respaldo CSV', /<script defer src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx\/0\.18\.5\/xlsx\.full\.min\.js"><\/script>/.test(SRC) && /if\(!window\.XLSX\)\{[^}]*downloadCsv\(\)/.test(SRC));
