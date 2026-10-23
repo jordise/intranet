@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v24 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v25 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports Ventas v24 — 3Villas</title>
+<title>Reports Ventas v25 — 3Villas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#C8102E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -88,7 +88,7 @@ body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gra
 .stat strong{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:var(--gray-5)}
 
 /* MAIN */
-main{padding:16px;max-width:1300px;margin:0 auto}
+main{padding:16px;max-width:1560px;margin:0 auto}
 .state-box{text-align:center;padding:60px 20px;color:var(--gray-4)}@keyframes spin{to{transform:rotate(360deg)}}
 
 /* TABLA */
@@ -105,6 +105,27 @@ td:first-child,td:nth-child(2){text-align:left}
 .td-agente{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;white-space:nowrap}
 .num-val{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--gray-5)}
 .num-zero{color:var(--gray-3)}
+
+/* TABLA v25: grupos arriba, nombres cortos sin cortar palabras, semana en una banda */
+table.rv{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:0;width:100%}
+table.rv th{font-family:'Montserrat',sans-serif;letter-spacing:0;text-transform:none;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;max-width:none;line-height:1.25;border-right:none}
+table.rv tr.grp th{background:var(--red);color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:8px 8px;text-align:center;white-space:nowrap;border-left:2px solid #fff}
+table.rv tr.col th{background:#fff;color:var(--gray-5);font-size:11px;font-weight:700;padding:9px 6px;text-align:right;vertical-align:bottom;min-width:58px;border-bottom:2px solid var(--gray-2)}
+table.rv tr.grp th.c-agent{background:#fff;color:var(--gray-4);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;text-align:left;vertical-align:bottom;padding:9px 14px;min-width:120px;border-bottom:2px solid var(--gray-2)}
+table.rv .g-start{border-left:1px solid var(--gray-2)}
+table.rv td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--gray-2);font-variant-numeric:tabular-nums;white-space:nowrap;background:#fff}
+table.rv td.c-agent{text-align:left;padding-left:14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;color:var(--gray-5)}
+table.rv .c-agent{position:sticky;left:0;z-index:1;box-shadow:1px 0 0 var(--gray-2)}
+table.rv tbody tr.r:hover td{background:#fafbfc}
+table.rv tr.wk td{background:var(--gray-1);text-align:left;padding:14px 14px 7px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;color:var(--gray-5);border-bottom:1px solid var(--gray-2)}
+table.rv tr.wk .wk-n{font-weight:600;color:var(--gray-4);margin-left:6px}
+table.rv tr.wk .wk-l{position:sticky;left:14px}
+table.rv .num-val{font-size:12.5px}
+table.rv .num-zero{color:var(--gray-3);font-weight:400}
+/* captura: la tabla entera, sin scroll ni columnas fijas */
+.shot{width:max-content}
+.shot .twrap{overflow:visible}
+.shot table.rv .c-agent,.shot table.rv tr.wk .wk-l{position:static;box-shadow:none}
 
 /* CHARTS */
 #chartView{display:none}
@@ -311,7 +332,7 @@ td:first-child,td:nth-child(2){text-align:left}
   <!-- LISTADO -->
   <div id="listView" style="display:none">
     <div class="twrap">
-      <table><thead><tr id="tblHead"></tr></thead><tbody id="tblBody"></tbody></table>
+      <table class="rv"><thead id="tblHead"></thead><tbody id="tblBody"></tbody></table>
     </div>
   </div>
 
@@ -663,14 +684,81 @@ async function loadData(){
   }
 }
 
+/* ══ TABLA v25 ══ (sin DOM; reports-ventas.test.js ejecuta este bloque aparte) */
+const LIST_GROUPS={venta:'Venta',vac:'Alquiler vacacional',lau:'Alquiler LAU',cartera:'Cartera y facturación',prosp:'Prospección telefónica'};
+const LIST_COLS={
+  Captacion_Inmobiliaria:{grp:'venta',short:'Captación'},
+  Captacion_Inmobiliaria_Exclusiva:{grp:'venta',short:'Exclusiva'},
+  Visitas_Ventas:{grp:'venta',short:'Visitas'},
+  Firma_Arras:{grp:'venta',short:'Arras'},
+  Firma_Notario:{grp:'venta',short:'Notario'},
+  Carteles:{grp:'venta',short:'Carteles'},
+  Seguros:{grp:'venta',short:'Seguros'},
+  Visita_Alquiler_Vacacional:{grp:'vac',short:'Visitas'},
+  Captacion_Alquiler_Vacacional:{grp:'vac',short:'Captación'},
+  Captacion_Alquiler_LAU:{grp:'lau',short:'Captación'},
+  Alquiler_LAU:{grp:'lau',short:'Alquiler'},
+  Fincas_Actuales:{grp:'cartera',short:'Fincas actuales'},
+  Facturado_Ciu:{grp:'cartera',short:'Facturado Ciutadella',money:true},
+  Facturado_Mao:{grp:'cartera',short:'Facturado Maó',money:true},
+  Prosp_Llamadas:{grp:'prosp',short:'Llamadas'},
+  Prosp_No_Contestan:{grp:'prosp',short:'No contestan'},
+  Prosp_No_Interesado:{grp:'prosp',short:'No interesado'},
+  Prosp_Otra_Agencia:{grp:'prosp',short:'Otra agencia'},
+  Prosp_Seguimiento:{grp:'prosp',short:'Seguimiento'},
+  Prosp_Cartas_Intenciones:{grp:'prosp',short:'Cartas de intención'},
+  Prosp_Contratos:{grp:'prosp',short:'Contratos'},
+};
+function rvEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* Cero = guion claro; miles con punto siempre (también 4 cifras); decimales con coma; importes con €. */
+function rvFmt(n,money){
+  if(!n) return {txt:'–',cls:'num-zero'};
+  const neg=n<0, a=Math.abs(n), dec=Number.isInteger(a)?'':','+a.toFixed(2).split('.')[1];
+  const s=(neg?'-':'')+String(Math.floor(a)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+dec;
+  return {txt:money?s+' €':s,cls:'num-val'};
+}
+function listHeadHtml(fields){
+  let grp='', col='', prev=null, span=0;
+  const flush=()=>{ if(prev) grp+=`<th colspan="${span}">${rvEsc(LIST_GROUPS[prev])}</th>`; };
+  fields.forEach(f=>{
+    const c=LIST_COLS[f.key]||{grp:'otros',short:f.label};
+    const start=c.grp!==prev;
+    if(start){ flush(); prev=c.grp; span=0; }
+    span++;
+    col+=`<th${start?' class="g-start"':''} title="${rvEsc(f.label)}">${rvEsc(c.short)}</th>`;
+  });
+  flush();
+  return `<tr class="grp"><th rowspan="2" class="c-agent">Agente</th>${grp}</tr><tr class="col">${col}</tr>`;
+}
+/* get.date(r) = fecha del registro; get.val(r,f) = número del campo. Semanas de la más nueva a la más vieja, agentes A-Z. */
+function listBodyHtml(rows,fields,get,fmtDate){
+  const weeks=[], byDate={};
+  rows.forEach(r=>{ const d=String(get.date(r)||''); if(!byDate[d]){ byDate[d]=[]; weeks.push(d); } byDate[d].push(r); });
+  weeks.sort((x,y)=>y.localeCompare(x));
+  return weeks.map(d=>{
+    const list=byDate[d].slice().sort((x,y)=>String(x._agente).localeCompare(String(y._agente),'es'));
+    const band=`<tr class="wk"><td colspan="${fields.length+1}"><span class="wk-l">Semana del ${rvEsc(fmtDate(d))}<span class="wk-n">· ${list.length} ${list.length===1?'agente':'agentes'}</span></span></td></tr>`;
+    return band+list.map(r=>{
+      let prev=null;
+      const nums=fields.map(f=>{
+        const c=LIST_COLS[f.key]||{grp:'otros'}, start=c.grp!==prev; prev=c.grp;
+        const v=rvFmt(parseFloat(get.val(r,f))||0,!!c.money);
+        return `<td${start?' class="g-start"':''}><span class="${v.cls}">${v.txt}</span></td>`;
+      }).join('');
+      return `<tr class="r"><td class="c-agent">${rvEsc(r._agente)}</td>${nums}</tr>`;
+    }).join('');
+  }).join('');
+}
+/* ══ FIN TABLA v25 ══ */
+
 /* ══ LISTADO ══ */
 function renderList(){
   g('listView').style.display='block'; g('chartView').style.display='none';
-  g('tblHead').innerHTML='<th>Fecha</th><th>Agente</th>'+FIELDS.map(f=>`<th>${f.label}</th>`).join('')+'<th></th>';
-  g('tblBody').innerHTML=allRows.map(r=>{
-    const nums=FIELDS.map(f=>{ const n=parseFloat(r[realField(f.key)]??r[f.key]??0)||0; return`<td><span class="${n>0?'num-val':'num-zero'}">${n>0?n:0}</span></td>`; }).join('');
-    return`<tr><td class="td-fecha">${fmtDate(r.fecha||r.Fecha)}</td><td class="td-agente">${r._agente}</td>${nums}<td></td></tr>`;
-  }).join('');
+  g('tblHead').innerHTML=listHeadHtml(FIELDS);
+  g('tblBody').innerHTML=listBodyHtml(allRows,FIELDS,{
+    date:r=>getFecha(r),
+    val:(r,f)=>r[realField(f.key)]??r[f.key]??0,
+  },fmtDate);
 }
 
 /* ══ GRÁFICOS ══ */
@@ -1314,8 +1402,12 @@ window.captureScreenshot = async function(){
   const rango=desde&&hasta?' · '+desde+' → '+hasta:'';
   header.textContent='📊 Reports Ventas 3Villas'+rango+' · '+allRows.length+' registros';
   target.insertBefore(header, target.firstChild);
+  /* v25: la captura saca la tabla entera aunque en pantalla haga scroll */
+  target.classList.add('shot');
   try{
     const canvas=await html2canvas(target,{
+      width:target.scrollWidth,
+      windowWidth:Math.max(window.innerWidth,target.scrollWidth+64),
       scale:2,          /* mayor resolución */
       useCORS:true,
       backgroundColor:'#f4f5f7',
@@ -1334,6 +1426,7 @@ window.captureScreenshot = async function(){
   }catch(err){
     alert('Error al capturar: '+err.message);
   }finally{
+    target.classList.remove('shot');
     target.removeChild(header);
     btn.textContent='📸'; btn.disabled=false;
   }
@@ -1347,4 +1440,4 @@ Object.assign(window,{setQuick,clearQuickSel,schedule,toggleMas,clearAll,setVist
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v24 - Siete campos de prospección telefónica (Prosp_*) en Ta_raport_ventas, petición Dpto Comercial 1/10/2026; cada comercial rellena su propia fila | v23 - Fix: .state-box sin display !important — no pisaba display:none del JS | v22 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v21 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v20 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v19 - versión anterior -->
+<!-- HISTORIAL: v25 - Listado legible (petición de Gary, 23/10/2026, sobre una captura de la tabla): las cabeceras ya no cortan palabras a mitad ("CAPTA CIÓN INMOBI LIARIA"); una fila de grupos en rojo (Venta, Alquiler vacacional, Alquiler LAU, Cartera y facturación, Prospección telefónica) y debajo nombres cortos en minúscula ("Llamadas" en vez de "Prospección: Llamadas"; el nombre completo sale al pasar el ratón). La columna Fecha se cambia por una banda "Semana del dd/mm/aaaa · N agentes" y los agentes van de la A a la Z dentro de cada semana. Cero = guion claro; cifras alineadas a la derecha; Facturado Ciutadella y Facturado Maó con punto de miles y €. Columna Agente fija al hacer scroll; fuera la columna vacía del final. La captura 📸 saca la tabla entera (clase shot). Solo cambia el listado: gráficos, modales, filtros y datos igual. Prueba nueva reports-ventas.test.js. | v24 -Siete campos de prospección telefónica (Prosp_*) en Ta_raport_ventas, petición Dpto Comercial 1/10/2026; cada comercial rellena su propia fila | v23 - Fix: .state-box sin display !important — no pisaba display:none del JS | v22 - Fix centrado spinner: .spinner display:block margin:auto, .state-box flex centrado | v21 - Spinner corazón 3Villas embebido en CSS inline (sin archivo externo) | v20 - Eliminado CSS inline .spinner/.spin — ahora spinner.css y spinner-sm.css tienen prioridad | v19 - versión anterior -->
