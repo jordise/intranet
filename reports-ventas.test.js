@@ -12,7 +12,7 @@ var S = fs.readFileSync('reports-ventas.html', 'utf8');
 
 console.log('versión coherente en las tres marcas');
 var ver = (S.match(/VERSIÓN ACTUAL: (v\d+)/) || [])[1];
-ok('cabecera dice v25', ver === 'v25', ver);
+ok('cabecera dice ' + ver, /^v\d+$/.test(String(ver)));
 ok('<title> coincide', S.indexOf('<title>Reports Ventas ' + ver + ' — 3Villas</title>') > 0);
 ok('HISTORIAL empieza por ' + ver, S.indexOf('<!-- HISTORIAL: ' + ver + ' ') > 0);
 
@@ -42,10 +42,13 @@ ok('decimales con coma', ctx.rvFmt(1250.5, true).txt === '1.250,50 €', ctx.rvF
 console.log('cabecera');
 var H = ctx.listHeadHtml(F);
 ok('dos filas: grupos y columnas', (H.match(/<tr/g) || []).length === 2 && H.indexOf('class="grp"') > 0 && H.indexOf('class="col"') > 0);
-ok('los colspan de los grupos suman todas las columnas', (function () {
-  var s = 0; (H.match(/colspan="(\d+)"/g) || []).forEach(function (m) { s += +m.match(/\d+/)[0]; }); return s === F.length;
+ok('los colspan de los grupos + Contratos suman todas las columnas', (function () {
+  var s = 1; (H.match(/colspan="(\d+)"/g) || []).forEach(function (m) { s += +m.match(/\d+/)[0]; }); return s === F.length;
 })());
 ok('Agente ocupa las dos filas', /<th rowspan="2" class="c-agent">Agente<\/th>/.test(H));
+ok('Contratos va justo después de Agente, en las dos filas y destacado', /class="c-agent">Agente<\/th><th rowspan="2" class="c-key"[^>]*>Contratos<\/th>/.test(H), H.slice(0, 200));
+ok('Contratos no se repite en la fila de columnas', (H.match(/>Contratos</g) || []).length === 1);
+ok('la versión es v26', ver === 'v26', ver);
 ok('sin columna Fecha (la fecha va en la banda de la semana)', H.indexOf('>Fecha<') < 0);
 ok('sin la columna vacía del final', H.indexOf('<th></th>') < 0);
 
@@ -64,6 +67,8 @@ ok('la banda dice "Semana del"', B.indexOf('Semana del 12/10/2026') > 0);
 ok('agentes en orden alfabético dentro de la semana', B.indexOf('Gaelle') < B.indexOf('Tino'));
 ok('la banda cuenta los agentes', B.indexOf('2 agentes') > 0 && B.indexOf('1 agente<') > 0);
 ok('importe formateado en la fila', B.indexOf('100.982 €') > 0);
+var B2 = ctx.listBodyHtml([{ Fecha: '2026-10-12', _agente: 'Ana', Prosp_Contratos: 4, Prosp_Llamadas: 9 }], F, get, fmtD);
+ok('en la fila, Contratos es la primera cifra tras el agente', /<td class="c-agent">Ana<\/td><td class="c-key"><span class="num-val">4<\/span><\/td>/.test(B2), B2.slice(B2.indexOf('Ana'), B2.indexOf('Ana') + 120));
 ok('el nombre del agente se escapa', ctx.listBodyHtml([{ Fecha: '2026-10-12', _agente: '<b>x</b>' }], F, get, fmtD).indexOf('<b>x</b>') < 0);
 
 console.log('estilo y captura');
