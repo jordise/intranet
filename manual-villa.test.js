@@ -1,8 +1,6 @@
-/* Pruebas de manual-villa.html v33: la clave wifi con la sesion del equipo, o con el
+/* Pruebas de manual-villa.html v32: la clave wifi con la sesion del equipo, o con el
    check-in online del huesped en este mismo telefono, del dia de llegada al dia de salida
    (Worker caspio-proxy v64.3-sec). El enlace de 30 dias de la v31 se retira.
-   v33 (Worker v64.4-sec): vuelve la barra del equipo para copiar el enlace del huesped, ahora por
-   reserva (?k= de manual-link); la clave sale solo del dia de llegada al dia de salida de esa reserva.
    El enlace de siempre (?Hostawayid=) sigue abriendo el manual, sin la clave wifi.
    node manual-villa.test.js */
 var fs = require('fs');
@@ -25,59 +23,30 @@ function fnSource(src, name) {
 var SRC = fs.readFileSync('manual-villa.html', 'utf8');
 var LIVE = SRC.split('<!-- HISTORIAL:')[0];
 
-console.log('manual-villa.html v33');
-ok('cabecera, titulo e historial v33', /VERSIÓN ACTUAL: v33 \|/.test(SRC) && /<title>Manual Villa v33 — 3Villas<\/title>/.test(SRC) &&
-  /<!-- HISTORIAL: v33 - /.test(SRC) && / \| v32 - /.test(SRC));
+console.log('manual-villa.html v32');
+ok('cabecera, titulo e historial v32', /VERSIÓN ACTUAL: v32 \|/.test(SRC) && /<title>Manual Villa v32 — 3Villas<\/title>/.test(SRC) &&
+  /<!-- HISTORIAL: v32 - /.test(SRC) && / \| v31 - /.test(SRC));
 
 var F = fnSource(SRC, 'fetchVilla');
-ok('v33: fetchVilla manda el k del enlace por reserva (_linkKey) si la pagina lo trae', /_linkKey/.test(F) && /&k=/.test(F));
-ok('v33: _linkKey sale de ?k= de la direccion, con try/catch', /var _linkKey=/.test(SRC) && /get\('k'\)/.test(SRC.split('var _linkKey=')[1].split('\n')[0]));
+ok('fetchVilla ya no manda ?k= (enlace de 30 dias retirado)', !/get\('k'\)/.test(F) && !/&k=/.test(F));
 ok('fetchVilla manda la sesion del equipo (3v_token) si existe', /3v_token/.test(F) && /Authorization/.test(F));
 ok('sin sesion del equipo, manda el token del check-in del huesped (3v_checkin_auth)', /guestCheckinToken\(\)/.test(F) && /3v_checkin_auth/.test(fnSource(SRC, 'guestCheckinToken')));
 ok('con un token caducado (401) repite sin token, el manual no se cae', /status!==401/.test(F) && /fetch\(url\)/.test(F));
 
 /* Astra 19 §5: una sesion del equipo caducada no tapa el token del huesped. fetchVilla ejecutada con fetch de mentira. */
-async function runF(store, answers, linkKey) {
-  var calls = [], urls = [];
+async function runF(store, answers) {
+  var calls = [];
   var ls = { getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; } };
   var fakeFetch = function (u, init) {
     var auth = (init && init.headers && init.headers.Authorization) || '';
-    calls.push(auth); urls.push(u);
+    calls.push(auth);
     var st = answers[auth] || 200;
     return Promise.resolve({ status: st, ok: st < 400, json: function () { return Promise.resolve({ Name_villa_para_inquilinos: 'V', who: auth }); } });
   };
-  var mk = new Function('localStorage', 'sessionStorage', 'fetch', 'WORKER', '_linkKey',
+  var mk = new Function('localStorage', 'sessionStorage', 'fetch', 'WORKER',
     'var _authTok="";' + fnSource(SRC, 'guestCheckinToken') + ';async ' + F + ';return async function(){ var d=await fetchVilla("4242"); return {d:d, tok:_authTok}; };');
-  var out = await mk(ls, ls, fakeFetch, 'https://w.test/', linkKey || '')();
-  return { calls: calls, out: out, urls: urls };
-}
-
-/* v33: la barra del equipo con un DOM, fetch y portapapeles de mentira */
-async function runShare(opt) {
-  opt = opt || {};
-  var calls = [], copied = null;
-  var els = {};
-  function el(id) { if (!els[id]) els[id] = { id: id, style: {}, textContent: '', value: '', options: [], innerHTML: '',
-    appendChild: function (o) { this.options.push(o); if (!this.value) this.value = o.value; } }; return els[id]; }
-  var doc = { getElementById: el, createElement: function () { return { value: '', text: '', disabled: false }; } };
-  var fakeFetch = function (u, init) {
-    var body = JSON.parse((init && init.body) || '{}');
-    calls.push({ u: u, method: init && init.method, auth: (init && init.headers && init.headers.Authorization) || '', body: body });
-    var res;
-    if (!body.bookingCode) res = opt.empty ? { bookings: [] } : { bookings: [{ code: 'B1', name: 'Ana', from: '2026-10-23', to: '2026-10-26' }, { code: 'B2', name: 'Luis', from: '2026-11-01', to: '2026-11-05' }] };
-    else res = opt.fail ? { error: opt.fail } : { k: 'K.' + body.bookingCode, from: '2026-11-01', to: '2026-11-05' };
-    var st = res.error ? 400 : 200;
-    return Promise.resolve({ status: st, ok: st < 400, json: function () { return Promise.resolve(res); } });
-  };
-  var nav = { clipboard: { writeText: function (x) { copied = x; return Promise.resolve(); } } };
-  var loc = { origin: 'https://www.3villas.com', pathname: '/intranet/manual-villa.html' };
-  var tS = 'var _T={share_btn:"COPY",share_ok:"OK {from} {to}",share_pick:"PICK",share_none:"NONE"};function t(k){return _T[k];}';
-  var run = new Function('document', 'fetch', 'navigator', 'location', 'WORKER', '_hwId', '_authTok', 'window',
-    tS + fnSource(SRC, 'fmtDay') + ';async ' + fnSource(SRC, 'loadShareBookings') + ';async ' + fnSource(SRC, 'copyGuestLink') +
-    ';return async function(){ await loadShareBookings(); el_sel = document.getElementById("shareSel"); if (el_sel.options.length > 1) el_sel.value = "B2"; await copyGuestLink(); };');
-  var el_sel;
-  await run(doc, fakeFetch, nav, loc, 'https://www.3villas.com/intranet/api', '4242', 'STAFF', { prompt: function () {} })();
-  return { calls: calls, copied: copied, options: el('shareSel').options, msg: el('shareMsg').textContent, btnHidden: el('shareBtn').style.display === 'none' };
+  var out = await mk(ls, ls, fakeFetch, 'https://w.test/')();
+  return { calls: calls, out: out };
 }
 (async function () {
   var future = Date.now() + 60000;
@@ -92,23 +61,6 @@ async function runShare(opt) {
   /* Astra 19 §5: translate lleva el mismo token que abrio el manual */
   var TR = fnSource(SRC, 'translateText');
   ok('translateText manda Authorization con el token que abrio el manual', /_authTok/.test(TR) && /Authorization/.test(TR));
-  /* v33: el enlace por reserva */
-  var e1 = await runF({}, {}, 'KEY.1');
-  ok('ejecuta v33: con ?k= -> la llamada lleva &k=KEY.1 y sin token', e1.urls.length === 1 && /[?&]k=KEY\.1(&|$)/.test(e1.urls[0]) && e1.calls[0] === '', e1.urls.join(' '));
-  var e2 = await runF({}, {});
-  ok('ejecuta v33: sin ?k= -> la llamada no lleva k', e2.urls.length === 1 && !/[?&]k=/.test(e2.urls[0]), e2.urls.join(' '));
-  ok('v33: translateText manda el mismo k (translate lo pide con GUEST_AUTH_REQUIRED=1)', /_linkKey/.test(TR) && /&k=/.test(TR));
-  /* v33: la barra del equipo, ejecutada con fetch y portapapeles de mentira */
-  var SH = await runShare();
-  ok('ejecuta v33: la lista pide manual-link por POST con la sesion y la villa', SH.calls[0] && SH.calls[0].method === 'POST' && /action=manual-link/.test(SH.calls[0].u) && SH.calls[0].auth === 'Bearer STAFF' && SH.calls[0].body.Hostawayid === '4242' && !SH.calls[0].body.bookingCode, JSON.stringify(SH.calls[0]));
-  ok('ejecuta v33: la lista sale con el nombre y las fechas dd/mm/aaaa', SH.options.length === 2 && SH.options[0].value === 'B1' && /Ana/.test(SH.options[0].text) && /23\/10\/2026/.test(SH.options[0].text) && /26\/10\/2026/.test(SH.options[0].text), JSON.stringify(SH.options));
-  ok('ejecuta v33: copiar pide el k de la reserva elegida', SH.calls[1] && SH.calls[1].body.bookingCode === 'B2' && SH.calls[1].body.Hostawayid === '4242', JSON.stringify(SH.calls[1]));
-  ok('ejecuta v33: el enlace copiado = esta pagina + Hostawayid + k', SH.copied === 'https://www.3villas.com/intranet/manual-villa.html?Hostawayid=4242&k=K.B2', SH.copied);
-  ok('ejecuta v33: el aviso dice las fechas en que se ve la clave', /01\/11\/2026/.test(SH.msg) && /05\/11\/2026/.test(SH.msg), SH.msg);
-  var SN = await runShare({ empty: true });
-  ok('ejecuta v33: sin reservas -> aviso share_none y sin boton', SN.btnHidden === true && /NONE/.test(SN.msg), JSON.stringify(SN));
-  var SE = await runShare({ fail: 'Esta estancia ya ha terminado.' });
-  ok('ejecuta v33: error del Worker al copiar -> se ve el motivo, nada copiado', SE.copied === null && /terminado/.test(SE.msg), JSON.stringify(SE));
   console.log('\n' + pass + ' pass, ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();
@@ -123,13 +75,8 @@ ok('restricted: sin boton de copiar ni QR de la wifi', /copyPassBtn'\)\.style\.d
 var W = fnSource(SRC, 'wifiLockText');
 ok('wifiLockText: before -> wifi_before con la fecha de llegada', /'before'/.test(W) && /wifi_before/.test(W) && /stayFrom/.test(W));
 ok('wifiLockText: after -> wifi_after; checkin -> wifi_checkin; el resto -> wifi_locked', /'after'/.test(W) && /wifi_after/.test(W) && /'checkin'/.test(W) && /wifi_checkin/.test(W) && /wifi_locked/.test(W));
-ok('v33: barra del equipo (shareBar, lista shareSel y boton) y sin el shareKey de la v31', /id="shareBar"/.test(LIVE) && /id="shareSel"/.test(LIVE) && /onclick="copyGuestLink\(\)"/.test(LIVE) && !/shareKey/.test(LIVE));
-ok('v33: renderVilla ensena la barra solo con canShare y entonces carga la lista', /v\.canShare/.test(R) && /loadShareBookings\(\)/.test(R));
-['share_btn', 'share_ok', 'share_pick', 'share_none'].forEach(function (k) {
-  ok(k + ' en los cinco idiomas (ca, es, en, fr, de)', (SRC.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 5);
-});
-ok('share_ok lleva {from} y {to} en los cinco idiomas', (SRC.match(/\bshare_ok:"[^"]*\{from\}[^"]*\{to\}/g) || []).length === 5);
-ok('los textos ya no dicen 30 dias', !/30 d[ií]as|30 days|30 dies|30 jours|30 Tage/.test(SRC.split('<!-- HISTORIAL:')[0]));
+ok('sin barra de enlace ni copyGuestLink ni shareKey', !/shareBar/.test(LIVE) && !/copyGuestLink/.test(LIVE) && !/shareKey/.test(LIVE));
+ok('sin textos share_btn ni share_ok', !/\bshare_btn:/.test(SRC) && !/\bshare_ok:/.test(SRC));
 ['wifi_locked', 'wifi_before', 'wifi_after', 'wifi_checkin'].forEach(function (k) {
   ok(k + ' en los cinco idiomas (ca, es, en, fr, de)', (SRC.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 5);
 });
