@@ -102,6 +102,9 @@ console.log('checkin-auth.js: v22');
   ok('v24 un codigo caducado muestra err_expired y NO suma intento',
     (function () { var i = SRC.indexOf('if(data.expired){'), j = SRC.indexOf('_att++;', i > 0 ? i : 0); return i > 0 && j > i && SRC.slice(i, j).indexOf("_t('err_expired')") > 0; })());
   ok('v24 err_expired en los ocho idiomas', (SRC.match(/\berr_expired:/g) || []).length === 8);
+  ok('v24 un solo temporizador de bloqueo (se para el anterior)', /let _lockTick = null;/.test(SRC) && /if\(_lockTick\)\{ clearInterval\(_lockTick\); \}/.test(SRC));
+  ok('v24 el finally no reactiva el boton mientras dura el bloqueo', /finally \{ busy\('caBtnPin', false\); if\(_lockTick\)\{ document\.getElementById\('caBtnPin'\)\.disabled = true; \} \}/.test(SRC));
+  ok('v24 err_locked en los ocho idiomas', (SRC.match(/\berr_locked:/g) || []).length === 8);
 
   ok('setSession recibe el booking', /function setSession\(code, pin, email, token, booking\)\{/.test(SRC));
   ok('y calcula la caducidad con _sessionExpiry', /expires: _sessionExpiry\(booking \|\| null, Date\.now\(\)\)/.test(SRC));
