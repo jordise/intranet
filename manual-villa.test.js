@@ -31,7 +31,39 @@ var F = fnSource(SRC, 'fetchVilla');
 ok('fetchVilla ya no manda ?k= (enlace de 30 dias retirado)', !/get\('k'\)/.test(F) && !/&k=/.test(F));
 ok('fetchVilla manda la sesion del equipo (3v_token) si existe', /3v_token/.test(F) && /Authorization/.test(F));
 ok('sin sesion del equipo, manda el token del check-in del huesped (3v_checkin_auth)', /guestCheckinToken\(\)/.test(F) && /3v_checkin_auth/.test(fnSource(SRC, 'guestCheckinToken')));
-ok('con un token caducado (401) repite sin token, el manual no se cae', /status===401/.test(F) && /fetch\(url\)/.test(F));
+ok('con un token caducado (401) repite sin token, el manual no se cae', /status!==401/.test(F) && /fetch\(url\)/.test(F));
+
+/* Astra 19 §5: una sesion del equipo caducada no tapa el token del huesped. fetchVilla ejecutada con fetch de mentira. */
+async function runF(store, answers) {
+  var calls = [];
+  var ls = { getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; } };
+  var fakeFetch = function (u, init) {
+    var auth = (init && init.headers && init.headers.Authorization) || '';
+    calls.push(auth);
+    var st = answers[auth] || 200;
+    return Promise.resolve({ status: st, ok: st < 400, json: function () { return Promise.resolve({ Name_villa_para_inquilinos: 'V', who: auth }); } });
+  };
+  var mk = new Function('localStorage', 'sessionStorage', 'fetch', 'WORKER',
+    'var _authTok="";' + fnSource(SRC, 'guestCheckinToken') + ';async ' + F + ';return async function(){ var d=await fetchVilla("4242"); return {d:d, tok:_authTok}; };');
+  var out = await mk(ls, ls, fakeFetch, 'https://w.test/')();
+  return { calls: calls, out: out };
+}
+(async function () {
+  var future = Date.now() + 60000;
+  var a = await runF({ '3v_token': 'STAFF', '3v_checkin_auth': JSON.stringify({ token: 'GUEST', expires: future }) }, { 'Bearer STAFF': 401 });
+  ok('ejecuta: sesion del equipo caducada -> prueba el token del huesped, no anonimo', a.calls.join(',') === 'Bearer STAFF,Bearer GUEST' && a.out.tok === 'GUEST', a.calls.join(','));
+  var b = await runF({ '3v_token': 'STAFF', '3v_checkin_auth': JSON.stringify({ token: 'GUEST', expires: future }) }, { 'Bearer STAFF': 401, 'Bearer GUEST': 401 });
+  ok('ejecuta: los dos caducados -> por ultimo sin token', b.calls.join(',') === 'Bearer STAFF,Bearer GUEST,' && b.out.tok === '', b.calls.join(','));
+  var c = await runF({ '3v_token': 'STAFF' }, {});
+  ok('ejecuta: sesion del equipo buena -> una sola llamada', c.calls.join(',') === 'Bearer STAFF' && c.out.tok === 'STAFF', c.calls.join(','));
+  var d = await runF({}, {});
+  ok('ejecuta: sin nada -> una llamada sin token', d.calls.join(',') === '' && d.calls.length === 1 && d.out.tok === '', JSON.stringify(d.calls));
+  /* Astra 19 §5: translate lleva el mismo token que abrio el manual */
+  var TR = fnSource(SRC, 'translateText');
+  ok('translateText manda Authorization con el token que abrio el manual', /_authTok/.test(TR) && /Authorization/.test(TR));
+  console.log('\n' + pass + ' pass, ' + fail + ' fail');
+  process.exit(fail ? 1 : 0);
+})();
 
 var G = fnSource(SRC, 'guestCheckinToken');
 ok('guestCheckinToken: lee el token y no lo usa si la sesion ha caducado', /\.token/.test(G) && /expires/.test(G) && /Date\.now\(\)/.test(G));
@@ -67,6 +99,4 @@ function runG(store) {
 ok('ejecuta: sesion vigente -> el token', runG({ '3v_checkin_auth': JSON.stringify({ code: 'BK1', token: 'tok', expires: Date.now() + 60000 }) }) === 'tok');
 ok('ejecuta: sesion caducada -> vacio', runG({ '3v_checkin_auth': JSON.stringify({ code: 'BK1', token: 'tok', expires: Date.now() - 1 }) }) === '');
 ok('ejecuta: sin sesion o JSON roto -> vacio', runG({}) === '' && runG({ '3v_checkin_auth': '{roto' }) === '');
-
-console.log('\n' + pass + ' pass, ' + fail + ' fail');
-process.exit(fail ? 1 : 0);
+/* El resumen lo escribe el bloque async de fetchVilla, que termina el ultimo. */
