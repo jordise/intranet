@@ -148,6 +148,11 @@ async function runShare(opt) {
   ok('ejecuta v34: la lectura vuelve 403 -> candado (tambien sesion del equipo)', w10b.villa.restricted === true, JSON.stringify(w10b));
   var w10c = await runWifi({ now: NOW, force: true, denied: 'HTTP 503', villa: { stayTo: '2026-10-27' } });
   ok('ejecuta v34: Worker caido (503) dentro de las fechas -> la clave sigue', w10c.villa.Wifi_password === 'secret', JSON.stringify(w10c));
+  // Checker 24 Oct: Caspio caido = el Worker contesta 200 restricted con stay 'unknown'; dentro de las fechas la clave sigue
+  var w11 = await runWifi({ now: NOW, force: true, villa: { stayTo: '2026-10-27' }, reply: { restricted: true, stay: 'unknown' } });
+  ok('ejecuta v34: Caspio caido (200 restricted, stay unknown) dentro de las fechas -> la clave sigue', w11.fetches === 1 && w11.villa.Wifi_password === 'secret' && !w11.villa.restricted, JSON.stringify(w11));
+  var w11b = await runWifi({ now: Date.UTC(2026, 9, 27, 23, 1, 0), villa: { stayTo: '2026-10-27' }, reply: { restricted: true, stay: 'unknown' } });
+  ok('ejecuta v34: stay unknown no salva la clave pasado el dia de salida', w11b.villa.restricted === true && !('Wifi_password' in w11b.villa), JSON.stringify(w11b));
   /* Astra 26 §4: un portapapeles que falla tarde para B1 no abre la ventana de B1 despues de copiar B2 */
   var RF = await runClipLate();
   ok('ejecuta v34: B1 falla tarde en el portapapeles despues de copiar B2 -> sin ventana de B1', RF.prompts.length === 0 && /k=K\.B2$/.test(RF.written[RF.written.length - 1]) && /11\/2026/.test(RF.msg), JSON.stringify(RF));
