@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- VERSIÓN ACTUAL: v33 | Historial completo al final de este archivo -->
+<!-- VERSIÓN ACTUAL: v34 | Historial completo al final de este archivo -->
 <!-- manualvilla_v26.html — Manual de Villa Online — 3Villas -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="icon-corazon-rojo-fondo-transparente.png">
-<title>Manual Villa v33 — 3Villas</title>
+<title>Manual Villa v34 — 3Villas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -1010,7 +1010,10 @@ function showInfoPopup(type){
 
 function showTextPopup(title, text){
   document.getElementById('popupTitle').textContent=title;
-  document.getElementById('popupBody').innerHTML='<p style="white-space:pre-wrap">'+text+'</p>';
+  /* v34: el campo de la villa va como texto, nunca como HTML (Astra 24 §2) */
+  var body=document.getElementById('popupBody'), p=document.createElement('p');
+  p.style.whiteSpace='pre-wrap'; p.textContent=String(text==null?'':text);
+  body.textContent=''; body.appendChild(p);
   openPopupCentered();
 }
 
@@ -1147,23 +1150,26 @@ function renderVilla(v){
   items.forEach(function(it){
     var div=document.createElement('div');
     div.className='about-item';
-    var valHtml;
+    /* v34: los campos de la villa van como texto, nunca como HTML (Astra 24 §2); mismas clases y mismo orden */
+    var ic=document.createElement('div'); ic.className='about-item-icon'; ic.textContent=it.icon; div.appendChild(ic);
+    var lb=document.createElement('div'); lb.className='about-item-label'; lb.textContent=it.label; div.appendChild(lb);
+    var vl=document.createElement('div'); vl.className='about-item-val'; div.appendChild(vl);
     if(it.val==='__HOSPITAL__'){
-      valHtml='<div class="about-item-val">Hospital Mateu Orfila (Maó)<br>'
-        +'<a href="https://www.google.com/maps/search/?api=1&query=Hospital+Mateu+Orfila+Menorca" '
-        +'target="_blank" style="color:#007bff;font-size:11px;text-decoration:none">Ronda de Malbúger, 1 ↗</a></div>';
+      vl.appendChild(document.createTextNode('Hospital Mateu Orfila (Maó)'));
+      vl.appendChild(document.createElement('br'));
+      var ha=document.createElement('a');
+      ha.href='https://www.google.com/maps/search/?api=1&query=Hospital+Mateu+Orfila+Menorca'; ha.target='_blank';
+      ha.style.cssText='color:#007bff;font-size:11px;text-decoration:none'; ha.textContent='Ronda de Malbúger, 1 ↗';
+      vl.appendChild(ha);
     } else {
-      var isLong=String(it.val).length>60;
-      var btnHtml=isLong?'<button class="leer-mas-btn">+ '+t('read_more')+'</button>':'';
-      valHtml='<div class="about-item-val">'+it.val+'</div>'+btnHtml;
-    }
-    div.innerHTML='<div class="about-item-icon">'+it.icon+'</div>'
-      +'<div class="about-item-label">'+it.label+'</div>'
-      +valHtml;
-    if(it.val!=='__HOSPITAL__' && String(it.val).length>60){
-      var btn=div.querySelector('.leer-mas-btn');
-      var lbl=it.label, val=it.val;
-      if(btn) btn.addEventListener('click',function(){ showTextPopup(lbl,val); });
+      vl.textContent=String(it.val);
+      if(String(it.val).length>60){
+        var btn=document.createElement('button');
+        btn.className='leer-mas-btn'; btn.textContent='+ '+t('read_more');
+        var lbl=it.label, val=it.val;
+        btn.addEventListener('click',function(){ showTextPopup(lbl,val); });
+        div.appendChild(btn);
+      }
     }
     grid.appendChild(div);
   });
@@ -1241,15 +1247,21 @@ function renderManager(name, rawPhone){
   var phone=intlPhone(rawPhone);
   var actions=document.getElementById('mgrActions');
   if(phone){
-    var phoneClean=phone.replace(/\s/g,'');
-    var waNum=phoneClean.replace('+','');
-    actions.innerHTML=
-      '<a class="mgr-btn" href="tel:'+phoneClean+'"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z\"/></svg> '+phone+'</a>'+
-      '<a class="mgr-btn wa" href="https://wa.me/'+waNum+'" target="_blank"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M12.004 2c-5.51 0-9.993 4.483-9.993 9.997 0 1.954.563 3.775 1.533 5.32l-1.53 4.56 4.673-1.493a9.947 9.947 0 0 0 5.317 1.512c5.518 0 10.003-4.486 10.003-10S17.522 2 12.004 2zm5.82 14.156c-.244.688-1.218 1.25-1.92 1.336-.475.057-1.1.09-3.2-.782-2.684-1.115-4.417-3.834-4.55-4.015-.135-.18-1.092-1.45-1.092-2.766 0-1.316.688-1.963.934-2.228.245-.265.536-.33.714-.33.18 0 .362.003.52.012.164.009.387-.063.606.463.224.538.766 1.865.832 2 .066.134.11.29.022.464-.09.176-.135.29-.267.445-.133.153-.278.343-.397.46-.134.133-.276.28-.12.55.156.27.694 1.14 1.49 1.85.103.712.91 1.135 1.173 1.242.264.108.42.09.576-.09.155-.18.667-.777.846-1.042.178-.265.356-.22.6-.133.245.09 1.554.733 1.823.867.268.133.447.2.513.313.067.114.067.66-.177 1.348z\"/></svg> WhatsApp</a>';
+    /* v34: los enlaces solo llevan cifras (y el +); el numero se ve como texto (Astra 24 §2) */
+    var phoneClean=phone.replace(/[^\d+]/g,'');
+    var waNum=phoneClean.replace(/\D/g,'');
+    actions.textContent='';
+    var aTel=document.createElement('a'); aTel.className='mgr-btn'; aTel.href='tel:'+phoneClean;
+    aTel.innerHTML=MGR_TEL_SVG; aTel.appendChild(document.createTextNode(' '+phone));
+    var aWa=document.createElement('a'); aWa.className='mgr-btn wa'; aWa.href='https://wa.me/'+waNum; aWa.target='_blank';
+    aWa.innerHTML=MGR_WA_SVG; aWa.appendChild(document.createTextNode(' WhatsApp'));
+    actions.appendChild(aTel); actions.appendChild(aWa);
   } else {
-    actions.innerHTML='';
+    actions.textContent='';
   }
 }
+var MGR_TEL_SVG='<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z\"/></svg>';
+var MGR_WA_SVG='<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M12.004 2c-5.51 0-9.993 4.483-9.993 9.997 0 1.954.563 3.775 1.533 5.32l-1.53 4.56 4.673-1.493a9.947 9.947 0 0 0 5.317 1.512c5.518 0 10.003-4.486 10.003-10S17.522 2 12.004 2zm5.82 14.156c-.244.688-1.218 1.25-1.92 1.336-.475.057-1.1.09-3.2-.782-2.684-1.115-4.417-3.834-4.55-4.015-.135-.18-1.092-1.45-1.092-2.766 0-1.316.688-1.963.934-2.228.245-.265.536-.33.714-.33.18 0 .362.003.52.012.164.009.387-.063.606.463.224.538.766 1.865.832 2 .066.134.11.29.022.464-.09.176-.135.29-.267.445-.133.153-.278.343-.397.46-.134.133-.276.28-.12.55.156.27.694 1.14 1.49 1.85.103.712.91 1.135 1.173 1.242.264.108.42.09.576-.09.155-.18.667-.777.846-1.042.178-.265.356-.22.6-.133.245.09 1.554.733 1.823.867.268.133.447.2.513.313.067.114.067.66-.177 1.348z\"/></svg>';
 
 // ── FETCH VILLA (public endpoint) ──────────────────────────────
 async function fetchVilla(hostawayId){
@@ -1443,6 +1455,7 @@ async function translateCaspioFields(lang){
       return;
     }
     _villa=villa;
+    _wifiAt=Date.now();   /* v34: primera lectura de la clave */
     document.getElementById('loading').style.display='none';
     document.getElementById('mainContent').style.display='block';
     renderVilla(villa);
@@ -1475,6 +1488,53 @@ function wifiLockText(v){
   return t('wifi_locked');
 }
 
+// ── v34: LA CLAVE WIFI NO SE QUEDA EN UNA PESTAÑA ABIERTA (Astra 24 §3) ──
+// Cada minuto, al volver a la pestaña y al volver con "atras": pasado el dia de salida en Madrid
+// (stayTo, lo manda el Worker) la clave se quita sin red; cada 15 minutos, o al volver, se pregunta al
+// Worker, que dice si sigue valiendo (cancelada, fechas cambiadas, sesion caducada). Sin red, dentro de
+// las fechas, la clave sigue: el huesped la necesita para conectarse.
+var WIFI_RECHECK_MS=15*60*1000;
+var _wifiAt=0, _wifiBusy=false;
+// Hoy en Madrid, 'YYYY-MM-DD'.
+function madridToday(){
+  var d=new Date();
+  try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(d); }
+  catch(e){ return d.toISOString().slice(0,10); }
+}
+// Candado en la wifi: sin clave, sin copiar, sin QR (y el QR abierto se cierra).
+function lockWifi(info){
+  if(!_villa) return;
+  _villa.restricted=true; delete _villa.Wifi_password;
+  if(info && info.stay) _villa.stay=info.stay;
+  if(info && info.stayFrom) _villa.stayFrom=info.stayFrom;
+  document.getElementById('wifiPass').textContent='🔒 '+wifiLockText(_villa);
+  document.getElementById('copyPassBtn').style.display='none';
+  document.getElementById('wifiQrBtn').style.display='none';
+  if(document.getElementById('popupTitle').textContent==='📶 Wifi QR') closePopup();
+}
+async function wifiCheck(force){
+  if(!_villa || _villa.restricted || !_villa.Wifi_password) return;
+  if(_villa.stayTo && madridToday() > _villa.stayTo){ lockWifi({stay:'after'}); return; }
+  if(!force && document.visibilityState==='hidden') return;   /* en segundo plano solo la fecha, sin red */
+  if(_wifiBusy || Date.now()-_wifiAt < (force ? 30000 : WIFI_RECHECK_MS)) return;
+  _wifiBusy=true;
+  try{
+    var d=await fetchVilla(_hwId);
+    _wifiAt=Date.now();
+    if(!_villa || _villa.restricted) return;
+    if(!d || d.restricted || !d.Wifi_password){ lockWifi(d); return; }
+    _villa.stayTo=d.stayTo;
+    if(d.Wifi_password!==_villa.Wifi_password){
+      _villa.Wifi_password=d.Wifi_password;
+      document.getElementById('wifiPass').textContent=d.Wifi_password;
+    }
+  }catch(e){ /* sin red o Worker caido: dentro de las fechas la clave sigue */ }
+  finally{ _wifiBusy=false; }
+}
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') wifiCheck(true); });
+window.addEventListener('pageshow',function(e){ if(e && e.persisted) wifiCheck(true); });
+setInterval(function(){ wifiCheck(false); }, 60000);
+
 // ── v33: ENLACE DEL HUESPED POR RESERVA (solo equipo) ───────
 // 2026-10-23 -> 23/10/2026
 function fmtDay(s){
@@ -1499,16 +1559,21 @@ async function loadShareBookings(){
   }catch(e){ sel.style.display='none'; btn.style.display='none'; msg.textContent='⚠ '+String((e && e.message) || e); }
 }
 // Pide el enlace firmado de la reserva elegida y lo copia. La clave wifi se ve solo en las fechas de esa reserva.
+// v34 (Astra 24 §4): solo cuenta la ultima peticion, y solo si la reserva elegida sigue siendo la misma.
+var _shareSeq=0;
 async function copyGuestLink(){
   var sel=document.getElementById('shareSel'), msg=document.getElementById('shareMsg');
   var code=sel && sel.value;
   if(!code || !_hwId) return;
+  var my=++_shareSeq;
   msg.textContent='…';
   var d={};
   try{
     var r=await fetch(WORKER+'?action=manual-link',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+_authTok},body:JSON.stringify({Hostawayid:String(_hwId),bookingCode:code})});
     d=await r.json();
   }catch(e){ d={error:String((e && e.message) || e)}; }
+  if(my!==_shareSeq) return;
+  if(sel.value!==code){ msg.textContent=''; return; }
   if(!d || !d.k){ msg.textContent='⚠ '+((d && d.error) || 'Error'); return; }
   var link=location.origin+location.pathname+'?Hostawayid='+encodeURIComponent(_hwId)+'&k='+encodeURIComponent(d.k);
   var done=t('share_ok').replace('{from}',fmtDay(d.from)).replace('{to}',fmtDay(d.to));
@@ -1539,17 +1604,25 @@ function showWifiQR(){
   var ssid = document.getElementById('wifiUser').textContent || '';
   var pass  = document.getElementById('wifiPass').textContent || '';
   if(!ssid || ssid==='—') return;
+  if(_villa && _villa.restricted) return;   /* v34: sin clave no hay QR */
 
   var wifiString = 'WIFI:T:WPA;S:' + ssid + ';P:' + pass + ';;';
 
   document.getElementById('popupTitle').textContent = '📶 Wifi QR';
-  document.getElementById('popupBody').innerHTML =
-    '<div style="text-align:center;padding:10px 0">'
-    + '<p style="font-size:13px;color:var(--mid);margin-bottom:12px">Escanea para conectarte automáticamente</p>'
-    + '<div id="qrContainer" style="display:inline-block;padding:12px;background:#fff;border-radius:8px;border:1px solid var(--border)"></div>'
-    + '<p style="margin-top:12px;font-size:12px;color:var(--sub)"><b>Red:</b> ' + ssid + '</p>'
-    + '<p style="font-size:12px;color:var(--sub)"><b>Contraseña:</b> ' + pass + '</p>'
-    + '</div>';
+  /* v34: la red y la clave van como texto, nunca como HTML (Astra 24 §2) */
+  var qBody = document.getElementById('popupBody');
+  qBody.textContent = '';
+  var qWrap = document.createElement('div'); qWrap.style.cssText = 'text-align:center;padding:10px 0';
+  var qHint = document.createElement('p'); qHint.style.cssText = 'font-size:13px;color:var(--mid);margin-bottom:12px';
+  qHint.textContent = 'Escanea para conectarte automáticamente'; qWrap.appendChild(qHint);
+  var qBox = document.createElement('div'); qBox.id = 'qrContainer';
+  qBox.style.cssText = 'display:inline-block;padding:12px;background:#fff;border-radius:8px;border:1px solid var(--border)'; qWrap.appendChild(qBox);
+  [['Red:', ssid, 'margin-top:12px;font-size:12px;color:var(--sub)'], ['Contraseña:', pass, 'font-size:12px;color:var(--sub)']].forEach(function(r){
+    var p = document.createElement('p'); p.style.cssText = r[2];
+    var b = document.createElement('b'); b.textContent = r[0]; p.appendChild(b);
+    p.appendChild(document.createTextNode(' ' + r[1])); qWrap.appendChild(p);
+  });
+  qBody.appendChild(qWrap);
 
   openPopupCentered();
 
@@ -1722,4 +1795,4 @@ function clearSearch(){
 
 </body>
 </html>
-<!-- HISTORIAL: v33 - 23/10/2026: vuelve la barra del equipo para copiar el enlace del huésped, ahora por reserva (Gary: "i still it should have the copy link button, why remove it?", luego "yes"; Worker caspio-proxy v64.4-sec). Con sesión del equipo (rol admin, manager, staff o sales; el Worker manda canShare) la barra lista las reservas de esta villa que terminan hoy o después, sin canceladas (manual-link, POST); el equipo elige una y copia el enlace ?Hostawayid=&k=. Con ese enlace el manual da la clave wifi solo del día de llegada al día de salida de esa reserva, sin pedir el check-in online; antes o después el candado dice por qué (wifiLockText). fetchVilla y translateText mandan el k (_linkKey). Si el portapapeles falla, el enlace sale en una ventana para copiarlo a mano. Pruebas: manual-villa.test.js. | v32 - 23/10/2026: la clave wifi sigue a la estancia (Gary: "shouldnt the guest be able to see the information once they checkin and then not after they check out?"; Worker caspio-proxy v64.3-sec). Sin sesión del equipo, fetchVilla manda el token del check-in online que checkin-auth.js guarda en este navegador (3v_checkin_auth, guestCheckinToken: vacío si caducó o no se lee); el Worker da la clave solo con el check-in terminado, en la villa de la reserva y del día de llegada al día de salida. Si no, el candado dice por qué (wifiLockText: wifi_before con la fecha de llegada, wifi_after, wifi_checkin, wifi_locked) en los cinco idiomas. Se retiran la barra «Copiar enlace para el huésped (30 días)», copyGuestLink y el parámetro ?k= (el Worker ya no lo acepta). Orden de prueba: sesión del equipo, token del huésped, sin token; un 401 pasa al siguiente, así una sesión del equipo caducada no tapa el check-in del huésped, y translate lleva el mismo token (_authTok) (Astra, informe 19). Pruebas: manual-villa.test.js. | v31 - 23/10/2026: la clave wifi solo sale con el enlace firmado (?k=, 30 días) o con la sesión del equipo (Worker caspio-proxy v64.2-sec, revisión de seguridad). El enlace de siempre abre el manual con «🔒 pida la contraseña al responsable» y sin botones de copiar ni QR. Con sesión del equipo sale la barra «Copiar enlace para el huésped (30 días)». Sesión caducada: el manual se abre igual, sin la clave. Va con el despliegue del Worker. | v30 - Eliminado todo el bloque MyMemory duplicado; código limpio con un solo translateText/translateCaspioFields/init/etc. usando Google Translate via worker | v29 - Fix definitivo: quitar km de Restaurante y Supermercado (info-strip y aboutGrid y traducción); verificado Airport_distance correcto | v28 - Airport_distance añadido al array de traducción | v27 - Fix beach: quitar "km"; Fix airport: mostrar Airport_distance en lugar de "25 km" fijo, en info-strip y about-grid | v26 - Fix botón "¿dónde acudir?": hardcoded → t("donde_acudir") para traducción correcta | v25 - Logo 288px; lang dropdown vertical; búsqueda abre sección+collapsible | v24 - nav-tab 15px (×1.5); popup-close Android: excluir botón ✕ del drag+touch-action:manipulation; hospital about-grid con link igual que info-strip | v23 - Hospital: nombre no clickable + link solo dirección (ambos sitios); section-title 26px (×1.5); detección automática idioma dispositivo al cargar | v22 - Revert diseño info-item (sin max-width, align-items:center); hospital info-strip con link fijo Hospital Mateu Orfila (Maó) + dirección | v21 - FIX DEFINITIVO truncado: span→div en info-strip (line-clamp solo funciona en block); setInfoVal reescrito con div interno para clamp + botón leer más correcto | v20 - CRÍTICO: eliminada renderVilla duplicada (causaba doble render de todos los campos); popup-close: área táctil 44px mínima + z-index:10; hero móvil: logo encima centrado | v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
+<!-- HISTORIAL: v34 - 24/10/2026: cuatro arreglos de seguridad de la revisión de Astra 24 (Worker caspio-proxy v64.5-sec). (1) El enlace del huésped (?k=) va cifrado: ya no deja leer el código de la reserva. (2) Los campos de la villa (distancias, red wifi, clave, teléfono del manager) se ponen como texto, nunca como HTML: showTextPopup, la rejilla «Sobre la villa», el QR de la wifi y los botones del manager; los enlaces tel: y wa.me solo llevan cifras. (3) Una pestaña abierta no se queda con la clave wifi: cada minuto, al volver a la pestaña y al volver con «atrás», pasado el día de salida en Madrid (stayTo del Worker) sale el candado sin red; cada 15 minutos con la pestaña a la vista, o al volver (mínimo 30 s), se pregunta al Worker (cancelada, fechas, sesión caducada); sin red dentro de las fechas la clave sigue. (4) Copiar enlace: solo cuenta la última petición y solo si la reserva elegida no ha cambiado. Pruebas manual-villa.test.js. | v33 - 23/10/2026: vuelve la barra del equipo para copiar el enlace del huésped, ahora por reserva (Gary: "i still it should have the copy link button, why remove it?", luego "yes"; Worker caspio-proxy v64.4-sec). Con sesión del equipo (rol admin, manager, staff o sales; el Worker manda canShare) la barra lista las reservas de esta villa que terminan hoy o después, sin canceladas (manual-link, POST); el equipo elige una y copia el enlace ?Hostawayid=&k=. Con ese enlace el manual da la clave wifi solo del día de llegada al día de salida de esa reserva, sin pedir el check-in online; antes o después el candado dice por qué (wifiLockText). fetchVilla y translateText mandan el k (_linkKey). Si el portapapeles falla, el enlace sale en una ventana para copiarlo a mano. Pruebas: manual-villa.test.js. | v32 - 23/10/2026: la clave wifi sigue a la estancia (Gary: "shouldnt the guest be able to see the information once they checkin and then not after they check out?"; Worker caspio-proxy v64.3-sec). Sin sesión del equipo, fetchVilla manda el token del check-in online que checkin-auth.js guarda en este navegador (3v_checkin_auth, guestCheckinToken: vacío si caducó o no se lee); el Worker da la clave solo con el check-in terminado, en la villa de la reserva y del día de llegada al día de salida. Si no, el candado dice por qué (wifiLockText: wifi_before con la fecha de llegada, wifi_after, wifi_checkin, wifi_locked) en los cinco idiomas. Se retiran la barra «Copiar enlace para el huésped (30 días)», copyGuestLink y el parámetro ?k= (el Worker ya no lo acepta). Orden de prueba: sesión del equipo, token del huésped, sin token; un 401 pasa al siguiente, así una sesión del equipo caducada no tapa el check-in del huésped, y translate lleva el mismo token (_authTok) (Astra, informe 19). Pruebas: manual-villa.test.js. | v31 - 23/10/2026: la clave wifi solo sale con el enlace firmado (?k=, 30 días) o con la sesión del equipo (Worker caspio-proxy v64.2-sec, revisión de seguridad). El enlace de siempre abre el manual con «🔒 pida la contraseña al responsable» y sin botones de copiar ni QR. Con sesión del equipo sale la barra «Copiar enlace para el huésped (30 días)». Sesión caducada: el manual se abre igual, sin la clave. Va con el despliegue del Worker. | v30 - Eliminado todo el bloque MyMemory duplicado; código limpio con un solo translateText/translateCaspioFields/init/etc. usando Google Translate via worker | v29 - Fix definitivo: quitar km de Restaurante y Supermercado (info-strip y aboutGrid y traducción); verificado Airport_distance correcto | v28 - Airport_distance añadido al array de traducción | v27 - Fix beach: quitar "km"; Fix airport: mostrar Airport_distance en lugar de "25 km" fijo, en info-strip y about-grid | v26 - Fix botón "¿dónde acudir?": hardcoded → t("donde_acudir") para traducción correcta | v25 - Logo 288px; lang dropdown vertical; búsqueda abre sección+collapsible | v24 - nav-tab 15px (×1.5); popup-close Android: excluir botón ✕ del drag+touch-action:manipulation; hospital about-grid con link igual que info-strip | v23 - Hospital: nombre no clickable + link solo dirección (ambos sitios); section-title 26px (×1.5); detección automática idioma dispositivo al cargar | v22 - Revert diseño info-item (sin max-width, align-items:center); hospital info-strip con link fijo Hospital Mateu Orfila (Maó) + dirección | v21 - FIX DEFINITIVO truncado: span→div en info-strip (line-clamp solo funciona en block); setInfoVal reescrito con div interno para clamp + botón leer más correcto | v20 - CRÍTICO: eliminada renderVilla duplicada (causaba doble render de todos los campos); popup-close: área táctil 44px mínima + z-index:10; hero móvil: logo encima centrado | v19 - QR usa qrcode.js (local, sin llamada externa); favicon icon-corazon-rojo; spinner corazón animado 3Villas; info-val clamp fix con display block + max-height; info-item max-width:220px | v18 - Quitar border-bottom langBtnsRow; info-val clamp:2 siempre; botón Copiar contraseña wifi; botón QR Wifi (popup centrado con QR via qrserver.com) | v17 - clamp 3 líneas; langBtnsRow sticky top:0 fuera del hero; sectionNav top:44px; pie "Desarrollado por 3Villas"; mgr-role color var(--sub) | v16 - Traducción Beach/Restaurant/Supermarket/Pharmacy_distance; botón ¿dónde acudir? traducido via t(); botón "Leer más" en about-grid y info-strip para textos >40 chars | v15 - Traducción via worker v34 (Google Translate + KV cache): sin límites IP, caché permanente en Cloudflare KV; campos traducidos: Description, Electric_panel, Water_valve, BBQ | v14 - Traducción automática MyMemory para campos Caspio (Description, Electric_panel, Water_valve, BBQ); caché en memoria; async al cambiar idioma y al cargar; fallback al original si falla la API | v13 - Quitar título duplicado hospital; búsqueda reescrita sin innerHTML restore (preserva event listeners y datos Caspio); estilos detail=13px var(--mid) line-height:1.5 igual que heroWelcomeP | v12 - Búsqueda live 3 chars, input x3 visible sin botón Buscar; hospital: quitar label, flecha 22px, HOSPITAL/CENTROS DE SALUD fijos, botón único azul ¿dónde acudir? con popup combined; 061 53px/18px | v11 - tel/WA misma altura (svg 20px, font-weight:400); 061 sin sombra; hero texto centrado verticalmente, gap logo-texto x2 (40px); info-strip setInfoVal con click popup para textos largos; búsqueda con input expandible + flechas arriba/abajo + ✕ | v10 - Logo x2 (144px); lang btns top-right absoluto en hero; popup centrado arrastrable (drag por barra título, nunca sale por arriba); texto largo en about-items → popup; popup hospital/centros salud también arrastrable | v09 - CSS botones: .phone-link cápsula azul #007bff con SVG tel blanco; .wa verde #25D366 con SVG WA; .emerg círculo rojo #df0a1d; mgr-btn mismo estilo; renderManager con SVGs; links transport #007bff | v08 - Quitar langBar sticky; hero con logo grande izq + texto der; botones idioma bajo el hero; phone-link pill azul redondeado con icono tel blanco svg; 061 círculo rojo; urgencias mantiene rojo | v07 - Quitar subtitle hero; "Manual de" en lugar de "Bienvenidos a"; noPartiesTag fondo blanco; wifi-badge gris; phone-link azul con texto blanco; bookings_name=3Villas; quitar tel equipo atención sanitaria; hospital desplegable con popup info multiidioma; transportes links clicables + phone-link; taxis phone-link | v06 - Rediseño visual: fondo blanco en toda la página, logo-negro.png, sin fondos oscuros; tarjetas con borde sutil; wifi-badge en rojo claro; botones teléfono/WA en verde claro; nav-tab sticky bajo langBar | v05 - Usa Vi_villas_users: una llamada al worker con JOIN TaVillas+TaUsers; campos Manager_Name/Manager_phone del JOIN; eliminado fetchUser; corregidos nombres de campos Beach/Restaurant/Supermarket_distance | v04 - Wifi usa Wifi_user; manager de TaUsers por KeyHolder_person (UserID→Name+phone); teléfono internacional + botón WhatsApp; segundo contacto "Equipo de reservas" con +34659933434; farmacia usa Pharmacy_distance; hospital bloque fijo con todos los centros de Menorca con links Google Maps; "Bienvenidos a" (sin al); reglas y textos se traducen en todos los idiomas con arrays por idioma | v03 - Página completamente pública sin auth | v02 - Logo imagen; fix fetch con Auth.url | v01 - versión inicial -->
