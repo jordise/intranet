@@ -156,7 +156,7 @@ function makeCard() {
     fnSource('esCancelada'), fnSource('esPropietario'), fnSource('arrivalOk'), fnSource('ecotasaOk'),
     fnSource('fianzaFalta'), fnSource('fianzaOk'), fnSource('fianzaLabel'),
     fnSource('calcPaymentItems'), fnSource('paymentsLineHTML'),
-    fnSource('nerUrl'), fnSource('mkBadge'), fnSource('buildCard'),
+    fnSource('nerUrl'), fnSource('mkBadge'), fnSource('horasHtml'), fnSource('buildCard'),
     'return function(r,t){var el=buildCard(r,t);return {html:el.innerHTML,cls:el.className};};'
   ].join('\n');
   return new Function(body)();
@@ -244,9 +244,9 @@ ok('hay un estilo .lbl-cancel rojo', /\.lbl-cancel\{[^}]*background:var\(--red-l
 console.log('\n== 6. Version e historial ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v155', /VERSIÓN ACTUAL: v155/.test(linea3), linea3);
-ok('PAGE_VERSION dice v155', /const PAGE_VERSION='v155';/.test(SRC));
-ok('el titulo dice v155', /<title>Entradas Equipo v155/.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v156', /VERSIÓN ACTUAL: v156/.test(linea3), linea3);
+ok('PAGE_VERSION dice v156', /const PAGE_VERSION='v156';/.test(SRC));
+ok('el titulo dice v156', /<title>Entradas Equipo v156/.test(SRC));
 ok('el historial lleva v154 y conserva v153', /\| v154 - /.test(SRC) && /\| v153 - /.test(SRC) && SRC.indexOf('<!-- HISTORIAL: v154 - ') < SRC.indexOf('| v153 - '));
 ok('el historial de v154 cita a Toni y la prueba', /\| v154 - [^|]*Toni Segui[^|]*16:41[^|]*entradas-canceladas-busqueda\.test\.js/.test(SRC));
 ok('no se guarda nada nuevo: ninguna clave nueva de canceladas en localStorage o URL', !/localStorage[^\n]{0,80}cancel|params\.set\('canc/i.test(SRC.slice(0, SRC.indexOf('<!-- HISTORIAL: '))));
