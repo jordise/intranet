@@ -141,6 +141,20 @@ async function runShare(opt) {
   ok('ejecuta v34: pestaña en segundo plano -> no llama al Worker (la fecha si se mira)', w9.fetches === 0 && w9.villa.Wifi_password === 'secret', JSON.stringify(w9));
   var w9b = await runWifi({ now: NOW, hidden: true, villa: { stayTo: '2026-10-25' } });
   ok('ejecuta v34: pestaña en segundo plano pasada la salida -> candado igual', w9b.villa.restricted === true && w9b.fetches === 0, JSON.stringify(w9b));
+  /* Astra 26 §3: el Worker dice 401 (sin acceso) -> candado, no es "sin red" */
+  var w10 = await runWifi({ now: NOW, force: true, denied: 'HTTP 401', villa: { stayTo: '2026-10-27' } });
+  ok('ejecuta v34: la lectura vuelve 401 (acceso retirado) -> candado', w10.fetches === 1 && w10.villa.restricted === true && !('Wifi_password' in w10.villa), JSON.stringify(w10));
+  var w10b = await runWifi({ now: NOW, force: true, denied: 'HTTP 403', villa: {} });
+  ok('ejecuta v34: la lectura vuelve 403 -> candado (tambien sesion del equipo)', w10b.villa.restricted === true, JSON.stringify(w10b));
+  var w10c = await runWifi({ now: NOW, force: true, denied: 'HTTP 503', villa: { stayTo: '2026-10-27' } });
+  ok('ejecuta v34: Worker caido (503) dentro de las fechas -> la clave sigue', w10c.villa.Wifi_password === 'secret', JSON.stringify(w10c));
+  /* Astra 26 §4: un portapapeles que falla tarde para B1 no abre la ventana de B1 despues de copiar B2 */
+  var RF = await runClipLate();
+  ok('ejecuta v34: B1 falla tarde en el portapapeles despues de copiar B2 -> sin ventana de B1', RF.prompts.length === 0 && /k=K\.B2$/.test(RF.written[RF.written.length - 1]) && /11\/2026/.test(RF.msg), JSON.stringify(RF));
+  /* Astra 26: translateCaspioFields no tapa t() con el texto traducido */
+  var TC = await runTranslate();
+  ok('ejecuta v34: cambiar de idioma traduce la distancia al restaurante sin "t is not a function"', !TC.error && TC.rest === 'TR:Restaurante a 2 km' && TC.grid === 'TR:Restaurante a 2 km', JSON.stringify(TC));
+  ok('v34: translateCaspioFields sin function(t)', !/function\(t\)/.test(fnSource(SRC, 'translateCaspioFields')));
   var w8 = await runWifi({ now: NOW, force: true, villa: { restricted: true, stay: 'before' } });
   ok('ejecuta v34: ya restringido -> no hace nada', w8.fetches === 0, JSON.stringify(w8));
 
@@ -177,6 +191,44 @@ async function runRace(mode) {
   return { copied: copied };
 }
 
+/* Astra 26 §4: el portapapeles de B1 falla tarde, despues de que B2 ya se copio */
+async function runClipLate() {
+  var written = [], prompts = [], pending = {}, clip = {};
+  var els = {};
+  function el(id) { if (!els[id]) els[id] = { id: id, style: {}, textContent: '', value: '', options: [], innerHTML: '',
+    appendChild: function (o) { this.options.push(o); if (!this.value) this.value = o.value; } }; return els[id]; }
+  var doc = { getElementById: el, createElement: function () { return { value: '', text: '', disabled: false }; } };
+  var fakeFetch = function (u, init) {
+    var body = JSON.parse((init && init.body) || '{}');
+    if (!body.bookingCode) return Promise.resolve({ status: 200, ok: true, json: function () { return Promise.resolve({ bookings: [{ code: 'B1', name: 'Ana', from: '2026-10-23', to: '2026-10-26' }, { code: 'B2', name: 'Luis', from: '2026-11-01', to: '2026-11-05' }] }); } });
+    return new Promise(function (res) { pending[body.bookingCode] = function () { res({ status: 200, ok: true, json: function () { return Promise.resolve({ k: 'K.' + body.bookingCode, from: body.bookingCode === 'B1' ? '2026-10-23' : '2026-11-01', to: body.bookingCode === 'B1' ? '2026-10-26' : '2026-11-05' }); } }); }; });
+  };
+  var nav = { clipboard: { writeText: function (x) { written.push(x); if (/B1$/.test(x)) return new Promise(function (r, j) { clip.B1 = function () { j(new Error('sin permiso')); }; }); return Promise.resolve(); } } };
+  var loc = { origin: 'https://www.3villas.com', pathname: '/intranet/manual-villa.html' };
+  var tS = 'var _T={share_btn:"COPY",share_ok:"OK {from} {to}",share_pick:"PICK",share_none:"NONE"};function t(k){return _T[k];}';
+  var tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
+  var run = new Function('document', 'fetch', 'navigator', 'location', 'WORKER', '_hwId', '_authTok', 'window', 'pending', 'clip', 'tick',
+    tS + 'var _shareSeq=0;' + fnSource(SRC, 'fmtDay') + ';async ' + fnSource(SRC, 'loadShareBookings') + ';async ' + fnSource(SRC, 'copyGuestLink') +
+    ';return async function(){ await loadShareBookings(); var sel=document.getElementById("shareSel"); sel.value="B1"; var p1=copyGuestLink();' +
+    ' pending.B1(); await tick(); sel.value="B2"; var p2=copyGuestLink(); pending.B2(); await p2; clip.B1(); await p1; };');
+  await run(doc, fakeFetch, nav, loc, 'https://www.3villas.com/intranet/api', '4242', 'STAFF', { prompt: function (a, b) { prompts.push(b); } }, pending, clip, tick)();
+  return { written: written, prompts: prompts, msg: el('shareMsg').textContent };
+}
+
+/* Astra 26: translateCaspioFields con un DOM y una traduccion de mentira */
+async function runTranslate() {
+  var els = {}; function el(id) { if (!els[id]) els[id] = { id: id, style: {}, textContent: '', onclick: null }; return els[id]; }
+  var gridVal = { textContent: 'Restaurante a 2 km' };
+  var item = { querySelector: function (s) { return s === '.about-item-label' ? { textContent: 'Restaurante' } : gridVal; } };
+  var doc = { getElementById: el, querySelectorAll: function () { return [item]; } };
+  var src = 'var _T={restaurant:"Restaurante",beach:"Playa",supermarket:"Super",pharmacy:"Farmacia",airport:"Aeropuerto"};function t(k){return _T[k]||k;}' +
+    'async function translateText(x){ return "TR:"+x; } function showTextPopup(){}' +
+    'async ' + fnSource(SRC, 'translateCaspioFields') + ';return async function(){ await translateCaspioFields("en"); };';
+  try { await new Function('document', '_villa', src)(doc, { Restaurant_distance: 'Restaurante a 2 km' })(); }
+  catch (e) { return { error: String(e && e.message || e) }; }
+  return { rest: el('infoRest').textContent, grid: gridVal.textContent };
+}
+
 /* v34: wifiCheck con un reloj, un DOM y un fetchVilla de mentira */
 async function runWifi(opt) {
   var els = {}; function el(id) { if (!els[id]) els[id] = { id: id, style: {}, textContent: '' }; return els[id]; }
@@ -185,7 +237,7 @@ async function runWifi(opt) {
   var st = { closed: false, fetches: 0 };
   var villa = Object.assign({ Wifi_user: 'Red', Wifi_password: 'secret' }, opt.villa || {});
   if (villa.restricted) delete villa.Wifi_password;
-  var fv = function () { st.fetches++; return opt.offline ? Promise.reject(new Error('sin red')) : Promise.resolve(Object.assign({}, opt.reply)); };
+  var fv = function () { st.fetches++; if (opt.denied) return Promise.reject(new Error(opt.denied)); return opt.offline ? Promise.reject(new Error('sin red')) : Promise.resolve(Object.assign({}, opt.reply)); };
   var NOWv = opt.now;
   var RD = Date;
   function FD(a) { return arguments.length ? new RD(a) : new RD(NOWv); }
