@@ -161,10 +161,15 @@ eq('dinero: miles con punto, decimales con coma', [P.fmtMoney(1234567.891), P.fm
 var csv = P.buildCsv(P.sortDetail([bk, bkNo, n0]));
 ok('CSV empieza con BOM', csv.charCodeAt(0) === 0xFEFF);
 var lines = csv.slice(1).split('\r\n');
-eq('cabecera exacta (v2: Huésped al final)', lines[0], 'Nº villa;Villa;Check-in;Check-out;Noches;Fecha reserva;Canal;Precio total;Precio neto;Precio/día;Precio neto/día;Código;Huésped');
-eq('fila Booking.com', lines[1], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;1700,00;285,71;242,86;5000001;');
-eq('fila sin comisión: neto vacío', lines[2], '12;Villa Prueba;10/07/2026;17/07/2026;7;01/02/2026;Booking.com;2000,00;;285,71;;5000001;');
-eq('fila 0 noches: por día vacío', lines[3], '12;Villa Prueba;10/07/2026;17/07/2026;0;01/02/2026;Directa;1400,00;1400,00;;;5000001;');
+eq('cabecera exacta (v9: Huésped detrás de Villa, Fecha reserva delante de Código; Marta 25/10/2026)', lines[0], 'Nº villa;Villa;Huésped;Check-in;Check-out;Noches;Canal;Precio total;Precio neto;Precio/día;Precio neto/día;Fecha reserva;Código');
+eq('fila Booking.com', lines[1], '12;Villa Prueba;;10/07/2026;17/07/2026;7;Booking.com;2000,00;1700,00;285,71;242,86;01/02/2026;5000001');
+eq('fila sin comisión: neto vacío', lines[2], '12;Villa Prueba;;10/07/2026;17/07/2026;7;Booking.com;2000,00;;285,71;;01/02/2026;5000001');
+eq('fila 0 noches: por día vacío', lines[3], '12;Villa Prueba;;10/07/2026;17/07/2026;0;Directa;1400,00;1400,00;;;01/02/2026;5000001');
+var csvG = P.buildCsv([Object.assign({}, bk, { guest: 'Ana López' })]).slice(1).split('\r\n');
+eq('v9: el huésped va en la tercera celda, entre Villa y Check-in', csvG[1].split(';')[2], 'Ana López');
+eq('v9: la fecha de reserva va en la penúltima celda, delante del código', csvG[1].split(';').slice(-2), ['01/02/2026', '5000001']);
+eq('v9: el Excel usa las mismas columnas que el CSV, en el mismo orden', P.detailMatrix([Object.assign({}, bk, { guest: 'Ana López' })])[0],
+  ['12', 'Villa Prueba', 'Ana López', '10/07/2026', '17/07/2026', 7, 'Booking.com', 2000, 1700, 285.71, 242.86, '01/02/2026', '5000001']);
 eq('un ; en el nombre va entre comillas', P.csvCell('Villa; "A"'), '"Villa; ""A"""');
 eq('un texto que empieza por = no se ejecuta en Excel (apostrofo delante)', P.csvCell('=1+1'), "'=1+1");
 eq('un telefono con + delante se queda como esta (solo digitos y espacios)', P.csvCell('+34 600 000 000'), '+34 600 000 000');
@@ -186,7 +191,7 @@ eq('un texto que empieza por - o + seguido de letras lleva apostrofo', P.csvCell
   ok('Copiar tabla: sin tabuladores dentro de una celda', lines[1].split('\t').length === VILLA_FILE_HEADERS_LEN);
 })();
 eq('un numero normal no cambia', P.csvCell('1.234,50'), '1.234,50');
-eq('Excel: números como números, fechas como texto', P.detailMatrix([bk])[0], ['12', 'Villa Prueba', '10/07/2026', '17/07/2026', 7, '01/02/2026', 'Booking.com', 2000, 1700, 285.71, 242.86, '5000001', '']);
+eq('Excel: números como números, fechas como texto', P.detailMatrix([bk])[0], ['12', 'Villa Prueba', '', '10/07/2026', '17/07/2026', 7, 'Booking.com', 2000, 1700, 285.71, 242.86, '01/02/2026', '5000001']);
 eq('nombres de archivo', [P.fileName('2026-01-01', '2026-12-31', '', 'xlsx'), P.fileName('2026-01-01', '2026-12-31', '12', 'csv')],
   ['informe-reservas-2026-01-01-2026-12-31.xlsx', 'informe-reservas-villa-12-2026-01-01-2026-12-31.csv']);
 
@@ -236,8 +241,8 @@ eq('cabeceras de la ficha (huésped primero, luego Marta)', P.VILLA_DETAIL_HEADE
   ['Huésped', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Personas', 'Pago', 'Código']);
 eq('detalle global en pantalla: Huésped justo detrás de Canal', P.DETAIL_HEADERS,
   ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Huésped', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código']);
-eq('fichero global: columnas de Marta, Villa, Código y Huésped al final', P.FILE_HEADERS,
-  ['Nº villa', 'Villa', 'Check-in', 'Check-out', 'Noches', 'Fecha reserva', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Código', 'Huésped']);
+eq('fichero global (v9, Marta 25/10/2026): Huésped entre Villa y Check-in, Fecha reserva entre Precio neto/día y Código', P.FILE_HEADERS,
+  ['Nº villa', 'Villa', 'Huésped', 'Check-in', 'Check-out', 'Noches', 'Canal', 'Precio total', 'Precio neto', 'Precio/día', 'Precio neto/día', 'Fecha reserva', 'Código']);
 var vcsv = P.buildVillaCsv([gr, di]);
 ok('CSV de la villa empieza con BOM', vcsv.charCodeAt(0) === 0xFEFF);
 var vl = vcsv.slice(1).split('\r\n');
@@ -291,8 +296,8 @@ eq('resumen por villa: propietario en reservas, noches y Prop.; medias con noche
 eq('resumen por villa: villa sin propietario = Prop. 0', vsO.filter(function (v) { return v.villaKey === 'V3'; })[0].propietario, 0);
 eq('cabecera del resumen: Prop. detrás de Noches (v4: Ocup. detrás de Prop.; v6: Apertura detrás de Ocup.)', P.VILLA_HEADERS, ['Nº villa', 'Villa', 'Reservas', 'Noches', 'Prop.', 'Ocup.', 'Apertura', 'Total €', 'Neto €', '€/noche', 'Neto €/noche']);
 eq('hoja "Por villa": Prop. en su columna (v4: Ocup. vacía sin ventana; v6: Apertura vacía sin ventana)', P.villaMatrix([v12])[0], ['12', 'Villa Prueba', 4, 26, 1, '', '', 4800, 2650, 228.57, 189.29]);
-eq('fichero global: fila de propietario', P.buildCsv([own]).slice(1).split('\r\n')[1], '12;Villa Prueba;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;8001;PROPIETARIA');
-eq('Excel global: fila de propietario', P.detailMatrix([own])[0], ['12', 'Villa Prueba', '01/09/2026', '06/09/2026', 5, '01/02/2026', 'Propietario', 0, 0, '', '', '8001', 'PROPIETARIA']);
+eq('fichero global: fila de propietario', P.buildCsv([own]).slice(1).split('\r\n')[1], '12;Villa Prueba;PROPIETARIA;01/09/2026;06/09/2026;5;Propietario;0,00;0,00;;;01/02/2026;8001');
+eq('Excel global: fila de propietario', P.detailMatrix([own])[0], ['12', 'Villa Prueba', 'PROPIETARIA', '01/09/2026', '06/09/2026', 5, 'Propietario', 0, 0, '', '', '01/02/2026', '8001']);
 eq('fichero de la villa: fila de propietario, Pago vacío', P.buildVillaCsv([own]).slice(1).split('\r\n')[1], 'PROPIETARIA;01/09/2026;06/09/2026;5;01/02/2026;Propietario;0,00;0,00;;;;;8001;;');
 var ownHtml = P.villaDetailRowHtml(own), ownCells = cells(ownHtml);
 ok('ficha: propietario sin tachar', /^<tr>/.test(ownHtml), ownHtml.slice(0, 40));
@@ -502,8 +507,8 @@ ok('las fechas siguen siendo editables a mano (inputs type=date sin readonly ni 
 console.log('Página');
 var VIVO = SRC.replace(/<!--[\s\S]*?-->/g, '');
 ok('gate Auth.require(informe-reservas)', /<script>Auth\.require\('informe-reservas'\);<\/script>/.test(SRC));
-ok('versión v8 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v8 | Historial completo al final -->' && /PAGE_VERSION = 8;/.test(SRC) && /<title>Informe de reservas v8/.test(SRC) &&
-  SRC.indexOf("'[Informe reservas v8]'") > 0 && SRC.indexOf('PAGE_VERSION = 7;') < 0 && SRC.indexOf("'[Informe reservas v7]'") < 0);
+ok('versión v9 en cabecera (línea 3), PAGE_VERSION, título y etiqueta de consola', SRC.split('\n')[2] === '<!-- VERSIÓN ACTUAL: v9 | Historial completo al final -->' && /PAGE_VERSION = 9;/.test(SRC) && /<title>Informe de reservas v9/.test(SRC) &&
+  SRC.indexOf("'[Informe reservas v9]'") > 0 && SRC.indexOf('PAGE_VERSION = 8;') < 0 && SRC.indexOf("'[Informe reservas v8]'") < 0);
 ok('v8: aviso del neto nombra Vrbo y el 15 %', SRC.indexOf('(Booking.com y Airbnb; Vrbo: 15 % del precio total)') > 0);
 ok('HISTORIAL v8: pedido de Marta (Vrbo 15 %)', (function () { var h = SRC.trim().split('\n').pop(); return /^<!-- HISTORIAL: v8 - 23\/10\/2026 /.test(h) &&
   h.indexOf('Las reservas de VRBO tienen una comision del 15%') > 0 && h.indexOf('de la columna que pone PRECIO TOTAL hay que restarle un 15%') > 0; })());
