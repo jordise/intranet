@@ -68,7 +68,7 @@ ok('buildCard ya no pinta Llegan a Menorca por su cuenta', card.indexOf('Llegan 
 ok('CSS .times-grid', /\.times-grid\{[^}]*grid-template-columns:1fr auto 1fr/.test(SRC));
 ok('CSS movil .times-grid 1fr 1fr', /@media\(max-width:700px\)\{[^\n]*\.times-grid\{grid-template-columns:1fr 1fr\}/.test(SRC));
 ok('CSS .npill-ghost invisible', /\.npill-ghost\{visibility:hidden\}/.test(SRC));
-ok('version v156', SRC.indexOf("PAGE_VERSION='v156'") >= 0 && SRC.indexOf('VERSIÓN ACTUAL: v156') >= 0);
+ok('version v157', SRC.indexOf("PAGE_VERSION='v157'") >= 0 && SRC.indexOf('VERSIÓN ACTUAL: v157') >= 0);
 
 console.log('\n' + pass + ' pasan, ' + fail + ' fallan');
 process.exit(fail ? 1 : 0);

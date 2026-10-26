@@ -151,12 +151,14 @@ function makeCard() {
     'function getCleanerName(){return "";}', 'function getManagerName(){return "VM";}',
     'function starBadgeHTML(){return "";}', 'function canNotas(){return true;}',
     'function buildWACheckoutMsg(){return "hola";}',
+    /* v157: buildCard pinta la fila Propietario; aqui sin rol ni villa manager, la fila no sale */
+    'var contactsInfo=new Map(),villaOwnersMap=new Map(),Auth={role:function(){return "";}},window={};',
     fnSource('g'), fnSource('isOk'), fnSource('_lvNum'), fnSource('_lvBool1'), fnSource('nightsN'), fnSource('fmtDate'),
     fnSource('stClass'), fnSource('cleanPhone'), fnSource('useArrival'), fnSource('getMuNames'),
     fnSource('esCancelada'), fnSource('esPropietario'), fnSource('arrivalOk'), fnSource('ecotasaOk'),
     fnSource('fianzaFalta'), fnSource('fianzaOk'), fnSource('fianzaLabel'),
     fnSource('calcPaymentItems'), fnSource('paymentsLineHTML'),
-    fnSource('nerUrl'), fnSource('mkBadge'), fnSource('horasHtml'), fnSource('buildCard'),
+    fnSource('nerUrl'), fnSource('mkBadge'), fnSource('horasHtml'), fnSource('puedeVerPropietario'), fnSource('escP'), fnSource('propietarioHtml'), fnSource('buildCard'),
     'return function(r,t){var el=buildCard(r,t);return {html:el.innerHTML,cls:el.className};};'
   ].join('\n');
   return new Function(body)();
@@ -244,9 +246,9 @@ ok('hay un estilo .lbl-cancel rojo', /\.lbl-cancel\{[^}]*background:var\(--red-l
 console.log('\n== 6. Version e historial ==');
 
 var linea3 = SRC.split('\n')[2];
-ok('la cabecera dice VERSION ACTUAL v156', /VERSIÓN ACTUAL: v156/.test(linea3), linea3);
-ok('PAGE_VERSION dice v156', /const PAGE_VERSION='v156';/.test(SRC));
-ok('el titulo dice v156', /<title>Entradas Equipo v156/.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v157', /VERSIÓN ACTUAL: v157/.test(linea3), linea3);
+ok('PAGE_VERSION dice v157', /const PAGE_VERSION='v157';/.test(SRC));
+ok('el titulo dice v157', /<title>Entradas Equipo v157/.test(SRC));
 ok('el historial lleva v154 y conserva v153', /\| v154 - /.test(SRC) && /\| v153 - /.test(SRC) && SRC.indexOf('<!-- HISTORIAL: v154 - ') < SRC.indexOf('| v153 - '));
 ok('el historial de v154 cita a Toni y la prueba', /\| v154 - [^|]*Toni Segui[^|]*16:41[^|]*entradas-canceladas-busqueda\.test\.js/.test(SRC));
 ok('no se guarda nada nuevo: ninguna clave nueva de canceladas en localStorage o URL', !/localStorage[^\n]{0,80}cancel|params\.set\('canc/i.test(SRC.slice(0, SRC.indexOf('<!-- HISTORIAL: '))));

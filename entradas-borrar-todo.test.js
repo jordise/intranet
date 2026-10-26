@@ -39,8 +39,8 @@ ok('clearAll empieza por resetSistema', clearSrc.indexOf('resetSistema()') >= 0)
 console.log('2. Boton en el HTML');
 ok('boton Borrar todo presente', /onclick="borrarTodo\(\)"[^>]*>Borrar todo</.test(SRC));
 ok('tooltip de la X cambiado', SRC.indexOf('title="Volver a mis valores por defecto"') >= 0);
-ok('version v156 en las tres marcas',
-  SRC.indexOf('VERSIÓN ACTUAL: v156') >= 0 && SRC.indexOf('Entradas Equipo v156') >= 0 && SRC.indexOf("PAGE_VERSION='v156'") >= 0);
+ok('version v157 en las tres marcas',
+  SRC.indexOf('VERSIÓN ACTUAL: v157') >= 0 && SRC.indexOf('Entradas Equipo v157') >= 0 && SRC.indexOf("PAGE_VERSION='v157'") >= 0);
 
 console.log('2b. borrarTodo (v155): vacia las fechas y no busca solo');
 ok('borrarTodo vacia fDesde y fHasta', /\$\('fDesde'\)\.value='';/.test(borrarSrc) && /\$\('fHasta'\)\.value='';/.test(borrarSrc));
