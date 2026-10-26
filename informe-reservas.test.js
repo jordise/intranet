@@ -170,6 +170,11 @@ eq('v9: el huésped va en la tercera celda, entre Villa y Check-in', csvG[1].spl
 eq('v9: la fecha de reserva va en la penúltima celda, delante del código', csvG[1].split(';').slice(-2), ['01/02/2026', '5000001']);
 eq('v9: el Excel usa las mismas columnas que el CSV, en el mismo orden', P.detailMatrix([Object.assign({}, bk, { guest: 'Ana López' })])[0],
   ['12', 'Villa Prueba', 'Ana López', '10/07/2026', '17/07/2026', 7, 'Booking.com', 2000, 1700, 285.71, 242.86, '01/02/2026', '5000001']);
+/* v9: los anchos de la hoja "Reservas" van por posición; al mover Huésped y Fecha reserva, los anchos se mueven con ellas. */
+var reservasCols = (function(){ var m = SRC.match(/ws1\['!cols'\] = \[([^\]]*)\]/); return m ? m[1].split(',').map(function(x){ return Number(x.trim()); }) : []; })();
+eq('v9: la hoja Reservas tiene un ancho por columna de FILE_HEADERS', reservasCols.length, P.FILE_HEADERS.length);
+eq('v9: anchos en el orden nuevo (Huésped 26 en la 3ª, Check-in y Check-out 11, Noches 7, Fecha reserva 12, Código 12 al final)', reservasCols,
+  [6, 28, 26, 11, 11, 7, 13, 12, 12, 11, 12, 12, 12]);
 eq('un ; en el nombre va entre comillas', P.csvCell('Villa; "A"'), '"Villa; ""A"""');
 eq('un texto que empieza por = no se ejecuta en Excel (apostrofo delante)', P.csvCell('=1+1'), "'=1+1");
 eq('un telefono con + delante se queda como esta (solo digitos y espacios)', P.csvCell('+34 600 000 000'), '+34 600 000 000');
