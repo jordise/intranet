@@ -320,10 +320,10 @@ ok('v148: transferencia con el flag de cobro sale pagada', _dep(E.calcPaymentIte
 ok('v148: la tarjeta (opcion 2) con solo Terminado NO sale pagada', _dep(E.calcPaymentItems(res({ TaBookings2021_Security_deposit_options: '2', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' }))).paid === false);
 ok('v148: PAGOS y la insignia cuentan lo mismo para la 65513925', E.fianzaFalta(res({ TaBookings2021_Security_deposit_options: '3', TaBookings2021_Security_deposit_EUR: '900', TaBookings2021_Security_deposit_cobrado: '0', TaBookings2021_Security_deposit_terminado: 'Yes' })) === '');
 
-ok('la cabecera dice VERSION ACTUAL v156', /VERSIÓN ACTUAL: v156/.test(linea3), linea3);
-ok('PAGE_VERSION dice v156', /const PAGE_VERSION='v156';/.test(SRC));
-ok('el titulo dice v156', /<title>Entradas Equipo v156/.test(SRC));
-ok('el historial recoge v156 y conserva v155, v154, v153, v152, v151, v149, v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v156 - /.test(SRC) && /\| v155 - /.test(SRC) && /\| v154 - /.test(SRC) && /\| v153 - /.test(SRC) && /\| v152 - /.test(SRC) && /\| v151 - /.test(SRC) && /\| v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
+ok('la cabecera dice VERSION ACTUAL v157', /VERSIÓN ACTUAL: v157/.test(linea3), linea3);
+ok('PAGE_VERSION dice v157', /const PAGE_VERSION='v157';/.test(SRC));
+ok('el titulo dice v157', /<title>Entradas Equipo v157/.test(SRC));
+ok('el historial recoge v157 y conserva v156, v155, v154, v153, v152, v151, v149, v148, v147, v146, v145, v144 y v143', /<!-- HISTORIAL: v157 - /.test(SRC) && /\| v156 - /.test(SRC) && /\| v155 - /.test(SRC) && /\| v154 - /.test(SRC) && /\| v153 - /.test(SRC) && /\| v152 - /.test(SRC) && /\| v151 - /.test(SRC) && /\| v149 - /.test(SRC) && /\| v148 - /.test(SRC) && /\| v147 - /.test(SRC) && /\| v146 - /.test(SRC) && /\| v145 - /.test(SRC) && /\| v144 - /.test(SRC) && /\| v143 - /.test(SRC));
 ok('el historial de v144 nombra los seis arreglos',
   ['(G2)', '(G4)', '(G7)', '(G8)', '(G10)', '(G11)'].every(function (gg) {
     return SRC.indexOf('| v144 - ') > 0 && SRC.slice(SRC.indexOf('| v144 - ')).indexOf(gg) > 0;

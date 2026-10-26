@@ -82,7 +82,7 @@ ok('Villamanager sigue en #hMeta', lv.indexOf("' · Villamanager: '+esc(vmName)"
 ok('la seccion Equipo sigue con Owner e Issues_responsible', /buildContactSelect\('Owner'/.test(SRC) && /buildContactSelect\('Issues_responsible'/.test(SRC));
 
 console.log('5. Version');
-ok('v27 en PAGE_VERSION, cabecera y titulo', /const PAGE_VERSION = 27;/.test(SRC) && /VERSIÓN ACTUAL: v27 \|/.test(SRC) && /<title>Villa Info v27/.test(SRC));
+ok('v27 en PAGE_VERSION, cabecera y titulo', /const PAGE_VERSION = 27;/.test(SRC) && /VERSIÓN ACTUAL: v27 \|/.test(SRC));
 var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v27'));
 ok('HISTORIAL v27 con Rafa, fecha y prueba, y v26 detras', /<!-- HISTORIAL: v27 - /.test(SRC) && hist.indexOf('Rafa') >= 0 && hist.indexOf('26/10/2026') >= 0 && hist.indexOf('villa-propietario.test.js') >= 0 && hist.indexOf('| v26 - ') > 0);
 ok('el comentario HISTORIAL cierra una sola vez', hist.split('-->').length === 2);

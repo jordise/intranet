@@ -75,7 +75,7 @@ var sEdit = checkPage('editar-villa.html', 30, /<title>Editar Villa v(\d+)/);
   ok('el historial v30 a v26 no lleva nombres de personas ajenas ni horas', !/Amanda|\d{1,2}:\d{2}/.test(sEdit.slice(sEdit.indexOf('<!-- HISTORIAL: v30'), sEdit.indexOf('| v25 - '))));
 })();
 
-checkPage('villa.html', 26, /<title>Villa Info v(\d+)/);
+checkPage('villa.html', 27, /<title>Villa Info v(\d+)/);
 
 /* los pines de version de otras pruebas no apuntan a estas dos paginas */
 (function () {
