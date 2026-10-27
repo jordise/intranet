@@ -159,9 +159,12 @@ ok('partirEstancia sin nombre', ctx.partirEstancia('algo').nombre === '' && ctx.
 ok('filaVacia', ctx.filaVacia({ estado: '', texto_1: ' ', texto_2: '', prioridad: '', foto_url: '' }) === true && ctx.filaVacia({ prioridad: 'Alta' }) === false && ctx.filaVacia(undefined) === true);
 
 console.log('9. Pagina');
-ok('VERSIÓN ACTUAL: v3 en las 5 primeras lineas', /VERSIÓN ACTUAL: v3 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
-ok('PAGE_VERSION = 3', /const PAGE_VERSION = 3;/.test(SRC));
-ok('titulo v3', SRC.indexOf('<title>Informe de temporada v3 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v4 en las 5 primeras lineas', /VERSIÓN ACTUAL: v4 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
+ok('PAGE_VERSION = 4', /const PAGE_VERSION = 4;/.test(SRC));
+ok('titulo v4', SRC.indexOf('<title>Informe de temporada v4 — 3Villas</title>') > 0);
+/* v4: un <select> que solo dispara 'change' (prioridad, origen) tambien guarda */
+ok('select change: el manejador de change trata un <select> con data-campo como escritura (alEscribir)', /addEventListener\('change'[\s\S]{0,400}t\.tagName==='SELECT'&&t\.dataset&&t\.dataset\.campo\)return alEscribir\(e\)/.test(SRC));
+ok('HISTORIAL v4 presente', /<!-- HISTORIAL: v4 - 27\/10\/2026/.test(SRC));
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('toast "No guardado: "', SRC.indexOf("'No guardado: '") > 0);
 ok('.barra[hidden]{display:none} (la barra no sale sobre "Sin acceso" ni al cargar)', SRC.indexOf('.barra[hidden]{display:none}') > 0);
