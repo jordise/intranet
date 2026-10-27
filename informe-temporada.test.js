@@ -1,5 +1,8 @@
-/* Pruebas del informe de fin de temporada (informe-temporada.html v2, Jordi 27/10/2026; ejemplo en papel de Rafa,
+/* Pruebas del informe de fin de temporada (informe-temporada.html v3, Jordi 27/10/2026; ejemplo en papel de Rafa,
    villa Cielos Azules). node informe-temporada.test.js
+   v3 (ronda de arreglos 2, Gary 27/10/2026: "no se parece al formulario"): la pantalla es la hoja de Rafa. Las partes 9,
+   10.6 y 11 prueban la maqueta nueva (titulos, cabeceras de tabla, etiquetas del PDF, movil, impresion, Alto/Medio/Bajo);
+   el resto de casos de logica y de fetch falso siguen igual.
    v2 (ronda de arreglos 1 tras las dos revisiones del 27/10/2026): sin DELETE, guardado que no se atasca ni duplica,
    lecturas con r.ok, borrador local, fotos JPEG con sufijo aleatorio y ?v=, villa manager asignado. La parte 10 carga
    el script REAL de la pagina con vm y un fetch falso (arnes-informe.js) que apunta las llamadas y falla a peticion.
@@ -72,6 +75,17 @@ ok('siete secciones y Fotos en el orden de Rafa', S.map(function (s) { return s.
 ok('titulos', S[0].titulo === '1. Resumen y actuaciones prioritarias' && S[1].titulo === '2. Interior' && S[3].titulo === '4. Seguridad e instalaciones' && S[4].titulo === '5. Incidencias por estancia' && S[5].titulo === '6. Comentarios de huéspedes y propuestas de mejora' && S[6].titulo === '7. Observaciones finales' && S[7].titulo === 'Fotos');
 var lab = {}; K.forEach(function (k) { lab[k.clave] = k.label; });
 ok('etiquetas del PDF', lab.pintura === 'Pintura interior (paredes, techos, carpintería)' && lab.wifi_tv === 'Wifi y TV' && lab.salon === 'Salón / comedor' && lab.exterior_piscina === 'Exterior / zona piscina' && lab.piscina.indexOf('Piscina (vaso') === 0);
+/* v3: las palabras exactas del PDF de Rafa (las claves no cambian) */
+var PDF_INTERIOR = ['Pintura interior (paredes, techos, carpintería)', 'Colchones y almohadas', 'Sofás, tapicerías y alfombras', 'Mobiliario y módulos de cocina', 'Menaje de cocina', 'Electrodomésticos', 'Aire acondicionado/ventiladores (equipos y mandos)', 'Puertas de entrada (cierre y entrada de agua)', 'Ventanas y contraventanas (manecillas, mecanismos)', 'Baños: grifería, duchas y mamparas', 'Desagües (atascos y olores)', 'Iluminación interior', 'Humedades y ventilación'];
+var PDF_EXTERIOR = ['Fachada y pintura exterior', 'Carpintería exterior (madera / PVC)', 'Pavimentos, escalones y rampas', 'Barreras y barandillas', 'Jardín, muros y vallas', 'Piscina (vaso, gresites, filtro / skimmer, ducha, depuradora, etc)', 'Mobiliario exterior', 'Barbacoa', 'Iluminación exterior'];
+var PDF_SEGURIDAD = ['Cerraduras y accesos', 'Instalación eléctrica (cuadro, diferencial, potencia)', 'Fontanería y agua caliente (fugas, termo, llaves de paso, contador)', 'Wifi y TV'];
+var PDF_ESTANCIAS = ['Salón / comedor', 'Cocina', 'Dormitorio principal', 'Dormitorio 2', 'Baño 1', 'Baño 2', 'Exterior / zona piscina'];
+function labs(s) { return K.filter(function (k) { return k.seccion === s; }).map(function (k) { return k.label; }); }
+ok('13 elementos de Interior con las palabras del PDF', labs('interior').join('|') === PDF_INTERIOR.join('|'), labs('interior').filter(function (l, i) { return l !== PDF_INTERIOR[i]; }).join(' / '));
+ok('9 elementos de Exterior con las palabras del PDF', labs('exterior').join('|') === PDF_EXTERIOR.join('|'), labs('exterior').filter(function (l, i) { return l !== PDF_EXTERIOR[i]; }).join(' / '));
+ok('4 elementos de Seguridad con las palabras del PDF', labs('seguridad').join('|') === PDF_SEGURIDAD.join('|'));
+ok('7 estancias con las palabras del PDF', labs('estancia').join('|') === PDF_ESTANCIAS.join('|'));
+ok('texto de ayuda de 6 como el PDF (p.ej.)', S[5].ayuda === 'Quejas o sugerencias repetidas de los huéspedes (reviews, partes o comentarios directos) y mejoras de equipamiento que aumentarían su satisfacción (p.ej., espejos, baldas).', S[5].ayuda);
 ok('estancia otra_1..5 disponibles', (S[4].extra || []).join() === 'otra_1,otra_2,otra_3,otra_4,otra_5');
 
 console.log('3. Linea -> peticion');
@@ -145,16 +159,28 @@ ok('partirEstancia sin nombre', ctx.partirEstancia('algo').nombre === '' && ctx.
 ok('filaVacia', ctx.filaVacia({ estado: '', texto_1: ' ', texto_2: '', prioridad: '', foto_url: '' }) === true && ctx.filaVacia({ prioridad: 'Alta' }) === false && ctx.filaVacia(undefined) === true);
 
 console.log('9. Pagina');
-ok('VERSIÓN ACTUAL: v2 en las 5 primeras lineas', /VERSIÓN ACTUAL: v2 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
-ok('PAGE_VERSION = 2', /const PAGE_VERSION = 2;/.test(SRC));
-ok('titulo v2', SRC.indexOf('<title>Informe de temporada v2 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v3 en las 5 primeras lineas', /VERSIÓN ACTUAL: v3 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
+ok('PAGE_VERSION = 3', /const PAGE_VERSION = 3;/.test(SRC));
+ok('titulo v3', SRC.indexOf('<title>Informe de temporada v3 — 3Villas</title>') > 0);
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('toast "No guardado: "', SRC.indexOf("'No guardado: '") > 0);
 ok('.barra[hidden]{display:none} (la barra no sale sobre "Sin acceso" ni al cargar)', SRC.indexOf('.barra[hidden]{display:none}') > 0);
 ok('debounce 800 ms al salir de una caja', /programar\(800\)/.test(fnSource(SRC, 'alSalir')) && /setTimeout\(guardarPendientes,ms\)/.test(fnSource(SRC, 'programar')));
-ok('@media print con el titulo de Rafa', SRC.indexOf('@media print') > 0 && SRC.indexOf('Informe de Fin de Temporada — Estado de la villa y puntos de mejora') > 0);
-ok('salto de pagina antes de 5 y Fotos', (SRC.match(/break-before:page/g) || []).length >= 1 && /pv-salto/.test(SRC));
-ok('titulos de seccion con break-after: avoid en la impresion', /#printView h2\{[^}]*break-after:avoid/.test(SRC));
+/* v3: la impresion es la misma maqueta que la pantalla */
+var PRINT = (function () { var i = SRC.indexOf('@media print{'); if (i < 0) return ''; var j = SRC.indexOf('{', i), d = 0, k = j; for (; k < SRC.length; k++) { if (SRC[k] === '{') d++; else if (SRC[k] === '}') { d--; if (!d) break; } } return SRC.slice(i, k + 1); })();
+var MOVIL = (function () { var i = SRC.indexOf('@media (max-width:699px){'); if (i < 0) return ''; var j = SRC.indexOf('{', i), d = 0, k = j; for (; k < SRC.length; k++) { if (SRC[k] === '{') d++; else if (SRC[k] === '}') { d--; if (!d) break; } } return SRC.slice(i, k + 1); })();
+ok('sin printHtml, sin pintarImpresion, sin #printView', SRC.indexOf('printHtml') < 0 && SRC.indexOf('pintarImpresion') < 0 && SRC.indexOf('printView') < 0);
+ok('sin "+ Añadir actuación" (las cinco filas siempre están)', SRC.indexOf('+ Añadir actuación') < 0);
+ok('Imprimir = window.print()', /window\.print\(\)/.test(fnSource(SRC, 'imprimir')));
+ok('@page A4 con márgenes 14 mm 12 mm', /@page\{size:A4;margin:14mm 12mm\}/.test(PRINT));
+ok('impresion: oculta la barra, el nav, la pastilla, los enlaces de añadir, los controles de foto y el hueco vacío', ['.barra', '.top-nav', '.pill', '.anadir', '.f-ctl', '.foto.vacia'].every(function (c) { return PRINT.indexOf(c) >= 0; }) && /display:none!important/.test(PRINT), PRINT.slice(0, 300));
+ok('impresion: filas y fotos sin cortar, titulos pegados a su tabla, cada foto en su pagina', /tr\{[^}]*break-inside:avoid/.test(PRINT) && /\.s-tit\{[^}]*break-after:avoid/.test(PRINT) && /\.foto\{[^}]*break-before:page[^}]*break-inside:avoid|\.foto\{[^}]*break-inside:avoid[^}]*break-before:page/.test(PRINT));
+ok('impresion: las cajas de texto salen como texto (sin bordes ni scroll)', /textarea\{display:none/.test(PRINT) && /\.ta-p\{display:block/.test(PRINT));
+ok('movil: bloque @media (max-width:699px) que pone la fila en rejilla de 4 y baja Observaciones a la segunda linea', MOVIL.length > 0 && /grid-template-columns:minmax\(0,1fr\) 44px 44px 44px/.test(MOVIL) && /grid-column:1\/-1/.test(MOVIL));
+ok('movil: casillas de 44 px, cajas de 16 px (sin zoom en iOS), hoja con 10 px a los lados', /min-height:44px/.test(MOVIL) && /font-size:16px/.test(MOVIL) && /\.hoja\{[^}]*padding:[^;}]*10px/.test(MOVIL));
+ok('movil: la cabecera Observaciones se oculta', /\.c-obs-h\{display:none\}|th\.c-obs\{display:none\}/.test(MOVIL));
+ok('hoja: max-width 820 px, logo de 44 px, raya roja, titulo rojo 26 px, titulos de seccion 17 px', /\.hoja\{[^}]*max-width:820px/.test(SRC) && /\.h-logo\{[^}]*height:44px/.test(SRC) && /\.h-cab\{[^}]*border-bottom:[^;}]*var\(--red\)/.test(SRC) && /\.h-tit\{[^}]*font-size:26px/.test(SRC) && /\.h-tit\{[^}]*color:var\(--red\)/.test(SRC) && /\.s-tit\{[^}]*font-size:17px/.test(SRC));
+ok('tabla: etiquetas #f2f2f2 y bordes #cfcfcf; columnas de estado de 62 px', /#f2f2f2/.test(SRC) && /#cfcfcf/.test(SRC) && /\.c-st\{[^}]*width:62px/.test(SRC));
 ok('botones Guardar, Enviar, Reabrir, Imprimir', ['💾 Guardar', '📤 Enviar', '🔓 Reabrir', '🖨️ Imprimir'].every(function (t) { return SRC.indexOf(t) > 0; }));
 var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v1 - '));
 ok('HISTORIAL v1 con Jordi, fecha, Rafa, otra_N y la prueba', SRC.indexOf('<!-- HISTORIAL: v1 - ') > 0 && hist.indexOf('Jordi') >= 0 && hist.indexOf('27/10/2026') >= 0 && hist.indexOf('Rafa') >= 0 && hist.indexOf('otra_') >= 0 && hist.indexOf('informe-temporada.test.js') >= 0);
@@ -308,22 +334,23 @@ async function pruebasConFetch() {
   ok('orden por defecto si falta', L['interior|pintura'].orden === 1);
   });
   await parte(async function () {
-  console.log('10.6 printHtml: filas vacias ocultas, saltos solo antes de 5 y Fotos, villa manager asignado');
+  console.log('10.6 La hoja: filas con datos, villa manager asignado, otra estancia, fotos');
   H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Regular', observaciones_finales: 'Todo en orden' })], TaInformeTemporadaLineas: [
     { linea_id: 1, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Malo', texto_1: 'Repintar' },
     { linea_id: 2, informe_id: 9, seccion: 'interior', clave: 'colchones', estado: '', texto_1: '' },
     { linea_id: 3, informe_id: 9, seccion: 'estancia', clave: 'otra_1', texto_1: ': Grieta' },
     { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Pie' }] }) });
   await H.ev('iniciar()');
-  var ph = H.ev('printHtml()');
-  ok('fila con datos impresa', ph.indexOf('Pintura interior') > 0 && ph.indexOf('Repintar') > 0);
-  ok('filas vacias ocultas', ph.indexOf('Colchones') < 0 && ph.indexOf('Sofás') < 0);
-  var saltos = ph.match(/<h2 class="pv-salto">[^<]*/g) || [];
-  ok('dos saltos de pagina: antes de 5 y de Fotos', saltos.length === 2 && saltos[0].indexOf('5. Incidencias por estancia') > 0 && saltos[1].indexOf('Fotos') > 0, JSON.stringify(saltos));
-  ok('otra estancia sin nombre: "Otra estancia 1" y la incidencia', ph.indexOf('Otra estancia 1') > 0 && ph.indexOf('>Grieta<') > 0);
+  var ph = H.g('main').innerHTML;
+  var filaPintura = (ph.match(/<tr[^>]*data-k="interior\|pintura"[\s\S]*?<\/tr>/) || [''])[0];
+  ok('fila con datos: Malo marcado con X, Bueno y Regular con ☐, observacion en su caja', /data-v="Malo"[^>]*>X</.test(filaPintura) && /data-v="Bueno"[^>]*>☐</.test(filaPintura) && /data-v="Regular"[^>]*>☐</.test(filaPintura) && />Repintar<\/textarea>/.test(filaPintura), filaPintura.slice(0, 400));
+  ok('las filas vacias tambien estan (como en el PDF)', ph.indexOf('Colchones y almohadas') > 0 && ph.indexOf('Sofás, tapicerías y alfombras') > 0);
+  ok('otra estancia sin nombre: fila con la estancia editable y la incidencia', /data-k="estancia\|otra_1"/.test(ph) && /data-campo="est_nombre"[^>]*value=""/.test(ph) && />Grieta<\/textarea>/.test(ph));
   ok('foto por fotoUrl con su ?v=', ph.indexOf('src="https://x.com/a.jpg?v=5"') > 0);
-  ok('Villa manager = el asignado de la villa (KeyHolder_person -> TaContacts)', /<td>Villa manager<\/td><td>Amanda Townsend<\/td>/.test(ph));
-  ok('cabecera del formulario: el villa manager asignado, no el autor', /Villa manager: <strong>Amanda Townsend<\/strong>/.test(H.g('main').innerHTML));
+  ok('Villa manager = el asignado de la villa (KeyHolder_person -> TaContacts)', /<th>Villa manager<\/th><td>Amanda Townsend<\/td>/.test(ph));
+  ok('cabecera: Villa, Fecha de revisión (fecha en la celda) y Temporada', /<th>Villa<\/th><td>Villa Cielos Azules<\/td>/.test(ph) && /<th>Fecha de revisión<\/th><td><input type="date"[^>]*value="2026-10-26"/.test(ph) && /<th>Temporada<\/th><td>2026<\/td>/.test(ph));
+  ok('estado general Regular marcado con X', /data-campo="estado_general" data-v="Regular"[^>]*><span class="cx">X<\/span> Regular/.test(ph) && /data-v="Bueno"[^>]*><span class="cx">☐<\/span> Bueno/.test(ph));
+  ok('observaciones finales en su caja', />Todo en orden<\/textarea>/.test(ph));
   ok('una lectura de TaContacts limit 500', H.S.calls.filter(function (x) { return x.table === 'TaContacts'; }).length === 1 && H.S.calls.filter(function (x) { return x.table === 'TaContacts'; })[0].limit === '500');
   });
   await parte(async function () {
@@ -429,5 +456,68 @@ async function pruebasConFetch() {
   ok('el hueco de foto lleva su punto', fh.indexOf('data-dot="foto|foto_3"') > 0 && /dot sucio/.test(fh));
   var fh2 = H.ev("fotoHtml(['foto_4','Foto 4'])");
   ok('dos inputs por hueco: 📷 Cámara (capture) y 📁 Galería (sin capture)', fh2.indexOf('📷 Cámara') > 0 && fh2.indexOf('📁 Galería') > 0 && (fh2.match(/type="file"/g) || []).length === 2 && (fh2.match(/capture=/g) || []).length === 1);
+  });
+  await parte(async function () {
+  console.log('11. La hoja de Rafa en pantalla (v3)');
+  H = pagina(); await H.ev('iniciar()');
+  var mh = H.g('main').innerHTML;
+  var TIT = ['1. Resumen y actuaciones prioritarias', '2. Interior', '3. Exterior', '4. Seguridad e instalaciones', '5. Incidencias por estancia', '6. Comentarios de huéspedes y propuestas de mejora', '7. Observaciones finales'];
+  var vistos = (mh.match(/<h2 class="s-tit">[^<]*<\/h2>/g) || []).map(function (x) { return x.replace(/<[^>]+>/g, ''); });
+  ok('los siete titulos del PDF, en orden, sin contador ni triangulo', vistos.join('|') === TIT.join('|') && mh.indexOf('<details') < 0 && mh.indexOf('data-n=') < 0, vistos.join('|'));
+  var THS = (mh.match(/<th\b[^>]*>[^<]*<\/th>/g) || []).map(function (x) { return x.replace(/<[^>]+>/g, ''); });
+  var PAL = ['Elemento', 'Bueno', 'Regular', 'Malo', 'Observaciones / acción recomendada', 'Nº', 'Actuación prioritaria', 'Motivo / impacto', 'Prioridad', 'Estancia', 'Incidencia detectada', 'Acción recomendada', 'Tema', 'Origen', 'Detalle / mejora propuesta'];
+  ok('cabeceras de tabla del PDF', PAL.every(function (w) { return THS.indexOf(w) >= 0; }), PAL.filter(function (w) { return THS.indexOf(w) < 0; }).join(', '));
+  ok('tres tablas Elemento | Bueno | Regular | Malo | Observaciones', (mh.match(/<th[^>]*>Elemento<\/th><th[^>]*>Bueno<\/th><th[^>]*>Regular<\/th><th[^>]*>Malo<\/th><th[^>]*>Observaciones \/ acción recomendada<\/th>/g) || []).length === 3);
+  function enOrden(lista) { var p = -1; return lista.every(function (l) { var i = mh.indexOf('>' + esc(l) + '<', p + 1); if (i < 0) return false; p = i; return true; }); }
+  function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  ok('13 + 9 + 4 elementos con las palabras del PDF y en su orden', enOrden(PDF_INTERIOR.concat(PDF_EXTERIOR, PDF_SEGURIDAD)));
+  ok('7 estancias del PDF en su orden', enOrden(PDF_ESTANCIAS));
+  ok('cabecera: Villa, Villa manager, Fecha de revisión, Temporada', enOrden(['Villa', 'Villa manager', 'Fecha de revisión', 'Temporada']) && /<th>Villa<\/th>/.test(mh));
+  ok('logo-negro.png, titulo "Informe de Fin de Temporada" y subtitulo', /<img class="h-logo" src="logo-negro\.png"/.test(mh) && /<h1 class="h-tit">Informe de Fin de Temporada<\/h1>/.test(mh) && /<div class="h-sub">Estado de la villa y puntos de mejora<\/div>/.test(mh));
+  ok('pastilla Borrador en la linea del logo', /<div class="h-cab">[\s\S]*?<span class="pill borrador">Borrador<\/span>[\s\S]*?<\/div>/.test(mh));
+  ok('Estado general de la villa: una fila con ☐ Bueno ☐ Regular ☐ Malo', /<th>Estado general de la villa<\/th>/.test(mh) && /><span class="cx">☐<\/span> Bueno<\/button>[\s\S]*?><span class="cx">☐<\/span> Regular<\/button>[\s\S]*?><span class="cx">☐<\/span> Malo<\/button>/.test(mh));
+  ok('cinco filas de actuacion numeradas 1-5 siempre (vacias tambien)', [1, 2, 3, 4, 5].every(function (n) { return new RegExp('data-k="resumen\\|accion_' + n + '"[^>]*><td class="c-n"[^>]*>' + n + '<').test(mh); }));
+  ok('tres filas de comentarios siempre, la 4 no', /data-k="huesped\|comentario_3"/.test(mh) && !/data-k="huesped\|comentario_4"/.test(mh));
+  ok('enlaces "+ Añadir estancia" y "+ Añadir comentario"', /class="anadir"[^>]*data-anadir="estancia"[^>]*>\+ Añadir estancia</.test(mh) && /class="anadir"[^>]*data-anadir="huesped"[^>]*>\+ Añadir comentario</.test(mh));
+  ok('una caja por valor: cada fila de Interior tiene un solo texto_1', ['pintura', 'menaje', 'humedades'].every(function (cl) { var f = (mh.match(new RegExp('<tr[^>]*data-k="interior\\|' + cl + '"[\\s\\S]*?</tr>')) || [''])[0]; return (f.match(/data-campo="texto_1"/g) || []).length === 1 && (f.match(/<textarea/g) || []).length === 1; }));
+  ok('Prioridad = select Elegir / Alto / Medio / Bajo (gris mientras Elegir)', /<select class="sel vacio" data-campo="prioridad"><option value="" selected>Elegir<\/option><option value="Alta">Alto<\/option><option value="Media">Medio<\/option><option value="Baja">Bajo<\/option><\/select>/.test(mh));
+  ok('Origen = select Review / Parte / Propuesta', /<select class="sel vacio" data-campo="estado"><option value="" selected>Review \/ Parte \/ Propuesta<\/option><option value="Review">Review<\/option><option value="Parte">Parte<\/option><option value="Propuesta">Propuesta<\/option><\/select>/.test(mh));
+  ok('fotos: un solo hueco vacio con "Añadir foto" y las dos entradas', (mh.match(/class="foto[ "]/g) || []).length === 1 && /class="foto vacia"/.test(mh) && mh.indexOf('Añadir foto') > 0 && (mh.match(/type="file"/g) || []).length === 2);
+  ok('7. Observaciones finales: caja directamente bajo el titulo', /7\. Observaciones finales<\/h2><div data-k="__cab"><textarea class="in libre"/.test(mh));
+  ok('el texto de ayuda de 5 y 6 en gris (reviews en cursiva)', /class="s-ayuda">Detalle de los desperfectos concretos detectados en cada estancia que no queden recogidos en los apartados anteriores\.</.test(mh) && /class="s-ayuda">Quejas o sugerencias repetidas de los huéspedes \(<em>reviews<\/em>, partes/.test(mh));
+
+  console.log('11.2 Alto / Medio / Bajo en pantalla; Alta / Media / Baja guardado');
+  ok('prioridadVer: Alta->Alto, Media->Medio, Baja->Bajo (y en minusculas)', H.ctx.prioridadVer('Alta') === 'Alto' && H.ctx.prioridadVer('Media') === 'Medio' && H.ctx.prioridadVer('Baja') === 'Bajo' && H.ctx.prioridadVer('alta') === 'Alto' && H.ctx.prioridadVer('') === '');
+  ok('prioridadGuardar: Alto->Alta, Medio->Media, Bajo->Baja', H.ctx.prioridadGuardar('Alto') === 'Alta' && H.ctx.prioridadGuardar('Medio') === 'Media' && H.ctx.prioridadGuardar('Bajo') === 'Baja' && H.ctx.prioridadGuardar('') === '');
+  ok('ida y vuelta', ['Alta', 'Media', 'Baja'].every(function (v) { return H.ctx.prioridadGuardar(H.ctx.prioridadVer(v)) === v; }));
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'resumen', clave: 'accion_1', texto_1: 'Pérgola', texto_2: 'Temporal', prioridad: 'Media' },
+    { linea_id: 2, informe_id: 9, seccion: 'estancia', clave: 'cocina', texto_1: 'Grifo', prioridad: 'alta' },
+    { linea_id: 3, informe_id: 9, seccion: 'huesped', clave: 'comentario_5', estado: 'Parte', texto_1: 'Ruido' }] }) });
+  await H.ev('iniciar()'); mh = H.g('main').innerHTML;
+  ok('guardado "Media": se ve Medio elegido', /<select class="sel" data-campo="prioridad">[^]*?<option value="Media" selected>Medio<\/option>/.test((mh.match(/data-k="resumen\|accion_1"[\s\S]*?<\/tr>/) || [''])[0]));
+  ok('guardado "alta" (minusculas): se ve Alto elegido', /<option value="alta" selected>Alto<\/option>/.test((mh.match(/data-k="estancia\|cocina"[\s\S]*?<\/tr>/) || [''])[0]));
+  ok('comentario 5 con datos: su fila sale (y la 4 no)', /data-k="huesped\|comentario_5"/.test(mh) && !/data-k="huesped\|comentario_4"/.test(mh) && /<option value="Parte" selected>Parte<\/option>/.test(mh));
+  var sel = { tagName: 'SELECT', value: 'Baja', dataset: { campo: 'prioridad' }, classList: { toggle: function () {} }, closest: function () { return { dataset: { k: 'resumen|accion_2' }, querySelector: function () { return null; } }; } };
+  H.ctx.alEscribir({ target: sel });
+  ok('elegir Bajo guarda "Baja" (el valor de siempre)', H.ev("LINEAS['resumen|accion_2'].prioridad") === 'Baja' && H.ev("LINEAS['resumen|accion_2']._sucio") === true);
+
+  console.log('11.3 Añadir estancia y comentario: una fila mas en la tabla');
+  H.ev("anadir('estancia')"); mh = H.g('main').innerHTML;
+  ok('+ Añadir estancia: fila otra_1 con la estancia editable', /data-k="estancia\|otra_1"/.test(mh) && /<tr[^>]*data-k="estancia\|otra_1"[\s\S]*?data-campo="est_nombre"/.test(mh));
+  H.ev("anadir('huesped')"); mh = H.g('main').innerHTML;
+  ok('+ Añadir comentario: aparece la 4', /data-k="huesped\|comentario_4"/.test(mh));
+
+  console.log('11.4 Fotos: las llenas y un hueco vacio; solo lectura sin hueco');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [
+    { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Pérgola' },
+    { linea_id: 5, informe_id: 9, seccion: 'foto', clave: 'foto_2', foto_url: 'https://x.com/b.jpg?v=6', texto_1: '' }] }) });
+  await H.ev('iniciar()'); mh = H.g('main').innerHTML;
+  ok('dos fotos llenas y un hueco (foto_3)', (mh.match(/class="foto"/g) || []).length === 2 && /class="foto vacia" data-k="foto\|foto_3"/.test(mh) && !/foto\|foto_4/.test(mh));
+  ok('pie de foto bajo la foto y controles bajo el pie', /src="https:\/\/x\.com\/a\.jpg\?v=5"[\s\S]*?data-campo="texto_1"[\s\S]*?class="f-ctl"[\s\S]*?Quitar/.test(mh));
+  H = pagina({ rol: 'staff', email: 'vm@3villas.com', db: baseDb({ TaInformeTemporada: [informe9({ estado: 'enviado', estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Pérgola' }] }) });
+  await H.ev('iniciar()'); mh = H.g('main').innerHTML;
+  ok('enviado (villa manager): sin hueco vacio, pastilla Enviado, casillas y selects desactivados', !/foto vacia/.test(mh) && /<span class="pill enviado">Enviado<\/span>/.test(mh) && (mh.match(/<button[^>]*class="st[^"]*"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }) && (mh.match(/<select\b[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
   });
 }
