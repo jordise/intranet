@@ -122,9 +122,10 @@ ok('fixStickyTops corre despues de pintar #hOwner', lv.indexOf("g('hOwner').inne
 ok('la seccion Equipo sigue con Owner e Issues_responsible', /buildContactSelect\('Owner'/.test(SRC) && /buildContactSelect\('Issues_responsible'/.test(SRC));
 
 console.log('5. Version');
-ok('v27 en PAGE_VERSION, cabecera y titulo', /const PAGE_VERSION = 27;/.test(SRC) && /VERSIÓN ACTUAL: v27 \|/.test(SRC));
-var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v27'));
-ok('HISTORIAL v27 con Rafa, fecha y prueba, y v26 detras', /<!-- HISTORIAL: v27 - /.test(SRC) && hist.indexOf('Rafa') >= 0 && hist.indexOf('26/10/2026') >= 0 && hist.indexOf('villa-propietario.test.js') >= 0 && hist.indexOf('| v26 - ') > 0);
+/* v28 (Jordi 27/10/2026, boton del informe de temporada): la version sube; la entrada v27 sigue en el HISTORIAL */
+ok('v28 en PAGE_VERSION, cabecera y titulo', /const PAGE_VERSION = 28;/.test(SRC) && /VERSIÓN ACTUAL: v28 \|/.test(SRC));
+var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v28'));
+ok('HISTORIAL v27 con Rafa, fecha y prueba, y v26 detras', /\| v27 - Propietario en la cabecera/.test(SRC) && hist.indexOf('Rafa') >= 0 && hist.indexOf('26/10/2026') >= 0 && hist.indexOf('villa-propietario.test.js') >= 0 && hist.indexOf('| v26 - ') > 0);
 ok('el comentario HISTORIAL cierra una sola vez', hist.split('-->').length === 2);
 
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');

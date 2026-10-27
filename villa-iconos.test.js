@@ -206,7 +206,7 @@ function checkPage(file, ver, titleRe) {
   return iconsBlock(s, file);
 }
 
-var a = checkPage('villa.html', 27, /<title>Villa Info v(\d+)/);
+var a = checkPage('villa.html', 28, /* v28: boton del informe de temporada (Jordi 27/10/2026) */ /<title>Villa Info v(\d+)/);
 (function () {
   var s = src('villa.html');
   ok('villa.html: Villamanager cerrado por defecto', !/buildSection\('vm'[\s\S]*?\},true\)\);/.test(section(s, 'vm', 'kb1', 'villa.html')));
