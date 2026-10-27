@@ -624,7 +624,8 @@ test('nav.js: dos entradas del cuadro y NAV_VERSION igual a la cabecera', functi
   assert.deepEqual([count('staff'), count('cleaner')], [0, 0], 'staff y limpieza no la ven');
   var head = NAV.match(/VERSIÓN ACTUAL: v(\d+)/), nv = NAV.match(/var NAV_VERSION = (\d+);/);
   assert.ok(head && nv && head[1] === nv[1], 'NAV_VERSION = versión de la cabecera');
-  assert.ok(new RegExp('// HISTORIAL: v' + head[1] + ' - [^|]*cuadro-comercial').test(NAV), 'el historial empieza por esa versión y nombra la página');
+  /* 27/10/2026: nav.js v21 anade 'Informes de temporada'; la entrada v20 de esta pagina sigue en el historial. */
+  assert.ok(/(\/\/ HISTORIAL: v20 - |\| v20 - )[^|]*cuadro-comercial/.test(NAV), 'el historial conserva la entrada v20 que nombra la página');
 });
 
 /* ── v3: español e inglés ── */

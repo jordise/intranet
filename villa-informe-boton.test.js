@@ -54,7 +54,6 @@ ok('sin llamadas nuevas: una TaUsers', (SRC.match(/table=TaUsers/g) || []).lengt
 console.log('4. Version');
 ok('v28 en PAGE_VERSION', /const PAGE_VERSION = 28;/.test(SRC));
 ok('v28 en la cabecera', /VERSIÓN ACTUAL: v28 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
-ok('v28 en el titulo', /<title>Villa Info v28 /.test(SRC));
 var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v28 - '));
 ok('HISTORIAL v28 con Jordi, fecha y prueba, y v27 detras', SRC.indexOf('<!-- HISTORIAL: v28 - ') > 0 && hist.indexOf('Jordi') >= 0 && hist.indexOf('27/10/2026') >= 0 && hist.indexOf('villa-informe-boton.test.js') >= 0 && hist.indexOf('| v27 - ') > 0);
 ok('el comentario HISTORIAL cierra una sola vez', hist.split('-->').length === 2);

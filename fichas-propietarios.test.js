@@ -725,13 +725,13 @@ ok('alternarVacios esta expuesta en window', /window\.alternarVacios = alternarV
 /* ════════ 6. nav.js lleva la entrada ════════ */
 /* 07/10/2026: nav.js v16 anade 'Prospección mensual'; 13/10/2026: v17 anade 'Informe de reservas' y v18 la quita del menu de staff;
    v19 anade 'Historial WhatsApp'; v20 anade 'Cuadro de mando comercial' (13/10/2026); la entrada de la v15 sigue igual. */
-console.log('nav.js: v20 (entrada de la v15)');
+console.log('nav.js: v21 (entrada de la v15)');
 var NAV = fs.readFileSync('nav.js', 'utf8');
-ok('cabecera y VERSION ACTUAL en v20',
-  /nav\.js — MENÚS POR ROL  3Villas  v20/.test(NAV) && /VERSIÓN ACTUAL: v20 \|/.test(NAV));
-ok('NAV_VERSION 20 (la auto-deteccion mira este numero)',
-  NAV.indexOf('var NAV_VERSION = 20;') > 0 && NAV.indexOf('var NAV_VERSION = 19;') < 0);
-ok('historial v20 y conserva la v19, la v18, la v17, la v16, la v15 y la v14', /\/\/ HISTORIAL: v20 - /.test(NAV) && / \| v19 - /.test(NAV) && / \| v18 - /.test(NAV) && / \| v17 - /.test(NAV) && / \| v16 - /.test(NAV) && / \| v15 - /.test(NAV) && / \| v14 - /.test(NAV));
+ok('cabecera y VERSION ACTUAL en v21',
+  /nav\.js — MENÚS POR ROL  3Villas  v21/.test(NAV) && /VERSIÓN ACTUAL: v21 \|/.test(NAV));
+ok('NAV_VERSION 21 (la auto-deteccion mira este numero)',
+  NAV.indexOf('var NAV_VERSION = 21;') > 0 && NAV.indexOf('var NAV_VERSION = 20;') < 0);
+ok('historial v21 y conserva la v19, la v18, la v17, la v16, la v15 y la v14', /\/\/ HISTORIAL: v21 - /.test(NAV) && / \| v20 - /.test(NAV) && / \| v19 - /.test(NAV) && / \| v18 - /.test(NAV) && / \| v17 - /.test(NAV) && / \| v16 - /.test(NAV) && / \| v15 - /.test(NAV) && / \| v14 - /.test(NAV));
 var navCodigo = NAV.split('// HISTORIAL:')[0];
 ok('la entrada "Fichas de propietarios" existe',
   navCodigo.indexOf("{ label: 'Fichas de propietarios', url: 'fichas-propietarios.html',        icon: '📋' },") > 0);
