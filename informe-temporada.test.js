@@ -187,6 +187,9 @@ ok('HISTORIAL v1 con Jordi, fecha, Rafa, otra_N y la prueba', SRC.indexOf('<!-- 
 ok('el comentario HISTORIAL v1 cierra una sola vez', hist.split('-->').length === 2);
 var h2i = SRC.indexOf('<!-- HISTORIAL: v2 - '), hist2 = h2i > 0 ? SRC.slice(h2i, SRC.indexOf('-->', h2i)) : '';
 ok('HISTORIAL v2 en español: las dos revisiones del 27/10/2026 y la prueba', h2i > 0 && h2i < SRC.indexOf('<!-- HISTORIAL: v1 - ') && /revisiones/.test(hist2) && hist2.indexOf('27/10/2026') >= 0 && hist2.indexOf('informe-temporada.test.js') >= 0 && hist2.indexOf('DELETE') >= 0);
+var h3i = SRC.indexOf('<!-- HISTORIAL: v3 - '), hist3 = h3i > 0 ? SRC.slice(h3i, SRC.indexOf('-->', h3i)) : '';
+ok('HISTORIAL v3 en español, antes de v2, con el texto pedido', h3i > 0 && h3i < h2i && hist3.indexOf('v3 - 27/10/2026 — la pantalla es la misma hoja que el modelo de Rafa (logo, título rojo, tablas Elemento | Bueno | Regular | Malo | Observaciones), en escritorio y en móvil; la impresión usa la misma maqueta; sin cambios de datos') >= 0);
+ok('el comentario HISTORIAL v3 cierra una sola vez', h3i > 0 && SRC.slice(h3i, SRC.indexOf('<!-- HISTORIAL: v2 - ')).split('-->').length === 2);
 var re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi, m, n = 0, bad = '';
 while ((m = re.exec(SRC))) { n++; try { new vm.Script(m[1]); } catch (e) { bad += e.message; } }
 ok('los scripts compilan', n > 0 && !bad, bad);
