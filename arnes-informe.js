@@ -100,7 +100,7 @@ function cargar(opts) {
     visibilityState: 'visible'
   };
   var ctx = {
-    console: console, URL: URL, URLSearchParams: URLSearchParams, AbortController: AbortController, FormData: FormData, Blob: Blob, File: File,
+    console: { log: console.log, warn: console.log, error: function (e) { console.log('        (console.error de la página: ' + (e && e.message || e) + ')'); } }, URL: URL, URLSearchParams: URLSearchParams, AbortController: AbortController, FormData: FormData, Blob: Blob, File: File,
     crypto: require('crypto').webcrypto, Promise: Promise, JSON: JSON, Date: opts.Date || Date,
     document: document, fetch: function (u, o) { return S.fetch(u, o); },
     location: { protocol: 'file:', pathname: '/intranet/' + opts.archivo, search: opts.search || '' },

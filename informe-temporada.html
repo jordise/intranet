@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Informe de temporada v1 — 3Villas</title>
+<title>Informe de temporada v2 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -95,8 +95,12 @@ textarea:disabled,.txt:disabled{background:var(--gray-1)}
 .foto{border:1.5px solid var(--gray-2);border-radius:10px;padding:8px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .f-img{aspect-ratio:4/3;border-radius:8px;background:var(--gray-1);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:26px;color:var(--gray-3)}
 .f-img img{width:100%;height:100%;object-fit:cover;display:block}
-.f-pick{display:block;text-align:center;padding:8px 4px;border-radius:8px;background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;cursor:pointer}
+.f-picks{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.f-pick{display:block;text-align:center;padding:8px 2px;border-radius:8px;background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.f-pick.gal{background:var(--gray-5)}
 .f-pick input{display:none}
+.f-pie{display:flex;gap:6px;align-items:flex-start;min-width:0}
+.f-pie textarea{flex:1;min-width:0}
 .f-quitar{padding:6px;border:1.5px solid var(--gray-3);border-radius:8px;background:#fff;color:var(--gray-4);font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;cursor:pointer}
 .spin{width:28px;height:28px;border:3px solid var(--gray-3);border-top-color:var(--red);border-radius:50%;animation:gira .8s linear infinite}
 @keyframes gira{to{transform:rotate(360deg)}}
@@ -106,6 +110,7 @@ textarea:disabled,.txt:disabled{background:var(--gray-1)}
 .barra button{flex:1 1 0;max-width:200px;min-width:0;height:42px;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;padding:0 6px}
 .b-guardar{background:var(--gray-5);color:#fff}.b-enviar{background:var(--red);color:#fff}
 .b-reabrir{background:var(--orange);color:#fff}.b-imprimir{background:var(--gray-2);color:var(--gray-5)}
+.barra[hidden]{display:none}
 .barra [hidden]{display:none}
 .estado-guardado{flex-basis:100%;text-align:center;font-size:11px;color:var(--gray-4);font-weight:600}
 .estado-guardado.sucio{color:var(--orange)}
@@ -128,7 +133,8 @@ textarea:disabled,.txt:disabled{background:var(--gray-1)}
 }
 #printView h1{font-family:'Montserrat',Arial,sans-serif;font-size:16pt;font-weight:900;margin-bottom:4px}
 #printView .pv-sub{font-size:11pt;color:#444;margin-bottom:10px}
-#printView h2{font-family:'Montserrat',Arial,sans-serif;font-size:12.5pt;font-weight:800;margin:14px 0 6px;color:#C8102E}
+#printView h2{font-family:'Montserrat',Arial,sans-serif;font-size:12.5pt;font-weight:800;margin:14px 0 6px;color:#C8102E;break-after:avoid;page-break-after:avoid}
+#printView .pv-ayuda{break-before:avoid;break-after:avoid}
 #printView table{width:100%;border-collapse:collapse;margin-bottom:6px}
 #printView th,#printView td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top;font-size:10pt}
 #printView th{background:#eee;font-weight:700}
@@ -175,7 +181,7 @@ textarea:disabled,.txt:disabled{background:var(--gray-1)}
 
 <script>
 const WORKER = 'https://www.3villas.com/intranet/api';
-const PAGE_VERSION = 1;
+const PAGE_VERSION = 2;
 const R2_PUBLIC = 'https://pub-48c1cfd5de614ff0a0cebfec482a7b32.r2.dev/';
 const FOTOS_HOST = 'https://www.3villas.com/intranet/fotos/';
 const urlP = new URLSearchParams(window.location.search);
@@ -200,7 +206,14 @@ const TEMPORADA = (function(){const t=parseInt(urlP.get('temporada'),10);return 
     }).catch(()=>{});
   }catch(e){}
 })();
-window.goBack=function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},200);};
+/* v2: el ✕ guarda lo pendiente antes de salir (en el móvil se perdía lo escrito en la última caja) */
+window.goBack=async function(){
+  if(INFORME&&!SOLO&&haySucios()){
+    const ok=await guardarPendientes();
+    if(!ok&&!confirm('Hay cambios sin guardar (se quedan en este móvil). ¿Salir igualmente?'))return;
+  }
+  try{window.close();}catch(e){}setTimeout(function(){history.back();},200);
+};
 
 /* ── Helpers puros (los prueba informe-temporada.test.js con vm) ── */
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -255,8 +268,32 @@ function lineaRequest(informeId,L){
   if(L.linea_id)return{method:'PUT',url:WORKER+'?action=save&table=TaInformeTemporadaLineas&where='+encodeURIComponent('linea_id='+parseInt(L.linea_id,10))+'&method=PUT',body:v};
   return{method:'POST',url:WORKER+'?action=save&table=TaInformeTemporadaLineas&method=POST',body:Object.assign({informe_id:parseInt(informeId,10),seccion:L.seccion,clave:L.clave,orden:L.orden},v)};
 }
-/* DELETE por el relay (bro 27/10/2026): POST sin cuerpo y sin Content-Type; con cuerpo JSON da 400 */
-function borrarLineaRequest(lineaId){return{method:'POST',url:WORKER+'?action=save&table=TaInformeTemporadaLineas&where='+encodeURIComponent('linea_id='+parseInt(lineaId,10))+'&method=DELETE'};}
+/* v2: el Worker (caspio-proxy, action save) solo hace PUT con where o POST: no hay borrado. Quitar una foto = PUT que vacía la fila */
+/* Par (seccion, clave) repetido en Caspio (reintentos de v1): vale la fila de linea_id más alto */
+function mejorLinea(rows){let m=null;(rows||[]).forEach(r=>{if(r&&(!m||(parseInt(r.linea_id,10)||0)>(parseInt(m.linea_id,10)||0)))m=r;});return m;}
+/* Cabecera repetida para villa y temporada: vale la de informe_id más bajo (la primera que se creó) */
+function primerInforme(rows){let m=null;(rows||[]).forEach(r=>{if(r&&r.informe_id&&(!m||parseInt(r.informe_id,10)<parseInt(m.informe_id,10)))m=r;});return m;}
+/* Filas de Caspio -> LINEAS ('seccion|clave' -> fila); campos null -> '', orden por defecto, gana el linea_id más alto */
+function lineasDesdeFilas(rows){
+  const out={};
+  (rows||[]).forEach(r=>{
+    if(!r||!r.seccion||!r.clave)return;
+    const k=r.seccion+'|'+r.clave,prev=out[k];
+    if(prev&&(parseInt(prev.linea_id,10)||0)>=(parseInt(r.linea_id,10)||0))return;
+    const L=Object.assign({},r,{_sucio:false,_ver:0});
+    ['estado','texto_1','texto_2','prioridad','foto_url'].forEach(c=>{L[c]=r[c]==null?'':String(r[c]);});
+    if(!L.orden){const d=defDe(r.seccion,r.clave);if(d)L.orden=d.orden;}
+    out[k]=L;
+  });
+  return out;
+}
+/* Villa manager asignado: KeyHolder_person de TaVillas es un contacto (TaContacts) o un usuario (TaUsers), como resContact de villa.html */
+function nombreVillaManager(kh,contacts,users){
+  const id=String(kh==null?'':kh).trim();if(!id)return'';
+  const c=(contacts||[]).find(x=>String(x.ContactID||x.contactid||x.Id||x.id||'')===id);
+  const cn=c&&(c.Name||c.Nombre||c.Full_Name||c.FullName);if(cn)return String(cn);
+  const u=(users||[]).find(x=>String(x.UserID||'')===id);return u&&u.Name?String(u.Name):'';
+}
 /* Cabecera: conocida (informe_id) -> PUT con los campos cambiados; nueva -> POST con villa, temporada, UserID y estado borrador */
 function informeRequest(inf,cambios){
   const c=Object.assign({},cambios||{});
@@ -266,39 +303,47 @@ function informeRequest(inf,cambios){
 function validarEnvio(inf){return inf&&String(inf.estado_general||'').trim()?'':'Falta el estado general';}
 /* Enviado = solo lectura para el villa manager; admin y manager pueden seguir editando o reabrir */
 function soloLectura(inf,role){return!!inf&&String(inf.estado||'').trim().toLowerCase()==='enviado'&&!esAdminManager(role);}
-function fotoNombre(year,informeId,clave,fileName){
-  const f=String(fileName||'');let ext=f.includes('.')?f.split('.').pop().toLowerCase():'jpg';
-  if(!/^[a-z0-9]{1,5}$/.test(ext))ext='jpg';
-  return year+'_informe_'+informeId+'_'+clave+'.'+ext;
+/* 6 letras o cifras al azar: la dirección pública de la foto no se puede adivinar */
+function aleatorio6(){
+  const a='abcdefghijklmnopqrstuvwxyz0123456789',b=new Uint8Array(6);let s='';
+  try{crypto.getRandomValues(b);}catch(e){for(let i=0;i<6;i++)b[i]=Math.floor(Math.random()*256);}
+  for(let i=0;i<6;i++)s+=a[b[i]%36];
+  return s;
 }
+/* v2: siempre JPEG (compressImage): <temporada>_informe_<informe_id>_<clave>_<6 al azar>.jpg */
+function fotoNombre(year,informeId,clave,sufijo){
+  const s=/^[a-z0-9]{6}$/.test(String(sufijo||''))?String(sufijo):aleatorio6();
+  return parseInt(year,10)+'_informe_'+parseInt(informeId,10)+'_'+String(clave).replace(/[^a-z0-9_]/gi,'')+'_'+s+'.jpg';
+}
+/* Rompe-cache en foto_url, como task-limpieza v11: una foto cambiada se ve al momento */
+function conVersion(u){return u+(u.indexOf('?')>=0?'&':'?')+'v='+Date.now();}
 /* Mismo host que villa.html v23: r2.dev -> www.3villas.com/intranet/fotos/<clave> */
 function fotoUrl(u){
   if(!u||typeof u!=='string')return u;
   u=u.trim();
   return u.startsWith(R2_PUBLIC)?FOTOS_HOST+u.slice(R2_PUBLIC.length):u;
 }
-function fotoSrc(u,ts){const f=fotoUrl(u);if(!f)return'';return f+(f.indexOf('?')>=0?'&':'?')+'v='+ts;}
 /* Respuesta de action=upload: {url}, {publicUrl} o la URL como texto (historial v11 de task-limpieza) */
 function urlDeSubida(t){
   const s=String(t||'').trim();if(!s)return'';
   try{const j=JSON.parse(s);const u=typeof j==='string'?j:(j&&(j.url||j.publicUrl));return typeof u==='string'&&/^https?:\/\//.test(u.trim())?u.trim():'';}catch(e){}
   return /^https?:\/\/\S+$/.test(s)?s:'';
 }
-/* Estancia añadida (otra_N): texto_1 = "<estancia>: <incidencia>" */
-function textoEstancia(nombre,incidencia){const n=String(nombre||'').trim(),i=String(incidencia||'');return n?n+': '+i:i;}
+/* Estancia añadida (otra_N): texto_1 = "<estancia>: <incidencia>"; v2: siempre con ": " (sin nombre: ": <incidencia>"), vacío si no hay nada */
+function textoEstancia(nombre,incidencia){const n=String(nombre||'').trim(),i=String(incidencia||'');return n||i?n+': '+i:'';}
 function partirEstancia(texto){const t=String(texto||''),p=t.indexOf(':');if(p<0)return{nombre:'',incidencia:t};return{nombre:t.slice(0,p).trim(),incidencia:t.slice(p+1).replace(/^ /,'')};}
 function filaVacia(L){return!L||['estado','texto_1','texto_2','prioridad','foto_url'].every(c=>!String(L[c]==null?'':L[c]).trim());}
 
 /* ── Estado de la pagina ── */
-let ROL='',USERS=[],ME=null,VILLA=null,INFORME=null,SOLO=false;
+let ROL='',USERS=[],CONTACTS=[],ME=null,VILLA=null,INFORME=null,SOLO=false;
 let LINEAS={};           /* 'seccion|clave' -> fila (solo las que existen o se han tocado) */
-let CAB_SUCIO=false,CAB_VER=0,CAB_VUELO=null,CREANDO=null,TIMER=null;
+let CAB_SUCIO=false,CAB_VER=0,CAB_VUELO=null,CAB_OTRA=false,CREANDO=null,TIMER=null;
 const VISIBLES=new Set(); /* filas vacias que el usuario ha abierto con "+ Añadir" */
 const g=id=>document.getElementById(id);
 
 function toast(msg,type){const t=g('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(t._h);t._h=setTimeout(()=>{t.className='toast';},type==='error'?4500:2500);}
 function sinAcceso(){g('main').innerHTML='<div class="msg err">Sin acceso</div>';g('barra').hidden=true;}
-function errorCarga(m){g('main').innerHTML='<div class="msg err">'+esc(m)+'</div>';}
+function errorCarga(m){g('main').innerHTML='<div class="msg err">'+esc(m)+'</div>';g('barra').hidden=true;}
 function defDe(sec,clave){
   const s=seccionesDef().find(x=>x.id===sec);if(!s)return null;
   const i=s.claves.findIndex(c=>c[0]===clave);if(i>=0)return{orden:i+1,label:s.claves[i][1]};
@@ -311,23 +356,20 @@ function fila(k){
 }
 function valor(sec,clave,campo){const L=LINEAS[sec+'|'+clave];return L&&L[campo]!=null?String(L[campo]):'';}
 function nombreVilla(){return VILLA?(VILLA.Name||'Villa '+VILLAID):'Villa '+VILLAID;}
-function nombreVM(){
-  const uid=INFORME&&INFORME.UserID?String(INFORME.UserID):'';
-  if(uid){const u=USERS.find(x=>String(x.UserID||'')===uid);if(u&&u.Name)return u.Name;}
-  return Auth.name()||Auth.email()||'';
-}
+/* v2: el villa manager asignado a la villa (no el autor; el autor queda en UserID) */
+function nombreVM(){return VILLA?nombreVillaManager(VILLA.KeyHolder_person,CONTACTS,USERS):'';}
 function fechaInput(v){const s=String(v||'');return /^\d{4}-\d\d-\d\d/.test(s)?s.slice(0,10):hoyISO();}
 
 /* ── Llamadas al Worker ── */
 async function enviar(req){
-  const opt={method:req.method};
+  const opt={method:req.method,keepalive:true};
   if(req.body!==undefined){opt.headers={'Content-Type':'application/json'};opt.body=JSON.stringify(req.body);}
   const r=await fetch(Auth.url(req.url),opt);
   if(!r.ok){let t='';try{t=await r.text();}catch(e){}throw new Error('HTTP '+r.status+(t?': '+t.slice(0,120):''));}
   return r;
 }
 async function leer(tabla,where,limit){
-  const r=await fetch(Auth.url(WORKER+'?action=data&table='+tabla+'&where='+encodeURIComponent(where)+'&limit='+limit));
+  const r=await fetch(Auth.url(WORKER+'?action=data&table='+tabla+(where?'&where='+encodeURIComponent(where):'')+'&limit='+limit));
   if(!r.ok)throw new Error('HTTP '+r.status+' al leer '+tabla);
   const j=await r.json();return j.Result||j.result||[];
 }
@@ -338,16 +380,16 @@ async function asegurarInforme(){
   if(CREANDO)return CREANDO;
   CREANDO=(async()=>{
     try{
-      let rows=await leer('TaInformeTemporada',whereInforme(VILLAID,TEMPORADA),1);
-      if(!rows.length){
+      let inf=primerInforme(await leer('TaInformeTemporada',whereInforme(VILLAID,TEMPORADA),5));
+      if(!inf){
         const ver=CAB_VER;
         await enviar(informeRequest(INFORME,camposCabecera()));
-        rows=await leer('TaInformeTemporada',whereInforme(VILLAID,TEMPORADA),1);
-        if(!rows.length)throw new Error('el informe creado no aparece');
+        inf=primerInforme(await leer('TaInformeTemporada',whereInforme(VILLAID,TEMPORADA),5));
+        if(!inf)throw new Error('el informe creado no aparece');
         if(CAB_VER===ver)CAB_SUCIO=false;
       }
-      INFORME.informe_id=rows[0].informe_id;
-      if(!INFORME.estado)INFORME.estado=rows[0].estado||'borrador';
+      INFORME.informe_id=inf.informe_id;
+      if(!INFORME.estado)INFORME.estado=inf.estado||'borrador';
       return INFORME.informe_id;
     }finally{CREANDO=null;pintarGuardado();}
   })();
@@ -355,33 +397,41 @@ async function asegurarInforme(){
 }
 async function guardarCabecera(){
   if(!CAB_SUCIO)return true;
-  if(CAB_VUELO)return CAB_VUELO;
+  if(CAB_VUELO){CAB_OTRA=true;return CAB_VUELO;}
   CAB_VUELO=(async()=>{
+    let ok=true;
     try{
       const nuevo=!INFORME.informe_id;
       await asegurarInforme();
       if(!nuevo||CAB_SUCIO){const ver=CAB_VER;await enviar(informeRequest(INFORME,camposCabecera()));if(CAB_VER===ver)CAB_SUCIO=false;}
-      return true;
-    }catch(e){toast('No guardado: '+e.message,'error');return false;}
-    finally{CAB_VUELO=null;pintarGuardado();}
+    }catch(e){ok=false;toast('No guardado: '+e.message,'error');}
+    finally{
+      CAB_VUELO=null;pintarGuardado();
+      if(ok&&CAB_SUCIO&&CAB_OTRA){CAB_OTRA=false;setTimeout(guardarCabecera,0);}
+    }
+    return ok;
   })();
   return CAB_VUELO;
 }
-/* Una llamada por fila editada: PUT si la conocemos, si no POST y lectura para saber su linea_id */
+/* Una llamada por fila editada: PUT si la conocemos; si no, lectura (por si un intento anterior ya la creó), POST y lectura para saber su linea_id */
 async function guardarFila(k){
   const L=LINEAS[k];if(!L||!L._sucio)return true;
+  /* v2: la fila nueva y vacía se resuelve ANTES de marcar el vuelo (en v1 el finally borraba la marca antes de guardarla y la fila no se volvía a guardar nunca) */
+  if(!L.linea_id&&!L._post&&filaVacia(L)){L._sucio=false;pintarPunto(k);pintarGuardado();return true;}
   if(L._vuelo){L._otraVez=true;return L._vuelo;}
   L._vuelo=(async()=>{
     let ok=true;
     try{
       const ver=L._ver;
-      if(!L.linea_id&&filaVacia(L)){L._sucio=false;return true;}
       const id=await asegurarInforme();
+      if(!L.linea_id){const prev=mejorLinea(await leer('TaInformeTemporadaLineas',whereLinea(id,L.seccion,L.clave),5));if(prev)L.linea_id=prev.linea_id;}
+      if(!L.linea_id&&filaVacia(L)){L._post=false;if(L._ver===ver)L._sucio=false;return true;}
+      if(!L.linea_id)L._post=true;
       await enviar(lineaRequest(id,L));
       if(!L.linea_id){
-        const rows=await leer('TaInformeTemporadaLineas',whereLinea(id,L.seccion,L.clave),1);
-        if(!rows.length)throw new Error('la fila guardada no aparece');
-        L.linea_id=rows[0].linea_id;
+        const fila=mejorLinea(await leer('TaInformeTemporadaLineas',whereLinea(id,L.seccion,L.clave),5));
+        if(!fila)throw new Error('la fila guardada no aparece');
+        L.linea_id=fila.linea_id;L._post=false;
       }
       if(L._ver===ver)L._sucio=false;
     }catch(e){ok=false;toast('No guardado: '+e.message,'error');}
@@ -397,23 +447,65 @@ async function guardarFila(k){
 async function guardarPendientes(){
   clearTimeout(TIMER);TIMER=null;
   let ok=await guardarCabecera();
-  for(const k of Object.keys(LINEAS))if(LINEAS[k]._sucio)ok=(await guardarFila(k))&&ok;
+  /* dos vueltas: lo que se escribió mientras una fila estaba en vuelo también sale */
+  for(let v=0;v<2&&ok;v++){
+    const ks=Object.keys(LINEAS).filter(k=>LINEAS[k]._sucio);if(!ks.length)break;
+    for(const k of ks)ok=(await guardarFila(k))&&ok;
+  }
+  if(ok&&CAB_SUCIO)ok=await guardarCabecera();
   return ok;
 }
 function programar(ms){clearTimeout(TIMER);TIMER=setTimeout(guardarPendientes,ms);}
 function haySucios(){return CAB_SUCIO||Object.values(LINEAS).some(L=>L._sucio);}
+/* ── v2: borrador local (localStorage informe:<villaid>:<temporada>) con las filas sin guardar; solo texto, sin fotos ── */
+function claveBorrador(){return 'informe:'+parseInt(VILLAID,10)+':'+TEMPORADA;}
+function borradorDe(lineas,cab){
+  const d={};
+  Object.keys(lineas||{}).forEach(k=>{const L=lineas[k];if(L&&L._sucio)d[k]={seccion:L.seccion,clave:L.clave,estado:L.estado||'',texto_1:L.texto_1||'',texto_2:L.texto_2||'',prioridad:L.prioridad||''};});
+  if(cab)d.__cab=cab;
+  return d;
+}
+function guardarBorrador(){
+  if(!INFORME||SOLO)return;
+  try{
+    const d=borradorDe(LINEAS,CAB_SUCIO?camposCabecera():null);
+    if(Object.keys(d).length)localStorage.setItem(claveBorrador(),JSON.stringify(d));else localStorage.removeItem(claveBorrador());
+  }catch(e){}
+}
+function leerBorrador(){try{const d=JSON.parse(localStorage.getItem(claveBorrador())||'null');return d&&typeof d==='object'?d:null;}catch(e){return null;}}
+function borrarBorrador(){try{localStorage.removeItem(claveBorrador());}catch(e){}}
+/* Al cargar, después de las filas de Caspio: las del borrador que siguen distintas se ponen encima y quedan sucias para guardarse */
+function mezclarBorrador(d){
+  let n=0;if(!d)return 0;
+  const campos=['estado','texto_1','texto_2','prioridad'],txt=v=>v==null?'':String(v);
+  Object.keys(d).forEach(k=>{
+    const b=d[k];if(!b||typeof b!=='object')return;
+    if(k==='__cab'){
+      const cambia=['estado_general','observaciones_finales'].some(c=>b[c]!=null&&txt(b[c])!==txt(INFORME[c]))||(b.fecha_revision&&b.fecha_revision!==fechaInput(INFORME.fecha_revision));
+      if(cambia){['fecha_revision','estado_general','observaciones_finales'].forEach(c=>{if(b[c]!=null)INFORME[c]=txt(b[c]);});CAB_SUCIO=true;CAB_VER++;n++;}
+      return;
+    }
+    const p=k.split('|');if(p.length!==2||!defDe(p[0],p[1]))return;
+    const actual=LINEAS[k];
+    if(campos.every(c=>txt(b[c])===txt(actual&&actual[c])))return;
+    const L=fila(k);campos.forEach(c=>{L[c]=txt(b[c]);});L._sucio=true;L._ver++;n++;
+  });
+  return n;
+}
 async function guardarTodo(){
   if(SOLO)return;
   const habia=haySucios();
   const ok=await guardarPendientes();
-  if(ok)toast(habia?'✓ Guardado':'✓ Todo guardado','success');
+  /* v2: nunca "✓ Guardado" con algo pendiente */
+  if(ok&&!haySucios())toast(habia?'✓ Guardado':'✓ Todo guardado','success');
+  else if(ok)toast('Quedan cambios sin guardar: vuelve a pulsar Guardar','error');
 }
 async function enviarInforme(){
   if(SOLO)return;
   const err=validarEnvio(INFORME);
   if(err){toast(err,'error');return;}
   if(!confirm('¿Enviar el informe de '+nombreVilla()+'? Después solo podrá cambiarlo administración.'))return;
-  if(!(await guardarPendientes()))return;
+  if(!(await guardarPendientes())||haySucios()){toast('No enviado: hay cambios sin guardar. Vuelve a intentarlo.','error');return;}
   try{
     await asegurarInforme();
     await enviar(informeRequest(INFORME,{estado:'enviado',enviado_at:ahoraCaspio()}));
@@ -425,8 +517,8 @@ async function enviarInforme(){
 async function reabrirInforme(){
   if(!esAdminManager(ROL)||!INFORME.informe_id)return;
   try{
-    await enviar(informeRequest(INFORME,{estado:'borrador'}));
-    INFORME.estado='borrador';
+    await enviar(informeRequest(INFORME,{estado:'borrador',enviado_at:null}));
+    INFORME.estado='borrador';INFORME.enviado_at=null;
     toast('🔓 Informe reabierto','success');
     pintarTodo();
   }catch(e){toast('No guardado: '+e.message,'error');}
@@ -449,11 +541,11 @@ function alEscribir(e){
   if(t.tagName==='TEXTAREA')crecer(t);
   const caja=t.closest('[data-k]');if(!caja)return;const k=caja.dataset.k,campo=t.dataset.campo;
   if(campo==='foto')return;
-  if(k==='__cab'){editarCab(campo,t.value);return;}
-  if(campo==='est_nombre'||campo==='est_inc'){
-    editarFila(k,'texto_1',textoEstancia(caja.querySelector('[data-campo=est_nombre]').value,caja.querySelector('[data-campo=est_inc]').value));return;
-  }
-  editarFila(k,campo,t.value);
+  if(k==='__cab')editarCab(campo,t.value);
+  else if(campo==='est_nombre'||campo==='est_inc')editarFila(k,'texto_1',textoEstancia(caja.querySelector('[data-campo=est_nombre]').value,caja.querySelector('[data-campo=est_inc]').value));
+  else editarFila(k,campo,t.value);
+  /* v2: en el móvil la caja no siempre pierde el foco antes de cerrar: se guarda también mientras se escribe (1,5 s sin teclear) */
+  programar(1500);
 }
 function alSalir(e){const t=e.target;if(t.dataset&&t.dataset.campo&&t.dataset.campo!=='foto'&&haySucios())programar(800);}
 
@@ -495,13 +587,20 @@ function filaHuespedHtml(c){
     +'<div class="campo"><span>Origen</span></div>'+btns('estado',['Review','Parte','Propuesta'],valor('huesped',c[0],'estado'))
     +area('texto_2','Detalle',valor('huesped',c[0],'texto_2'),'Detalle / mejora propuesta')+'</div>';
 }
+/* v2: dos entradas por hueco (cámara y galería), punto naranja si la fila no se ha guardado; la foto por fotoUrl con su ?v= */
 function fotoHtml(c){
-  const k='foto|'+c[0],u=valor('foto',c[0],'foto_url'),L=LINEAS[k];
-  const img=u?'<img src="'+escQ(fotoSrc(u,(L&&L._ts)||(L&&L.linea_id)||1))+'" alt="'+escQ(c[1])+'">':'📷';
+  const k='foto|'+c[0],u=valor('foto',c[0],'foto_url');
+  const img=u?'<img src="'+escQ(fotoUrl(u))+'" alt="'+escQ(c[1])+'">':'📷';
   return '<div class="foto" data-k="'+k+'"><div class="f-img">'+img+'</div>'
-    +(SOLO?'':'<label class="f-pick">📷 '+(u?'Cambiar':'Hacer foto')+'<input type="file" accept="image/*" capture="environment" data-campo="foto"></label>')
-    +'<textarea rows="1" data-campo="texto_1" placeholder="Pie de foto"'+(SOLO?' disabled':'')+'>'+esc(valor('foto',c[0],'texto_1'))+'</textarea>'
+    +(SOLO?'':'<div class="f-picks"><label class="f-pick">📷 Cámara<input type="file" accept="image/*" capture="environment" data-campo="foto"></label>'
+      +'<label class="f-pick gal">📁 Galería<input type="file" accept="image/*" data-campo="foto"></label></div>')
+    +'<div class="f-pie">'+dot(k)+'<textarea rows="1" data-campo="texto_1" placeholder="Pie de foto"'+(SOLO?' disabled':'')+'>'+esc(valor('foto',c[0],'texto_1'))+'</textarea></div>'
     +(u&&!SOLO?'<button type="button" class="f-quitar" data-quitar="'+k+'">Quitar</button>':'')+'</div>';
+}
+function repintarFoto(k){
+  const caja=document.querySelector('.foto[data-k="'+k+'"]');if(!caja)return;
+  const c=k.split('|')[1];caja.outerHTML=fotoHtml([c,'Foto '+c.split('_')[1]]);
+  const t=document.querySelector('.foto[data-k="'+k+'"] textarea');if(t)crecer(t);
 }
 /* Filas con contenido, mas las que el usuario ha abierto; las vacias quedan en una linea "+ Añadir" */
 function visibles(sec,claves){return claves.filter(c=>!filaVacia(LINEAS[sec+'|'+c])||VISIBLES.has(sec+'|'+c));}
@@ -541,6 +640,7 @@ function seccionHtml(s){
 function pintarCuentas(){seccionesDef().forEach(s=>{const n=document.querySelector('[data-n="'+s.id+'"]');if(n)n.textContent=cuenta(s);});}
 function pintarPunto(k){const d=document.querySelector('[data-dot="'+k+'"]');if(d)d.classList.toggle('sucio',!!(LINEAS[k]&&LINEAS[k]._sucio));}
 function pintarGuardado(){
+  guardarBorrador();
   const e=g('estadoGuardado');if(!e)return;
   const n=Object.values(LINEAS).filter(L=>L._sucio).length+(CAB_SUCIO?1:0);
   e.textContent=SOLO?'Informe enviado: solo lectura':(n?n+(n===1?' cambio sin guardar':' cambios sin guardar'):'Todo guardado');
@@ -551,7 +651,7 @@ function pintarTodo(){
   const enviado=String(INFORME.estado||'').toLowerCase()==='enviado';
   let h='<div class="cab"><h1>'+esc(nombreVilla())+' <span class="pill '+(enviado?'enviado':'borrador')+'">'+(enviado?'Enviado':'Borrador')+'</span></h1>'
     +'<div class="sub">Informe de fin de temporada · Estado de la villa y puntos de mejora</div>'
-    +'<div class="cab-linea" data-k="__cab"><span>Villa manager: <strong>'+esc(nombreVM())+'</strong></span>'
+    +'<div class="cab-linea" data-k="__cab"><span>Villa manager: <strong>'+esc(nombreVM()||'—')+'</strong></span>'
     +'<span>· Fecha de revisión: <input type="date" data-campo="fecha_revision" value="'+escQ(fechaInput(INFORME.fecha_revision))+'"'+(SOLO?' disabled':'')+'></span>'
     +'<span>· Temporada: <strong>'+TEMPORADA+'</strong></span></div>'
     +'<div class="aviso">'+(SOLO?'Informe enviado: solo lectura. Para cambiarlo, pide a administración que lo reabra.':(enviado?'Informe enviado. Como administración puedes editarlo o reabrirlo.':''))+'</div></div>';
@@ -587,42 +687,65 @@ function anadir(sec){
 }
 
 /* ── Fotos: la subida empieza al elegir; spinner y luego la miniatura ── */
+/* Copia de task-limpieza.html v11 (misma firma; 1200 px, calidad 0,8). v2: un archivo que no es JPEG se recodifica aunque sea pequeño, para subir siempre .jpg */
+function compressImage(file,maxPx,quality){
+  maxPx=maxPx||1200;quality=quality||0.80;
+  return new Promise(function(resolve){
+    if(file.size<300*1024&&file.type==='image/jpeg'){resolve(file);return;}
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>=h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        resolve(blob?new File([blob],file.name,{type:'image/jpeg',lastModified:Date.now()}):file);
+      },'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);resolve(file);};
+    img.src=url;
+  });
+}
 async function subirFoto(k,file){
   if(SOLO||!file)return;
-  const caja=document.querySelector('.foto[data-k="'+k+'"]'),im=caja&&caja.querySelector('.f-img');
+  const caja=document.querySelector('.foto[data-k="'+k+'"]'),im=caja&&caja.querySelector('.f-img'),antes=im?im.innerHTML:'';
   if(im)im.innerHTML='<div class="spin"></div>';
+  let tm=null;
   try{
     const id=await asegurarInforme();
     const L=fila(k);
-    const nombre=fotoNombre(TEMPORADA,id,L.clave,file.name);
-    const fd=new FormData();fd.append('file',file,nombre);fd.append('filename','informe/'+nombre);
-    const r=await fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd});
+    const jpg=await compressImage(file,1200,0.8);
+    const nombre=fotoNombre(TEMPORADA,id,L.clave);
+    const fd=new FormData();fd.append('file',jpg,nombre);fd.append('filename','informe/'+nombre);
+    /* sin respuesta en 60 s: se corta y el hueco vuelve a como estaba */
+    const ac=new AbortController();tm=setTimeout(()=>ac.abort(),60000);
+    const r=await fetch(Auth.url(WORKER+'?action=upload'),{method:'POST',body:fd,signal:ac.signal});
     const t=await r.text();
+    clearTimeout(tm);tm=null;
     if(!r.ok)throw new Error('HTTP '+r.status);
     const url=urlDeSubida(t);
     if(!url)throw new Error('la subida no devolvió la URL de la foto');
-    L._ts=Date.now();
-    editarFila(k,'foto_url',url);
-    caja.outerHTML=fotoHtml([L.clave,'Foto '+L.clave.split('_')[1]]);
-    const nueva=document.querySelector('.foto[data-k="'+k+'"] textarea');if(nueva)crecer(nueva);
+    editarFila(k,'foto_url',conVersion(url));
+    repintarFoto(k);
     await guardarFila(k);
   }catch(e){
-    toast('No guardado: '+e.message,'error');
-    const L=LINEAS[k];if(im)im.innerHTML=L&&L.foto_url?'<img src="'+escQ(fotoSrc(L.foto_url,L._ts||1))+'" alt="">':'📷';
-  }
+    const sinRed=e&&(e.name==='AbortError'||e.name==='TypeError');
+    toast(sinRed?'Foto no subida: sin conexión':'Foto no subida: '+e.message,'error');
+    if(im)im.innerHTML=antes;
+  }finally{if(tm)clearTimeout(tm);}
 }
+/* v2: el Worker no tiene DELETE: Quitar vacía la fila (foto_url y pie) con un PUT y conserva su linea_id */
 async function quitarFoto(k){
   if(SOLO)return;
   if(!confirm('¿Quitar esta foto?'))return;
   const L=LINEAS[k];if(!L)return;
-  try{
-    if(L._vuelo)await L._vuelo;
-    if(L.linea_id)await enviar(borrarLineaRequest(L.linea_id));
-    delete LINEAS[k];
-    const caja=document.querySelector('.foto[data-k="'+k+'"]');
-    if(caja)caja.outerHTML=fotoHtml([L.clave,'Foto '+L.clave.split('_')[1]]);
-    pintarCuentas();pintarGuardado();
-  }catch(e){toast('No guardado: '+e.message,'error');}
+  if(L._vuelo){try{await L._vuelo;}catch(e){}}
+  L.foto_url='';L.texto_1='';L._sucio=true;L._ver++;
+  repintarFoto(k);
+  const ok=await guardarFila(k);
+  pintarCuentas();pintarGuardado();
+  if(ok)toast('Foto quitada','success');
 }
 
 /* ── Impresion: misma pagina, hoja de estilos @media print con la maqueta de Rafa ── */
@@ -654,7 +777,7 @@ function printHtml(){
       h+=INFORME.observaciones_finales?'<div class="pv-texto">'+esc(INFORME.observaciones_finales)+'</div>':'<div class="pv-vacio">Sin observaciones.</div>';
     }else if(s.tipo==='foto'){
       const fs=s.claves.filter(c=>V('foto',c[0],'foto_url'));
-      h+=fs.length?'<div class="pv-fotos">'+fs.map(c=>{const L=LINEAS['foto|'+c[0]];return '<div class="pv-foto"><img src="'+escQ(fotoSrc(L.foto_url,L._ts||L.linea_id||1))+'" alt=""><div>'+esc(L.texto_1||'')+'</div></div>';}).join('')+'</div>':'<div class="pv-vacio">Sin fotos.</div>';
+      h+=fs.length?'<div class="pv-fotos">'+fs.map(c=>{const L=LINEAS['foto|'+c[0]];return '<div class="pv-foto"><img src="'+escQ(fotoUrl(L.foto_url))+'" alt=""><div>'+esc(L.texto_1||'')+'</div></div>';}).join('')+'</div>':'<div class="pv-vacio">Sin fotos.</div>';
     }
   });
   return h;
@@ -669,27 +792,28 @@ async function iniciar(){
   if(!esAdminManager(rol)&&rol!=='staff'){sinAcceso();return;}
   if(!VILLAID||!parseInt(VILLAID,10)){errorCarga('Falta el parámetro villaid en la URL');return;}
   try{
-    const ur=await fetch(Auth.url(WORKER+'?action=data&table=TaUsers&limit=200')).then(r=>r.json());
-    USERS=ur.Result||ur.result||[];
+    /* v2: todas las lecturas por leer() (comprueba r.ok); cualquier fallo = "Error al cargar", nunca un Borrador en blanco encima de un informe que existe */
+    USERS=await leer('TaUsers','',200);
     if(!puedeAbrirInforme(rol,esVillaManager(USERS,Auth.email()))){sinAcceso();return;}
     const em=String(Auth.email()||'').trim().toLowerCase();
     ME=USERS.find(u=>String(u.Email||'').trim().toLowerCase()===em)||null;
-    const [vr,ir]=await Promise.all([
-      fetch(Auth.url(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('villaid='+parseInt(VILLAID,10))+'&limit=1')).then(r=>r.json()),
-      fetch(Auth.url(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent(whereInforme(VILLAID,TEMPORADA))+'&limit=1')).then(r=>r.json())
+    const [vRows,iRows,cRows]=await Promise.all([
+      leer('TaVillas','villaid='+parseInt(VILLAID,10),1),
+      leer('TaInformeTemporada',whereInforme(VILLAID,TEMPORADA),5),
+      leer('TaContacts','',500)
     ]);
-    const vRows=vr.Result||vr.result||[];
     if(!vRows.length){errorCarga('Villa no encontrada');return;}
-    VILLA=vRows[0];
-    const iRows=ir.Result||ir.result||[];
-    INFORME=iRows[0]?Object.assign({},iRows[0]):{villaid:parseInt(VILLAID,10),temporada:TEMPORADA,UserID:ME?String(ME.UserID||''):'',estado:'borrador',estado_general:'',observaciones_finales:'',fecha_revision:hoyISO()};
+    VILLA=vRows[0];CONTACTS=cRows;
+    const inf=primerInforme(iRows);
+    INFORME=inf?Object.assign({},inf):{villaid:parseInt(VILLAID,10),temporada:TEMPORADA,UserID:ME?String(ME.UserID||''):'',estado:'borrador',estado_general:'',observaciones_finales:'',fecha_revision:hoyISO()};
     LINEAS={};
-    if(INFORME.informe_id){
-      const lRows=await leer('TaInformeTemporadaLineas','informe_id='+parseInt(INFORME.informe_id,10),1000);
-      lRows.forEach(r=>{LINEAS[r.seccion+'|'+r.clave]=Object.assign({},r,{_sucio:false,_ver:0});});
-    }
+    if(INFORME.informe_id)LINEAS=lineasDesdeFilas(await leer('TaInformeTemporadaLineas','informe_id='+parseInt(INFORME.informe_id,10),1000));
+    SOLO=soloLectura(INFORME,ROL);
+    let n=0;
+    if(SOLO)borrarBorrador();else n=mezclarBorrador(leerBorrador());
     pintarTodo();
-  }catch(err){console.error(err);errorCarga('Error: '+err.message);}
+    if(n){toast('Recuperados '+n+(n===1?' cambio sin guardar':' cambios sin guardar')+' de este móvil','success');programar(1500);}
+  }catch(err){console.error(err);errorCarga('Error al cargar. Vuelve a intentarlo.');}
 }
 document.addEventListener('click',e=>{
   if(e.target.closest('.st'))return alPulsar(e);
@@ -705,9 +829,13 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nuevaEst'){e.preventDefault();anadir('estancia');}});
 window.addEventListener('beforeunload',e=>{if(haySucios()){e.preventDefault();e.returnValue='';}});
+/* v2: en el móvil la página se oculta o se cierra sin focusout: se guarda lo pendiente */
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&INFORME&&!SOLO&&haySucios())return guardarPendientes();});
+window.addEventListener('pagehide',()=>{if(INFORME&&!SOLO&&haySucios())return guardarPendientes();});
 window.addEventListener('resize',fijarHdr);
 document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
-<!-- HISTORIAL: v1 - 27/10/2026 — primera versión: informe de fin de temporada de cada villa. Lo pidió Jordi (socio de 3Villas) el 27/10/2026: los villa managers tienen que rellenar el informe de fin de temporada por casa en la app, fácil y con fotos, esta temporada; Rafa mandó el ejemplo que el equipo ya usa en papel (informe-ejemplo-rafa.pdf, 5 páginas, villa Cielos Azules) y Gary decidió hacerlo en el intranet actual. Se abre con el botón '📋 Informe de temporada' de villa.html v28: informe-temporada.html?villaid=<id>&temporada=<año> (temporada = año actual si no viene). Permiso Auth.require('informe-temporada'), clave nueva de auth.js para admin, manager y staff; dentro de la página: admin y manager siempre, staff solo si su fila de TaUsers (por el email de la sesión) tiene Keyholder_por_defecto, la misma regla que villa.html (esVillaManager); limpieza, ventas y el staff sin keyholder ven 'Sin acceso' y no se lee nada (la puerta de rol va antes de la primera lectura; la de staff, justo después de leer TaUsers). Datos: tablas nuevas de Caspio TaInformeTemporada (una fila por villa y temporada: informe_id, villaid, UserID, fecha_revision, temporada, estado_general, observaciones_finales, estado borrador/enviado, enviado_at, created_at, updated_at) y TaInformeTemporadaLineas (una fila por línea: linea_id, informe_id, seccion, clave, orden, estado, texto_1, texto_2, prioridad, foto_url). Lecturas: TaUsers (limit 200), TaVillas where villaid (Name, KeyHolder_person), TaInformeTemporada where villaid=<v> AND temporada=<y> y sus líneas where informe_id=<i> (limit 1000). Secciones en el orden de Rafa, cada una plegable con su título fijo bajo la cabecera y su cuenta de filas rellenas: 1. Resumen y actuaciones prioritarias (estado general Bueno/Regular/Malo en la cabecera del informe y acciones accion_1..5 con acción, motivo e impacto y prioridad Alta/Media/Baja; las vacías se quedan en '+ Añadir actuación'); 2. Interior (13), 3. Exterior (9) y 4. Seguridad e instalaciones (4): Bueno verde, Regular ámbar, Malo rojo (36 px, a lo ancho en el móvil) y Observaciones; 5. Incidencias por estancia: salón, cocina, dormitorio principal, dormitorio 2, baño 1, baño 2 y exterior/piscina con incidencia, acción y prioridad, y '+ Añadir estancia' abre una fila otra_1..otra_5 con el nombre que escribe el usuario: en Caspio texto_1 = '<estancia>: <incidencia>' (textoEstancia y partirEstancia; la parte antes del primer ':' es el nombre); 6. Comentarios de huéspedes y propuestas de mejora (comentario_1..8: tema, origen Review/Parte/Propuesta guardado en estado, detalle); 7. Observaciones finales (cabecera); Fotos: seis huecos foto_1..6 con cámara del móvil (input file accept image/* capture environment), la subida empieza al elegir (spinner y miniatura), pie de foto y Quitar. Guardado: solo las filas tocadas, una llamada por fila al pulsar un botón de estado o al salir de una caja de texto (800 ms): fila conocida (linea_id) = action=save&method=PUT where linea_id=<id>; nueva = action=save&method=POST y lectura where informe_id=<i> AND seccion='<s>' AND clave='<k>' para saber su linea_id (el POST del relay contesta 201 con raw vacío, sin la fila). La cabecera se crea con la primera edición (abrir no crea nada): se lee villaid AND temporada, si no está POST y se lee otra vez; los campos de cabecera (estado_general, observaciones_finales, fecha_revision) se guardan igual con PUT where informe_id=<i> y updated_at. Nunca la acción update del Worker (solo conoce TaTasks y TaVillas). Un fallo da el aviso rojo 'No guardado: <error>' y deja el punto naranja; se reintenta con la siguiente edición o con Guardar. Fotos: action=upload con FormData file y filename informe/<temporada>_informe_<informe_id>_<clave>.<ext> (patrón de task-limpieza v11), respuesta {url}, {publicUrl} o la URL en texto; se muestran por www.3villas.com/intranet/fotos/ (fotoUrl de villa.html v23) con ?v= para ver al momento una foto cambiada. Quitar borra la fila con el DELETE del relay (action=save&method=DELETE where linea_id, POST sin cuerpo ni Content-Type, indicación de bro 27/10/2026). Barra inferior fija: 💾 Guardar (guarda todo lo pendiente), 📤 Enviar (exige estado general, si no 'Falta el estado general'; confirm '¿Enviar el informe de <villa>? Después solo podrá cambiarlo administración.'; estado=enviado y enviado_at), 🔓 Reabrir para admin y manager en un informe enviado (estado=borrador) y 🖨️ Imprimir. Enviado = solo lectura para el villa manager (cajas desactivadas, botones inertes, sin subir fotos); admin y manager pueden seguir editando. Impresión: @media print con la maqueta de Rafa (título 'Informe de Fin de Temporada — Estado de la villa y puntos de mejora', villa, villa manager, fecha de revisión y temporada, las siete secciones como tablas con el estado en texto, filas vacías ocultas, fotos al final de 2 en 2 con su pie, salto de página antes de la sección 5 y de Fotos; sin menú ni botones). Pensada para el móvil: 360 px sin desplazamiento lateral, cajas que crecen con el texto. Pruebas informe-temporada.test.js (puerta, 52 claves por defecto, línea a petición POST/PUT/DELETE, WHERE de lectura, Enviar sin estado general, solo lectura, nombre de la foto, fotoUrl y ?v=, respuesta de la subida, estancias añadidas, versión). -->
+<!-- HISTORIAL: v2 - 27/10/2026 — ronda de arreglos 1 tras las dos revisiones independientes del 27/10/2026 de la primera versión. Corrección de un dato: el Worker (caspio-proxy, action save) no tiene rama DELETE (sin cuerpo da 400 'JSON inválido'; solo PUT con where o POST), así que ya no hay ningún DELETE en la página ni en las pruebas. (1) Bloqueo: una fila guardada una vez estando vacía no se volvía a guardar nunca (en guardarFila la vuelta temprana de la fila vacía iba después de marcar L._vuelo y el finally borraba la marca antes de guardarla); ahora la fila nueva y vacía se resuelve antes de empezar el guardado. Guardar ya no dice '✓ Guardado' si queda algo pendiente (haySucios) y Enviar se para con el aviso 'No enviado: hay cambios sin guardar' si falla un guardado. (2) Quitar foto = PUT por lineaRequest que vacía foto_url y el pie y conserva el linea_id. (3) Sin duplicados al reintentar: una fila sin linea_id se lee primero por whereLinea (limit 5) y si ya existe se adopta y va PUT; en cada lectura y al cargar vale el linea_id más alto del par (seccion, clave) (lineasDesdeFilas, mejorLinea); la cabecera se lee con limit 5 y vale el informe_id más bajo (primerInforme), al crearla y al cargar. (4) Todas las primeras lecturas por leer(), que mira r.ok (TaUsers, TaVillas, TaInformeTemporada, TaContacts y las líneas): cualquier fallo enseña 'Error al cargar. Vuelve a intentarlo.' sin barra y sin formulario, nunca un Borrador en blanco encima de un informe que existe; un fallo de TaUsers ya no sale como 'Sin acceso'. (5) Móvil: guardado también mientras se escribe (1,5 s sin teclear) además de los 800 ms al salir de la caja, al ocultar la página (visibilitychange) y en pagehide; el ✕ espera a guardarPendientes() antes de salir; borrador local en localStorage 'informe:<villaid>:<temporada>' con las filas sin guardar (solo texto, sin fotos; también los campos de cabecera sin guardar) que al cargar se mezcla encima de las filas de Caspio si sigue distinto, queda marcado para guardarse y se borra cuando todo está guardado (con el informe en solo lectura se descarta). (6) Fotos como task-limpieza v11: compressImage(file,1200,0.8) copiada (un archivo que no es JPEG se recodifica aunque sea pequeño), siempre .jpg con nombre <temporada>_informe_<informe_id>_<clave>_<6 letras o cifras al azar>.jpg para que la dirección no se pueda adivinar, corte a los 60 s con AbortController y aviso 'Foto no subida: sin conexión' (el hueco vuelve a como estaba), foto_url guardada con ?v=<ms> y mostrada por fotoUrl(), dos botones por hueco ('📷 Cámara' con capture y '📁 Galería' sin capture) y punto naranja en el hueco si la fila de la foto no se ha guardado. (7) .barra[hidden]{display:none}: la barra no sale sobre 'Sin acceso', un error o mientras carga. (8) 'Villa manager' en la cabecera y en la impresión = el asignado a la villa (TaVillas.KeyHolder_person contra TaContacts, una lectura limit 500 como villa.html, o TaUsers), no el autor; UserID sigue siendo el autor. (9) Reabrir pone enviado_at a null además de estado borrador. (10) Estancia añadida: texto_1 siempre con ': ' (sin nombre ': <incidencia>', que se lee con el nombre vacío). (11) Impresión: los títulos de sección con break-after: avoid para que no queden solos al pie de una página. Pruebas informe-temporada.test.js ampliadas: además de las funciones puras, carga el script real de la página con vm y un fetch falso (arnes-informe.js) que hace de Worker, apunta las llamadas y falla a petición: fila vaciada y escrita otra vez, tres toques con una sola cabecera, POST con lectura fallida sin duplicado, fallo y reintento, lineasDesdeFilas, printHtml, Quitar con PUT, Enviar que se para, solo lectura, errores de carga, guardado en el móvil y borrador local, nombre y ?v= de las fotos y el corte de 60 s. -->
+<!-- HISTORIAL: v1 - 27/10/2026 — primera versión: informe de fin de temporada de cada villa. Lo pidió Jordi (socio de 3Villas) el 27/10/2026: los villa managers tienen que rellenar el informe de fin de temporada por casa en la app, fácil y con fotos, esta temporada; Rafa mandó el ejemplo que el equipo ya usa en papel (informe-ejemplo-rafa.pdf, 5 páginas, villa Cielos Azules) y Gary decidió hacerlo en el intranet actual. Se abre con el botón '📋 Informe de temporada' de villa.html v28: informe-temporada.html?villaid=<id>&temporada=<año> (temporada = año actual si no viene). Permiso Auth.require('informe-temporada'), clave nueva de auth.js para admin, manager y staff; dentro de la página: admin y manager siempre, staff solo si su fila de TaUsers (por el email de la sesión) tiene Keyholder_por_defecto, la misma regla que villa.html (esVillaManager); limpieza, ventas y el staff sin keyholder ven 'Sin acceso' y no se lee nada (la puerta de rol va antes de la primera lectura; la de staff, justo después de leer TaUsers). Datos: tablas nuevas de Caspio TaInformeTemporada (una fila por villa y temporada: informe_id, villaid, UserID, fecha_revision, temporada, estado_general, observaciones_finales, estado borrador/enviado, enviado_at, created_at, updated_at) y TaInformeTemporadaLineas (una fila por línea: linea_id, informe_id, seccion, clave, orden, estado, texto_1, texto_2, prioridad, foto_url). Lecturas: TaUsers (limit 200), TaVillas where villaid (Name, KeyHolder_person), TaInformeTemporada where villaid=<v> AND temporada=<y> y sus líneas where informe_id=<i> (limit 1000). Secciones en el orden de Rafa, cada una plegable con su título fijo bajo la cabecera y su cuenta de filas rellenas: 1. Resumen y actuaciones prioritarias (estado general Bueno/Regular/Malo en la cabecera del informe y acciones accion_1..5 con acción, motivo e impacto y prioridad Alta/Media/Baja; las vacías se quedan en '+ Añadir actuación'); 2. Interior (13), 3. Exterior (9) y 4. Seguridad e instalaciones (4): Bueno verde, Regular ámbar, Malo rojo (36 px, a lo ancho en el móvil) y Observaciones; 5. Incidencias por estancia: salón, cocina, dormitorio principal, dormitorio 2, baño 1, baño 2 y exterior/piscina con incidencia, acción y prioridad, y '+ Añadir estancia' abre una fila otra_1..otra_5 con el nombre que escribe el usuario: en Caspio texto_1 = '<estancia>: <incidencia>' (textoEstancia y partirEstancia; la parte antes del primer ':' es el nombre); 6. Comentarios de huéspedes y propuestas de mejora (comentario_1..8: tema, origen Review/Parte/Propuesta guardado en estado, detalle); 7. Observaciones finales (cabecera); Fotos: seis huecos foto_1..6 con cámara del móvil (input file accept image/* capture environment), la subida empieza al elegir (spinner y miniatura), pie de foto y Quitar. Guardado: solo las filas tocadas, una llamada por fila al pulsar un botón de estado o al salir de una caja de texto (800 ms): fila conocida (linea_id) = action=save&method=PUT where linea_id=<id>; nueva = action=save&method=POST y lectura where informe_id=<i> AND seccion='<s>' AND clave='<k>' para saber su linea_id (el POST del relay contesta 201 con raw vacío, sin la fila). La cabecera se crea con la primera edición (abrir no crea nada): se lee villaid AND temporada, si no está POST y se lee otra vez; los campos de cabecera (estado_general, observaciones_finales, fecha_revision) se guardan igual con PUT where informe_id=<i> y updated_at. Nunca la acción update del Worker (solo conoce TaTasks y TaVillas). Un fallo da el aviso rojo 'No guardado: <error>' y deja el punto naranja; se reintenta con la siguiente edición o con Guardar. Fotos: action=upload con FormData file y filename informe/<temporada>_informe_<informe_id>_<clave>.<ext> (patrón de task-limpieza v11), respuesta {url}, {publicUrl} o la URL en texto; se muestran por www.3villas.com/intranet/fotos/ (fotoUrl de villa.html v23) con ?v= para ver al momento una foto cambiada. Quitar borraba la fila con un DELETE por el relay (indicación de bro 27/10/2026; era un error: el Worker no tiene DELETE, corregido en v2). Barra inferior fija: 💾 Guardar (guarda todo lo pendiente), 📤 Enviar (exige estado general, si no 'Falta el estado general'; confirm '¿Enviar el informe de <villa>? Después solo podrá cambiarlo administración.'; estado=enviado y enviado_at), 🔓 Reabrir para admin y manager en un informe enviado (estado=borrador) y 🖨️ Imprimir. Enviado = solo lectura para el villa manager (cajas desactivadas, botones inertes, sin subir fotos); admin y manager pueden seguir editando. Impresión: @media print con la maqueta de Rafa (título 'Informe de Fin de Temporada — Estado de la villa y puntos de mejora', villa, villa manager, fecha de revisión y temporada, las siete secciones como tablas con el estado en texto, filas vacías ocultas, fotos al final de 2 en 2 con su pie, salto de página antes de la sección 5 y de Fotos; sin menú ni botones). Pensada para el móvil: 360 px sin desplazamiento lateral, cajas que crecen con el texto. Pruebas informe-temporada.test.js (puerta, 52 claves por defecto, línea a petición POST/PUT/DELETE, WHERE de lectura, Enviar sin estado general, solo lectura, nombre de la foto, fotoUrl y ?v=, respuesta de la subida, estancias añadidas, versión). -->

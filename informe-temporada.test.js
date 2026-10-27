@@ -51,8 +51,8 @@ ok('isVM tiene que ser true de verdad', ctx.puedeAbrirInforme('staff', 'true') =
 var uRows = [{ UserID: 'U1', Email: 'Vm@3villas.com', Keyholder_por_defecto: 'U1' }, { UserID: 'U2', Email: 'st@3villas.com', Keyholder_por_defecto: ' ' }];
 ok('esVillaManager por email', ctx.esVillaManager(uRows, 'vm@3villas.com') === true && ctx.esVillaManager(uRows, 'st@3villas.com') === false && ctx.esVillaManager(uRows, '') === false);
 var pa = fnSource(SRC, 'iniciar');
-ok('iniciar: decide la puerta antes de leer la villa o el informe', fnSource(SRC, 'sinAcceso').indexOf('Sin acceso') > 0 && pa.indexOf('sinAcceso()') > 0 && pa.indexOf('puedeAbrirInforme(') > 0 && pa.indexOf('puedeAbrirInforme(') < pa.indexOf('table=TaVillas'), '');
-ok('cleaner/sales: "Sin acceso" sin ninguna lectura (la puerta de rol va antes del primer fetch)', /if\(!esAdminManager\(rol\)&&rol!=='staff'\)\{sinAcceso\(\);return;\}/.test(pa) && pa.indexOf("rol!=='staff'") < pa.indexOf('fetch('));
+ok('iniciar: decide la puerta antes de leer la villa o el informe', fnSource(SRC, 'sinAcceso').indexOf('Sin acceso') > 0 && pa.indexOf('sinAcceso()') > 0 && pa.indexOf('puedeAbrirInforme(') > 0 && pa.indexOf('puedeAbrirInforme(') < pa.indexOf("leer('TaVillas'"), '');
+ok('cleaner/sales: "Sin acceso" sin ninguna lectura (la puerta de rol va antes de la primera lectura)', /if\(!esAdminManager\(rol\)&&rol!=='staff'\)\{sinAcceso\(\);return;\}/.test(pa) && pa.indexOf("rol!=='staff'") < pa.indexOf('leer(') && pa.indexOf('fetch(') < 0);
 ok("Auth.require('informe-temporada')", SRC.indexOf("Auth.require('informe-temporada')") > 0);
 
 console.log('2. Las claves: 5 + 13 + 9 + 4 + 7 + 8 + 6');
@@ -129,7 +129,7 @@ ok('respuesta {publicUrl}', ctx.urlDeSubida('{"publicUrl":"https://a/c.jpg"}') =
 ok('respuesta texto', ctx.urlDeSubida(' https://a/d.jpg\n') === 'https://a/d.jpg');
 ok('respuesta vacia o sin URL', ctx.urlDeSubida('') === '' && ctx.urlDeSubida('{"ok":true}') === '' && ctx.urlDeSubida('error') === '');
 var sf = fnSource(SRC, 'subirFoto');
-ok("subida: FormData file + filename informe/<nombre> a action=upload", sf.indexOf("fd.append('file',file,nombre)") >= 0 && sf.indexOf("fd.append('filename','informe/'+nombre)") >= 0 && sf.indexOf("?action=upload") > 0);
+ok("subida: FormData file + filename informe/<nombre> a action=upload", sf.indexOf("fd.append('file',jpg,nombre)") >= 0 && sf.indexOf("fd.append('filename','informe/'+nombre)") >= 0 && sf.indexOf("?action=upload") > 0);
 ok('input de camara', SRC.indexOf('accept="image/*" capture="environment"') > 0);
 ok('compressImage de task-limpieza (1200, 0.8) antes de subir', SRC.indexOf('function compressImage(file,maxPx,quality)') > 0 && /compressImage\(file,1200,0\.8\)/.test(sf));
 ok('subida con AbortController de 60 s y aviso "Foto no subida: sin conexión"', sf.indexOf('new AbortController()') >= 0 && sf.indexOf('60000') > 0 && sf.indexOf('signal:') > 0 && SRC.indexOf('Foto no subida: sin conexión') > 0);
@@ -386,7 +386,7 @@ async function pruebasConFetch() {
   ok('al escribir: guardado programado a 1,5 s', H.pendientes(1500) === 1);
   ok('borrador local con la fila (sin fotos)', JSON.parse(H.almacen['informe:12:2026'] || '{}')['interior|pintura'] && JSON.parse(H.almacen['informe:12:2026'])['interior|pintura'].texto_1 === 'Grieta' && JSON.parse(H.almacen['informe:12:2026'])['interior|pintura'].foto_url === undefined);
   H.ctx.alSalir({ target: t });
-  ok('al salir de la caja: 800 ms', H.pendientes(800) === 0 || true);
+  ok('al salir de la caja: el guardado pasa a 800 ms (el de 1,5 s se cancela)', H.pendientes(1500) === 0 && /programar\(800\)/.test(fnSource(SRC, 'alSalir')));
   i = H.S.marca(); H.doc.visibilityState = 'hidden'; await H.evento(false, 'visibilitychange'); await H.espera(30);
   ok('visibilitychange -> hidden guarda lo pendiente', H.S.desde(i).some(function (x) { return x.relay === 'POST'; }) && H.ev('haySucios()') === false);
   ok('pagehide escuchado', H.escucha(true, 'pagehide') === 1);
