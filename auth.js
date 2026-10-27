@@ -99,6 +99,8 @@ const Auth = (function () {
     'villas'                     : ['admin', 'manager', 'staff', 'sales'],
     'editar-villas'              : ['admin', 'manager', 'staff', 'sales'],
     'editar-villas-para-manual'  : ['admin', 'manager', 'staff'],
+    'informe-temporada'          : ['admin', 'manager', 'staff'],  // 27/10/2026: informe de fin de temporada (Jordi); la pagina deja pasar a staff solo si es villa manager (Keyholder_por_defecto)
+    'informes-temporada'         : ['admin', 'manager'],  // 27/10/2026: listado de informes de fin de temporada, solo direccion
 
     // ── CONTACTOS ──────────────────────────────────────────────
     'contactos'             : ['admin', 'manager', 'staff', 'sales'],

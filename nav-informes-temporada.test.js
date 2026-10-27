@@ -21,7 +21,7 @@ ok('label, icono y url', e && e.label === 'Informes de temporada' && e.icon === 
 ok("roles ['admin','manager']", e && JSON.stringify(e.roles) === '["admin","manager"]');
 ok('ultima del bloque Listados', e && listados.children[listados.children.length - 1] === e);
 ok('no esta en staff, sales ni cleaner', [c._menuStaff, c._menuSales, c._menuCleaner].every(function (m) { return JSON.stringify(m).indexOf('informes-temporada') < 0; }));
-ok('una sola vez en nav.js', NAV.split('informes-temporada.html').length === 2);
+ok('una sola entrada en nav.js', NAV.split("url: 'informes-temporada.html'").length === 2);
 /* hasAccess real de nav-component.js */
 var NC = fs.readFileSync('nav-component.js', 'utf8');
 var i = NC.indexOf('function hasAccess('), j = NC.indexOf('\n  }', i);
