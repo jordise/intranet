@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Informes de temporada v1 — 3Villas</title>
+<title>Informes de temporada v2 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -91,8 +91,7 @@ a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap
 
 <script>
 const WORKER = 'https://www.3villas.com/intranet/api';
-const PAGE_VERSION = 1;
-const TEMPORADAS = [2025, 2026, 2027];
+const PAGE_VERSION = 2;
 
 /* ── auto-detección de versión (copia de villa.html) ── */
 (function checkForNewerVersion(){
@@ -115,6 +114,13 @@ const TEMPORADAS = [2025, 2026, 2027];
 window.goBack=function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},200);};
 
 /* ── Funciones puras (las prueba informes-temporada.test.js con vm) ── */
+/* v2: chips de temporada calculados: año actual -1, actual y +1 */
+function temporadasDe(y){y=parseInt(y,10);return[y-1,y,y+1];}
+/* v2: solo las líneas de la temporada: rango de informe_id de sus informes (luego se cuenta solo el conjunto exacto) */
+function whereLineasTemporada(ids){
+  const n=(ids||[]).map(x=>parseInt(x,10)).filter(x=>x>0);
+  return "seccion='resumen' AND informe_id>="+Math.min.apply(null,n)+' AND informe_id<='+Math.max.apply(null,n);
+}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function puedeVerListado(role){const r=String(role||'').trim().toLowerCase();return r==='admin'||r==='manager';}
 function estadoInforme(row){if(!row)return'Sin informe';return String(row.estado||'').trim().toLowerCase()==='enviado'?'Enviado':'Borrador';}
@@ -132,7 +138,8 @@ function nombreVM(kh,contacts,users){
 }
 function abrirUrl(villaid,temporada){return 'informe-temporada.html?villaid='+encodeURIComponent(villaid)+'&temporada='+encodeURIComponent(temporada);}
 function construirFilas(villas,informes,lineas,contacts,users,temporada){
-  const porVilla={};(informes||[]).forEach(i=>{const k=String(i.villaid);if(!porVilla[k])porVilla[k]=i;});
+  /* v2: dos informes para la misma villa y temporada: vale el de informe_id más bajo, como en informe-temporada.html */
+  const porVilla={};(informes||[]).forEach(i=>{const k=String(i.villaid);if(!porVilla[k]||parseInt(i.informe_id,10)<parseInt(porVilla[k].informe_id,10))porVilla[k]=i;});
   const acc=contarAcciones(lineas);
   const fecha=v=>{const m=String(v||'').match(/^(\d{4})-(\d\d)-(\d\d)/);return m?m[3]+'/'+m[2]+'/'+m[1]:'';};
   return (villas||[]).map(v=>{
@@ -170,20 +177,34 @@ function csvTabla(filas){
 /* ── Pagina ── */
 const g=id=>document.getElementById(id);
 let VILLAS=[],USERS=[],CONTACTS=[],LINEAS=[],INFORMES=[],FILAS=[];
-let TEMP=TEMPORADAS.includes(new Date().getFullYear())?new Date().getFullYear():2026,ESTADO='',Q='';
+const TEMPORADAS=temporadasDe(new Date().getFullYear());
+let TEMP=new Date().getFullYear(),ESTADO='',Q='',PETICION=0;
 async function leerJson(u){const r=await fetch(Auth.url(u));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.Result||j.result||[];}
-async function cargarInformes(){
-  INFORMES=await leerJson(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent('temporada='+parseInt(TEMP,10))+'&limit=500');
+/* Informes de la temporada y después sus líneas de resumen (rango de informe_id); se cuentan solo las de ese conjunto */
+async function leerTemporada(t){
+  const informes=await leerJson(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent('temporada='+parseInt(t,10))+'&limit=500');
+  const ids=informes.map(i=>parseInt(i.informe_id,10)).filter(x=>x>0);
+  if(!ids.length)return{informes:informes,lineas:[]};
+  const set=new Set(ids.map(String));
+  const lineas=await leerJson(WORKER+'?action=data&table=TaInformeTemporadaLineas&where='+encodeURIComponent(whereLineasTemporada(ids))+'&limit=1000');
+  return{informes:informes,lineas:lineas.filter(l=>set.has(String(parseInt(l.informe_id,10))))};
+}
+/* v2: contador de peticiones: si llega tarde la respuesta de una temporada tocada antes, se ignora */
+async function cargarInformes(t){
+  const n=++PETICION;
+  const r=await leerTemporada(t);
+  if(n!==PETICION)return false;
+  INFORMES=r.informes;LINEAS=r.lineas;
+  return true;
 }
 async function cargarTodo(){
-  const [v,u,c,l]=await Promise.all([
+  const [v,u,c,ok]=await Promise.all([
     leerJson(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('Status=1')+'&limit=500'),
     leerJson(WORKER+'?action=data&table=TaUsers&limit=200'),
     leerJson(WORKER+'?action=data&table=TaContacts&limit=500'),
-    leerJson(WORKER+'?action=data&table=TaInformeTemporadaLineas&where='+encodeURIComponent("seccion='resumen'")+'&limit=1000'),
-    cargarInformes()
+    cargarInformes(TEMP)
   ]);
-  VILLAS=v;LINEAS=l;
+  VILLAS=v;
   USERS=u.map(x=>({id:String(x.UserID||''),name:x.Name||x.UserID||''})).filter(x=>x.id);
   CONTACTS=c.map(x=>({id:String(x.ContactID||x.contactid||x.Id||x.id||''),name:x.Name||x.Nombre||x.Full_Name||x.FullName||''})).filter(x=>x.id&&x.name);
 }
@@ -204,7 +225,10 @@ function descargarCsv(){
 }
 async function cambiarTemporada(t){
   TEMP=t;g('contador').textContent='Cargando…';
-  try{await cargarInformes();pintar();}catch(e){g('contador').textContent='Error: '+e.message;}
+  document.querySelectorAll('[data-temp]').forEach(b=>b.classList.toggle('on',+b.dataset.temp===TEMP));
+  const n=PETICION+1;
+  try{if(await cargarInformes(t))pintar();}
+  catch(e){if(n===PETICION)g('contador').textContent='Error al cargar. Vuelve a intentarlo.';}
 }
 async function iniciar(){
   if(!puedeVerListado(Auth.role())){g('main').innerHTML='<div class="msg err">Sin acceso</div>';return;}
@@ -219,10 +243,11 @@ async function iniciar(){
   document.querySelectorAll('[data-estado]').forEach(b=>b.onclick=()=>{ESTADO=b.dataset.estado;pintar();});
   g('buscar').oninput=e=>{Q=e.target.value;pintar();};
   try{await cargarTodo();pintar();}
-  catch(e){console.error(e);g('contador').textContent='Error: '+e.message;}
+  catch(e){console.error(e);g('contador').textContent='Error al cargar. Vuelve a intentarlo.';}
 }
 document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v2 - 27/10/2026 — ronda de arreglos 1 tras las dos revisiones independientes del 27/10/2026 de la primera versión. (a) Las líneas se leen solo de la temporada: después de leer sus informes, una lectura de TaInformeTemporadaLineas where seccion='resumen' AND informe_id>=<mín> AND informe_id<=<máx> (limit 1000; ninguna si la temporada no tiene informes) y se cuentan en el navegador solo las de los informe_id de esa temporada; en v1 se leían las de todas las temporadas y con el tiempo el límite de 1000 dejaba fuera algunas. (b) Contador de peticiones: si se tocan dos temporadas seguidas y la respuesta de la primera llega tarde, se ignora y la tabla queda con la última. (c) Chips de temporada calculados: año actual -1, actual y +1, por defecto el actual (antes 2025, 2026 y 2027 fijos). (d) Dos informes para la misma villa y temporada: cuenta el de informe_id más bajo, igual que el formulario. Nombre del villa manager sin cambios (TaContacts limit 500). Un error de lectura enseña 'Error al cargar. Vuelve a intentarlo.' en el contador. Pruebas informes-temporada.test.js ampliadas con el script real de la página cargado con vm y un fetch falso (arnes-informe.js): WHERE de líneas con el rango, respuesta tardía ignorada, chips calculados y error de carga. -->
 <!-- HISTORIAL: v1 - 27/10/2026 — primera versión: listado para dirección de los informes de fin de temporada (informe-temporada.html v1). Lo pidió Jordi el 27/10/2026 junto con el formulario, a partir del ejemplo en papel de Rafa (villa Cielos Azules). Permiso Auth.require('informes-temporada'), clave nueva de auth.js solo para admin y manager, y comprobación dentro de la página (puedeVerListado: cualquier otro rol ve 'Sin acceso' y no se lee nada). Entrada 'Informes de temporada' al final del bloque Listados de nav.js v21. Lecturas: TaVillas where Status=1 (limit 500, como loadMasterVillas de listado-ocupacion.html v30), TaUsers (limit 200) y TaContacts (limit 500) para el nombre del villa manager por KeyHolder_person (contacto o usuario, como resContact de villa.html), TaInformeTemporada where temporada=<año> (una lectura, limit 500; se repite al cambiar de temporada) y TaInformeTemporadaLineas where seccion='resumen' (una lectura de todas las temporadas, limit 1000, sin leer línea por villa) para contar por informe_id las actuaciones prioritarias con texto. Tabla: villa, villa manager, estado (Sin informe / Borrador / Enviado en una píldora de color), fecha de revisión, estado general, nº de actuaciones prioritarias (0 sin líneas) y 'Abrir ›' a informe-temporada.html?villaid=…&temporada=…. Filtros: temporada (2025, 2026, 2027; por defecto la del año actual), estado y búsqueda por nombre de villa sin acentos. Orden: Sin informe, Borrador, Enviado y dentro por nombre. Contador arriba: 'N villas · a sin informe · b borrador · c enviado'. ⬇️ CSV con lo que se ve (BOM UTF-8 y ';', csvCell de informe-reservas.html), fichero informes-temporada-<año>.csv. En el móvil cada villa es una tarjeta, sin desplazamiento lateral. Pruebas informes-temporada.test.js (puerta, estado por villa, conteo de actuaciones, villa manager, orden, contadores, filtros, CSV, lecturas, versión). -->
