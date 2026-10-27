@@ -169,8 +169,9 @@ ok('debounce 800 ms al salir de una caja', /programar\(800\)/.test(fnSource(SRC,
 /* v3: la impresion es la misma maqueta que la pantalla */
 var PRINT = (function () { var i = SRC.indexOf('@media print{'); if (i < 0) return ''; var j = SRC.indexOf('{', i), d = 0, k = j; for (; k < SRC.length; k++) { if (SRC[k] === '{') d++; else if (SRC[k] === '}') { d--; if (!d) break; } } return SRC.slice(i, k + 1); })();
 var MOVIL = (function () { var i = SRC.indexOf('@media (max-width:699px){'); if (i < 0) return ''; var j = SRC.indexOf('{', i), d = 0, k = j; for (; k < SRC.length; k++) { if (SRC[k] === '{') d++; else if (SRC[k] === '}') { d--; if (!d) break; } } return SRC.slice(i, k + 1); })();
-ok('sin printHtml, sin pintarImpresion, sin #printView', SRC.indexOf('printHtml') < 0 && SRC.indexOf('pintarImpresion') < 0 && SRC.indexOf('printView') < 0);
-ok('sin "+ Añadir actuación" (las cinco filas siempre están)', SRC.indexOf('+ Añadir actuación') < 0);
+var CODIGO = SRC.slice(0, SRC.indexOf('<!-- HISTORIAL:')); /* el historial cuenta lo de antes: no cuenta */
+ok('sin printHtml, sin pintarImpresion, sin #printView', CODIGO.length > 1000 && CODIGO.indexOf('printHtml') < 0 && CODIGO.indexOf('pintarImpresion') < 0 && CODIGO.indexOf('printView') < 0);
+ok('sin "+ Añadir actuación" (las cinco filas siempre están)', CODIGO.indexOf('+ Añadir actuación') < 0);
 ok('Imprimir = window.print()', /window\.print\(\)/.test(fnSource(SRC, 'imprimir')));
 ok('@page A4 con márgenes 14 mm 12 mm', /@page\{size:A4;margin:14mm 12mm\}/.test(PRINT));
 ok('impresion: oculta la barra, el nav, la pastilla, los enlaces de añadir, los controles de foto y el hueco vacío', ['.barra', '.top-nav', '.pill', '.anadir', '.f-ctl', '.foto.vacia'].every(function (c) { return PRINT.indexOf(c) >= 0; }) && /display:none!important/.test(PRINT), PRINT.slice(0, 300));
