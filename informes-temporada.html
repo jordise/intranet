@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Villas">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Informes de temporada v1 — 3Villas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-dark:#9e0c24;--red-light:#fce8eb;
+  --green:#1e9e4e;--green-light:#e6f7ee;
+  --orange:#e07b00;--orange-light:#fff4e0;
+  --gray-1:#f4f5f7;--gray-2:#e8eaed;--gray-3:#c4c9d4;--gray-4:#7a8194;--gray-5:#2d3142;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{font-family:'Open Sans',sans-serif;background:var(--gray-1);color:var(--gray-5);min-height:100vh;padding-bottom:40px}
+.top-nav{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-bottom:1.5px solid var(--gray-2);box-shadow:0 2px 8px rgba(0,0,0,.07);position:sticky;top:0;z-index:300}
+.nav-logo img{height:24px;object-fit:contain}
+.nav-center{flex:1;min-width:0;padding:0 4px}
+.h-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-meta{font-size:10px;color:var(--gray-4);margin-top:1px}
+.nav-close-btn{display:flex;align-items:center;justify-content:center;background:rgba(200,16,46,.1);border:1.5px solid rgba(200,16,46,.2);color:var(--red);width:30px;height:30px;border-radius:50%;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0}
+.nav-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--red);border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;flex-shrink:0}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.card{background:#fff;border:1.5px solid var(--gray-2);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+h1{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:900;margin-bottom:8px}
+.filtros{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.grupo>span{font-size:11px;font-weight:700;color:var(--gray-4)}
+.chip{padding:6px 12px;border-radius:20px;border:1.5px solid var(--gray-2);background:var(--gray-1);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;color:var(--gray-5)}
+.chip.on{background:var(--red);border-color:var(--red);color:#fff}
+.buscar{flex:1 1 180px;min-width:0;font:inherit;font-size:14px;padding:7px 10px;border:1.5px solid var(--gray-2);border-radius:8px}
+.btn{padding:7px 14px;border-radius:8px;border:1.5px solid var(--gray-5);background:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;cursor:pointer;color:var(--gray-5)}
+.contador{font-size:13px;font-weight:700;margin:10px 0 0}
+.tabla-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--gray-2);text-align:left;vertical-align:middle}
+th{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;color:var(--gray-4);white-space:nowrap}
+td.num{text-align:center}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;white-space:nowrap}
+.pill.sin{background:var(--red-light);color:var(--red)}
+.pill.borrador{background:var(--orange-light);color:var(--orange)}
+.pill.enviado{background:var(--green-light);color:var(--green)}
+a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap}
+.msg{background:#fff;border-radius:12px;padding:30px 16px;text-align:center;font-weight:700;margin-top:20px}
+.msg.err{color:var(--red)}
+/* Movil: cada villa en una tarjeta, sin desplazamiento lateral */
+@media(max-width:640px){
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tr{border:1.5px solid var(--gray-2);border-radius:10px;margin-bottom:8px;padding:6px 10px;background:#fff}
+  td{border:none;padding:3px 0;display:flex;justify-content:space-between;gap:10px}
+  td.num{text-align:right}
+  td::before{content:attr(data-l);font-size:11px;font-weight:700;color:var(--gray-4);flex-shrink:0}
+  td.villa{font-weight:800;font-size:14px}
+  td.villa::before{content:none}
+}
+</style>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="nav-component.js"></script>
+</head>
+<body>
+<script>Auth.require('informes-temporada');</script>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html"><img src="logo-negro.png" alt="3Villas"></a>
+  <div class="nav-center">
+    <div class="h-title">Informes de temporada</div>
+    <div class="h-meta">Informes de fin de temporada de los villa managers</div>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+    <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
+    <button class="nav-close-btn" onclick="goBack()" title="Cerrar">✕</button>
+  </div>
+</nav>
+
+<main id="main"><div class="msg" id="stLoad">Cargando…</div></main>
+
+<script>
+const WORKER = 'https://www.3villas.com/intranet/api';
+const PAGE_VERSION = 1;
+const TEMPORADAS = [2025, 2026, 2027];
+
+/* ── auto-detección de versión (copia de villa.html) ── */
+(function checkForNewerVersion(){
+  try{
+    if(location.protocol==='file:')return;
+    fetch(location.pathname,{cache:'reload'}).then(r=>r.text()).then(html=>{
+      const m=html.match(/VERSIÓN ACTUAL:\s*v(\d+)/i);
+      if(!m)return;
+      const serverV=parseInt(m[1]);
+      if(serverV>PAGE_VERSION){
+        const key='3v_vchk_'+location.pathname+'_v'+serverV;
+        if(!sessionStorage.getItem(key)){
+          sessionStorage.setItem(key,'1');
+          location.reload();
+        }
+      }
+    }).catch(()=>{});
+  }catch(e){}
+})();
+window.goBack=function(){try{window.close();}catch(e){}setTimeout(function(){history.back();},200);};
+
+/* ── Funciones puras (las prueba informes-temporada.test.js con vm) ── */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function puedeVerListado(role){const r=String(role||'').trim().toLowerCase();return r==='admin'||r==='manager';}
+function estadoInforme(row){if(!row)return'Sin informe';return String(row.estado||'').trim().toLowerCase()==='enviado'?'Enviado':'Borrador';}
+/* Nº de actuaciones prioritarias por informe_id: filas de 'resumen' con la accion escrita */
+function contarAcciones(lineas){
+  const c={};
+  (lineas||[]).forEach(l=>{if(String(l.seccion||'')==='resumen'&&String(l.texto_1||'').trim()){const k=String(l.informe_id);c[k]=(c[k]||0)+1;}});
+  return c;
+}
+/* Villa manager: KeyHolder_person es un contacto (ContactID) o un usuario (UserID), como resContact de villa.html */
+function nombreVM(kh,contacts,users){
+  const id=String(kh==null?'':kh).trim();if(!id)return'';
+  const c=(contacts||[]).find(x=>x.id===id);if(c)return c.name;
+  const u=(users||[]).find(x=>x.id===id);return u?u.name:'';
+}
+function abrirUrl(villaid,temporada){return 'informe-temporada.html?villaid='+encodeURIComponent(villaid)+'&temporada='+encodeURIComponent(temporada);}
+function construirFilas(villas,informes,lineas,contacts,users,temporada){
+  const porVilla={};(informes||[]).forEach(i=>{const k=String(i.villaid);if(!porVilla[k])porVilla[k]=i;});
+  const acc=contarAcciones(lineas);
+  const fecha=v=>{const m=String(v||'').match(/^(\d{4})-(\d\d)-(\d\d)/);return m?m[3]+'/'+m[2]+'/'+m[1]:'';};
+  return (villas||[]).map(v=>{
+    const inf=porVilla[String(v.villaid)];
+    return{villaid:v.villaid,villa:String(v.Name||('Villa '+v.villaid)),vm:nombreVM(v.KeyHolder_person,contacts,users),
+      estado:estadoInforme(inf),fecha:inf?fecha(inf.fecha_revision):'',estadoGeneral:inf?String(inf.estado_general||''):'',
+      acciones:inf?(acc[String(inf.informe_id)]||0):0,url:abrirUrl(v.villaid,temporada)};
+  });
+}
+/* Sin informe primero, luego Borrador, luego Enviado; cada grupo por nombre de villa */
+function ordenarFilas(filas){
+  const rango={'Sin informe':0,'Borrador':1,'Enviado':2};
+  return filas.slice().sort((a,b)=>(rango[a.estado]-rango[b.estado])||a.villa.localeCompare(b.villa,'es',{sensitivity:'base'}));
+}
+function contadores(filas){return{total:filas.length,sin:filas.filter(f=>f.estado==='Sin informe').length,borrador:filas.filter(f=>f.estado==='Borrador').length,enviado:filas.filter(f=>f.estado==='Enviado').length};}
+function contadorTexto(c){return c.total+' villas · '+c.sin+' sin informe · '+c.borrador+' borrador · '+c.enviado+' enviado';}
+function filtrarFilas(filas,estado,q){
+  const n=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const t=n(q).trim();
+  return filas.filter(f=>(!estado||f.estado===estado)&&(!t||n(f.villa).indexOf(t)>=0));
+}
+/* Igual que informe-reservas.html: texto que empieza por = + - @ lleva apostrofo para que Excel no lo ejecute */
+function csvCell(v){
+  var s = String(v == null ? '' : v);
+  if (/^[=@\t\r]/.test(s) || /^[+\-](?![\d\s().\-]+$)/.test(s)) s = "'" + s;
+  return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+/* CSV para Excel en español: BOM UTF-8 y ';' (como informe-reservas.html) */
+function csvTabla(filas){
+  const lines=[['Villa','Villa manager','Estado','Fecha de revisión','Estado general','Nº actuaciones prioritarias'].map(csvCell).join(';')];
+  filas.forEach(f=>lines.push([f.villa,f.vm,f.estado,f.fecha,f.estadoGeneral,f.acciones].map(csvCell).join(';')));
+  return '﻿'+lines.join('\r\n')+'\r\n';
+}
+
+/* ── Pagina ── */
+const g=id=>document.getElementById(id);
+let VILLAS=[],USERS=[],CONTACTS=[],LINEAS=[],INFORMES=[],FILAS=[];
+let TEMP=TEMPORADAS.includes(new Date().getFullYear())?new Date().getFullYear():2026,ESTADO='',Q='';
+async function leerJson(u){const r=await fetch(Auth.url(u));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.Result||j.result||[];}
+async function cargarInformes(){
+  INFORMES=await leerJson(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent('temporada='+parseInt(TEMP,10))+'&limit=500');
+}
+async function cargarTodo(){
+  const [v,u,c,l]=await Promise.all([
+    leerJson(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('Status=1')+'&limit=500'),
+    leerJson(WORKER+'?action=data&table=TaUsers&limit=200'),
+    leerJson(WORKER+'?action=data&table=TaContacts&limit=500'),
+    leerJson(WORKER+'?action=data&table=TaInformeTemporadaLineas&where='+encodeURIComponent("seccion='resumen'")+'&limit=1000'),
+    cargarInformes()
+  ]);
+  VILLAS=v;LINEAS=l;
+  USERS=u.map(x=>({id:String(x.UserID||''),name:x.Name||x.UserID||''})).filter(x=>x.id);
+  CONTACTS=c.map(x=>({id:String(x.ContactID||x.contactid||x.Id||x.id||''),name:x.Name||x.Nombre||x.Full_Name||x.FullName||''})).filter(x=>x.id&&x.name);
+}
+function pintar(){
+  FILAS=ordenarFilas(construirFilas(VILLAS,INFORMES,LINEAS,CONTACTS,USERS,TEMP));
+  const vis=filtrarFilas(FILAS,ESTADO,Q);
+  const pill=e=>'<span class="pill '+(e==='Sin informe'?'sin':e.toLowerCase())+'">'+e+'</span>';
+  g('contador').textContent=contadorTexto(contadores(FILAS));
+  g('tbody').innerHTML=vis.length?vis.map(f=>'<tr><td class="villa" data-l="Villa">'+esc(f.villa)+'</td><td data-l="Villa manager">'+esc(f.vm||'—')+'</td><td data-l="Estado">'+pill(f.estado)+'</td><td data-l="Fecha de revisión">'+esc(f.fecha||'—')+'</td><td data-l="Estado general">'+esc(f.estadoGeneral||'—')+'</td><td class="num" data-l="Actuaciones">'+f.acciones+'</td><td data-l=""><a class="abrir" href="'+esc(f.url)+'">Abrir ›</a></td></tr>').join('')
+    :'<tr><td colspan="7" style="text-align:center;color:var(--gray-4)">Ninguna villa con estos filtros</td></tr>';
+  document.querySelectorAll('[data-temp]').forEach(b=>b.classList.toggle('on',+b.dataset.temp===TEMP));
+  document.querySelectorAll('[data-estado]').forEach(b=>b.classList.toggle('on',b.dataset.estado===ESTADO));
+}
+function descargarCsv(){
+  const blob=new Blob([csvTabla(filtrarFilas(FILAS,ESTADO,Q))],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='informes-temporada-'+TEMP+'.csv';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+async function cambiarTemporada(t){
+  TEMP=t;g('contador').textContent='Cargando…';
+  try{await cargarInformes();pintar();}catch(e){g('contador').textContent='Error: '+e.message;}
+}
+async function iniciar(){
+  if(!puedeVerListado(Auth.role())){g('main').innerHTML='<div class="msg err">Sin acceso</div>';return;}
+  g('main').innerHTML='<div class="card"><h1>Informes de fin de temporada</h1><div class="filtros">'
+    +'<div class="grupo"><span>Temporada</span>'+TEMPORADAS.map(t=>'<button class="chip" data-temp="'+t+'">'+t+'</button>').join('')+'</div>'
+    +'<div class="grupo"><span>Estado</span>'+[['','Todos'],['Sin informe','Sin informe'],['Borrador','Borrador'],['Enviado','Enviado']].map(e=>'<button class="chip" data-estado="'+e[0]+'">'+e[1]+'</button>').join('')+'</div>'
+    +'<input class="buscar" id="buscar" placeholder="Buscar villa…" autocomplete="off">'
+    +'<button class="btn" onclick="descargarCsv()">⬇️ CSV</button></div>'
+    +'<div class="contador" id="contador">Cargando…</div></div>'
+    +'<div class="card tabla-wrap"><table><thead><tr><th>Villa</th><th>Villa manager</th><th>Estado</th><th>Fecha de revisión</th><th>Estado general</th><th>Nº actuaciones prioritarias</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>';
+  document.querySelectorAll('[data-temp]').forEach(b=>b.onclick=()=>cambiarTemporada(+b.dataset.temp));
+  document.querySelectorAll('[data-estado]').forEach(b=>b.onclick=()=>{ESTADO=b.dataset.estado;pintar();});
+  g('buscar').oninput=e=>{Q=e.target.value;pintar();};
+  try{await cargarTodo();pintar();}
+  catch(e){console.error(e);g('contador').textContent='Error: '+e.message;}
+}
+document.addEventListener('DOMContentLoaded',iniciar);
+</script>
+</body>
+</html>
+<!-- HISTORIAL: v1 - 27/10/2026 — primera versión: listado para dirección de los informes de fin de temporada (informe-temporada.html v1). Lo pidió Jordi el 27/10/2026 junto con el formulario, a partir del ejemplo en papel de Rafa (villa Cielos Azules). Permiso Auth.require('informes-temporada'), clave nueva de auth.js solo para admin y manager, y comprobación dentro de la página (puedeVerListado: cualquier otro rol ve 'Sin acceso' y no se lee nada). Entrada 'Informes de temporada' al final del bloque Listados de nav.js v21. Lecturas: TaVillas where Status=1 (limit 500, como loadMasterVillas de listado-ocupacion.html v30), TaUsers (limit 200) y TaContacts (limit 500) para el nombre del villa manager por KeyHolder_person (contacto o usuario, como resContact de villa.html), TaInformeTemporada where temporada=<año> (una lectura, limit 500; se repite al cambiar de temporada) y TaInformeTemporadaLineas where seccion='resumen' (una lectura de todas las temporadas, limit 1000, sin leer línea por villa) para contar por informe_id las actuaciones prioritarias con texto. Tabla: villa, villa manager, estado (Sin informe / Borrador / Enviado en una píldora de color), fecha de revisión, estado general, nº de actuaciones prioritarias (0 sin líneas) y 'Abrir ›' a informe-temporada.html?villaid=…&temporada=…. Filtros: temporada (2025, 2026, 2027; por defecto la del año actual), estado y búsqueda por nombre de villa sin acentos. Orden: Sin informe, Borrador, Enviado y dentro por nombre. Contador arriba: 'N villas · a sin informe · b borrador · c enviado'. ⬇️ CSV con lo que se ve (BOM UTF-8 y ';', csvCell de informe-reservas.html), fichero informes-temporada-<año>.csv. En el móvil cada villa es una tarjeta, sin desplazamiento lateral. Pruebas informes-temporada.test.js (puerta, estado por villa, conteo de actuaciones, villa manager, orden, contadores, filtros, CSV, lecturas, versión). -->

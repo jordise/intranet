@@ -21,7 +21,7 @@ function constLine(s, name) {
   if (!m) throw new Error('no encuentro const ' + name);
   return m[0];
 }
-var FNS = ['esc', 'escQ', 'rolDe', 'esAdminManager', 'puedeAbrirInforme', 'esVillaManager', 'seccionesDef', 'clavesDefecto',
+var FNS = ['esc', 'escQ', 'ahoraCaspio', 'rolDe', 'esAdminManager', 'puedeAbrirInforme', 'esVillaManager', 'seccionesDef', 'clavesDefecto',
   'whereInforme', 'whereLinea', 'lineaRequest', 'borrarLineaRequest', 'informeRequest', 'validarEnvio', 'soloLectura',
   'fotoNombre', 'fotoUrl', 'fotoSrc', 'urlDeSubida', 'textoEstancia', 'partirEstancia', 'filaVacia'];
 var ctx = {};
@@ -45,7 +45,7 @@ ok('isVM tiene que ser true de verdad', ctx.puedeAbrirInforme('staff', 'true') =
 var uRows = [{ UserID: 'U1', Email: 'Vm@3villas.com', Keyholder_por_defecto: 'U1' }, { UserID: 'U2', Email: 'st@3villas.com', Keyholder_por_defecto: ' ' }];
 ok('esVillaManager por email', ctx.esVillaManager(uRows, 'vm@3villas.com') === true && ctx.esVillaManager(uRows, 'st@3villas.com') === false && ctx.esVillaManager(uRows, '') === false);
 var pa = fnSource(SRC, 'iniciar');
-ok('iniciar: decide la puerta antes de leer la villa o el informe', pa.indexOf('Sin acceso') > 0 && pa.indexOf('puedeAbrirInforme(') > 0 && pa.indexOf('puedeAbrirInforme(') < pa.indexOf('table=TaVillas'), '');
+ok('iniciar: decide la puerta antes de leer la villa o el informe', fnSource(SRC, 'sinAcceso').indexOf('Sin acceso') > 0 && pa.indexOf('sinAcceso()') > 0 && pa.indexOf('puedeAbrirInforme(') > 0 && pa.indexOf('puedeAbrirInforme(') < pa.indexOf('table=TaVillas'), '');
 ok('cleaner/sales: "Sin acceso" sin ninguna lectura (la puerta de rol va antes del primer fetch)', /if\(!esAdminManager\(rol\)&&rol!=='staff'\)\{sinAcceso\(\);return;\}/.test(pa) && pa.indexOf("rol!=='staff'") < pa.indexOf('fetch('));
 ok("Auth.require('informe-temporada')", SRC.indexOf("Auth.require('informe-temporada')") > 0);
 
@@ -136,7 +136,7 @@ ok('VERSIÓN ACTUAL: v1 en las 5 primeras lineas', /VERSIÓN ACTUAL: v1 \|/.test
 ok('PAGE_VERSION = 1', /const PAGE_VERSION = 1;/.test(SRC));
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('toast "No guardado: "', SRC.indexOf("'No guardado: '") > 0);
-ok('debounce 800 ms', /,800\)/.test(SRC));
+ok('debounce 800 ms al salir de una caja', /programar\(800\)/.test(fnSource(SRC, 'alSalir')) && /setTimeout\(guardarPendientes,ms\)/.test(fnSource(SRC, 'programar')));
 ok('@media print con el titulo de Rafa', SRC.indexOf('@media print') > 0 && SRC.indexOf('Informe de Fin de Temporada — Estado de la villa y puntos de mejora') > 0);
 ok('salto de pagina antes de 5 y Fotos', (SRC.match(/break-before:page/g) || []).length >= 1 && /pv-salto/.test(SRC));
 ok('botones Guardar, Enviar, Reabrir, Imprimir', ['💾 Guardar', '📤 Enviar', '🔓 Reabrir', '🖨️ Imprimir'].every(function (t) { return SRC.indexOf(t) > 0; }));
