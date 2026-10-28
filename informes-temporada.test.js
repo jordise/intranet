@@ -1,4 +1,4 @@
-/* Pruebas del listado de informes de fin de temporada (informes-temporada.html v2, Jordi 27/10/2026).
+/* Pruebas del listado de informes de fin de temporada (informes-temporada.html v3, Jordi 27/10/2026; v3 28/10/2026: enlace al cuadro).
    node informes-temporada.test.js
    v2 (ronda de arreglos 1 tras las dos revisiones del 27/10/2026): lineas solo de la temporada (rango de informe_id),
    una respuesta tardia de otra temporada se ignora, chips calculados con el año actual, informe_id mas bajo por villa.
@@ -101,8 +101,11 @@ ok("WHERE de lineas: seccion='resumen' y el rango de informe_id de la temporada"
 ok('WHERE de lineas numerico', ctx.whereLineasTemporada(['10 OR 1=1', 7]) === "seccion='resumen' AND informe_id>=7 AND informe_id<=10");
 ok("lineas: una sola lectura en la pagina, limit 1000", (SRC.match(/table=TaInformeTemporadaLineas/g) || []).length === 1 && /table=TaInformeTemporadaLineas[^\n]*limit=1000/.test(SRC));
 ok('TaUsers y TaContacts', SRC.indexOf('table=TaUsers') > 0 && SRC.indexOf('table=TaContacts') > 0);
-ok('VERSIÓN ACTUAL: v2 en las 5 primeras lineas y PAGE_VERSION = 2', /VERSIÓN ACTUAL: v2 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 2;/.test(SRC));
-ok('titulo v2', SRC.indexOf('<title>Informes de temporada v2 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v3 en las 5 primeras lineas y PAGE_VERSION = 3', /VERSIÓN ACTUAL: v3 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 3;/.test(SRC));
+ok('titulo v3', SRC.indexOf('<title>Informes de temporada v3 — 3Villas</title>') > 0);
+ok('v3: enlace "Cuadro ›" al cuadro en la barra de titulo', /<nav class="top-nav">[\s\S]*<a [^>]*href="cuadro-informes-temporada.html"[^>]*>Cuadro ›<\/a>[\s\S]*<\/nav>/.test(SRC));
+var h3i = SRC.indexOf('<!-- HISTORIAL: v3 - '), hist3 = h3i > 0 ? SRC.slice(h3i, SRC.indexOf('-->', h3i)) : '';
+ok('HISTORIAL v3 en español, antes de v2, con la fecha y el cuadro', h3i > 0 && h3i < SRC.indexOf('<!-- HISTORIAL: v2 - ') && hist3.indexOf('28/10/2026') >= 0 && hist3.indexOf('cuadro-informes-temporada.html') >= 0);
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('boton ⬇️ CSV', SRC.indexOf('⬇️ CSV') > 0);
 var hist = SRC.slice(SRC.indexOf('<!-- HISTORIAL: v1 - '));

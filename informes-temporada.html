@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v3 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Informes de temporada v2 — 3Villas</title>
+<title>Informes de temporada v3 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -54,6 +54,7 @@ td.num{text-align:center}
 .pill.borrador{background:var(--orange-light);color:var(--orange)}
 .pill.enviado{background:var(--green-light);color:var(--green)}
 a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap}
+.nav-cuadro{color:var(--red);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;padding:0 4px}
 .msg{background:#fff;border-radius:12px;padding:30px 16px;text-align:center;font-weight:700;margin-top:20px}
 .msg.err{color:var(--red)}
 /* Movil: cada villa en una tarjeta, sin desplazamiento lateral */
@@ -82,6 +83,7 @@ a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap
     <div class="h-meta">Informes de fin de temporada de los villa managers</div>
   </div>
   <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+    <a class="nav-cuadro" href="cuadro-informes-temporada.html" title="Cuadro de informes de temporada">Cuadro ›</a>
     <button class="nav-menu-btn" onclick="NavComponent.open()" title="Menú">☰</button>
     <button class="nav-close-btn" onclick="goBack()" title="Cerrar">✕</button>
   </div>
@@ -91,7 +93,7 @@ a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap
 
 <script>
 const WORKER = 'https://www.3villas.com/intranet/api';
-const PAGE_VERSION = 2;
+const PAGE_VERSION = 3;
 
 /* ── auto-detección de versión (copia de villa.html) ── */
 (function checkForNewerVersion(){
@@ -249,5 +251,6 @@ document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v3 - 28/10/2026 — enlace "Cuadro ›" en la barra de título hacia el nuevo cuadro de dirección cuadro-informes-temporada.html v1 (Gary aprobó la maqueta el 28/10/2026). Nada más cambia: mismas lecturas, misma tabla y mismo CSV. Pruebas: informes-temporada.test.js. -->
 <!-- HISTORIAL: v2 - 27/10/2026 — ronda de arreglos 1 tras las dos revisiones independientes del 27/10/2026 de la primera versión. (a) Las líneas se leen solo de la temporada: después de leer sus informes, una lectura de TaInformeTemporadaLineas where seccion='resumen' AND informe_id>=<mín> AND informe_id<=<máx> (limit 1000; ninguna si la temporada no tiene informes) y se cuentan en el navegador solo las de los informe_id de esa temporada; en v1 se leían las de todas las temporadas y con el tiempo el límite de 1000 dejaba fuera algunas. (b) Contador de peticiones: si se tocan dos temporadas seguidas y la respuesta de la primera llega tarde, se ignora y la tabla queda con la última. (c) Chips de temporada calculados: año actual -1, actual y +1, por defecto el actual (antes 2025, 2026 y 2027 fijos). (d) Dos informes para la misma villa y temporada: cuenta el de informe_id más bajo, igual que el formulario. Nombre del villa manager sin cambios (TaContacts limit 500). Un error de lectura enseña 'Error al cargar. Vuelve a intentarlo.' en el contador. Pruebas informes-temporada.test.js ampliadas con el script real de la página cargado con vm y un fetch falso (arnes-informe.js): WHERE de líneas con el rango, respuesta tardía ignorada, chips calculados y error de carga. -->
 <!-- HISTORIAL: v1 - 27/10/2026 — primera versión: listado para dirección de los informes de fin de temporada (informe-temporada.html v1). Lo pidió Jordi el 27/10/2026 junto con el formulario, a partir del ejemplo en papel de Rafa (villa Cielos Azules). Permiso Auth.require('informes-temporada'), clave nueva de auth.js solo para admin y manager, y comprobación dentro de la página (puedeVerListado: cualquier otro rol ve 'Sin acceso' y no se lee nada). Entrada 'Informes de temporada' al final del bloque Listados de nav.js v21. Lecturas: TaVillas where Status=1 (limit 500, como loadMasterVillas de listado-ocupacion.html v30), TaUsers (limit 200) y TaContacts (limit 500) para el nombre del villa manager por KeyHolder_person (contacto o usuario, como resContact de villa.html), TaInformeTemporada where temporada=<año> (una lectura, limit 500; se repite al cambiar de temporada) y TaInformeTemporadaLineas where seccion='resumen' (una lectura de todas las temporadas, limit 1000, sin leer línea por villa) para contar por informe_id las actuaciones prioritarias con texto. Tabla: villa, villa manager, estado (Sin informe / Borrador / Enviado en una píldora de color), fecha de revisión, estado general, nº de actuaciones prioritarias (0 sin líneas) y 'Abrir ›' a informe-temporada.html?villaid=…&temporada=…. Filtros: temporada (2025, 2026, 2027; por defecto la del año actual), estado y búsqueda por nombre de villa sin acentos. Orden: Sin informe, Borrador, Enviado y dentro por nombre. Contador arriba: 'N villas · a sin informe · b borrador · c enviado'. ⬇️ CSV con lo que se ve (BOM UTF-8 y ';', csvCell de informe-reservas.html), fichero informes-temporada-<año>.csv. En el móvil cada villa es una tarjeta, sin desplazamiento lateral. Pruebas informes-temporada.test.js (puerta, estado por villa, conteo de actuaciones, villa manager, orden, contadores, filtros, CSV, lecturas, versión). -->
