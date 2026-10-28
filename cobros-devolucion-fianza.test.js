@@ -335,9 +335,9 @@ console.log('cobros-inquilinos.html: version');
 console.log('nav.js: v11');
 (function () {
   var NAV = fs.readFileSync('nav.js', 'utf8');
-  ok('cabecera v21', /nav\.js — MENÚS POR ROL  3Villas  v21/.test(NAV) && /VERSIÓN ACTUAL: v21 \|/.test(NAV));
-  ok('NAV_VERSION 21 (la auto-deteccion mira este numero)',
-    NAV.indexOf('var NAV_VERSION = 21;') > 0 && NAV.indexOf('var NAV_VERSION = 20;') < 0);
+  ok('cabecera v22', /nav\.js — MENÚS POR ROL  3Villas  v22/.test(NAV) && /VERSIÓN ACTUAL: v22 \|/.test(NAV));
+  ok('NAV_VERSION 22 (la auto-deteccion mira este numero)',
+    NAV.indexOf('var NAV_VERSION = 22;') > 0 && NAV.indexOf('var NAV_VERSION = 21;') < 0);
   ok('Control Cobros sigue en Administracion', NAV.indexOf("{ label: 'Control Cobros',      url: 'cobros-inquilinos.html',          icon: '💶' },") > 0);
   ok('y debajo la entrada nueva Devoluciones pendientes',
     NAV.indexOf("{ label: 'Devoluciones pendientes', url: 'cobros-inquilinos.html?preset=devoluciones', icon: '↩️' },") >

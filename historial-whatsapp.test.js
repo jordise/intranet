@@ -333,7 +333,7 @@ var PHONE_CASES = [
   ok('admin y staff ven "Historial WhatsApp" una vez, justo debajo de Entradas y Salidas', ['admin', 'staff'].every(function (r) { return hasHW(r) === 1 && rightAfterEntradas(r); }));
   ok('sales y cleaner no la ven', ['sales', 'cleaner'].every(function (r) { return hasHW(r) === 0; }));
   /* 13/10/2026: nav.js v20 anade 'Cuadro de mando comercial'; la entrada de la v19 (esta página) sigue en el historial. */
-  ok('nav.js v21: cabecera, NAV_VERSION e historial', /3Villas  v21/.test(NAV) && /VERSIÓN ACTUAL: v21 \|/.test(NAV) && NAV.indexOf('var NAV_VERSION = 21;') > 0 && NAV.indexOf('var NAV_VERSION = 20;') < 0 && /\/\/ HISTORIAL: v21 - /.test(NAV) && / \| v20 - /.test(NAV) && / \| v19 - Nueva entrada 'Historial WhatsApp'/.test(NAV) && / \| v18 - /.test(NAV) && / \| v17 - /.test(NAV));
+  ok('nav.js v22: cabecera, NAV_VERSION e historial', /3Villas  v22/.test(NAV) && /VERSIÓN ACTUAL: v22 \|/.test(NAV) && NAV.indexOf('var NAV_VERSION = 22;') > 0 && NAV.indexOf('var NAV_VERSION = 21;') < 0 && /\/\/ HISTORIAL: v21 - /.test(NAV) && / \| v20 - /.test(NAV) && / \| v19 - Nueva entrada 'Historial WhatsApp'/.test(NAV) && / \| v18 - /.test(NAV) && / \| v17 - /.test(NAV));
 
   console.log('notas-equipo-reservas: un solo enlace nuevo');
   var links = NOTAS.match(/<a href="historial-whatsapp\.html"[^>]*>[^<]*<\/a>/g) || [];

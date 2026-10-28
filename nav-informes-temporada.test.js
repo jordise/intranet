@@ -19,7 +19,7 @@ console.log('1. nav.js');
 ok('entrada en Listados de _menuAdmin', !!e);
 ok('label, icono y url', e && e.label === 'Informes de temporada' && e.icon === '📋');
 ok("roles ['admin','manager']", e && JSON.stringify(e.roles) === '["admin","manager"]');
-ok('ultima del bloque Listados', e && listados.children[listados.children.length - 1] === e);
+ok('penultima del bloque Listados (la ultima es el cuadro de informes, nav v22)', e && listados.children[listados.children.length - 2] === e);
 ok('no esta en staff, sales ni cleaner', [c._menuStaff, c._menuSales, c._menuCleaner].every(function (m) { return JSON.stringify(m).indexOf('informes-temporada') < 0; }));
 ok('una sola entrada en nav.js', NAV.split("url: 'informes-temporada.html'").length === 2);
 /* hasAccess real de nav-component.js */
@@ -27,7 +27,7 @@ var NC = fs.readFileSync('nav-component.js', 'utf8');
 var i = NC.indexOf('function hasAccess('), j = NC.indexOf('\n  }', i);
 var hctx = {}; vm.runInNewContext('var _r;function userRole(){return _r;}' + NC.slice(i, j + 4) + ';this.h=function(item,r){_r=r;return hasAccess(item);};', hctx);
 ok('nav-component hasAccess: manager si, staff no', e && hctx.h(e, 'manager') === true && hctx.h(e, 'admin') === true && hctx.h(e, 'staff') === false);
-ok('v21 en cabecera y NAV_VERSION', /nav\.js — MENÚS POR ROL  3Villas  v21/.test(NAV) && /VERSIÓN ACTUAL: v21 \|/.test(NAV) && /var NAV_VERSION = 21;/.test(NAV));
+ok('v22 en cabecera y NAV_VERSION', /nav\.js — MENÚS POR ROL  3Villas  v22/.test(NAV) && /VERSIÓN ACTUAL: v22 \|/.test(NAV) && /var NAV_VERSION = 22;/.test(NAV));
 ok('HISTORIAL v21 con Jordi y la prueba, v20 detras', /\/\/ HISTORIAL: v21 - [^\n]*Jordi[^\n]*27\/10\/2026[^\n]*nav-informes-temporada\.test\.js[^\n]*\| v20 - /.test(NAV));
 
 console.log('2. auth.js');
