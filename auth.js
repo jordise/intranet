@@ -68,7 +68,7 @@ const Auth = (function () {
   //  ℹ️  PÁGINAS TEST (ignoradas):
   //      XXedit-taskXX.html, XXnuevatareaXX.html, XXtest1XX.html
   //
-  //  Última revisión: 17/06/2026
+  //  Última revisión: 28/10/2026
   // ─────────────────────────────────────────────────────────────
 
   const PERMISSIONS = {
@@ -101,6 +101,7 @@ const Auth = (function () {
     'editar-villas-para-manual'  : ['admin', 'manager', 'staff'],
     'informe-temporada'          : ['admin', 'manager', 'staff'],  // 27/10/2026: informe de fin de temporada (Jordi); la pagina deja pasar a staff solo si es villa manager (Keyholder_por_defecto)
     'informes-temporada'         : ['admin', 'manager'],  // 27/10/2026: listado de informes de fin de temporada, solo direccion
+    'cuadro-informes-temporada'  : ['admin', 'manager'],  // 28/10/2026: cuadro de informes de temporada (Gary: "build it"), solo direccion, solo lectura
 
     // ── CONTACTOS ──────────────────────────────────────────────
     'contactos'             : ['admin', 'manager', 'staff', 'sales'],
