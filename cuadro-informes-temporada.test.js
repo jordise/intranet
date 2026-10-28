@@ -234,6 +234,7 @@ ok('10. print: body>*:not(main){display:none!important} (como informe-temporada.
 ok('11. print: break-inside:avoid solo en .tile,.casa,tr (no en .card)', PR.indexOf('.tile,.casa,tr{break-inside:avoid}') >= 0 && !/\.card[^{}]*\{[^}]*break-inside/.test(PR));
 ok('11. print: .card h3{break-after:avoid}', PR.indexOf('.card h3{break-after:avoid}') >= 0);
 ok('12. print: se oculta la columna "Abrir ›" (th y td de la ultima columna de las obras; no la fila vacia)', PR.indexOf('.t-obras th:last-child,.t-obras tr.obra td:last-child{display:none!important}') >= 0);
+ok('16. VM y Prioridad no se parten letra a letra en la tabla de escritorio (render: "Kik/e")', SRC.indexOf('.t-obras td[data-l="VM"],.t-obras td[data-l="Prioridad"]{overflow-wrap:normal}') > SRC.indexOf('.t-obras td{overflow-wrap:anywhere}'));
 ok('16. .t-obras td{overflow-wrap:anywhere} fuera de print (pantalla y movil)', SRC.indexOf('.t-obras td{overflow-wrap:anywhere}') > 0 && PR.indexOf('overflow-wrap') < 0);
 /* 13. auth.js con ?v= solo en esta pagina */
 var LISTA = fs.readFileSync('informes-temporada.html', 'utf8');
@@ -280,7 +281,7 @@ function dbGrande() {
   return db;
 }
 /* El Worker falso de arnes-informe.js no entiende IN (y arnes-informe.js no cambia en esta ronda): la prueba quita "AND seccion IN (...)" del WHERE,
-   lee sin limite, se queda con esas secciones y corta en el limite pedido, como haria Caspio. El registro guarda el WHERE y el limit que mando la pagina */
+   lee sin limite, se queda con esas secciones y corta en el limite pedido, como haria Caspio. El registro guarda (al contestar) el WHERE y el limit que mando la pagina */
 function conIn(H) {
   var orig = H.S.fetch;
   H.S.fetch = function (url, opt) {
@@ -288,8 +289,9 @@ function conIn(H) {
     if (!m) return orig(url, opt);
     var secs = m[2].split(',').map(function (x) { return x.trim().replace(/^'|'$/g, ''); }), lim = +u.searchParams.get('limit') || 1000;
     u.searchParams.set('where', m[1]); u.searchParams.set('limit', '1000000');
-    var i = H.S.calls.length, p = orig(u.toString(), opt), c = H.S.calls[i]; c.where = w; c.limit = String(lim); c.url = url;
+    var i = H.S.calls.length, p = orig(u.toString(), opt), c = H.S.calls[i];
     return p.then(function (r) {
+      c.where = w; c.limit = String(lim); c.url = url;
       if (!r.ok) return r;
       return r.json().then(function (j) {
         var t = JSON.stringify({ Result: (j.Result || []).filter(function (x) { return secs.indexOf(x.seccion) >= 0; }).slice(0, lim) });
@@ -450,9 +452,10 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     console.log('12.10 (9) descargarCsv de extremo a extremo (ancla y Blob falsos)');
     var H = cuadro(), d = descargas(H); await H.ev('iniciar()');
     H.ev('descargarCsv()');
-    var txt = d.length ? await d[0].blob.text() : '', L = txt.split('\r\n');
+    /* blob.text() quita el BOM al decodificar: se miran los bytes */
+    var by = d.length ? Buffer.from(await d[0].blob.arrayBuffer()) : Buffer.alloc(0), txt = by.toString('utf8'), L = txt.split('\r\n');
     ok('9. un clic: obras-temporada-2026.csv, text/csv;charset=utf-8', d.length === 1 && d[0].nombre === 'obras-temporada-2026.csv' && d[0].blob.type === 'text/csv;charset=utf-8' && d[0].href === 'blob:prueba-1', J(d.map(function (x) { return [x.nombre, x.blob && x.blob.type]; })));
-    ok('9. BOM, cabecera con "Informe", 20 obras Alto y Villa 20 como Borrador', txt.charCodeAt(0) === 0xFEFF && L[0] === '﻿Casa;Villa manager;Actuación;Motivo / impacto;Prioridad;Estado general de la casa;Fecha de revisión;Informe' && L.length === 22 && L[21] === '' &&
+    ok('9. BOM (EF BB BF), cabecera con "Informe", 20 obras Alto y Villa 20 como Borrador', by[0] === 0xEF && by[1] === 0xBB && by[2] === 0xBF && L[0] === '﻿Casa;Villa manager;Actuación;Motivo / impacto;Prioridad;Estado general de la casa;Fecha de revisión;Informe' && L.length === 22 && L[21] === '' &&
       L.filter(function (l) { return /;Alto;/.test(l); }).length === 20 && L.indexOf('Villa 20;Rafa;Obra 20;;Alto;Bueno;20/10/2026;Borrador') > 0 && L.indexOf('Villa 01;Kike;Obra 1;;Alto;Malo;20/10/2026;Enviado') > 0, L.slice(0, 3).join(' / '));
     H.ev("elegirVM('c:501')"); H.ev('descargarCsv()');
     var t2 = d.length > 1 ? await d[1].blob.text() : '', L2 = t2.split('\r\n');

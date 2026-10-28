@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<!-- VERSIÓN ACTUAL: v1 | Historial completo al final -->
+<!-- VERSIÓN ACTUAL: v2 | Historial completo al final -->
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="https://www.3villas.com/intranet/icon-corazon-rojo-fondo-transparente.png">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Cuadro de informes de temporada v1 — 3Villas</title>
+<title>Cuadro de informes de temporada v2 — 3Villas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* Tokens de cuadro-comercial.html; medidas y colores de la maqueta aprobada (maqueta-cuadro.html, 28/10/2026) */
@@ -83,9 +83,11 @@ main{max-width:1180px;margin:0 auto;padding:14px 12px}
 .pill.m{background:var(--red-light);color:var(--red)}.pill.r{background:var(--orange-light);color:var(--orange)}.pill.a{background:var(--gray-1);color:var(--gray-5);border:1px solid var(--gray-2)}
 .pill.sin{background:var(--gray-1);color:var(--gray-4);border:1px dashed var(--gray-3)}
 .pill.borrador{background:var(--orange-light);color:var(--orange)}
+.pill.gris{background:var(--gray-2);color:var(--gray-4);margin-left:4px;vertical-align:1px}
 .casa .est{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;position:absolute;right:10px;top:10px;color:var(--gray-4)}
 .casa.b .est{color:var(--green)}.casa.r .est{color:var(--orange)}.casa.m .est{color:var(--red)}.casa.s .est{color:var(--gray-4)}
 .casa.s{background:var(--gray-1);border-style:dashed}
+.casa.s::before{background:var(--gray-2)}
 .leyenda{display:flex;gap:14px;font-size:11px;color:var(--gray-4);margin-top:10px;flex-wrap:wrap}
 .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 /* Mapa y obras */
@@ -100,13 +102,15 @@ td.num,th.num{text-align:center;width:54px}
 .pri{display:inline-block;padding:2px 9px;border-radius:20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800}
 .pri.alto{background:var(--red);color:#fff}.pri.medio{background:var(--orange-light);color:var(--orange)}.pri.bajo{background:var(--gray-1);color:var(--gray-4)}
 td.casa-n{font-weight:700;white-space:nowrap}
+.t-obras td{overflow-wrap:anywhere}
+.t-obras td[data-l="VM"],.t-obras td[data-l="Prioridad"]{overflow-wrap:normal}
 .mot{font-size:11.5px;color:var(--gray-4);margin-top:2px}
 a.abrir{color:var(--red);font-weight:800;text-decoration:none;white-space:nowrap;font-size:12px}
 tr.extra{display:none}
 .ver-todas tr.extra{display:table-row}
 tr.mas td{text-align:center;font-size:11px;color:var(--gray-4)}
-tr.mas a{color:var(--gray-4);text-decoration:none;cursor:pointer}
-tr.mas a:hover{color:var(--red)}
+.mas-btn{background:none;border:none;padding:0;font:inherit;color:var(--gray-4);cursor:pointer}
+.mas-btn:hover,.mas-btn:focus-visible{color:var(--red)}
 td.vacio{text-align:center;color:var(--gray-4);padding:16px 8px}
 .small-print{font-size:11px;color:var(--gray-4);margin:6px 2px 0}
 .msg{background:#fff;border-radius:12px;padding:30px 16px;text-align:center;font-weight:700;margin-top:20px}
@@ -139,14 +143,17 @@ td.vacio{text-align:center;color:var(--gray-4);padding:16px 8px}
   @page{size:A4 portrait;margin:12mm}
   body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .top-nav,.filtros .btn,tr.mas{display:none !important}
+  body>*:not(main){display:none!important}
   main{max-width:none;padding:0}
   tr.extra{display:table-row !important}
-  .card,.tile,.casa,tr{break-inside:avoid}
+  .tile,.casa,tr{break-inside:avoid}
+  .card h3{break-after:avoid}
+  .t-obras th:last-child,.t-obras tr.obra td:last-child{display:none!important}
   .card,.tile{box-shadow:none;border:1px solid var(--gray-2)}
   .tile{border-left-width:5px}
 }
 </style>
-<script src="auth.js"></script>
+<script src="auth.js?v=20261028"></script>
 <script src="nav.js"></script>
 <script src="nav-component.js"></script>
 </head>
@@ -169,7 +176,7 @@ td.vacio{text-align:center;color:var(--gray-4);padding:16px 8px}
 
 <script>
 const WORKER = 'https://www.3villas.com/intranet/api';
-const PAGE_VERSION = 1;
+const PAGE_VERSION = 2;
 
 /* ── auto-detección de versión (copia de villa.html) ── */
 (function checkForNewerVersion(){
@@ -218,10 +225,10 @@ function trozosIds(ids,n){
   for(let i=0;i<v.length;i+=n)out.push(v.slice(i,i+n));
   return out;
 }
-/* Todas las secciones de un trozo: rango de informe_id (luego se guardan solo las del conjunto exacto) */
+/* Un trozo: rango de informe_id (luego se guardan solo las del conjunto exacto) y solo las 4 secciones que usa la página (v2) */
 function whereLineasRango(ids){
   const n=(ids||[]).map(x=>parseInt(x,10)).filter(x=>x>0);
-  return 'informe_id>='+Math.min.apply(null,n)+' AND informe_id<='+Math.max.apply(null,n);
+  return 'informe_id>='+Math.min.apply(null,n)+' AND informe_id<='+Math.max.apply(null,n)+" AND seccion IN ('resumen','interior','exterior','seguridad')";
 }
 /* Dos informes para la misma villa y temporada: vale el de informe_id más bajo (como el listado y el formulario) */
 function informePorVilla(informes){
@@ -234,38 +241,45 @@ function lineasUnicas(lineas){
   (lineas||[]).forEach(l=>{if(!l)return;const k=parseInt(l.informe_id,10)+'|'+l.seccion+'|'+l.clave,p=m[k];if(p&&(parseInt(p.linea_id,10)||0)>=(parseInt(l.linea_id,10)||0))return;m[k]=l;});
   return Object.keys(m).map(k=>m[k]);
 }
-/* Villa manager: KeyHolder_person es un contacto (ContactID) o un usuario (UserID), como resContact de villa.html */
-function nombreVM(kh,contacts,users){
-  const id=String(kh==null?'':kh).trim();if(!id)return'';
-  const c=(contacts||[]).find(x=>x.id===id);if(c)return c.name;
-  const u=(users||[]).find(x=>x.id===id);return u?u.name:'';
+/* Regla única de las marcas (v2): cuentan solo la sección y la clave de uno de los 26 elementos de elementosDef() */
+function esElemento(l){
+  if(!esElemento.m){esElemento.m={};elementosDef().forEach(e=>{esElemento.m[e.seccion+'|'+e.clave]=1;});}
+  return !!(l&&esElemento.m[l.seccion+'|'+l.clave]);
 }
+/* Villa manager: KeyHolder_person es un contacto (ContactID) o un usuario (UserID), como resContact de villa.html.
+   v2: id con su origen (c:<ContactID> o u:<UserID>) para el filtro; el nombre solo se ve */
+function vmDe(kh,contacts,users){
+  const id=String(kh==null?'':kh).trim();if(!id)return{id:'',name:''};
+  const c=(contacts||[]).find(x=>x.id===id);if(c)return{id:'c:'+id,name:c.name};
+  const u=(users||[]).find(x=>x.id===id);return u?{id:'u:'+id,name:u.name}:{id:'',name:''};
+}
+function nombreVM(kh,contacts,users){return vmDe(kh,contacts,users).name;}
 function abrirUrl(villaid,temporada){return 'informe-temporada.html?villaid='+encodeURIComponent(villaid)+'&temporada='+encodeURIComponent(temporada);}
 function fechaVer(v){const m=String(v||'').match(/^(\d{4})-(\d\d)-(\d\d)/);return m?m[3]+'/'+m[2]+'/'+m[1]:'';}
 /* Una fila por villa activa con su informe (el más bajo), su estado y las marcas M / R / A */
 function construirCasas(villas,informes,lineas,contacts,users,temporada){
   const pv=informePorVilla(informes),lw=s=>String(s==null?'':s).trim().toLowerCase();
-  const secc=gruposMapa().map(x=>x[0]),porInf={};
+  const porInf={};
   (lineas||[]).forEach(l=>{const k=String(parseInt(l.informe_id,10));(porInf[k]=porInf[k]||[]).push(l);});
   return (villas||[]).map(v=>{
     const inf=pv[String(v.villaid)],id=inf?parseInt(inf.informe_id,10):null,ls=inf?(porInf[String(id)]||[]):[];
-    const marca=e=>ls.filter(l=>secc.indexOf(l.seccion)>=0&&lw(l.estado)===e).length;
-    const g=inf?lw(inf.estado_general):'';
-    return{villaid:v.villaid,villa:String(v.Name||('Villa '+v.villaid)),vm:nombreVM(v.KeyHolder_person,contacts,users),informe_id:id,
+    const marca=e=>ls.filter(l=>esElemento(l)&&lw(l.estado)===e).length;
+    const g=inf?lw(inf.estado_general):'',vm=vmDe(v.KeyHolder_person,contacts,users);
+    return{villaid:v.villaid,villa:String(v.Name||('Villa '+v.villaid)),vm:vm.name,vmId:vm.id,informe_id:id,
       estado:inf?(lw(inf.estado)==='enviado'?'enviado':'borrador'):'',general:['bueno','regular','malo'].indexOf(g)>=0?g:'',
       fecha:inf?fechaVer(inf.fecha_revision):'',malo:marca('malo'),regular:marca('regular'),
-      alta:ls.filter(l=>l.seccion==='resumen'&&String(l.texto_1||'').trim()&&lw(l.prioridad)==='alta').length,url:abrirUrl(v.villaid,temporada)};
+      alta:ls.filter(l=>l.seccion==='resumen'&&String(l.texto_1||'').trim()&&lw(prioridadGuardar(l.prioridad))==='alta').length,url:abrirUrl(v.villaid,temporada)};
   });
 }
 /* Grupo de la tarjeta: estado general; sin él, el estado del informe (borrador); sin informe: 'sin' */
 function estadoDe(f){return f.general||f.estado||'sin';}
 /* Los cuatro cuadros. Solo cuentan las líneas de los informes de estas filas */
 function tiles(filas,lineas){
-  const lw=s=>String(s==null?'':s).trim().toLowerCase(),secc=gruposMapa().map(x=>x[0]);
+  const lw=s=>String(s==null?'':s).trim().toLowerCase();
   const ids=new Set(filas.filter(f=>f.informe_id).map(f=>String(f.informe_id)));
   const ls=(lineas||[]).filter(l=>ids.has(String(parseInt(l.informe_id,10))));
-  const acc=ls.filter(l=>l.seccion==='resumen'&&String(l.texto_1||'').trim()),alta=acc.filter(l=>lw(l.prioridad)==='alta');
-  const marcas=ls.filter(l=>secc.indexOf(l.seccion)>=0);
+  const acc=ls.filter(l=>l.seccion==='resumen'&&String(l.texto_1||'').trim()),alta=acc.filter(l=>lw(prioridadGuardar(l.prioridad))==='alta');
+  const marcas=ls.filter(esElemento);
   return{entregados:filas.filter(f=>f.estado==='enviado').length,total:filas.length,
     borrador:filas.filter(f=>f.estado==='borrador').length,sin:filas.filter(f=>!f.informe_id).length,
     casasMalo:(n=>({n:n.length,nombres:n}))(ordenarCasas(filas).filter(f=>f.general==='malo').map(f=>f.villa)),
@@ -285,7 +299,7 @@ function mapaProblemas(lineas,filas){
   const ids=new Set(filas.filter(f=>f.informe_id).map(f=>String(f.informe_id)));
   (lineas||[]).forEach(l=>{
     const id=String(parseInt(l.informe_id,10)),e=lw(l.estado),k=id+'|'+l.clave+'|'+e;
-    if(!ids.has(id)||!out[l.clave]||(e!=='malo'&&e!=='regular')||visto[k])return;
+    if(!ids.has(id)||!esElemento(l)||(e!=='malo'&&e!=='regular')||visto[k])return;
     visto[k]=1;out[l.clave][e]++;
   });
   return out;
@@ -295,24 +309,30 @@ function claseCalor(n){return n<=0?'h0':n<=1?'h1':n<=3?'h2':n<=6?'h3':'h4';}
 /* Palabras de prioridad: se ve Alto/Medio/Bajo, se guarda Alta/Media/Baja (copia del formulario) */
 function prioridadVer(v){const s=String(v==null?'':v).trim(),m={alta:'Alto',media:'Medio',baja:'Bajo'};return m[s.toLowerCase()]||s;}
 function prioridadGuardar(t){const s=String(t==null?'':t).trim(),m={alto:'Alta',medio:'Media',bajo:'Baja'};return m[s.toLowerCase()]||s;}
-/* Obras pendientes: cada línea de 'resumen' con la actuación escrita; Alta, Media, Baja, sin prioridad; luego casa y orden */
+/* Obras pendientes: cada línea de 'resumen' con la actuación escrita; Alta, Media, Baja, sin prioridad; luego casa y orden.
+   v2: Alto/Medio/Bajo guardados cuentan como Alta/Media/Baja; las de un borrador se quedan y llevan informe 'Borrador' */
 function obras(lineas,filas){
   const lw=s=>String(s==null?'':s).trim().toLowerCase(),porId={},rango={alta:0,media:1,baja:2};
   filas.forEach(f=>{if(f.informe_id)porId[String(f.informe_id)]=f;});
   const may=s=>s?s.charAt(0).toUpperCase()+s.slice(1):'';
   return (lineas||[]).filter(l=>l.seccion==='resumen'&&String(l.texto_1||'').trim()&&porId[String(parseInt(l.informe_id,10))]).map(l=>{
-    const f=porId[String(parseInt(l.informe_id,10))],p=lw(l.prioridad),ver=prioridadVer(p);
+    const f=porId[String(parseInt(l.informe_id,10))],p=lw(prioridadGuardar(l.prioridad)),ver=prioridadVer(p);
     return{villa:f.villa,vm:f.vm,accion:String(l.texto_1).trim(),motivo:String(l.texto_2||'').trim(),prioridad:rango[p]!==undefined?ver:'',
-      clase:rango[p]!==undefined?lw(ver):'',rango:rango[p]!==undefined?rango[p]:3,orden:parseInt(l.orden,10)||0,general:may(f.general),fecha:f.fecha,url:f.url};
+      clase:rango[p]!==undefined?lw(ver):'',rango:rango[p]!==undefined?rango[p]:3,orden:parseInt(l.orden,10)||0,general:may(f.general),fecha:f.fecha,url:f.url,informe:f.estado==='borrador'?'Borrador':'Enviado'};
   }).sort((a,b)=>(a.rango-b.rango)||a.villa.localeCompare(b.villa,'es',{sensitivity:'base'})||(a.orden-b.orden));
 }
-/* Filtro de villa manager: sus casas y las líneas de sus informes; '' = todas */
+/* Filtro de villa manager por su id (c:<ContactID> o u:<UserID>): sus casas y las líneas de sus informes; '' = todas */
 function filtrarPorVM(filas,lineas,vm){
   if(!vm)return{filas:filas,lineas:lineas};
-  const f=filas.filter(x=>x.vm===vm),ids=new Set(f.filter(x=>x.informe_id).map(x=>String(x.informe_id)));
+  const f=filas.filter(x=>x.vmId===vm),ids=new Set(f.filter(x=>x.informe_id).map(x=>String(x.informe_id)));
   return{filas:f,lineas:(lineas||[]).filter(l=>ids.has(String(parseInt(l.informe_id,10))))};
 }
-function vmsDe(filas){return Array.from(new Set(filas.map(f=>f.vm).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));}
+/* Chips de villa manager: [id, etiqueta] por nombre; dos ids con el mismo nombre son dos chips ("Kike", "Kike (2)") */
+function vmsDe(filas){
+  const m={},n={};filas.forEach(f=>{if(f.vmId&&f.vm)m[f.vmId]=f.vm;});
+  return Object.keys(m).sort((a,b)=>m[a].localeCompare(m[b],'es',{sensitivity:'base'})||(a<b?-1:a>b?1:0)).map(id=>{
+    const k=m[id].trim().toLowerCase();n[k]=(n[k]||0)+1;return[id,m[id]+(n[k]>1?' ('+n[k]+')':'')];});
+}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 /* Igual que informe-reservas.html: texto que empieza por = + - @ lleva apostrofo para que Excel no lo ejecute */
 function csvCell(v){
@@ -322,29 +342,33 @@ function csvCell(v){
 }
 /* CSV de obras para Excel en español: BOM UTF-8 y ';' (como el listado) */
 function csvObras(rows){
-  const lines=[['Casa','Villa manager','Actuación','Motivo / impacto','Prioridad','Estado general de la casa','Fecha de revisión'].map(csvCell).join(';')];
-  rows.forEach(r=>lines.push([r.villa,r.vm,r.accion,r.motivo,r.prioridad,r.general,r.fecha].map(csvCell).join(';')));
+  const lines=[['Casa','Villa manager','Actuación','Motivo / impacto','Prioridad','Estado general de la casa','Fecha de revisión','Informe'].map(csvCell).join(';')];
+  rows.forEach(r=>lines.push([r.villa,r.vm,r.accion,r.motivo,r.prioridad,r.general,r.fecha,r.informe].map(csvCell).join(';')));
   return '﻿'+lines.join('\r\n')+'\r\n';
 }
 function puedeVerCuadro(role){const r=String(role||'').trim().toLowerCase();return r==='admin'||r==='manager';}
 
 /* ── Pagina ── */
 const g=id=>document.getElementById(id);
-const TROZO=15,LIMITE=1000,MAX_OBRAS=10;
+const TROZO=15,LIMITE=1000,LIMITE_INFORMES=500,MAX_OBRAS=10;
 let VILLAS=[],USERS=[],CONTACTS=[],INFORMES=[],LINEAS=[],FILAS=[];
 const TEMPORADAS=temporadasDe(new Date().getFullYear());
-let TEMP=new Date().getFullYear(),VM='',MAS=false,PETICION=0;
+/* CARGANDO: una temporada se está leyendo; pintar, CSV, "más" e imprimir no hacen nada (v2). BASE: la lectura de villas, usuarios y contactos */
+let TEMP=new Date().getFullYear(),VM='',MAS=false,PETICION=0,CARGANDO=false,BASE=null;
 async function leerJson(u){const r=await fetch(Auth.url(u));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.Result||j.result||[];}
-/* Un trozo de ids; si llega al límite (informes de otra temporada dentro del rango) se parte en dos y se lee otra vez */
+/* Un trozo de ids; si llega al límite (informes de otra temporada dentro del rango) se parte en dos y se lee otra vez.
+   v2: un trozo de un solo informe que llega al límite sería una lectura cortada: error (línea roja y reintentar) */
 async function leerTrozo(ids){
   const rows=await leerJson(WORKER+'?action=data&table=TaInformeTemporadaLineas&where='+encodeURIComponent(whereLineasRango(ids))+'&limit='+LIMITE);
-  if(rows.length<LIMITE||ids.length<2)return rows;
+  if(rows.length<LIMITE)return rows;
+  if(ids.length<2)throw new Error('El informe '+ids[0]+' llega a '+LIMITE+' líneas: la lectura saldría cortada');
   const m=Math.ceil(ids.length/2),r=await Promise.all([leerTrozo(ids.slice(0,m)),leerTrozo(ids.slice(m))]);
   return r[0].concat(r[1]);
 }
 /* Informes de la temporada y después todas sus líneas, por trozos de 15 informes; se guardan solo las de ese conjunto */
 async function leerTemporada(t){
-  const informes=await leerJson(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent('temporada='+parseInt(t,10))+'&limit=500');
+  const informes=await leerJson(WORKER+'?action=data&table=TaInformeTemporada&where='+encodeURIComponent('temporada='+parseInt(t,10))+'&limit='+LIMITE_INFORMES);
+  if(informes.length>=LIMITE_INFORMES)throw new Error('La temporada llega a '+LIMITE_INFORMES+' informes: la lectura saldría cortada');
   const ids=informes.map(i=>parseInt(i.informe_id,10)).filter(x=>x>0);
   if(!ids.length)return{informes:informes,lineas:[]};
   const set=new Set(ids.map(String));
@@ -359,12 +383,12 @@ async function cargarInformes(t){
   INFORMES=r.informes;LINEAS=r.lineas;
   return true;
 }
-async function cargarTodo(){
+/* Villas, usuarios y contactos; la temporada la lee después cambiarTemporada (v2: el contador de peticiones guarda los dos caminos) */
+async function cargarBase(){
   const [v,u,c]=await Promise.all([
     leerJson(WORKER+'?action=data&table=TaVillas&where='+encodeURIComponent('Status=1')+'&limit=500'),
     leerJson(WORKER+'?action=data&table=TaUsers&limit=200'),
-    leerJson(WORKER+'?action=data&table=TaContacts&limit=500'),
-    cargarInformes(TEMP)
+    leerJson(WORKER+'?action=data&table=TaContacts&limit=500')
   ]);
   VILLAS=v;
   USERS=u.map(x=>({id:String(x.UserID||''),name:x.Name||x.UserID||''})).filter(x=>x.id);
@@ -376,19 +400,24 @@ function esqueleto(){
     +'<div class="filtros" id="filtros"></div></div>'
     +'<div class="tiles" id="tiles"></div>'
     +'<div class="card"><h3>Casas <small>· peor primero · un clic abre el informe</small></h3><div class="casas" id="casas"></div>'
-    +'<div class="leyenda"><span><i style="background:var(--green)"></i>Bueno</span><span><i style="background:var(--orange)"></i>Regular</span><span><i style="background:var(--red)"></i>Malo</span><span><i style="background:var(--gray-3)"></i>Sin informe</span><span>M = marcas Malo · R = marcas Regular · A = actuaciones Alta</span></div></div>'
+    +'<div class="leyenda"><span><i style="background:var(--green)"></i>Bueno</span><span><i style="background:var(--orange)"></i>Regular</span><span><i style="background:var(--red)"></i>Malo</span><span><i style="background:var(--gray-3)"></i>Borrador</span><span><i style="background:var(--gray-2)"></i>Sin informe</span><span>M = marcas Malo · R = marcas Regular · A = actuaciones Alta</span></div></div>'
     +'<div class="dos"><div class="card"><h3>Mapa de problemas <small>· nº de casas por elemento</small></h3><table id="mapa"></table>'
     +'<p class="small-print">Un elemento con muchas casas en Malo es una compra o una obra que se planifica una sola vez.</p></div>'
     +'<div class="card" id="cardObras"><h3>Obras pendientes <small>· actuaciones prioritarias de todas las casas</small></h3><table class="t-obras" id="obras"></table>'
     +'<p class="small-print">Filtra por villa manager; el CSV lleva la lista al presupuesto de obras.</p></div></div>';
 }
 function pintarFiltros(){
-  const vms=vmsDe(FILAS);if(VM&&vms.indexOf(VM)<0)VM='';
-  g('filtros').innerHTML='<div class="grupo"><span>Temporada</span>'+TEMPORADAS.map(t=>'<button class="chip'+(t===TEMP?' on':'')+'" data-temp="'+t+'" onclick="cambiarTemporada('+t+')">'+t+'</button>').join('')+'</div>'
-    +'<div class="grupo"><span>Villa manager</span>'+[['','Todos']].concat(vms.map(v=>[v,v])).map(v=>'<button class="chip'+(v[0]===VM?' on':'')+'" data-vm="'+esc(v[0])+'" onclick="elegirVM(this.dataset.vm)">'+esc(v[1])+'</button>').join('')+'</div>'
-    +'<button class="btn" onclick="descargarCsv()">⬇ CSV obras</button><button class="btn rojo" onclick="window.print()">🖨 Imprimir</button>';
+  const vms=vmsDe(FILAS);if(VM&&!vms.some(v=>v[0]===VM))VM='';
+  g('filtros').innerHTML='<div class="grupo"><span>Temporada</span>'+TEMPORADAS.map(t=>'<button type="button" class="chip'+(t===TEMP?' on':'')+'" aria-pressed="'+(t===TEMP)+'" data-temp="'+t+'" onclick="cambiarTemporada('+t+')">'+t+'</button>').join('')+'</div>'
+    +'<div class="grupo"><span>Villa manager</span>'+[['','Todos']].concat(vms).map(v=>'<button type="button" class="chip'+(v[0]===VM?' on':'')+'" aria-pressed="'+(v[0]===VM)+'" data-vm="'+esc(v[0])+'" onclick="elegirVM(this.dataset.vm)">'+esc(v[1])+'</button>').join('')+'</div>'
+    +'<button class="btn" onclick="descargarCsv()">⬇️ CSV obras</button><button class="btn rojo" onclick="imprimir()">🖨️ Imprimir</button>';
 }
-function pintarCargando(){g('tiles').innerHTML=TITULOS.map(t=>'<div class="tile '+t[0]+'"><div class="k">'+t[1]+'</div><div class="v cargando">Cargando…</div></div>').join('');}
+/* v2: también vacía casas, mapa y obras para que nada de la temporada anterior quede bajo el chip nuevo */
+function pintarCargando(){
+  g('tiles').innerHTML=TITULOS.map(t=>'<div class="tile '+t[0]+'"><div class="k">'+t[1]+'</div><div class="v cargando">Cargando…</div></div>').join('');
+  g('casas').innerHTML='<p class="small-print">Cargando…</p>';
+  g('mapa').innerHTML=g('obras').innerHTML='<tbody><tr><td class="vacio">Cargando…</td></tr></tbody>';
+}
 function tileHtml(i,v,s,extra){return '<div class="tile '+TITULOS[i][0]+'"><div class="k">'+TITULOS[i][1]+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div>'+(extra||'')+'</div>';}
 function casaHtml(f){
   const e=estadoDe(f),c={malo:'m',regular:'r',bueno:'b',sin:'s'}[e]||'d',et={malo:'MALO',regular:'REGULAR',bueno:'BUENO',sin:'SIN INFORME',borrador:'BORRADOR',enviado:'ENVIADO'}[e];
@@ -409,14 +438,15 @@ function obrasHtml(rows){
   const cab='<thead><tr><th>Casa</th><th>Actuación</th><th>Prioridad</th><th>VM</th><th></th></tr></thead><tbody>';
   if(!rows.length)return cab+'<tr><td colspan="5" class="vacio">Ninguna actuación todavía</td></tr></tbody>';
   const resto=rows.length-MAX_OBRAS;
-  return cab+rows.map((r,i)=>'<tr class="obra'+(i>=MAX_OBRAS&&!MAS?' extra':'')+'"><td class="casa-n" data-l="Casa">'+esc(r.villa)+'</td>'
+  return cab+rows.map((r,i)=>'<tr class="obra'+(i>=MAX_OBRAS&&!MAS?' extra':'')+'"><td class="casa-n" data-l="Casa">'+esc(r.villa)+(r.informe==='Borrador'?' <span class="pill gris">borrador</span>':'')+'</td>'
     +'<td data-l="Actuación"><div>'+esc(r.accion)+(r.motivo?'<div class="mot">'+esc(r.motivo)+'</div>':'')+'</div></td>'
     +'<td data-l="Prioridad">'+(r.prioridad?'<span class="pri '+r.clase+'">'+r.prioridad+'</span>':'—')+'</td>'
     +'<td data-l="VM">'+esc(r.vm||'—')+'</td><td data-l=""><a class="abrir" href="'+esc(r.url)+'">Abrir ›</a></td></tr>').join('')
-    +(resto>0&&!MAS?'<tr class="mas"><td colspan="5"><a onclick="verMas()">… '+resto+' actuaciones más</a></td></tr>':'')+'</tbody>';
+    +(resto>0&&!MAS?'<tr class="mas"><td colspan="5"><button type="button" class="mas-btn" onclick="verMas()">… '+resto+' actuaciones más</button></td></tr>':'')+'</tbody>';
 }
 function vista(){return filtrarPorVM(FILAS,LINEAS,VM);}
 function pintar(){
+  if(CARGANDO)return;
   FILAS=ordenarCasas(construirCasas(VILLAS,INFORMES,LINEAS,CONTACTS,USERS,TEMP));
   pintarFiltros();
   const v=vista(),t=tiles(v.filas,v.lineas),pc=t.total?Math.round(t.entregados*100/t.total):0;
@@ -429,31 +459,42 @@ function pintar(){
   g('obras').innerHTML=obrasHtml(obras(v.lineas,v.filas));
 }
 function elegirVM(vm){VM=vm||'';MAS=false;pintar();}
-function verMas(){MAS=true;pintar();}
-function error(){g('main').innerHTML='<div class="msg err">No se pudieron leer los informes <button class="btn" onclick="iniciar()">Reintentar</button></div>';}
+function verMas(){if(CARGANDO)return;MAS=true;pintar();}
+/* n: la petición que falla; si ya hay otra más nueva, el fallo llega tarde y no cuenta */
+function error(n){if(n!==undefined&&n!==PETICION)return;g('main').innerHTML='<div class="msg err">No se pudieron leer los informes <button class="btn" onclick="iniciar()">Reintentar</button></div>';}
 function descargarCsv(){
+  if(CARGANDO)return;
   const v=vista();
   const blob=new Blob([csvObras(obras(v.lineas,v.filas))],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='obras-temporada-'+TEMP+'.csv';
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
 }
-/* Cambiar de temporada lee otra vez informes y líneas, nunca las villas */
+function imprimir(){if(CARGANDO)return;window.print();}
+/* Cambiar de temporada lee otra vez informes y líneas, nunca las villas. Mientras lee, CARGANDO; pinta solo la petición más nueva y con las villas ya leídas */
 async function cambiarTemporada(t){
-  TEMP=t;MAS=false;
+  TEMP=t;MAS=false;CARGANDO=true;
   if(!/class="tiles"/.test(g('main').innerHTML))esqueleto();
   pintarFiltros();pintarCargando();
   const n=PETICION+1;
-  try{if(await cargarInformes(t))pintar();}
-  catch(e){console.error(e);if(n===PETICION)error();}
+  try{
+    const r=await Promise.all([cargarInformes(t),BASE]);
+    if(r[0]&&n===PETICION){CARGANDO=false;pintar();}
+  }
+  catch(e){console.error(e);error(n);}
 }
+/* Primero villas, usuarios y contactos; después la temporada por cambiarTemporada (si no se tocó otra mientras tanto) */
 async function iniciar(){
   if(!puedeVerCuadro(Auth.role())){g('main').innerHTML='<div class="msg err">Sin acceso</div>';return;}
-  esqueleto();pintarFiltros();pintarCargando();
-  try{await cargarTodo();pintar();}
-  catch(e){console.error(e);error();}
+  CARGANDO=true;esqueleto();pintarFiltros();pintarCargando();
+  const p0=PETICION;
+  BASE=cargarBase();
+  try{await BASE;}
+  catch(e){console.error(e);error();return;}
+  if(PETICION===p0)await cambiarTemporada(TEMP);
 }
 document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v2 - 28/10/2026 — ronda de arreglos 1 tras las dos revisiones (datos y pantalla). Un clic mientras carga otra temporada ya no pinta, descarga ni imprime los datos de la anterior bajo el chip nuevo (CARGANDO; casas, mapa y obras se vacían mientras lee). Primera carga: primero villas, usuarios y contactos y después la temporada por cambiarTemporada, así el contador de peticiones guarda los dos caminos; un fallo tardío de una petición vieja ya no pone la línea roja. Marcas Malo, casas y mapa con una sola regla: solo cuentan la sección y la clave de uno de los 26 elementos. Los borradores se quedan y se marcan: pastilla gris «borrador» en las obras y columna «Informe» (Enviado / Borrador) al final del CSV; en la leyenda Borrador gris 3 y Sin informe gris 2. Una lectura que llega al límite (un informe con 1000 líneas o 500 informes en la temporada) da la línea roja en vez de datos cortados. Filtro de villa manager por su id (contacto o usuario), no por el nombre; dos con el mismo nombre son dos chips («Kike», «Kike (2)»). Prioridad guardada como Alto/Medio/Bajo cuenta igual que Alta/Media/Baja. Las líneas se leen solo de resumen, interior, exterior y seguridad. Impresión: sin menú lateral ni barra de Mia, sin la columna «Abrir ›», cortes de página solo dentro de cuadros, casas y filas. auth.js?v=20261028 para saltar el auth.js viejo de la caché. «… n actuaciones más» es un botón y los chips llevan aria-pressed. Emojis de los botones con U+FE0F. Las palabras largas de una actuación ya no ensanchan la tarjeta en el móvil. Pruebas: cuadro-informes-temporada.test.js (parte 13 y partes 12.5 a 12.11 nuevas). -->
 <!-- HISTORIAL: v1 - 28/10/2026 — primera versión: cuadro para dirección (Jordi, Toni y Gary) de los informes de fin de temporada que rellenan los villa managers en informe-temporada.html v4. Gary aprobó la maqueta con datos inventados (maqueta-cuadro.html) el 28/10/2026 y pidió construirla ("build it"). Una sola pantalla para todas las casas: cuatro cuadros (informes entregados, casas en estado Malo, actuaciones de prioridad Alta, marcas Malo en elementos), las casas de peor a mejor con un clic al informe, el mapa de problemas (nº de casas en Malo y en Regular por cada uno de los 26 elementos del formulario, con el color por tramos 0, 1, 2-3, 4-6, 7 o más), la lista de obras pendientes (Alta, Media, Baja; 10 a la vista y el resto con "más") y el CSV de obras para Excel (punto y coma, UTF-8 con BOM). Filtros de temporada (año anterior, actual y siguiente) y de villa manager, que se aplica a todo a la vez. Lee las mismas tablas que informes-temporada.html (TaVillas, TaUsers, TaContacts, TaInformeTemporada) y todas las secciones de TaInformeTemporadaLineas por trozos de 15 informes (un trozo que llega a 1000 filas se parte en dos); vale el informe_id más bajo por villa y la línea de linea_id más alto por clave, como el formulario. Solo lecturas: la página no escribe nada. Móvil: cuadros en una columna, dos casas por fila, obras en tarjetas. Impresión A4 vertical con todas las obras. Pruebas: cuadro-informes-temporada.test.js (funciones puras con vm y el script real con el Worker falso de arnes-informe.js). -->
