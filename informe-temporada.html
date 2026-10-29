@@ -409,13 +409,14 @@ function informeRequest(inf,cambios){
   return{method:'POST',url:WORKER+'?action=save&table=TaInformeTemporada&method=POST',body:Object.assign({villaid:parseInt(inf.villaid,10),UserID:String(inf.UserID||''),temporada:parseInt(inf.temporada,10),estado:'borrador',updated_at:ahoraCaspio()},c)};
 }
 function validarEnvio(inf){return inf&&String(inf.estado_general||'').trim()?'':'Falta el estado general';}
-/* v5: lo que para Enviar en las filas de elemento, en el orden de la hoja: N/A sin motivo y ⚠ Peligro sin texto (claves 'seccion|clave').
+/* v5: lo que para Enviar en las filas de elemento, en el orden de la hoja: N/A sin motivo, marca y N/A a la vez (ambas) y ⚠ Peligro sin texto (claves 'seccion|clave').
    Lo demás (Malo sin observación, coste en blanco, foto sin referencia) pasa. */
 function faltasEnvio(lineas){
-  const f={na:[],peligro:[]},vacio=v=>!String(v==null?'':v).trim();
+  const f={na:[],ambas:[],peligro:[]},vacio=v=>!String(v==null?'':v).trim();
   seccionesDef().filter(s=>s.tipo==='estado').forEach(s=>s.claves.forEach(c=>{
     const k=s.id+'|'+c[0],L=(lineas||{})[k];if(!L)return;
     if(siNo(L.na)&&vacio(L.na_motivo))f.na.push(k);
+    if(siNo(L.na)&&!vacio(L.estado))f.ambas.push(k);
     if(siNo(L.peligro)&&vacio(L.peligro_texto))f.peligro.push(k);
   }));
   return f;
@@ -423,12 +424,13 @@ function faltasEnvio(lineas){
 function mensajeFaltas(f){
   const nom=k=>{const p=k.split('|'),d=defDe(p[0],p[1]);return d?d.label.split(' (')[0]:p[1];},m=[];
   if(f&&f.na.length)m.push('Falta el motivo de N/A en: '+f.na.map(nom).join(', '));
+  if(f&&f.ambas&&f.ambas.length)m.push('Hay filas con marca y N/A a la vez: '+f.ambas.map(nom).join(', '));
   if(f&&f.peligro.length)m.push('Falta describir el peligro en: '+f.peligro.map(nom).join(', '));
   return m.join('. ');
 }
 function enfocarFalta(f){
-  const k=f.na.length?f.na[0]:f.peligro[0];if(!k)return;
-  enfocar(document.querySelector('[data-k="'+k+'"]'),f.na.length?'na_motivo':'peligro_texto');
+  const ambas=f.ambas||[],k=f.na.length?f.na[0]:ambas.length?ambas[0]:f.peligro[0];if(!k)return;
+  enfocar(document.querySelector('[data-k="'+k+'"]'),f.na.length?'na_motivo':ambas.length?'estado':'peligro_texto');
 }
 /* Enviado = solo lectura para el villa manager; admin y manager pueden seguir editando o reabrir */
 function soloLectura(inf,role){return!!inf&&String(inf.estado||'').trim().toLowerCase()==='enviado'&&!esAdminManager(role);}
@@ -621,9 +623,12 @@ function mezclarBorrador(d){
     }
     const p=k.split('|');if(p.length!==2||!defDe(p[0],p[1]))return;
     const actual=LINEAS[k];
-    const cs=campos.concat(nuevos.filter(c=>b[c]!==undefined));
-    if(cs.every(c=>norm(c,b[c])===norm(c,actual&&actual[c])))return;
-    const L=fila(k);cs.forEach(c=>{L[c]=norm(c,b[c]);});L._sucio=true;L._ver++;n++;
+    /* arreglo previo a la publicación: un borrador de la v4 (sin 'na') con marca quita el N/A guardado y su motivo, nunca marca y N/A a la vez */
+    const v4marca=b.na===undefined&&txt(b.estado).trim()!=='';
+    const cs=campos.concat(nuevos.filter(c=>b[c]!==undefined||(v4marca&&(c==='na'||c==='na_motivo'))));
+    const val=c=>v4marca&&c==='na'?false:v4marca&&c==='na_motivo'?'':norm(c,b[c]);
+    if(cs.every(c=>val(c)===norm(c,actual&&actual[c])))return;
+    const L=fila(k);cs.forEach(c=>{L[c]=val(c);});L._sucio=true;L._ver++;n++;
   });
   return n;
 }
@@ -1075,6 +1080,7 @@ document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v5 arreglo previo a la publicación - 29/10/2026 — tras la revisión de comprobación (CHECK.md, menor 1; sin cambiar la versión): un borrador local de la v4 (filas sin el campo «na») con una marca, puesto encima de una fila de Caspio con N/A, ya no deja la fila con marca y N/A a la vez: mezclarBorrador pone na false y borra el motivo; además una fila con marca y N/A a la vez para Enviar (faltasEnvio, lista «ambas»), el aviso dice «Hay filas con marca y N/A a la vez: …» y el foco va a sus marcas; pruebas en informe-temporada.test.js parte 12.6b -->
 <!-- HISTORIAL: v5 ronda de arreglos 2 - 29/10/2026 — tras la segunda pareja de revisiones (sin cambiar la versión): un N/A cuenta solo con su motivo, así que escribir o borrar el motivo del N/A también repinta la línea «Condición provisional» (antes la cifra se quedaba vieja hasta la siguiente marca); pruebas en informe-temporada.test.js parte 13.2 -->
 <!-- HISTORIAL: v5 ronda de arreglos 1 - 29/10/2026 — tras las dos revisiones de la v5 (sin cambiar la versión): las líneas de papel (.h-v5) de una fila se pintan otra vez al marcar o quitar N/A o ⚠ Peligro y al escribir el motivo, el peligro, el coste o «Se refiere a:» (repintarHoja en pintarFilaV5 y alEscribir), y todas antes de imprimir (beforeprint): lo que sale en papel es lo que hay en pantalla; filaVacia y el borrador local leen na y peligro con la regla Sí/No (true, 1, "1", "true", "sí", "yes"); la regla «N/A sin motivo = sin dato» en la puntuación queda pendiente de decisión (cambia pruebas existentes); pruebas en informe-temporada.test.js partes 14.1 y 14.2 -->
 <!-- HISTORIAL: v5 - 29/10/2026 — formulario v5 (job informe-form-v5-v3b; Gary 29/10/2026: "the improved form for the villa managers to fill out"; cinco carriles A a E y la integración): N/A por elemento como cuarta marca, con motivo obligatorio (columnas na, na_motivo); ⚠ Peligro en cada elemento, con texto obligatorio (peligro, peligro_texto); coste estimado opcional en las 5 actuaciones y en las estancias (coste: desconocido, <500, 500-2000, 2000-10000, 10000+; en blanco sigue en blanco); «Se refiere a:» en cada foto (clave_ref); Enviar se para y dice dónde si hay un N/A sin motivo o un peligro sin texto; el guardado automático y el borrador del móvil llevan las seis columnas nuevas. Bajo la cabecera, la condición provisional del villa manager con «¿Cómo se calcula?» (informe-temporada-puntuacion.js sobre informe-temporada-score.js) y el historial de envíos (informe-temporada-historial.js: enviado_at, enviado_por, revision, historial); Enviar y Reabrir escriben UN solo PUT con el estado y la línea del historial, así un fallo deja el informe como estaba. Un «?» en cada elemento con un ejemplo de Bueno, Regular y Malo (informe-temporada-ayuda.js). En papel (hojaV5) salen el motivo de N/A, el peligro, el coste y la referencia de la foto; un informe enviado en solo lectura enseña esas mismas líneas en pantalla. Pruebas: informe-temporada.test.js, informe-temporada-historial.test.js, informe-temporada-puntuacion.test.js, informe-temporada-ayuda.test.js e informe-temporada-hoja.test.js. -->
