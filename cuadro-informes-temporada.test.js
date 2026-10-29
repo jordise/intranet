@@ -247,6 +247,11 @@ ok('14. chips con aria-pressed', (SRC.match(/aria-pressed="'\+\(/g) || []).lengt
 /* 18. Leyenda: Borrador gris 3, Sin informe gris 2 */
 ok('18. leyenda v3: bandas ≥ 80 / 50 a 79,9 / < 50 y "sin puntuación o borrador" (--gray-3); la v2 ya no', PORTADA.indexOf('<div class="leyenda"><span><i style="background:var(--green)"></i>≥ 80</span><span><i style="background:var(--orange)"></i>50 a 79,9</span><span><i style="background:var(--red)"></i>&lt; 50</span>') > 0 && PORTADA.indexOf('<span><i style="background:var(--gray-3)"></i>sin puntuación o borrador</span>') > 0 && SRC.indexOf('<span><i style="background:var(--gray-3)"></i>Borrador</span><span><i style="background:var(--gray-2)"></i>Sin informe</span>') < 0);
 ok('18. barra de la casa sin informe --gray-2; la del borrador sigue --gray-3', /\.casa\.s::before\{background:var\(--gray-2\)\}/.test(SRC) && /\.casa::before\{[^}]*background:var\(--gray-3\)\}/.test(SRC));
+/* Antes del push: una línea HISTORIAL de las rondas de arreglos 1 y 2 de la v3, justo después de la línea v3 */
+var lns = SRC.split('\n'), i3 = -1; lns.forEach(function (x, i) { if (x.indexOf('<!-- HISTORIAL: v3 - 29/10/2026') === 0) i3 = i; });
+var lr = i3 >= 0 ? (lns[i3 + 1] || '') : '';
+ok('HISTORIAL: la línea de las rondas de arreglos 1 y 2 va justo después de la v3, en español, una línea que cierra una sola vez', /^<!-- HISTORIAL: v3 rondas de arreglos 1 y 2 - 29\/10\/2026 — /.test(lr) && /ronda de arreglos 1:/.test(lr) && /ronda de arreglos 2:/.test(lr)
+  && /hoja de Rafa/.test(lr) && /interruptor/.test(lr) && /comentarios/.test(lr) && /se conservan al abrir una casa/.test(lr) && lr.split('-->').length === 2 && /-->$/.test(lr) && (lns[i3 + 2] || '').indexOf('<!-- HISTORIAL: v2 - ') === 0, lr.slice(0, 120));
 /* Version y HISTORIAL v2 */
 var h2 = SRC.indexOf('<!-- HISTORIAL: v2 - 28/10/2026'), h1 = SRC.indexOf('<!-- HISTORIAL: v1 - '), l2 = h2 > 0 ? SRC.slice(h2, SRC.indexOf('\n', h2) < 0 ? SRC.length : SRC.indexOf('\n', h2)) : '';
 ok('HISTORIAL v2 en español encima de la linea v1, una linea, cierra una sola vez', h2 > 0 && h1 > h2 && /ronda de arreglos 1/.test(l2) && l2.split('-->').length === 2 && /-->$/.test(l2) && l2.indexOf('cuadro-informes-temporada.test.js') > 0, l2.slice(0, 120));
