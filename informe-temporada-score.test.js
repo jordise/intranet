@@ -291,4 +291,12 @@ ok('refsFotos: sin líneas = {}', J(S.refsFotos(null)) === '{}');
 ok('etiquetaRef: elemento = su etiqueta, estancia = su nombre, otra = "Otra", desconocida = la clave', S.etiquetaRef('piscina') === EL.filter(function (e) { return e.clave === 'piscina'; })[0].label && S.etiquetaRef('cocina') === 'Cocina' && S.etiquetaRef('otra') === 'Otra' && S.etiquetaRef('garaje') === 'garaje' && S.etiquetaRef('') === '');
 ok('esNa y peligro usan la misma regla estricta (esSi)', typeof S.esSi === 'function' && S.esSi(true) && S.esSi('Sí') && !S.esSi('x') && !S.esSi(false));
 
+
+console.log('12. Ronda de arreglos 1 del job informe-form-v5-v3b (revisor B, punto 4): refsFotos solo da fotos con dirección http(s)');
+var rfJs = S.refsFotos([foto(1, 'piscina', 'javascript:alert(1)'), foto(2, 'piscina', ' JavaScript:alert(2)'), foto(3, 'piscina', 'data:text/html,x'), foto(4, 'piscina', '//x.invalid/4.jpg'),
+  foto(5, 'piscina', 'http://x.invalid/5.jpg'), foto(6, 'cocina', ' HTTPS://x.invalid/6.jpg ')]);
+ok('refsFotos: javascript:, data: y sin esquema fuera; http y https (mayúsculas también) dentro', J(Object.keys(rfJs).sort()) === J(['cocina', 'piscina']) && J(rfJs.piscina.map(function (f) { return f.clave; })) === J(['foto_5'])
+  && rfJs.cocina[0].foto_url === 'HTTPS://x.invalid/6.jpg', J(rfJs));
+ok('refsFotos: una casa con solo una foto javascript: no tiene referencias', J(S.refsFotos([foto(1, 'pintura', 'javascript:alert(1)')])) === '{}');
+
 fin();

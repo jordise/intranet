@@ -801,4 +801,55 @@ async function pruebasConFetch() {
   ok('las cajas que se abren dicen qué piden: «Motivo de N/A (obligatorio)» y «Peligro: qué pasa (obligatorio)»', /\.na-caja::before\{content:'Motivo de N\/A \(obligatorio\)'\}/.test(CODIGO) && /\.peligro-caja::before\{content:'Peligro: qué pasa \(obligatorio\)'\}/.test(CODIGO));
   ok('papel: sin las etiquetas de los controles nuevos ni las ayudas; .h-v5 sale', /label\.peligro,label\.coste,label\.f-ref,\.na-caja,\.peligro-caja,\.ayuda,\.como-calc,\.como-calc-caja\{display:none!important\}/.test(PRINT) && /\.h-v5\{display:block\}/.test(PRINT));
   });
+  await parte(async function () {
+  console.log('14.1 ronda de arreglos 1 (revisor A, punto 2): N/A y peligro guardados como "true", 1 o "sí" cuentan como datos de la fila');
+  H = pagina(); await H.ev('iniciar()');
+  ok('filaVacia: na o peligro en "true", "1", 1, "sí" o "yes" = fila con datos', [{ na: 'true' }, { na: 1 }, { na: '1' }, { na: 'sí' }, { peligro: 'yes' }, { peligro: 1 }, { peligro: 'true' }].every(function (L) { return H.ctx.filaVacia(L) === false; }));
+  ok('filaVacia: na y peligro en "false", "0", 0, "no" o null con lo demás en blanco = vacía', [{ na: 'false', peligro: '0' }, { na: 0, peligro: 'no' }, { na: null, peligro: null }].every(function (L) { return H.ctx.filaVacia(L) === true; }));
+  var bd = H.ctx.borradorDe({ 'exterior|piscina': { seccion: 'exterior', clave: 'piscina', estado: '', na: 'true', peligro: 1, _sucio: true } }, null)['exterior|piscina'] || {};
+  ok('borradorDe: na "true" y peligro 1 llegan al borrador local como true', bd.na === true && bd.peligro === true, JSON.stringify(bd));
+  i = H.S.marca();
+  var cajaP = { dataset: { k: 'seguridad|cerraduras' }, querySelector: function () { return null; }, querySelectorAll: function () { return []; } };
+  H.ctx.alEscribir({ target: { dataset: { campo: 'peligro' }, tagName: 'INPUT', type: 'checkbox', checked: true, closest: function () { return cajaP; } } });
+  await guarda(H);
+  c = H.S.desde(i).filter(function (x) { return x.relay === 'POST' && x.table === 'TaInformeTemporadaLineas'; });
+  ok('fila nueva solo con el tick ⚠ Peligro (sin texto todavía): se guarda (POST con peligro true)', c.length === 1 && c[0].body.peligro === true && c[0].body.clave === 'cerraduras', c.length ? JSON.stringify(c[0].body) : 'sin POST');
+  });
+  await parte(async function () {
+  console.log('14.2 ronda de arreglos 1 (revisor B, punto 1): la línea de papel (.h-v5) de la fila se repinta al editar y antes de imprimir');
+  /* fila falsa: el ancla es la última caja de la fila antes de las líneas de papel; c.hoja = el HTML de papel que tiene ahora */
+  function cajaFalsa(k) {
+    var c = { dataset: { k: k }, hoja: null };
+    var ancla = { insertAdjacentHTML: function (pos, h) { if (pos === 'afterend') c.hoja = (c.hoja || '') + h; } };
+    c.querySelectorAll = function (s) { return s === '.h-v5' && c.hoja !== null ? [{ remove: function () { c.hoja = null; } }] : []; };
+    c.querySelector = function (s) { return /peligro-caja|label\.coste|label\.f-ref/.test(s) ? ancla : null; };
+    return c;
+  }
+  H = pagina(); await H.ev('iniciar()');
+  var cj = cajaFalsa('interior|electrodomesticos');
+  var chk = { dataset: { campo: 'peligro' }, tagName: 'INPUT', type: 'checkbox', checked: true, closest: function () { return cj; } };
+  H.ctx.alEscribir({ target: chk });
+  ok('marcar ⚠ Peligro: el papel de la fila dice «⚠ Peligro (sin descripción)»', /<div class="h-v5 h-peligro">⚠ Peligro \(sin descripción\)<\/div>/.test(cj.hoja || ''), cj.hoja);
+  H.ctx.alEscribir({ target: { dataset: { campo: 'peligro_texto' }, tagName: 'INPUT', value: 'cable pelado', closest: function () { return cj; } } });
+  ok('escribir el peligro: el papel dice «⚠ cable pelado»', /<div class="h-v5 h-peligro">⚠ cable pelado<\/div>/.test(cj.hoja || ''), cj.hoja);
+  chk.checked = false; H.ctx.alEscribir({ target: chk });
+  ok('desmarcar ⚠ Peligro: la línea de peligro sale del papel', !/h-peligro/.test(cj.hoja || ''), cj.hoja);
+  var cn = cajaFalsa('exterior|piscina');
+  var bNa = { dataset: { campo: 'na', v: 'N/A' }, disabled: false, classList: { contains: function () { return false; } }, closest: function (s) { return s === '.st' ? bNa : cn; } };
+  H.ctx.alPulsar({ target: bNa });
+  ok('pulsar N/A: el papel dice «N/A: sin motivo»', /<div class="h-v5 h-na">N\/A: sin motivo<\/div>/.test(cn.hoja || ''), cn.hoja);
+  H.ctx.alEscribir({ target: { dataset: { campo: 'na_motivo' }, tagName: 'INPUT', value: 'sin piscina', closest: function () { return cn; } } });
+  ok('escribir el motivo: el papel dice «N/A: sin piscina»', /<div class="h-v5 h-na">N\/A: sin piscina<\/div>/.test(cn.hoja || ''), cn.hoja);
+  var ca = cajaFalsa('resumen|accion_1');
+  H.ctx.alEscribir({ target: { dataset: { campo: 'coste' }, tagName: 'SELECT', value: '<500', classList: { toggle: function () {} }, closest: function () { return ca; } } });
+  ok('elegir el coste de una actuación: el papel dice «Coste estimado: menos de 500 €»', /<div class="h-v5 h-coste">Coste estimado: menos de 500 €<\/div>/.test(ca.hoja || ''), ca.hoja);
+  var cf = cajaFalsa('foto|foto_1');
+  H.ctx.alEscribir({ target: { dataset: { campo: 'clave_ref' }, tagName: 'SELECT', value: 'piscina', classList: { toggle: function () {} }, closest: function () { return cf; } } });
+  ok('elegir «Se refiere a:» de una foto: el papel dice «Se refiere a: Piscina …»', /<div class="h-v5 h-ref">Se refiere a: Piscina/.test(cf.hoja || ''), cf.hoja);
+  ok('la página escucha beforeprint (una vez)', H.escucha(true, 'beforeprint') === 1);
+  H.ev("LINEAS['interior|electrodomesticos'].peligro=true;LINEAS['interior|electrodomesticos'].peligro_texto='horno da calambre'");
+  H.doc.querySelectorAll = function (s) { return s === '[data-k]' ? [cj, cn, ca, cf] : []; };
+  await H.evento(true, 'beforeprint');
+  ok('antes de imprimir: cada fila repinta su papel desde LINEAS («⚠ horno da calambre»; el N/A sigue)', /⚠ horno da calambre/.test(cj.hoja || '') && /N\/A: sin piscina/.test(cn.hoja || '') && /menos de 500 €/.test(ca.hoja || ''), [cj.hoja, cn.hoja].join(' | '));
+  });
 }

@@ -446,5 +446,19 @@ if (Score && typeof Score.datosV5 === 'function' && FV5) {
   ok('solo informes de antes de la v5: el cuadro de coste sigue "sin datos: formulario v5" (null) y el peligro "dato del formulario v5"', Tsin.coste.n === null && Tsin.alertas.peligroDato === false && Portada.tilesHtml(Tsin, ROUTE).indexOf('dato del formulario v5') >= 0);
 } else ok('InformeScore.datosV5 y FIX.v5 existen', false);
 
+
+console.log('15. Ronda de arreglos 1 del job informe-form-v5-v3b (revisor A, punto 4): «sin dato de peligro» abre su lista');
+if (FV5 && Listas && typeof Listas.listas === 'function') {
+  var C5f = Portada.construirCasasV3(FV5.villas, FV5.informes, FV5.lineas, FV5.contacts, FV5.users, 2026), T5f = Portada.tilesV3(C5f, null), th5f = Portada.tilesHtml(T5f, ROUTE);
+  ok('Alertas: la puerta lista:alertas:sindato con su cifra (1: la 303, enviada antes de la v5)', (T5f.alertas.puertas || []).some(function (p) { return p.v === 'lista:alertas:sindato' && p.n === 1; }), J(T5f.alertas.puertas));
+  ok('tilesHtml: «1 sin dato de peligro (antes de la v5)» es un enlace a lista:alertas:sindato', /<a href="[^"]*v=lista:alertas:sindato[^"]*">1 sin dato de peligro \(antes de la v5\)<\/a>/.test(th5f), (th5f.match(/Alertas[^]*?<\/div><\/div>/) || [])[0]);
+  var lsd = Listas.listas('alertas', ['sindato'], C5f, null);
+  ok('lista:alertas:sindato = las casas enviadas sin dato de peligro (303), no la borrador ni la sin informe', lsd && lsd.filas.length === 1 && lsd.filas[0].villaid === 303 && lsd.filas.length === T5f.alertas.sinDato, J(lsd && lsd.filas.map(function (f) { return f.villaid; })));
+  ok('lista:alertas:sindato: título que dice lo que es', lsd && /sin dato de peligro/i.test(lsd.titulo), lsd && lsd.titulo);
+  var lsd0 = Listas.listas('alertas', ['sindato'], C5f.filter(function (c) { return c.villaid !== 303; }), null);
+  ok('lista:alertas:sindato vacía: explica el vacío', lsd0 && lsd0.filas.length === 0 && /v5/.test(lsd0.vacio || ''), lsd0 && lsd0.vacio);
+  ok('lista:alertas (todas) no cambia: la 303 no es una alerta', Listas.listas('alertas', [], C5f, null).filas.every(function (f) { return f.villaid !== 303; }));
+} else ok('FIX.v5 y Listas existen para la parte 15', false);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

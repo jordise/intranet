@@ -377,5 +377,26 @@ var fPav6 = fila(W6.Vistas.casaHtml(c5(301), null, W6.Rutas.parse('#t=2026&v=cas
 ok('sin Extras: la foto con referencia es un enlace a la foto, con su pie', fPav6.indexOf('href="https://fotos.invalid/3010/1.jpg"') >= 0 && fPav6.indexOf('Escalón hundido') >= 0 && fPav6.indexOf('overlayAbrir') < 0, fPav6);
 ok('VERSION 2 y HISTORIAL v2', V.VERSION === 2 && SRC.indexOf('VERSIÓN ACTUAL: v2 |') >= 0 && SRC.indexOf('/* HISTORIAL: v2 ') > 0);
 
+
+console.log('cuadro v4, ronda de arreglos 1 del job informe-form-v5-v3b (revisores A y B)');
+/* A3 / B3: «historial no disponible antes de la v5» solo para un informe ENVIADO sin historial; sin informe o borrador sin envíos = «Sin envíos registrados» */
+var h305 = W5.Vistas.casaHtml(c5(305), null, W5.Rutas.parse('#t=2026&v=casa:305'), null);
+ok('casa sin informe: «Sin envíos registrados», sin «historial no disponible antes de la v5»', h305.indexOf('Sin envíos registrados') >= 0 && h305.indexOf('historial no disponible antes de la v5') < 0, (h305.match(/hv-meta[^]*?<\/div>/) || [])[0]);
+var bor5 = Object.assign({}, c5(302), { estado: 'borrador', revision: null, historial: '', enviado_at: null, enviado_por: '' });
+var hBor5 = W5.Vistas.casaHtml(bor5, null, W5.Rutas.parse('#t=2026&v=casa:302'), null);
+ok('borrador v5 nunca enviado: «Sin envíos registrados», sin «historial no disponible antes de la v5»', hBor5.indexOf('Sin envíos registrados') >= 0 && hBor5.indexOf('historial no disponible antes de la v5') < 0);
+ok('enviado antes de la v5 (303) sigue con «historial no disponible antes de la v5» y sin «Sin envíos registrados»', h303.indexOf('historial no disponible antes de la v5') >= 0 && h303.indexOf('Sin envíos registrados') < 0);
+/* B2: a 390 px la celda Observación es UN bloque (la chip de peligro, la observación y las fotos apiladas) y la chip parte líneas */
+ok('casa v5: la celda Observación de la fila con peligro va en un bloque .obs-c con la chip, el texto y las fotos', /<td data-l="Observación"><div class="obs-c"><span class="fl peligro">⚠ peligro: [^<]*<\/span> [^<]*<div class="mot">Fotos: [^]*<\/div><\/div><\/td>/.test(fPav), fPav);
+ok('casa v5: una fila sin nada también lleva el bloque (con «—»)', /<td data-l="Observación"><div class="obs-c"><span class="mot">—<\/span><\/div><\/td>/.test(fila(h301, 'Wifi')), fila(h301, 'Wifi'));
+var CSSX = fs.readFileSync(path.join(DIR, 'cuadro-informes-temporada-extras.css'), 'utf8'), iM = CSSX.indexOf('@media (max-width:700px){'), MOV = iM >= 0 ? CSSX.slice(iM, CSSX.indexOf('@media print{')) : '';
+ok('móvil (700 px o menos): la chip .fl de la tabla apilada parte líneas y el bloque .obs-c encoge (min-width:0)', /table\.stack td \.fl\{[^}]*white-space:normal/.test(MOV) && /table\.stack td>\.obs-c\{[^}]*min-width:0/.test(MOV), MOV.slice(0, 120));
+/* B4: una foto con dirección javascript: no da enlace (refsFotos filtra http(s); vale para la casa y para las listas) */
+var cJs = Object.assign({}, c5(301)); cJs.lineas = (c5(301).lineas || []).concat([{ informe_id: 3010, seccion: 'foto', clave: 'foto_6', orden: 6, foto_url: 'javascript:alert(1)', texto_1: 'Trampa', clave_ref: 'pintura' }]);
+var fPin6 = fila(W6.Vistas.casaHtml(cJs, null, W6.Rutas.parse('#t=2026&v=casa:301'), null), 'Pintura');
+ok('sin Extras: una foto javascript: no sale como enlace en la fila del elemento', fPin6.indexOf('javascript:') < 0 && fPin6.indexOf('Trampa') < 0, fPin6);
+var fr6 = LS.fotosRefDe(cJs, 'pintura');
+ok('listas: fotosRefDe deja fuera la foto javascript:', Array.isArray(fr6) && fr6.length === 0, J(fr6));
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);
