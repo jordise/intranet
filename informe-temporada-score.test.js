@@ -203,4 +203,27 @@ ok('sin window (vm sin nada): define InformeScore en el global del contexto', sa
 ok('no usa fetch, XMLHttpRequest, document ni localStorage', !/\bfetch\s*\(|XMLHttpRequest|\bdocument\.|localStorage|sessionStorage/.test(SRC));
 ok('no usa import, export ni require', !/^\s*(import|export)\s/m.test(SRC) && !/\brequire\s*\(/.test(SRC));
 
+console.log('9. Ronda de arreglos 1: estancias con solo la acción o la prioridad, lector compartido de marcas, N/A y comentarios');
+function est(clave, t1, t2, pri, orden) { return { informe_id: 7, seccion: 'estancia', clave: clave, orden: orden || 1, texto_1: t1, texto_2: t2, prioridad: pri }; }
+var a9 = S.acciones([est('cocina', '', 'Cambiar campana', 'Alta', 2)]);
+ok('estancia con solo "Acción recomendada" = una actuación Alta con ese texto (motivo = la estancia)', a9.length === 1 && a9[0].accion === 'Cambiar campana' && a9[0].prioridad === 'Alta' && a9[0].motivo === 'Cocina', J(a9));
+var a9b = S.acciones([est('salon', '', '', 'Media', 1)]);
+ok('estancia con solo la prioridad = una actuación "Sin texto (Salón / comedor)" Media', a9b.length === 1 && a9b[0].accion === 'Sin texto (Salón / comedor)' && a9b[0].prioridad === 'Media', J(a9b));
+ok('estancia vacía (sin incidencia, acción ni prioridad) no es actuación', S.acciones([est('salon', '', '', '')]).length === 0);
+var a9c = S.acciones([est('otra_1', 'Lavadero: ', 'Cambiar grifo', '', 8)]);
+ok('otra_N con nombre y solo la acción = actuación con la acción, motivo = el nombre', a9c.length === 1 && a9c[0].accion === 'Cambiar grifo' && a9c[0].motivo === 'Lavadero', J(a9c));
+var a9d = S.acciones([{ informe_id: 7, seccion: 'resumen', clave: 'accion_1', orden: 1, texto_1: 'Cambiar campana', texto_2: 'No extrae', prioridad: 'Baja' }, est('cocina', '', 'Cambiar campana', 'Alta', 2)]);
+ok('la acción de una estancia se une al resumen con el mismo texto: una actuación Alta, dos fuentes', a9d.length === 1 && a9d[0].prioridad === 'Alta' && a9d[0].fuentes.length === 2 && a9d[0].motivo === 'No extrae', J(a9d));
+var a9e = S.acciones([est('cocina', 'Campana no extrae', 'Cambiar campana', 'Alta', 2)]);
+ok('con incidencia y acción: el texto de la actuación sigue siendo la incidencia (texto_1)', a9e.length === 1 && a9e[0].accion === 'Campana no extrae', J(a9e));
+ok('expone marcas, esNa y esComentario', typeof S.marcas === 'function' && typeof S.esNa === 'function' && typeof S.esComentario === 'function');
+ok('esNa estricto: true, 1, "1", "true", "sí", "yes"; nunca "no", "0", "x", ""', typeof S.esNa === 'function' && [true, 1, '1', 'true', 'sí', 'Si', 'yes'].every(function (v) { return S.esNa({ na: v }); }) && ![false, 0, '0', 'no', 'x', '', null].some(function (v) { return S.esNa({ na: v }); }));
+var dupL = [linea('pintura', 'bueno', { linea_id: 9, texto_1: 'primera' }), linea('pintura', 'regular', { linea_id: 3, texto_1: 'segunda' }), linea('sofas', '', { na: 'sí' }), linea('menaje', 'x')];
+var mk9 = safe(function () { return S.marcas(dupL); }) || { porClave: {} };
+var pc9 = mk9.porClave || {};
+ok('marcas: fila repetida = la regla de la puntuación (gana la última en orden; error "datos")', pc9.pintura && pc9.pintura.marca === 'regular' && pc9.pintura.linea.texto_1 === 'segunda' && mk9.error === 'datos', J(pc9.pintura));
+ok('marcas: N/A sale como "na"; una marca no válida como ""; sin línea = "" y linea null', pc9.sofas && pc9.sofas.marca === 'na' && pc9.menaje.marca === '' && pc9.wifi_tv.marca === '' && pc9.wifi_tv.linea === null, J([pc9.sofas, pc9.menaje]));
+ok('marcas y condicion cuentan lo mismo', (function () { var c = S.condicion(dupL), n = { bueno: 0, regular: 0, malo: 0, na: 0 }; Object.keys(pc9).forEach(function (k) { if (n[pc9[k].marca] !== undefined) n[pc9[k].marca]++; }); return Object.keys(pc9).length === 26 && n.bueno === c.bueno && n.regular === c.regular && n.malo === c.malo && n.na === c.na; })());
+ok('esComentario: huésped con texto_1 o con solo texto_2; nunca vacío ni de otra sección', typeof S.esComentario === 'function' && S.esComentario({ seccion: 'huesped', texto_1: 'Ruido' }) && S.esComentario({ seccion: 'huesped', texto_1: ' ', texto_2: 'Poner cortinas' }) && !S.esComentario({ seccion: 'huesped', texto_1: '', texto_2: '' }) && !S.esComentario({ seccion: 'resumen', texto_1: 'x' }));
+
 fin();

@@ -80,19 +80,33 @@
   /* Lectura de las líneas de UN informe: marca por clave ('bueno'|'regular'|'malo'|'' ), N/A por clave, y error 'datos'
      si una clave de los 26 tiene dos líneas, una marca no es Bueno/Regular/Malo o una línea es N/A y tiene marca */
   function leerElementos(lineas) {
-    var marca = {}, na = {}, visto = {}, error = null;
+    var marca = {}, na = {}, visto = {}, linea = {}, ultima = {}, error = null;
     (lineas || []).forEach(function (l) {
       var k = claveElemento(l);
       if (!k) return;
       if (visto[k]) error = 'datos';
-      visto[k] = 1;
+      visto[k] = 1; ultima[k] = l;
       var m = lw(l.estado);
       if (m && !MARCAS[m]) { error = 'datos'; return; }
-      if (esNa(l)) { if (m) error = 'datos'; else na[k] = 1; return; }
-      if (m) marca[k] = m;
+      if (esNa(l)) { if (m) error = 'datos'; else { na[k] = 1; linea[k] = l; } return; }
+      if (m) { marca[k] = m; linea[k] = l; }
     });
-    return { marca: marca, na: na, error: error };
+    return { marca: marca, na: na, error: error, linea: linea, ultima: ultima };
   }
+
+  /* Lector compartido de los 26 (cuadro: mapa, listas y casa; la misma regla que la puntuación): por clave {marca: 'bueno'|'regular'|'malo'|'na'|'',
+     linea: la línea que da la marca, o la última de la clave, o null}; fila repetida = gana la última en orden y error 'datos' */
+  function marcas(lineas) {
+    var e = leerElementos(lineas), out = {};
+    elementosDef().forEach(function (d) {
+      var k = d.clave;
+      out[k] = { marca: e.na[k] ? 'na' : (e.marca[k] || ''), linea: e.linea[k] || e.ultima[k] || null };
+    });
+    return { porClave: out, error: e.error };
+  }
+
+  /* Comentario de huésped con algún texto (texto_1, o solo "Detalle / mejora" en texto_2): la misma regla en el cuadro, las listas y la casa */
+  function esComentario(l) { return !!l && l.seccion === 'huesped' && !!(txt(l.texto_1).trim() || txt(l.texto_2).trim()); }
 
   /* Condición de un informe (sus líneas): {bueno, regular, malo, evaluados, aplicables, na, puntuacion, completo, banda, error} */
   function condicion(lineas) {
@@ -131,18 +145,22 @@
   }
   function prioridadVer(v) { var m = { Alta: 'Alto', Media: 'Medio', Baja: 'Bajo' }; return m[prioridadNorm(v)] || ''; }
 
-  /* Texto de la actuación y motivo de una línea de resumen o de estancia ('' = no es actuación) */
+  /* Texto de la actuación y motivo de una línea de resumen o de estancia ('' = no es actuación).
+     Estancia (ronda de arreglos 1, decisión de bro): cuenta si tiene incidencia (texto_1), "Acción recomendada" (texto_2) o prioridad;
+     el texto es la incidencia; sin incidencia, la acción recomendada; sin las dos, "Sin texto (<estancia>)"; motivo = la estancia */
   function leerAccion(l) {
     if (l.seccion === 'resumen') return { accion: txt(l.texto_1).trim(), motivo: txt(l.texto_2).trim() };
-    var t = txt(l.texto_1), m = /^otra_(\d+)$/.exec(txt(l.clave));
+    var t = txt(l.texto_1), m = /^otra_(\d+)$/.exec(txt(l.clave)), inc = t, motivo = ESTANCIAS[l.clave] || txt(l.clave);
     if (m) {
-      var p = t.indexOf(':'), nombre = p < 0 ? '' : t.slice(0, p).trim(), inc = p < 0 ? t : t.slice(p + 1);
-      return { accion: inc.trim(), motivo: nombre || 'Otra estancia ' + m[1] };
+      var p = t.indexOf(':'), nombre = p < 0 ? '' : t.slice(0, p).trim();
+      inc = p < 0 ? t : t.slice(p + 1);
+      motivo = nombre || 'Otra estancia ' + m[1];
     }
-    return { accion: t.trim(), motivo: ESTANCIAS[l.clave] || txt(l.clave) };
+    var accion = inc.trim() || txt(l.texto_2).trim() || (prioridadNorm(l.prioridad) ? 'Sin texto (' + motivo + ')' : '');
+    return { accion: accion, motivo: motivo };
   }
 
-  /* Actuaciones distintas de un informe: resumen (texto_1) + estancias (texto_1), unidas por el texto exacto (sin espacios al
+  /* Actuaciones distintas de un informe: resumen (texto_1) + estancias (leerAccion), unidas por el texto exacto (sin espacios al
      principio y al final, mayúsculas cuentan); gana la prioridad más alta; se guardan todas las fuentes; motivo = el primero
      que no esté vacío (texto_2 del resumen, o el nombre de la estancia); coste = null hasta el formulario v5.
      Orden: Alta, Media, Baja, sin prioridad; dentro, resumen antes que estancia y por orden */
@@ -190,7 +208,7 @@
 
   var InformeScore = {
     elementosDef: elementosDef, elementosSeguridad: elementosSeguridad, condicion: condicion, banderas: banderas,
-    acciones: acciones, comparar: comparar, redondear1: redondear1
+    acciones: acciones, comparar: comparar, redondear1: redondear1, marcas: marcas, esNa: esNa, esComentario: esComentario
   };
   if (typeof module === 'object' && module && module.exports) module.exports = InformeScore;
   if (raiz) raiz.InformeScore = InformeScore;
