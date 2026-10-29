@@ -153,7 +153,7 @@ var lA = [
 ];
 var aA = S.acciones(lA);
 var por = {}; aA.forEach(function (a) { por[a.accion] = a; });
-ok('5 actuaciones distintas (mayúsculas distinguen; filas vacías, huésped y elementos fuera)', aA.length === 5, J(aA.map(function (a) { return a.accion; })));
+ok('6 actuaciones distintas (mayúsculas distinguen; huésped y elementos fuera; ronda 2: el resumen con solo motivo y prioridad cuenta como "Sin texto (Resumen 4)")', aA.length === 6, J(aA.map(function (a) { return a.accion; })));
 ok('"Cambiar colchones": Media en resumen + Alta en estancia -> Alta, dos fuentes', por['Cambiar colchones'] && por['Cambiar colchones'].prioridad === 'Alta' && por['Cambiar colchones'].fuentes.length === 2, J(por['Cambiar colchones']));
 ok('el motivo del resumen gana (texto_2); la estancia da su nombre si el resumen no tiene', por['Cambiar colchones'] && por['Cambiar colchones'].motivo === 'Hundidos', J(por['Cambiar colchones']));
 ok('"Pintar fachada" y "pintar fachada" son dos (mayúsculas cuentan)', por['Pintar fachada'] && por['pintar fachada'] && por['Pintar fachada'].prioridad === 'Baja' && por['pintar fachada'].prioridad === 'Alta');
@@ -161,12 +161,12 @@ ok('estancia fija: motivo = nombre de la estancia (Baño 1), sin prioridad = ""'
 ok('estancia añadida (otra_N): texto = la incidencia, motivo = el nombre escrito; "Medio" guardado cuenta como Media', por['Puerta rota'] && por['Puerta rota'].motivo === 'Lavadero' && por['Puerta rota'].prioridad === 'Media', J(aA));
 ok('prioridad para ver: Alto / Medio / Bajo / ""', por['Cambiar colchones'] && por['Cambiar colchones'].prioridadVer === 'Alto' && por['Puerta rota'].prioridadVer === 'Medio' && por['Pintar fachada'].prioridadVer === 'Bajo' && por['Grifo gotea'].prioridadVer === '');
 ok('coste = null (sin datos: formulario v5)', aA.every(function (a) { return a.coste === null; }));
-ok('orden: Alta, Media, Baja, sin prioridad; dentro, resumen antes que estancia y por orden', J(aA.map(function (a) { return a.accion; })) === J(['Cambiar colchones', 'pintar fachada', 'Puerta rota', 'Pintar fachada', 'Grifo gotea']), J(aA.map(function (a) { return a.accion; })));
+ok('orden: Alta, Media, Baja, sin prioridad; dentro, resumen antes que estancia y por orden', J(aA.map(function (a) { return a.accion; })) === J(['Cambiar colchones', 'pintar fachada', 'Sin texto (Resumen 4)', 'Puerta rota', 'Pintar fachada', 'Grifo gotea']), J(aA.map(function (a) { return a.accion; })));
 ok('fuentes con orden numérico', por['Cambiar colchones'] && J(por['Cambiar colchones'].fuentes) === J([{ seccion: 'resumen', clave: 'accion_1', orden: 1 }, { seccion: 'estancia', clave: 'dormitorio_principal', orden: 3 }]));
 ok('forma de cada actuación', aA[0] && J(Object.keys(aA[0]).sort()) === J(['accion', 'coste', 'fuentes', 'motivo', 'prioridad', 'prioridadVer']), J(aA[0] && Object.keys(aA[0])));
 ok('otra_N sin ": " -> texto completo, motivo "Otra estancia N"', (function () { var a = S.acciones([{ seccion: 'estancia', clave: 'otra_2', orden: 9, texto_1: 'Humedad en el techo', prioridad: '' }]); return a.length === 1 && a[0].accion === 'Humedad en el techo' && a[0].motivo === 'Otra estancia 2'; })(), J(S.acciones([{ seccion: 'estancia', clave: 'otra_2', orden: 9, texto_1: 'Humedad en el techo' }])));
 ok('otra_N con ": " y sin nombre -> motivo "Otra estancia N"', (function () { var a = S.acciones([{ seccion: 'estancia', clave: 'otra_1', orden: 8, texto_1: ': Grieta' }]); return a.length === 1 && a[0].accion === 'Grieta' && a[0].motivo === 'Otra estancia 1'; })());
-ok('otra_N con nombre y sin incidencia -> no es actuación', S.acciones([{ seccion: 'estancia', clave: 'otra_1', orden: 8, texto_1: 'Lavadero: ' }]).length === 0);
+ok('otra_N con nombre y sin incidencia -> actuación "Sin texto (Lavadero)" (ronda 2, decisión de bro)', (function () { var a = S.acciones([{ seccion: 'estancia', clave: 'otra_1', orden: 8, texto_1: 'Lavadero: ' }]); return a.length === 1 && a[0].accion === 'Sin texto (Lavadero)' && a[0].motivo === 'Lavadero'; })());
 var estFijas = fctx.seccionesDef().filter(function (s) { return s.id === 'estancia'; })[0].claves;
 ok('cada estancia fija del formulario da su nombre como motivo (las 7 de seccionesDef())', estFijas.length === 7 && estFijas.every(function (c, i) {
   var a = S.acciones([{ seccion: 'estancia', clave: c[0], orden: i + 1, texto_1: 'Incidencia ' + i }]); return a.length === 1 && a[0].motivo === c[1];
