@@ -696,6 +696,36 @@ async function pruebasConFetch() {
   ok('y lo escrito llega a Caspio', H.S.db.TaInformeTemporadaLineas.filter(function (r) { return r.clave === 'piscina'; })[0].na_motivo === 'sin piscina' && H.S.db.TaInformeTemporadaLineas.filter(function (r) { return r.clave === 'instalacion_electrica'; })[0].peligro_texto === 'cuadro quemado');
   });
   await parte(async function () {
+  console.log('12.6b v5 arreglo previo a la publicación: un borrador de la v4 con marca sobre un N/A de Caspio; marca y N/A a la vez paran Enviar');
+  var alm = { 'informe:12:2026': JSON.stringify({ 'exterior|piscina': { seccion: 'exterior', clave: 'piscina', estado: 'Regular', texto_1: '', texto_2: '', prioridad: '' } }) };
+  H = pagina({ almacen: alm, db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [{ linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '', na: true, na_motivo: 'sin piscina' }] }) });
+  await H.ev('iniciar()');
+  var fila = H.ev("JSON.stringify({estado:LINEAS['exterior|piscina'].estado,na:LINEAS['exterior|piscina'].na,na_motivo:LINEAS['exterior|piscina'].na_motivo,sucio:LINEAS['exterior|piscina']._sucio})");
+  ok('borrador de la v4 con marca sobre un N/A guardado: la marca queda, na false, motivo vacío, fila sucia', fila === JSON.stringify({ estado: 'Regular', na: false, na_motivo: '', sucio: true }), fila);
+  var cuerpo = H.ev("lineaRequest(9,LINEAS['exterior|piscina']).body");
+  ok('y se guarda la marca sin N/A (na false, motivo vacío)', cuerpo.estado === 'Regular' && cuerpo.na === false && cuerpo.na_motivo === '', JSON.stringify(cuerpo));
+  ok('la condición provisional se puede calcular (sin «N/A y marca a la vez»)', !/no se puede calcular/.test(H.ev('Puntuacion.texto(LINEAS)')), H.ev('Puntuacion.texto(LINEAS)'));
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: 'Regular', na: true, na_motivo: 'sin piscina' },
+    { linea_id: 2, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Bueno' }] }) });
+  await H.ev('iniciar()');
+  var f = H.ev('faltasEnvio(LINEAS)');
+  ok('faltasEnvio: la fila con marca y N/A a la vez va en su propia lista', f.ambas && f.ambas.join() === 'exterior|piscina' && f.na.length === 0 && f.peligro.length === 0, JSON.stringify(f));
+  var msg = H.ev('mensajeFaltas(faltasEnvio(LINEAS))');
+  ok('mensaje: "Hay filas con marca y N/A a la vez: Piscina"', msg.indexOf('Hay filas con marca y N/A a la vez: Piscina') >= 0, msg);
+  var qs = H.doc.querySelector, enf = [];
+  H.doc.querySelector = function (s) { return { querySelector: function (q) { enf.push(s + ' ' + q); return { focus: function () {} }; } }; };
+  try { H.ev('enfocarFalta(faltasEnvio(LINEAS))'); } finally { H.doc.querySelector = qs; }
+  ok('enfocarFalta: va a las marcas de la primera fila con marca y N/A', enf[0] === '[data-k="exterior|piscina"] [data-campo="estado"]', JSON.stringify(enf));
+  i = H.S.marca(); var antes = H.log.length;
+  await H.ev('enviarInforme()');
+  ok('Enviar: no se envia y no pregunta', H.S.desde(i).every(function (x) { return !(x.body && x.body.estado === 'enviado'); }) && H.ev('INFORME.estado') === 'borrador' && H.log.slice(antes).every(function (l) { return l.indexOf('confirm') !== 0; }));
+  ok('el aviso dice que fila tiene marca y N/A a la vez', /Hay filas con marca y N\/A a la vez: Piscina/.test(H.g('toast').textContent), H.g('toast').textContent);
+  H.ev("editarFila('exterior|piscina','estado','')");
+  await H.ev('enviarInforme()');
+  ok('quitar la marca (queda el N/A con motivo): se envia', H.S.db.TaInformeTemporada[0].estado === 'enviado' && H.ev('INFORME.estado') === 'enviado');
+  });
+  await parte(async function () {
   console.log('12.7 v5: informe enviado, solo lectura: N/A, peligro, coste y referencia desactivados');
   H = pagina({ rol: 'staff', email: 'vm@3villas.com', db: baseDb({ TaInformeTemporada: [informe9({ estado: 'enviado', estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
     { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Pie', clave_ref: 'piscina' },
