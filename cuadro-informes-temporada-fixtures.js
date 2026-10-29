@@ -174,8 +174,68 @@
     lineasAcciones(id, i, m, lineas25);
   });
 
+  /* Formulario v5 (job informe-form-v5-v3b, lane D): un juego aparte de 6 casas (301..306) con la forma completa de
+     window.__FIXTURE__, para las pruebas y las capturas del cuadro v4. Todas las líneas llevan las columnas nuevas como las
+     lee Caspio (na y peligro false cuando están vacías; textos en blanco). Casos:
+     301 enviado rev 2 (dos envíos y una reapertura en el historial): peligro en pavimentos (Regular), barbacoa N/A con motivo,
+         la misma actuación en el resumen (500-2000) y en la estancia (2000-10000) = coste distinto, otra sin banda, fotos con referencia;
+     302 enviado rev 1: piscina y barbacoa N/A, colchones Malo, costes <500 y desconocido, sin peligro (peligro false);
+     303 enviado antes de la v5 (sin revisión ni historial): peligro desconocido (null), actuación sin banda;
+     304 borrador tras envío (rev 1, reabierto, enviado_at vacío) con un peligro en el borrador (no cuenta);
+     305 sin informe; 306 dos enviados: vale el 3062 (enviado_at más nuevo) aunque el 3061 se guardó después. */
+  function fixtureV5() {
+    var vs = [{ villaid: 301, Name: 'Villa Peligro', KeyHolder_person: '12', Status: 1 }, { villaid: 302, Name: 'Casa Sin Piscina', KeyHolder_person: '13', Status: 1 },
+      { villaid: 303, Name: 'Villa Antigua', KeyHolder_person: '12', Status: 1 }, { villaid: 304, Name: 'Villa Reabierta', KeyHolder_person: '13', Status: 1 },
+      { villaid: 305, Name: 'Villa Sin Informe', KeyHolder_person: '12', Status: 1 }, { villaid: 306, Name: 'Casa Dos Envíos', KeyHolder_person: '13', Status: 1 }];
+    var ls = [], n5 = 9000;
+    var l5 = function (inf, seccion, clave, orden, campos) {
+      var l = { linea_id: n5++, informe_id: inf, seccion: seccion, clave: clave, orden: orden, estado: '', texto_1: '', texto_2: '', prioridad: '', foto_url: '',
+        na: false, na_motivo: '', peligro: false, peligro_texto: '', coste: '', clave_ref: '' };
+      Object.keys(campos || {}).forEach(function (k) { l[k] = campos[k]; });
+      ls.push(l);
+    };
+    var elementos = function (inf, especial) {
+      CLAVES.forEach(function (c, j) { var e = (especial || {})[c[1]] || { estado: 'Bueno' }; l5(inf, c[0], c[1], j + 1, e); });
+    };
+    var inf5 = function (id, villaid, estado, extra) {
+      var x = { informe_id: id, villaid: villaid, temporada: 2026, estado: estado, estado_general: 'Bueno', fecha_revision: '2026-10-25',
+        updated_at: '2026-10-25T10:00:00', observaciones_finales: 'Observaciones finales ' + id, enviado_at: '', enviado_por: '', revision: null, historial: '' };
+      Object.keys(extra || {}).forEach(function (k) { x[k] = extra[k]; });
+      return x;
+    };
+    var ifs = [
+      inf5(3010, 301, 'enviado', { estado_general: 'Bueno', enviado_at: '2026-10-28T18:30:00', enviado_por: 'Kike', revision: 2, updated_at: '2026-10-28T18:30:00',
+        historial: '27/10/2026 17:05 enviado por Kike (rev 1)\n27/10/2026 18:00 reabierto por Jordi (rev 1)\n28/10/2026 18:30 enviado por Kike (rev 2)' }),
+      inf5(3020, 302, 'enviado', { estado_general: 'Bueno', enviado_at: '2026-10-26T12:00:00', enviado_por: 'Amanda', revision: 1, historial: '26/10/2026 12:00 enviado por Amanda (rev 1)' }),
+      inf5(3030, 303, 'enviado', { estado_general: 'Bueno', updated_at: '2026-10-12T10:00:00' }),
+      inf5(3040, 304, 'borrador', { estado_general: 'Regular', revision: 1, updated_at: '2026-10-29T09:00:00',
+        historial: '25/10/2026 10:00 enviado por Amanda (rev 1)\n29/10/2026 09:00 reabierto por Jordi (rev 1)' }),
+      inf5(3061, 306, 'enviado', { estado_general: 'Malo', enviado_at: '2026-10-20T10:00:00', enviado_por: 'Amanda', revision: 1, updated_at: '2026-10-29T10:00:00', historial: '20/10/2026 10:00 enviado por Amanda (rev 1)' }),
+      inf5(3062, 306, 'enviado', { estado_general: 'Bueno', enviado_at: '2026-10-27T10:00:00', enviado_por: 'Amanda', revision: 1, updated_at: '2026-10-27T10:00:00', historial: '27/10/2026 10:00 enviado por Amanda (rev 1)' })];
+    elementos(3010, { pavimentos: { estado: 'Regular', texto_1: 'Escalón de la terraza', peligro: true, peligro_texto: 'Escalón de la terraza hundido; riesgo de caída' },
+      barbacoa: { estado: '', na: true, na_motivo: 'sin barbacoa' } });
+    l5(3010, 'resumen', 'accion_1', 1, { texto_1: 'Reparar escalón de la terraza', texto_2: 'Riesgo de caída', prioridad: 'Alta', coste: '500-2000' });
+    l5(3010, 'resumen', 'accion_2', 2, { texto_1: 'Pintar fachada', texto_2: 'Desconchada', prioridad: 'Media' });
+    l5(3010, 'estancia', 'exterior_piscina', 7, { texto_1: 'Reparar escalón de la terraza', texto_2: 'Rehacer el peldaño', prioridad: 'Alta', coste: '2000-10000' });
+    l5(3010, 'foto', 'foto_1', 1, { foto_url: 'https://fotos.invalid/3010/1.jpg', texto_1: 'Escalón hundido', clave_ref: 'pavimentos' });
+    l5(3010, 'foto', 'foto_2', 2, { foto_url: 'https://fotos.invalid/3010/2.jpg', texto_1: 'Encimera', clave_ref: 'cocina' });
+    l5(3010, 'foto', 'foto_3', 3, { foto_url: 'https://fotos.invalid/3010/3.jpg', texto_1: 'Vista general' });
+    elementos(3020, { piscina: { estado: '', na: true, na_motivo: 'sin piscina' }, barbacoa: { estado: '', na: true, na_motivo: 'no hay' },
+      colchones: { estado: 'Malo', texto_1: 'Hundidos en el centro' } });
+    l5(3020, 'resumen', 'accion_1', 1, { texto_1: 'Cambiar colchones', texto_2: 'Hundidos', prioridad: 'Alta', coste: '<500' });
+    l5(3020, 'resumen', 'accion_2', 2, { texto_1: 'Revisar mandos del aire', texto_2: 'Fallan', prioridad: 'Baja', coste: 'desconocido' });
+    elementos(3030);
+    l5(3030, 'resumen', 'accion_1', 1, { texto_1: 'Repasar pintura', texto_2: 'Roces', prioridad: 'Media' });
+    elementos(3040, { wifi_tv: { estado: 'Malo', peligro: true, peligro_texto: 'Router quemado: olor a plástico' } });
+    elementos(3061, { pintura: { estado: 'Malo' }, colchones: { estado: 'Malo' } });
+    elementos(3062);
+    l5(3062, 'resumen', 'accion_1', 1, { texto_1: 'Cambiar toldo', texto_2: 'Roto', prioridad: 'Media', coste: '500-2000' });
+    return { temporada: 2026, villas: vs, contacts: contacts, users: users, informes: ifs, lineas: ls,
+      previa: { temporada: 2025, informes: [], lineas: [] }, vacia: { temporada: 2024, informes: [], lineas: [] } };
+  }
+
   var F = {
-    temporada: 2026, villas: villas, contacts: contacts, users: users, informes: informes, lineas: lineas,
+    temporada: 2026, villas: villas, contacts: contacts, users: users, informes: informes, lineas: lineas, v5: fixtureV5(),
     previa: { temporada: 2025, informes: informes25, lineas: lineas25 },
     vacia: { temporada: 2024, informes: [], lineas: [] },
     CLAVES: CLAVES, SEGURIDAD: SEGURIDAD, casos: casos,

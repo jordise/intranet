@@ -247,4 +247,48 @@ var c10 = S.condicion([linea('pintura', 'malo'), linea('pintura', ''), linea('co
 ok('condicion cuenta lo mismo que marcas con la última en blanco (pintura no cuenta; sin puntuación)', c10.malo === 0 && c10.bueno === 1 && c10.evaluados === 1 && c10.puntuacion === null && c10.error === 'datos', J(c10));
 ok('fila repetida con la última N/A = N/A', S.marcas([linea('sofas', 'regular'), linea('sofas', '', { na: true })]).porClave.sofas.marca === 'na');
 
+
+console.log('11. Formulario v5 (job informe-form-v5-v3b, lane D): peligro, banda de coste, fotos con referencia y dato v5');
+['costeNorm', 'costeDistinto', 'datosV5', 'refsFotos', 'etiquetaRef'].forEach(function (n) { ok('expone ' + n, typeof S[n] === 'function'); });
+ok('costeNorm: las cinco bandas de CASPIO-COLUMNS.md tal cual; blanco o texto desconocido = ""', S.costeNorm && J(['desconocido', '<500', '500-2000', '2000-10000', '10000+', ' 500-2000 ', 'DESCONOCIDO', '', null, '0', 'barato'].map(S.costeNorm)) === J(['desconocido', '<500', '500-2000', '2000-10000', '10000+', '500-2000', 'desconocido', '', '', '', '']));
+function acc(t1, pri, coste, orden, sec, clave) { var l = { informe_id: 7, seccion: sec || 'resumen', clave: clave || 'accion_' + orden, orden: orden, texto_1: t1, texto_2: '', prioridad: pri }; if (coste !== undefined) l.coste = coste; return l; }
+var a11 = S.acciones([acc('Pintar fachada', 'Media', '2000-10000', 1), acc('Cambiar termo', 'Alta', '', 2), acc('Cambiar termo', 'Media', '<500', 5, 'estancia', 'bano_1'), acc('Revisar persiana', 'Baja', 'desconocido', 3)]);
+var p11 = {}; a11.forEach(function (a) { p11[a.accion] = a; });
+ok('coste de una actuación = su banda ("2000-10000"); "desconocido" se guarda; sin banda = null', p11['Pintar fachada'].coste === '2000-10000' && p11['Revisar persiana'].coste === 'desconocido', J(a11));
+ok('unidas por el texto: la banda de la fuente que la tiene ("<500"), la otra en blanco no la borra', p11['Cambiar termo'].coste === '<500' && p11['Cambiar termo'].fuentes.length === 2, J(p11['Cambiar termo']));
+ok('cada fuente con banda lleva su coste; la fuente en blanco no lleva la clave (forma de job uno intacta)', J(p11['Cambiar termo'].fuentes) === J([{ seccion: 'resumen', clave: 'accion_2', orden: 2 }, { seccion: 'estancia', clave: 'bano_1', orden: 5, coste: '<500' }]), J(p11['Cambiar termo'].fuentes));
+ok('la forma de cada actuación no cambia (seis claves)', J(Object.keys(a11[0]).sort()) === J(['accion', 'coste', 'fuentes', 'motivo', 'prioridad', 'prioridadVer']));
+var a11b = S.acciones([acc('Cambiar toldo', 'Media', '500-2000', 1), acc('Cambiar toldo', 'Alta', '2000-10000', 4, 'estancia', 'exterior_piscina')]);
+ok('dos bandas distintas al unir: gana la más alta y costeDistinto = true', a11b.length === 1 && a11b[0].coste === '2000-10000' && S.costeDistinto(a11b[0]) === true, J(a11b));
+var a11c = S.acciones([acc('Cambiar toldo', 'Media', '500-2000', 1), acc('Cambiar toldo', 'Alta', '500-2000', 4, 'estancia', 'exterior_piscina')]);
+ok('la misma banda en las dos fuentes: no es coste distinto', S.costeDistinto(a11c[0]) === false && a11c[0].coste === '500-2000');
+var a11d = S.acciones([acc('Cambiar toldo', 'Media', 'desconocido', 1), acc('Cambiar toldo', 'Alta', '10000+', 4, 'estancia', 'exterior_piscina')]);
+ok('"desconocido" y una banda: gana la banda y no es coste distinto (desconocido no contradice)', a11d[0].coste === '10000+' && S.costeDistinto(a11d[0]) === false, J(a11d));
+ok('costeDistinto de una actuación sin fuentes o null = false', S.costeDistinto(null) === false && S.costeDistinto({ fuentes: [] }) === false);
+
+var EV5 = lineas(todas('bueno'));
+EV5.forEach(function (l) { l.peligro = false; l.na_motivo = ''; l.peligro_texto = ''; });
+ok('datosV5: líneas de antes de la v5 (peligro false, campos en blanco) y cabecera sin revisión = false', S.datosV5({ estado_general: 'Bueno', revision: null, historial: '' }, EV5) === false);
+ok('datosV5: revisión ≥ 1, historial o enviado_por en la cabecera = true', S.datosV5({ revision: 1 }, []) === true && S.datosV5({ revision: '2' }, []) === true && S.datosV5({ historial: '29/10/2026 10:00 enviado por Kike (rev 1)' }, []) === true && S.datosV5({ enviado_por: 'Kike' }, []) === true && S.datosV5({ revision: 0 }, []) === false);
+ok('datosV5: una línea con N/A, peligro, coste o foto con referencia = true', ['na', 'peligro', 'coste', 'clave_ref', 'na_motivo', 'peligro_texto'].every(function (k) { var l = linea('pintura', ''); l[k] = k === 'na' || k === 'peligro' ? true : k === 'coste' ? '<500' : 'x'; return S.datosV5(null, [l]) === true; }));
+var bP = S.banderas({ estado_general: 'Bueno', revision: 1 }, [linea('pintura', 'bueno', { peligro: true, peligro_texto: 'Cable pelado junto a la ducha' }), linea('pavimentos', 'regular', { peligro: 'true', peligro_texto: ' Escalón hundido ' }), linea('colchones', 'bueno', { peligro: false, peligro_texto: 'texto viejo' })]);
+ok('banderas: peligro = true y la lista de peligros en el orden de los 26 (clave, texto)', bP.peligro === true && J(bP.peligros) === J([{ clave: 'pintura', texto: 'Cable pelado junto a la ducha' }, { clave: 'pavimentos', texto: 'Escalón hundido' }]), J(bP));
+ok('banderas: un peligro también en una fila Bueno (el tick vale con cualquier marca)', bP.peligros[0].clave === 'pintura');
+var bP0 = S.banderas({ estado_general: 'Bueno', revision: 1 }, EV5);
+ok('banderas: informe v5 sin peligros = false (no desconocido), lista vacía', bP0.peligro === false && J(bP0.peligros) === '[]', J(bP0));
+var bPn = S.banderas({ estado_general: 'Bueno' }, EV5);
+ok('banderas: informe de antes de la v5 = null (dato desconocido), lista vacía', bPn.peligro === null && J(bPn.peligros) === '[]', J(bPn));
+ok('banderas: peligro estricto: "x", "no", 0 no son peligro', S.banderas({ revision: 1 }, [linea('pintura', 'bueno', { peligro: 'x' }), linea('sofas', 'bueno', { peligro: 'no' }), linea('menaje', 'bueno', { peligro: 0 })]).peligro === false);
+ok('banderas: fila repetida = la última en orden decide el peligro', S.banderas({ revision: 1 }, [linea('pintura', 'bueno', { peligro: true, peligro_texto: 'a' }), linea('pintura', 'bueno', { peligro: false })]).peligro === false
+  && S.banderas({ revision: 1 }, [linea('pintura', 'bueno', { peligro: false }), linea('pintura', 'bueno', { peligro: true, peligro_texto: 'b' })]).peligros[0].texto === 'b');
+ok('banderas: un peligro sin texto (no debería pasar el Enviar) sale con texto ""', S.banderas(null, [linea('pintura', 'malo', { peligro: 1 })]).peligro === true && S.banderas(null, [linea('pintura', 'malo', { peligro: 1 })]).peligros[0].texto === '');
+ok('banderas: el tick fuera de los 26 (resumen) no es peligro', S.banderas({ revision: 1 }, [{ informe_id: 7, seccion: 'resumen', clave: 'accion_1', peligro: true, peligro_texto: 'x' }]).peligro === false);
+
+function foto(n, ref, url, pie) { return { informe_id: 7, seccion: 'foto', clave: 'foto_' + n, orden: n, foto_url: url === undefined ? 'https://x.invalid/' + n + '.jpg' : url, texto_1: pie || '', clave_ref: ref }; }
+var rf = S.refsFotos([foto(1, 'piscina', undefined, 'Gresite roto'), foto(2, ''), foto(3, 'cocina'), foto(4, 'piscina'), foto(5, 'otra'), foto(6, 'piscina', '')]);
+ok('refsFotos: clave_ref -> fotos (clave, foto_url, pie) en orden; sin url o sin referencia fuera', J(Object.keys(rf).sort()) === J(['cocina', 'otra', 'piscina']) && J(rf.piscina.map(function (f) { return f.clave; })) === J(['foto_1', 'foto_4']) && rf.piscina[0].pie === 'Gresite roto' && rf.piscina[0].foto_url === 'https://x.invalid/1.jpg', J(rf));
+ok('refsFotos: sin líneas = {}', J(S.refsFotos(null)) === '{}');
+ok('etiquetaRef: elemento = su etiqueta, estancia = su nombre, otra = "Otra", desconocida = la clave', S.etiquetaRef('piscina') === EL.filter(function (e) { return e.clave === 'piscina'; })[0].label && S.etiquetaRef('cocina') === 'Cocina' && S.etiquetaRef('otra') === 'Otra' && S.etiquetaRef('garaje') === 'garaje' && S.etiquetaRef('') === '');
+ok('esNa y peligro usan la misma regla estricta (esSi)', typeof S.esSi === 'function' && S.esSi(true) && S.esSi('Sí') && !S.esSi('x') && !S.esSi(false));
+
 fin();
