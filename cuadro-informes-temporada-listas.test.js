@@ -312,5 +312,46 @@ ok('condicion:final = ' + nFin + ' casas (enviadas, completas, con puntuación),
   && cf.filas.every(function (f, i, a) { return i === 0 || a[i - 1].puntuacion <= f.puntuacion; }), J([nFin, cf.filas.length]));
 ok('su título lo dice; lista:condicion sigue con las 19', cf.titulo === 'Casas con puntuación final (peor primero, informes enviados)' && lista('condicion').filas.length === 19, cf.titulo);
 
+
+console.log('17. Cuadro v4 (job informe-form-v5-v3b, lane D): peligro, N/A con motivo, bandas de coste y fotos con referencia');
+if (typeof IS.datosV5 === 'function' && F.v5) {
+  var P5 = require('./cuadro-informes-temporada-portada.js'); P5.usar({ InformeScore: IS });
+  var C5 = P5.construirCasasV3(F.v5.villas, F.v5.informes, F.v5.lineas, F.v5.contacts, F.v5.users, 2026);
+  var l5 = function (k, a, cs) { return L.listas(k, a || {}, cs || C5, null); };
+  var aP = l5('alertas:peligro');
+  ok('alertas:peligro = la 301 (el borrador 304 no cuenta) con el elemento y el texto', aP.filas.length === 1 && aP.filas[0].villaid === 301 && aP.filas[0].detalle === 'Pavimentos, escalones y rampas: Escalón de la terraza hundido; riesgo de caída', J(aP.filas));
+  ok('alertas: el peligro sale primero', l5('alertas').filas[0].tipoAlerta === 'peligro');
+  var aP0 = l5('alertas:peligro', {}, C5.filter(function (c) { return c.villaid === 302; }));
+  ok('alertas:peligro vacía con datos v5: "Ningún peligro señalado" sin decir que el formulario no lo recoge', aP0.filas.length === 0 && /Ningún peligro señalado/.test(aP0.vacio) && !/no lo recoge/.test(aP0.vacio), aP0.vacio);
+  var o5 = l5('obras'), oPor = {}; o5.filas.forEach(function (f) { oPor[f.accion] = f; });
+  var esc5 = oPor['Reparar escalón de la terraza'] || {};
+  ok('obras: la actuación unida con dos bandas = la más alta y "coste distinto" con las dos', esc5.costeClave === '2000-10000' && esc5.costeDistinto === true && esc5.coste === '2.000 a 10.000 € · coste distinto (500 a 2.000 € / 2.000 a 10.000 €)', J(esc5));
+  ok('obras: sin banda = null (blanco, nunca 0); "desconocido" = "desconocido"; banda = su palabra', oPor['Pintar fachada'].coste === null && oPor['Pintar fachada'].costeClave === '' && oPor['Revisar mandos del aire'].coste === 'desconocido' && oPor['Cambiar colchones'].coste === 'menos de 500 €', J([oPor['Pintar fachada'], oPor['Revisar mandos del aire'].coste]));
+  ok('obras: el CSV lleva el coste y el coste distinto', L.csv(o5).indexOf('2.000 a 10.000 € · coste distinto (500 a 2.000 € / 2.000 a 10.000 €)') >= 0 && L.csv(o5).indexOf('menos de 500 €') >= 0);
+  ok('obras: la lista dice que hay datos de coste (costeDato) y la nota habla de la banda', o5.costeDato === true && /banda/.test(o5.nota) && /v5/.test(o5.nota), o5.nota);
+  ok('obras: filtro de banda en la ruta (lista:obras:todas:menos500) y en args (coste)', J(ids(l5('obras:todas:menos500').filas)) === J([302]) && l5('obras', { coste: 'menos500' }).filas.length === 1 && l5('obras:todas:menos500').titulo === 'Todas las actuaciones · coste menos de 500 €', l5('obras:todas:menos500').titulo);
+  ok('obras: en blanco (sincoste) = 2, coste distinto = 1, con prioridad y banda a la vez', l5('obras:todas:sincoste').filas.length === 2 && l5('obras:todas:distinto').filas.length === 1 && l5('obras:alta:2000a10000').filas.length === 1 && l5('obras:media:2000a10000').filas.length === 0);
+  ok('obras: banda con origen y sin detalle a la vez (lista:obras:alta:estancia:sindetalle:2000a10000 = 0, sin error)', l5('obras:alta:estancia:sindetalle:2000a10000').filas.length === 0 && !l5('obras:alta:estancia:sindetalle:2000a10000').error);
+  var oC = L.ordenar(o5.filas, o5.columnas, 'coste:desc');
+  ok('obras: ordenar por coste (de más a menos; desconocido después de las bandas; en blanco al final)', oC[0].costeClave === '2000-10000' && oC[oC.length - 1].costeClave === '' && oC.map(function (f) { return f.costeClave; }).indexOf('desconocido') > oC.map(function (f) { return f.costeClave; }).indexOf('<500'), J(oC.map(function (f) { return f.costeClave; })));
+  var lc = l5('coste');
+  ok('lista:coste = las 4 actuaciones con banda (desconocido incluido), de más cara a más barata', lc.filas.length === 4 && lc.filas[0].costeClave === '2000-10000' && lc.filas[3].costeClave === 'desconocido' && lc.titulo === 'Actuaciones por banda de coste', J(lc.filas.map(function (f) { return f.costeClave; })));
+  ok('lista:coste:<banda>, :sincoste, :distinto y :desconocido', l5('coste:500a2000').filas.length === 1 && l5('coste:500a2000').filas[0].villaid === 306 && l5('coste:sincoste').filas.length === 2 && l5('coste:distinto').filas.length === 1 && l5('coste:desconocido').filas.length === 1 && l5('coste:mas10000').filas.length === 0 && /más de 10\.000 €/.test(l5('coste:mas10000').vacio));
+  ok('lista:coste con una banda que no existe: vacía con razón', l5('coste:barato').filas.length === 0 && /no existe/.test(l5('coste:barato').vacio));
+  ok('lista:coste con datos v5: columnas de obras (CSV con Coste)', J(lc.columnas.map(function (c) { return c.clave; })) === J(o5.columnas.map(function (c) { return c.clave; })));
+  var mB = l5('mapa:barbacoa:na');
+  ok('mapa:barbacoa:na = 301 y 302 con "N/A: <motivo>" en la observación', J(ids(mB.filas)) === J([302, 301]) && mB.filas.every(function (f) { return /^N\/A: (sin barbacoa|no hay)$/.test(f.observacion); }), J(mB.filas.map(function (f) { return f.observacion; })));
+  ok('mapa N/A con datos v5 y ninguna casa: vacía sin decir que nadie puede marcarla', l5('mapa:pintura:na').filas.length === 0 && !/Hoy ningún informe puede marcarla/.test(l5('mapa:pintura:na').vacio), l5('mapa:pintura:na').vacio);
+  var mP = l5('mapa:pavimentos:regular');
+  ok('mapa: el elemento con peligro lleva "⚠ peligro: <texto>" antes de la observación', mP.filas.length === 1 && mP.filas[0].observacion === '⚠ peligro: Escalón de la terraza hundido; riesgo de caída · Escalón de la terraza', J(mP.filas));
+  ok('mapa: columna "Fotos del elemento" = las fotos cuya referencia es el elemento, con su pie', mP.columnas.some(function (c) { return c.clave === 'fotosRef' && c.label === 'Fotos del elemento'; }) && mP.filas[0].fotosRef === 1 && mP.filas[0].fotosRefLista[0].pie === 'Escalón hundido' && /3010\/1\.jpg$/.test(mP.filas[0].fotosRefLista[0].url), J(mP.filas[0]));
+  ok('mapa: la columna Fotos sigue contando todas las fotos del informe (3)', mP.filas[0].fotos === 3);
+  ok('mapa: otra casa sin foto del elemento = 0', l5('mapa:pavimentos:bueno').filas.every(function (f) { return f.fotosRef === 0; }));
+  var mk5 = l5('marcas:regular').filas.filter(function (f) { return f.villaid === 301 && f.clave === 'pavimentos'; })[0] || {};
+  ok('marcas: la misma observación con el peligro', mk5.observacion === mP.filas[0].observacion, J(mk5));
+  ok('marcasDe: motivo de N/A y texto de peligro', L.marcasDe(C5.filter(function (c) { return c.villaid === 302; })[0]).piscina.motivo === 'sin piscina' && L.marcasDe(C5[0]).pavimentos.peligro === 'Escalón de la terraza hundido; riesgo de caída' && L.marcasDe(C5[0]).pintura.peligro === null);
+  ok('atencion: la casa con peligro primero y su motivo dice "peligro"', l5('atencion').filas[0].villaid === 301 && /^peligro/.test(l5('atencion').filas[0].motivo));
+} else ok('InformeScore.datosV5 y F.v5 existen', false);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exitCode = fail ? 1 : 0;

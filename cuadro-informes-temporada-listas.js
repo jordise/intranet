@@ -48,6 +48,19 @@
   var ESTANCIAS = { salon: 'Salón / comedor', cocina: 'Cocina', dormitorio_principal: 'Dormitorio principal', dormitorio_2: 'Dormitorio 2',
     bano_1: 'Baño 1', bano_2: 'Baño 2', exterior_piscina: 'Exterior / zona piscina' };
 
+  /* Formulario v5 (cuadro v4): bandas de coste guardadas -> [clave de ruta, palabra, rango para ordenar]; en blanco = sin dato (null) */
+  var COSTE = { '<500': ['menos500', 'menos de 500 €', 1], '500-2000': ['500a2000', '500 a 2.000 €', 2], '2000-10000': ['2000a10000', '2.000 a 10.000 €', 3],
+    '10000+': ['mas10000', 'más de 10.000 €', 4], desconocido: ['desconocido', 'desconocido', 0] };
+  var COSTE_RUTA = { sincoste: 'en blanco', distinto: 'coste distinto' };
+  Object.keys(COSTE).forEach(function (k) { COSTE_RUTA[COSTE[k][0]] = COSTE[k][1]; });
+  function costeNorm(v) { var S = IS(); if (typeof S.costeNorm === 'function') return S.costeNorm(v); var x = lw(v); return COSTE.hasOwnProperty(x) ? x : ''; }
+  function esSi(v) { var S = IS(); if (typeof S.esSi === 'function') return S.esSi(v); return v === true || v === 1 || (typeof v === 'string' && /^(1|true|s[ií]|yes)$/.test(v.trim().toLowerCase())); }
+  /* ¿El informe de la casa trae datos del formulario v5? (casa.v5 de construirCasasV3, o InformeScore.datosV5 con los campos de la casa) */
+  function v5(c) { var S = IS(); return !!c && (c.v5 === true || (typeof S.datosV5 === 'function' && S.datosV5(c, c.lineas || []))); }
+  function hayV5(casas) { return casas.filter(enviada).some(v5); }
+  function hayCoste(casas) { return hayV5(casas) || casas.filter(enviada).some(function (c) { return acciones(c).some(function (a) { return !!costeNorm(a.coste); }); }); }
+  function hayPeligroDato(casas) { return casas.filter(enviada).some(function (c) { return c.flags && c.flags.peligro !== null && c.flags.peligro !== undefined; }); }
+
   /* Prioridad guardada Alta/Media/Baja (o Alto/Medio/Bajo de la v1) -> 'alta' | 'media' | 'baja' | '' */
   function prioridadClave(p) { var s = lw(p), m = { alto: 'alta', medio: 'media', bajo: 'baja' }; s = m[s] || s; return RANGO[s] ? s : ''; }
 
@@ -60,7 +73,7 @@
     var sec = {}, out = {}, id = {}, S = IS();
     if (typeof S.marcas === 'function') {
       var pc = S.marcas(casa.lineas || []).porClave;
-      Object.keys(pc).forEach(function (k) { out[k] = { marca: pc[k].marca, obs: pc[k].linea ? tr(pc[k].linea.texto_1) : '' }; });
+      Object.keys(pc).forEach(function (k) { out[k] = v5Campos({ marca: pc[k].marca, obs: pc[k].linea ? tr(pc[k].linea.texto_1) : '' }, pc[k].linea); });
       if (CACHE) CACHE.set(casa, out);
       return out;
     }
@@ -69,10 +82,24 @@
       var k = l && sec[l.seccion + '|' + l.clave]; if (!k) return;
       var n = parseInt(l.linea_id, 10) || 0; if (id.hasOwnProperty(k) && id[k] > n) return; id[k] = n;
       var m = lw(l.estado);
-      out[k] = { marca: MARCA.hasOwnProperty(m) ? m : '', obs: tr(l.texto_1) };
+      out[k] = v5Campos({ marca: MARCA.hasOwnProperty(m) ? m : '', obs: tr(l.texto_1) }, l);
     });
     if (CACHE) CACHE.set(casa, out);
     return out;
+  }
+  /* Formulario v5: motivo del N/A y texto del peligro (null = sin peligro) de la línea que da la marca */
+  function v5Campos(x, l) { x.motivo = l && x.marca === 'na' ? tr(l.na_motivo) : ''; x.peligro = l && esSi(l.peligro) ? tr(l.peligro_texto) : null; return x; }
+  /* Observación de un elemento en las listas: "⚠ peligro: <texto>" · "N/A: <motivo>" · la observación */
+  function obsDe(x) {
+    if (!x) return '';
+    return [x.peligro !== null && x.peligro !== undefined ? '⚠ peligro: ' + (x.peligro || 'sin texto') : '', x.marca === 'na' && x.motivo ? 'N/A: ' + x.motivo : '', x.obs || '']
+      .filter(Boolean).join(' · ');
+  }
+  /* Fotos cuya clave_ref es la clave (formulario v5), con la URL de la galería (Extras.fotosDe) si está cargada */
+  function fotosRefDe(casa, clave) {
+    var S = IS(), refs = typeof S.refsFotos === 'function' ? S.refsFotos((casa && casa.lineas) || []) : {}, E = root && root.Extras, url = {};
+    if (E && typeof E.fotosDe === 'function') E.fotosDe(casa).forEach(function (f) { url[f.clave] = f.url; });
+    return (refs[clave] || []).map(function (f) { return { clave: f.clave, url: url[f.clave] || f.foto_url, pie: f.pie || f.clave }; });
   }
   function fotosDe(casa) { return (casa && casa.lineas || []).filter(function (l) { return l.seccion === 'foto' && tr(l.foto_url); }).length; }
   function sc(casa) { return (casa && casa.score) || {}; }
@@ -116,13 +143,15 @@
     elemento: { clave: 'elemento', label: 'Elemento', tipo: 'elemento' },
     marca: { clave: 'marca', label: 'Marca', tipo: 'marca' },
     observacion: { clave: 'observacion', label: 'Observación' },
-    fotos: { clave: 'fotos', label: 'Fotos', num: true }
+    fotos: { clave: 'fotos', label: 'Fotos', num: true },
+    fotosRef: { clave: 'fotosRef', label: 'Fotos del elemento', num: true }
   };
   var BASE = [COL.villa, COL.vm];
   var OBRA_COLS = [COL.villa, COL.vm, { clave: 'accion', label: 'Actuación' }, { clave: 'recomendada', label: 'Acción recomendada' }, { clave: 'motivo', label: 'Motivo / impacto' },
     { clave: 'origen', label: 'Origen' }, { clave: 'prioridad', label: 'Prioridad', tipo: 'prioridad', orden: 'rango' },
-    { clave: 'coste', label: 'Coste', num: true }, { clave: 'detalle', label: 'Detalle' }];
+    { clave: 'coste', label: 'Coste', num: true, orden: 'costeRango' }, { clave: 'detalle', label: 'Detalle' }];
   var NOTA_OBRAS = 'Actuaciones = resumen + incidencias por estancia, unidas cuando el texto es idéntico dentro del mismo informe; gana la prioridad más alta y se guardan todos los orígenes. Coste «—» hasta el formulario v5.';
+  var NOTA_OBRAS_V5 = 'Actuaciones = resumen + incidencias por estancia, unidas cuando el texto es idéntico dentro del mismo informe; gana la prioridad más alta y se guardan todos los orígenes. Coste = la banda estimada del formulario v5; si dos orígenes unidos no coinciden, la más alta y «coste distinto»; en blanco = «—», nunca 0.';
 
   /* Fila base de una casa (todas las listas la llevan: villaid e informe_id abren el nivel 3) */
   function base(c) {
@@ -189,7 +218,9 @@
     var s = sub || '', filas = [];
     casas.filter(enviada).slice().sort(porNombre).forEach(function (c) {
       var p = puntuacion(c), mk = marcasDe(c);
-      if (peligro(c) && s !== 'seguridad') filas.push(Object.assign(base(c), { tipoAlerta: 'peligro', alerta: '⚠ Peligro', detalle: tr(c.peligroTxt || (c.flags && c.flags.peligroTxt)), puntuacion: p, banda: bandaDe(p) }));
+      var ps = (c.flags && Array.isArray(c.flags.peligros)) ? c.flags.peligros : [];
+      var detP = ps.length ? ps.map(function (x) { return corto(x.clave) + ': ' + (tr(x.texto) || 'sin texto'); }).join(' · ') : tr(c.peligroTxt || (c.flags && c.flags.peligroTxt));
+      if (peligro(c) && s !== 'seguridad') filas.push(Object.assign(base(c), { tipoAlerta: 'peligro', alerta: '⚠ Peligro', detalle: detP, puntuacion: p, banda: bandaDe(p) }));
       if (seguridad(c).length && s !== 'peligro') filas.push(Object.assign(base(c), { tipoAlerta: 'seguridad', alerta: '🔒 Revisión de seguridad', claves: seguridad(c).slice(),
         detalle: seguridad(c).map(function (k) { return corto(k) + ': ' + ((mk[k] && mk[k].obs) || 'sin observación'); }).join(' · '), puntuacion: p, banda: bandaDe(p) }));
     });
@@ -197,7 +228,7 @@
     var T = { peligro: 'Peligros señalados', seguridad: 'Revisiones de seguridad (Malo en un elemento de seguridad)' };
     return L(T[s] || 'Alertas: peligros y revisiones de seguridad', 'alertas',
       BASE.concat([{ clave: 'alerta', label: 'Alerta' }, { clave: 'detalle', label: 'Detalle' }, COL.puntuacion]), filas,
-      s === 'peligro' ? 'Ningún peligro señalado: el dato de peligro llega con el formulario v5; hoy el formulario no lo recoge.'
+      s === 'peligro' ? (hayPeligroDato(casas) ? 'Ningún peligro señalado en los informes enviados.' : 'Ningún peligro señalado: el dato de peligro llega con el formulario v5; hoy el formulario no lo recoge.')
         : 'Ningún informe enviado tiene un peligro ni un Malo en electricidad, cerraduras, fontanería, barandillas, pavimentos o piscina.');
   }
   /* "Acción recomendada" (texto_2 de las estancias de la actuación): los textos distintos, sin repetir el de la actuación */
@@ -215,9 +246,10 @@
     var out = [];
     casas.forEach(function (c) {
       acciones(c).forEach(function (a) {
-        var pc = prioridadClave(a.prioridad), fu = Array.isArray(a.fuentes) ? a.fuentes : [], mot = tr(a.motivo);
+        var pc = prioridadClave(a.prioridad), fu = Array.isArray(a.fuentes) ? a.fuentes : [], mot = tr(a.motivo), co = costeDe(a);
         var o = Object.assign(base(c), { accion: textoAccion(a), recomendada: recomendadaDe(c, a), motivo: mot, fuentes: fu.slice(), origen: fu.map(fuenteTexto).join(' + '), unidas: fu.length > 1,
-          prioridad: VER[pc] || '', prioridadClave: pc, rango: RANGO[pc] || 0, coste: null, detalle: !mot || !pc ? 'sin detalle' : '',
+          prioridad: VER[pc] || '', prioridadClave: pc, rango: RANGO[pc] || 0, coste: co.texto, costeClave: co.clave, costeRango: co.rango, costeDistinto: co.distinto,
+          detalle: !mot || !pc ? 'sin detalle' : '',
           orden: fu.length ? (parseInt(fu[0].orden, 10) || 0) + (fuenteSeccion(fu[0]) === 'estancia' ? 100 : 0) : 0 });
         out.push(o);
       });
@@ -229,7 +261,31 @@
     var fu = lw(f.fuente);
     if (fu === 'resumen' || fu === 'estancia') out = out.filter(function (o) { return o.fuentes.some(function (x) { return fuenteSeccion(x) === fu; }); });
     if (f.sindetalle && f.sindetalle !== '0') out = out.filter(function (o) { return o.detalle; });
+    var cf = costeFiltro(f.coste);
+    if (cf) out = out.filter(cf);
     return out.sort(function (a, b) { return (b.rango - a.rango) || porNombre(a, b) || (a.orden - b.orden); });
+  }
+  /* Coste de una actuación para las listas: {clave ('' en blanco), texto (null en blanco), rango (null en blanco), distinto} */
+  function costeDe(a) {
+    var c = costeNorm(a && a.coste), S = IS(), dist = !!c && typeof S.costeDistinto === 'function' && S.costeDistinto(a);
+    if (!c) return { clave: '', texto: null, rango: null, distinto: false };
+    var t = COSTE[c][1];
+    if (dist) {
+      var vs = []; (a.fuentes || []).forEach(function (x) { var y = costeNorm(x && x.coste); if (y && y !== 'desconocido' && vs.indexOf(y) < 0) vs.push(y); });
+      vs.sort(function (x, y) { return COSTE[x][2] - COSTE[y][2]; });
+      t += ' · coste distinto (' + vs.map(function (y) { return COSTE[y][1]; }).join(' / ') + ')';
+    }
+    return { clave: c, texto: t, rango: COSTE[c][2], distinto: dist };
+  }
+  /* Filtro de coste: clave de ruta (menos500 … desconocido), 'sincoste' (en blanco), 'distinto', 'conbanda' (con banda) o la banda guardada */
+  function costeFiltro(x) {
+    var k = lw(x);
+    if (!k) return null;
+    if (k === 'sincoste') return function (o) { return !o.costeClave; };
+    if (k === 'distinto') return function (o) { return o.costeDistinto; };
+    if (k === 'conbanda') return function (o) { return !!o.costeClave; };
+    var b = costeNorm(k) || Object.keys(COSTE).filter(function (y) { return COSTE[y][0] === k; })[0];
+    return b ? function (o) { return o.costeClave === b; } : function () { return false; };
   }
   function obras(casas, f) {
     f = f || {};
@@ -239,10 +295,12 @@
     var filas = filasObras(casas.filter(enviada), f), borr = filasObras(casas.filter(function (c) { return c.estado === 'borrador'; }), f).length;
     var hay = casas.filter(enviada).some(function (c) { return acciones(c).length; });
     var fu = lw(f.fuente), extra = (fu === 'resumen' || fu === 'estancia' ? ' · origen ' + (fu === 'resumen' ? 'Resumen' : 'Estancia') : '')
-      + (p !== 'sindetalle' && f.sindetalle && f.sindetalle !== '0' ? ' · sin detalle' : '');   /* ronda de arreglos 1: los filtros en el título (cabecera de impresión) */
+      + (p !== 'sindetalle' && f.sindetalle && f.sindetalle !== '0' ? ' · sin detalle' : '')   /* ronda de arreglos 1: los filtros en el título (cabecera de impresión) */
+      + (COSTE_RUTA[lw(f.coste)] ? ' · coste ' + COSTE_RUTA[lw(f.coste)] : '');
+    var dato = hayCoste(casas);
     return L((T[p] || 'Actuaciones') + extra, 'actuaciones', OBRA_COLS, filas,
       !hay ? 'Ninguna actuación en los informes enviados.' : 'Ninguna actuación con estos filtros en los informes enviados. Quita un filtro.',
-      { nota: NOTA_OBRAS, enBorradores: borr });
+      { nota: dato ? NOTA_OBRAS_V5 : NOTA_OBRAS, enBorradores: borr, costeDato: dato });
   }
   function comentarios(casas, sub, soloReview) {
     var o = soloReview ? 'review' : lw(sub), filas = [];
@@ -333,22 +391,24 @@
     var filas = [];
     casas.filter(enviada).slice().sort(porNombre).forEach(function (c) {
       var mk = marcasDe(c);
-      defs().forEach(function (e) { var x = mk[e.clave]; if (x && x.marca === m) filas.push(Object.assign(base(c), { clave: e.clave, elemento: corto(e.clave), marca: MARCA[m], marcaClave: m || 'sin', observacion: x.obs })); });
+      defs().forEach(function (e) { var x = mk[e.clave]; if (x && x.marca === m) filas.push(Object.assign(base(c), { clave: e.clave, elemento: corto(e.clave), marca: MARCA[m], marcaClave: m || 'sin', observacion: obsDe(x) })); });
     });
     return L(m ? 'Todas las marcas ' + MARCA[m] + ' de los informes enviados' : 'Todos los elementos sin marcar de los informes enviados', 'marcas',
       BASE.concat([COL.elemento, COL.marca, COL.observacion]), filas, 'Ninguna marca ' + MARCA[m] + ' en los informes enviados.');
   }
-  var MAPA_COLS = BASE.concat([COL.marca, COL.observacion, COL.fotos, COL.puntuacion]);
+  var MAPA_COLS = BASE.concat([COL.marca, COL.observacion, COL.fotos, COL.fotosRef, COL.puntuacion]);
   function mapa(casas, clave, marca) {
     var d = defDe(clave);
     if (!d) return L('Elemento desconocido', 'casas', MAPA_COLS, [], 'El elemento «' + (clave || '') + '» no es uno de los 26 del formulario.');
     var lab = corto(clave), m = lw(marca) || 'todas';
-    var vacioNa = 'La marca N/A («no aplica») llega con el formulario v5. Hoy ningún informe puede marcarla; por eso la columna muestra «—».';
+    var vacioNa = hayV5(casas) ? 'Ninguna casa con ' + lab + ' en N/A (informes enviados). Los informes anteriores al formulario v5 no tienen N/A.'
+      : 'La marca N/A («no aplica») llega con el formulario v5. Hoy ningún informe puede marcarla; por eso la columna muestra «—».';
     var mm = m === 'sin' ? '' : m;
     if (m !== 'todas' && !MARCA.hasOwnProperty(mm)) return L('Casas: ' + lab, 'casas', MAPA_COLS, [], 'La marca «' + marca + '» no existe: usa bueno, regular, malo, sin, na o todas.');
     var filas = casas.filter(enviada).slice().sort(porNombre).filter(function (c) { return m === 'todas' || (marcasDe(c)[clave] || {}).marca === mm; }).map(function (c) {
-      var x = marcasDe(c)[clave] || { marca: '', obs: '' }, p = puntuacion(c);
-      return Object.assign(base(c), { clave: clave, elemento: lab, marca: MARCA[x.marca], marcaClave: x.marca || 'sin', observacion: x.obs, fotos: fotosDe(c), puntuacion: p, banda: bandaDe(p) });
+      var x = marcasDe(c)[clave] || { marca: '', obs: '' }, p = puntuacion(c), fr = fotosRefDe(c, clave);
+      return Object.assign(base(c), { clave: clave, elemento: lab, marca: MARCA[x.marca], marcaClave: x.marca || 'sin', observacion: obsDe(x), fotos: fotosDe(c),
+        fotosRef: fr.length, fotosRefLista: fr, puntuacion: p, banda: bandaDe(p) });
     });
     return L(m === 'todas' ? 'Todos los informes enviados: ' + lab : m === 'sin' ? 'Casas con ' + lab + ' sin marcar' : 'Casas con ' + lab + ' en ' + MARCA[mm], 'casas', MAPA_COLS, filas,
       m === 'na' ? vacioNa : 'Ninguna casa con esta marca en ' + lab + ' (informes enviados).');
@@ -358,8 +418,18 @@
     if (defDe(clave)) x.titulo = 'Todos los registros: ' + corto(clave);
     return x;
   }
-  function coste() {
-    return L('Actuaciones por banda de coste', 'actuaciones', OBRA_COLS, [], 'Sin datos: la banda de coste por actuación llega con el formulario v5. Hasta entonces el coste se muestra como «—».', { nota: NOTA_OBRAS, enBorradores: 0 });
+  /* lista:coste[:<banda>|sincoste|distinto]: sin datos v5, la lista explicada de v3a; con datos, las actuaciones de los enviados
+     (sin parte = con banda, "desconocido" incluido), de más cara a más barata */
+  function coste(casas, sub) {
+    if (!hayCoste(casas)) return L('Actuaciones por banda de coste', 'actuaciones', OBRA_COLS, [], 'Sin datos: la banda de coste por actuación llega con el formulario v5. Hasta entonces el coste se muestra como «—».', { nota: NOTA_OBRAS, enBorradores: 0 });
+    var k = lw(sub), lab = COSTE_RUTA[k];
+    if (k && !lab) return L('Actuaciones por banda de coste', 'actuaciones', OBRA_COLS, [], 'La banda «' + sub + '» no existe: usa menos500, 500a2000, 2000a10000, mas10000, desconocido, sincoste o distinto.', { nota: NOTA_OBRAS_V5, enBorradores: 0, costeDato: true });
+    var filas = filasObras(casas.filter(enviada), { coste: k || 'conbanda' }).sort(function (a, b) {
+      var x = a.costeRango == null ? -1 : a.costeRango, y = b.costeRango == null ? -1 : b.costeRango;
+      return (y - x) || (b.rango - a.rango) || porNombre(a, b) || (a.orden - b.orden);
+    });
+    return L('Actuaciones por banda de coste' + (lab ? ': ' + lab : ''), 'actuaciones', OBRA_COLS, filas,
+      k ? 'Ninguna actuación con coste ' + lab + ' en los informes enviados.' : 'Ninguna actuación con banda de coste en los informes enviados.', { nota: NOTA_OBRAS_V5, enBorradores: 0, costeDato: true });
   }
 
   /* ───────── Buscar, ordenar, agrupar ───────── */
@@ -405,6 +475,7 @@
     if (a.sindetalle == null && a.od) a.sindetalle = a.od;
     if (a.q == null && a.oq) a.q = a.oq;
     if (a.g == null && a.og) a.g = a.og;
+    if (a.coste == null && a.oc) a.coste = a.oc;
     return { kind: k, a: a };
   }
   /* listas(kind, args, casas, prev): kind = 'obras' o 'obras:alta' (también 'lista:obras:alta'); args = {partes, vm, q, s, g, t,
@@ -422,8 +493,9 @@
       case 'alertas': x = alertas(cs, p[0]); break;
       case 'obras': {
         /* lista:obras:<prioridad|todas|sin|sindetalle>[:resumen|estancia][:sindetalle]: los filtros del cuadro viajan en la ruta (from de una casa) */
-        var ex = p.slice(1), fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0];
-        x = obras(cs, { prioridad: p[0] === 'todas' ? '' : (p[0] || a.prioridad), fuente: fu || a.fuente, sindetalle: ex.indexOf('sindetalle') >= 0 ? '1' : a.sindetalle });
+        /* cuadro v4: [:<banda de coste>] (menos500 … desconocido, sincoste, distinto) al final */
+        var ex = p.slice(1), fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0], co = ex.filter(function (z) { return COSTE_RUTA.hasOwnProperty(z); })[0];
+        x = obras(cs, { prioridad: p[0] === 'todas' ? '' : (p[0] || a.prioridad), fuente: fu || a.fuente, sindetalle: ex.indexOf('sindetalle') >= 0 ? '1' : a.sindetalle, coste: co || a.coste });
         break;
       }
       case 'review': x = review(cs); break;
@@ -435,7 +507,7 @@
       case 'marcas': x = marcas(cs, p[0]); break;
       case 'mapa': x = mapa(cs, p[0], p[1]); break;
       case 'elemento': x = elemento(cs, p[0]); break;
-      case 'coste': x = coste(); break;
+      case 'coste': x = coste(cs, p[0]); break;
       default: x = L('Lista desconocida', 'casas', BASE.slice(), [], 'Este enlace no corresponde a ninguna lista.');
     }
     x.kind = n.kind;
@@ -484,7 +556,8 @@
     mapa: function (casas, clave, m) { return mapa(casas || [], clave, m); },
     elemento: function (casas, clave) { return elemento(casas || [], clave); },
     review: function (casas) { return review(casas || []); },
-    marcasDe: marcasDe, fotosDe: fotosDe, fuenteTexto: fuenteTexto, prioridadClave: prioridadClave, fechaVer: fechaVer, bandaDe: bandaDe
+    marcasDe: marcasDe, fotosDe: fotosDe, fuenteTexto: fuenteTexto, prioridadClave: prioridadClave, fechaVer: fechaVer, bandaDe: bandaDe,
+    COSTE: COSTE, COSTE_RUTA: COSTE_RUTA, obsDe: obsDe, fotosRefDe: fotosRefDe
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Listas;
   else root.Listas = Listas;

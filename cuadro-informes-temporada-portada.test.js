@@ -391,5 +391,59 @@ ok('la cifra y la tarjeta entera abren lista:condicion:final', /v=lista:condicio
 var e13 = (t13.match(/<a [^>]*href="([^"]*)"[^>]*>los (\d+) enviados<\/a>/) || []);
 ok('las N enviadas siguen a un clic (lista:condicion, «los N enviados»)', /v=lista:condicion(&|$)/.test(e13[1] || '') && +e13[2] === T12.condicion.N, J(e13.slice(1)));
 
+
+console.log('14. Cuadro v4 (job informe-form-v5-v3b, lane D): peligro, N/A, bandas de coste, historial y último envío con el formulario v5');
+var FV5 = (FIX && FIX.v5) || null;
+if (Score && typeof Score.datosV5 === 'function' && FV5) {
+  var C5 = Portada.construirCasasV3(FV5.villas, FV5.informes, FV5.lineas, FV5.contacts, FV5.users, 2026);
+  var c5 = function (id) { return C5.filter(function (c) { return c.villaid === id; })[0] || {}; };
+  ok('regla del último enviado: enviado_at manda (306 -> 3062, aunque el 3061 se guardó después)', c5(306).informe_id === 3062 && c5(306).enviado_at === '2026-10-27T10:00:00', J([c5(306).informe_id, c5(306).enviado_at]));
+  ok('la casa lleva revision, historial, enviado_por y v5', c5(301).revision === 2 && c5(301).historial.split('\n').length === 3 && c5(301).enviado_por === 'Kike' && c5(301).v5 === true && c5(303).v5 === false && c5(303).revision === null && c5(305).revision === null && c5(305).historial === '', J([c5(301).revision, c5(303).v5, c5(305).historial]));
+  ok('borrador tras envío: 304 borrador con revision 1', c5(304).estado === 'borrador' && c5(304).revision === 1);
+  ok('peligro: 301 true (pavimentos), 302 false (v5 sin peligro), 303 null (antes de la v5), 305 null (sin informe)', c5(301).flags.peligro === true && c5(301).flags.peligros[0].clave === 'pavimentos' && c5(302).flags.peligro === false && c5(303).flags.peligro === null && c5(305).flags.peligro === null, J([c5(301).flags, c5(302).flags.peligro, c5(303).flags.peligro]));
+  ok('N/A en la completitud: 301 = 25 de 25 (barbacoa N/A), 302 = 24 de 24, final', c5(301).score.aplicables === 25 && c5(301).score.evaluados === 25 && c5(301).score.completo === true && c5(302).score.aplicables === 24 && c5(302).score.completo === true, J([c5(301).score, c5(302).score]));
+  var T5 = Portada.tilesV3(C5, null);
+  ok('Alertas: 1 peligro (301; el del borrador 304 no cuenta), 1 enviado sin dato de peligro (303), dato v5 presente', T5.alertas.peligro === 1 && T5.alertas.peligroDato === true && T5.alertas.sinDato === 1 && T5.alertas.n === 1, J(T5.alertas));
+  ok('Alertas: la puerta lista:alertas:peligro con su cifra', (T5.alertas.puertas || []).some(function (p) { return p.v === 'lista:alertas:peligro' && p.n === 1; }), J(T5.alertas.puertas));
+  var K5 = T5.coste;
+  ok('coste: 4 actuaciones con banda (desconocido incluido), en blanco 2, coste distinto 1', K5.n === 4 && K5.blanco === 2 && K5.distintos === 1, J(K5));
+  ok('coste: una cifra por banda, con "desconocido" aparte', J(K5.bandas) === J({ '<500': 1, '500-2000': 1, '2000-10000': 1, '10000+': 0, desconocido: 1 }), J(K5.bandas));
+  ok('coste: puertas lista:coste, cada banda, desconocido, en blanco y coste distinto', J((K5.puertas || []).map(function (p) { return p.v + '=' + p.n; })) === J(['lista:coste=4', 'lista:coste:menos500=1', 'lista:coste:500a2000=1', 'lista:coste:2000a10000=1', 'lista:coste:mas10000=0', 'lista:coste:desconocido=1', 'lista:coste:sincoste=2', 'lista:coste:distinto=1']), J(K5.puertas));
+  var th5 = Portada.tilesHtml(T5, ROUTE), hT5 = hrefs(th5);
+  ok('tilesHtml v4: sin la línea "dato del formulario v5" ni "sin datos: formulario v5"', th5.indexOf('dato del formulario v5') < 0 && th5.indexOf('sin datos: formulario v5') < 0, th5.slice(0, 200));
+  ok('tilesHtml v4: "1 peligro" abre lista:alertas:peligro; "1 sin dato de peligro (antes de la v5)"', /<a href="[^"]*v=lista:alertas:peligro[^"]*">1 peligro<\/a>/.test(th5) && th5.indexOf('1 sin dato de peligro (antes de la v5)') >= 0);
+  ok('tilesHtml v4: el cuadro de coste muestra 4 y abre lista:coste', /banda de coste<\/div><div class="v"><a href="[^"]*v=lista:coste[&"][^>]*>4 /.test(th5), (th5.match(/banda de coste[^]*?<\/div><\/div>/) || [])[0]);
+  ok('tilesHtml v4: cada banda con su palabra y su puerta', ['menos de 500 € 1', '500 a 2.000 € 1', '2.000 a 10.000 € 1', 'más de 10.000 € 0', 'desconocido 1', 'en blanco 2', '1 coste distinto'].every(function (w) { return th5.indexOf(w) >= 0; })
+    && ['lista:coste:menos500', 'lista:coste:sincoste', 'lista:coste:distinto'].every(function (v) { return hT5.some(function (x) { return params(x).v === v; }); }));
+  if (Listas) {
+    var mal5 = [].concat(T5.coste.puertas || [{ v: 'lista:coste', n: -1 }], T5.alertas.puertas || []).filter(function (x) { var n = safe(function () { return filasDe(x.v, C5, null); }); x.lista = n; return n !== x.n; });
+    ok('cada cifra de coste y de alertas = filas de su lista', !mal5.length, J(mal5));
+    var MP5 = Portada.mapaV3(C5), mal5m = [];
+    MP5.forEach(function (e) { ['bueno', 'regular', 'malo', 'sin', 'na'].forEach(function (m) { var n = filasDe('lista:mapa:' + e.clave + ':' + m, C5, null); if (n !== e[m]) mal5m.push([e.clave, m, e[m], n]); }); });
+    ok('mapa con N/A: cada cifra (las cinco columnas) = filas de su lista', !mal5m.length, J(mal5m.slice(0, 5)));
+  }
+  var MP5b = Portada.mapaV3(C5), bb = MP5b.filter(function (e) { return e.clave === 'barbacoa'; })[0], pis = MP5b.filter(function (e) { return e.clave === 'piscina'; })[0];
+  ok('mapa: N/A barbacoa 2 (301, 302), piscina 1 (302); el dato N/A existe', bb.na === 2 && pis.na === 1 && bb.naDato === true, J([bb, pis]));
+  var mh5 = Portada.mapaHtml(MP5b, ROUTE);
+  ok('mapaHtml v4: la columna N/A muestra las cifras (2) y el 0 como 0', /v=lista:mapa:barbacoa:na[^"]*" title="Ver las casas">2<\/a>/.test(mh5) && /v=lista:mapa:pintura:na[^"]*" title="Ver las casas">0<\/a>/.test(mh5), (mh5.match(/data-l="N\/A">[^]*?<\/td>/) || [])[0]);
+  ok('mapaHtml v4: la nota ya no dice "N/A llega con el formulario v5"', mh5.indexOf('N/A llega con el formulario v5') < 0 && mh5.indexOf('N/A = el elemento no existe en la casa') >= 0);
+  var V5 = Portada.tablaVM(C5), kk = V5.filas.filter(function (f) { return f.nombre === 'Kike'; })[0], am = V5.filas.filter(function (f) { return f.nombre === 'Amanda'; })[0];
+  ok('Último envío = el enviado_at más nuevo de los enviados (Kike 28/10, Amanda 27/10: el 3061 no cuenta, el borrador 304 tampoco)', kk.ultimo === '2026-10-28T18:30:00' && am.ultimo === '2026-10-27T10:00:00', J([kk.ultimo, am.ultimo]));
+  var V303 = Portada.tablaVM(C5.filter(function (c) { return c.villaid === 303; }));
+  ok('Último envío sin enviado_at registrado = "—" (nunca de updated_at ni de fecha_revision)', V303.filas[0].ultimo === '' && /data-l="Último envío"><a class="cel" href="[^"]*">—<\/a>/.test(Portada.tablaVMHtml(V303, ROUTE)));
+  ok('tablaVMHtml: "28/10/2026" en la fila de Kike', Portada.tablaVMHtml(V5, ROUTE).indexOf('28/10/2026') >= 0);
+  var K5t = Portada.tarjetas(C5);
+  ok('tarjetas: la casa con peligro primero (301)', K5t[0].villaid === 301, J(K5t.map(function (k) { return k.villaid; })));
+  var b301 = K5t[0].banderas.filter(function (b) { return b.tipo === 'peligro'; })[0] || {};
+  ok('tarjeta: "⚠ peligro: <texto>" (40 caracteres) y el texto entero en el título', b301.texto === 'peligro: Escalón de la terraza hundido; riesgo de…' && b301.largo === 'Peligro: Pavimentos, escalones y rampas: Escalón de la terraza hundido; riesgo de caída', J(b301));
+  var kh5 = Portada.tarjetasHtml(K5t, ROUTE), t304 = kh5.split('<a class="casa').filter(function (x) { return x.indexOf('Villa Reabierta') >= 0; })[0] || '';
+  ok('tarjeta: el borrador tras envío lleva su píldora', K5t.filter(function (k) { return k.villaid === 304; })[0].trasEnvio === true && t304.indexOf('borrador tras envío') >= 0, t304.slice(0, 300));
+  ok('tarjeta: peligro con texto en el HTML', kh5.indexOf('⚠ peligro: Escalón de la terraza') >= 0);
+  var LR5 = {}; Portada.listasRapidas(C5, null).forEach(function (x) { LR5[x.v] = x.n; });
+  ok('Requiere atención incluye la casa con peligro', LR5['lista:atencion'] >= 1 && Listas && Listas.atencion(C5).filas.some(function (f) { return f.villaid === 301; }), J(LR5));
+  var Tsin = Portada.tilesV3(C5.filter(function (c) { return c.villaid === 303 || c.villaid === 305; }), null);
+  ok('solo informes de antes de la v5: el cuadro de coste sigue "sin datos: formulario v5" (null) y el peligro "dato del formulario v5"', Tsin.coste.n === null && Tsin.alertas.peligroDato === false && Portada.tilesHtml(Tsin, ROUTE).indexOf('dato del formulario v5') >= 0);
+} else ok('InformeScore.datosV5 y FIX.v5 existen', false);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

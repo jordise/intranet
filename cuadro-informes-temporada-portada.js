@@ -48,6 +48,13 @@
   function seguridadDe(c) { return (c.flags && c.flags.seguridad) || []; }
   function peligroDe(c) { return !!(c.flags && c.flags.peligro === true); }
   function altaDe(c) { return (c.acciones || []).filter(function (a) { return pri(a) === 'Alta'; }).length; }
+  /* Formulario v5: banda de coste de una actuación ('' = en blanco) y su clave de ruta (lista:coste:<clave>, solo [a-z0-9_]) */
+  var BANDAS = [['<500', 'menos500', 'menos de 500 €'], ['500-2000', '500a2000', '500 a 2.000 €'], ['2000-10000', '2000a10000', '2.000 a 10.000 €'],
+    ['10000+', 'mas10000', 'más de 10.000 €'], ['desconocido', 'desconocido', 'desconocido']];
+  function costeDe(a) { var S = sc(); return typeof S.costeNorm === 'function' ? S.costeNorm(a && a.coste) : ''; }
+  function costeDistintoDe(a) { var S = sc(); return typeof S.costeDistinto === 'function' && S.costeDistinto(a); }
+  function v5De(c) { return c.v5 === true; }
+  function revisionDe(v) { var n = parseInt(v, 10); return isNaN(n) ? null : n; }
 
   /* ── Las casas ── */
   /* Villa manager: KeyHolder_person es un contacto (ContactID) o un usuario (UserID); id con su origen (copia de vmDe de v2) */
@@ -82,6 +89,9 @@
         estado: inf ? (lw(inf.estado) === 'enviado' ? 'enviado' : 'borrador') : '',
         general: ['bueno', 'regular', 'malo'].indexOf(g) >= 0 ? g : '',
         fecha: inf ? fechaISO(inf.fecha_revision) : '', updated: inf ? tr(inf.updated_at) : '', enviado_at: inf ? tr(inf.enviado_at) : '',
+        /* Formulario v5 (cuadro v4): cabecera de historial; v5 = el informe trae datos del formulario v5 (InformeScore.datosV5) */
+        revision: inf ? revisionDe(inf.revision) : null, historial: inf ? String(inf.historial == null ? '' : inf.historial).trim() : '', enviado_por: inf ? tr(inf.enviado_por) : '',
+        v5: !!(inf && typeof S.datosV5 === 'function' && S.datosV5(inf, ls)),
         observaciones_finales: inf ? tr(inf.observaciones_finales) : '',   /* integración: el texto final que pinta Vistas.casaHtml */
         /* Ronda de arreglos 1: informes de la villa en la temporada y el que abre el formulario (informe_id más bajo, primerInforme del formulario) */
         informes: (porVilla[String(v.villaid)] || []).length,
@@ -135,6 +145,7 @@
     if (prev != null) { var ps = pares(env, prev); comp = { casas: ps.length, mediaPrev: media(ps.map(function (x) { return x.r.puntuacionA; })), mediaAct: media(ps.map(function (x) { return x.r.puntuacionB; })) }; }
     var seg = env.filter(function (c) { return seguridadDe(c).length > 0; }).length, pel = env.filter(peligroDe).length;
     var pelDato = env.some(function (c) { return c.flags && c.flags.peligro !== null && c.flags.peligro !== undefined; });
+    var sinDato = env.filter(function (c) { return !c.flags || c.flags.peligro === null || c.flags.peligro === undefined; }).length;
     var acc = flat(env, 'acciones'), cp = function (p) { return acc.filter(function (a) { return pri(a) === p; }).length; };
     var rev = []; env.forEach(function (c) { (c.lineas || []).forEach(function (l) { if (esReview(l)) rev.push(String(c.villaid)); }); });
     var casasRev = rev.filter(function (x, i) { return rev.indexOf(x) === i; }).length;
@@ -144,13 +155,26 @@
       condicion: { media: med, banda: banda(med), n: fin.length, N: env.length, provisionales: env.length - fin.length,
         peor: peor ? { villaid: peor.villaid, villa: peor.villa, puntuacion: peor.score.puntuacion } : null, comparacion: comp,
         puertas: [{ v: 'lista:condicion', n: env.length }, { v: 'lista:condicion:final', n: fin.length }, { v: 'lista:provisionales', n: env.length - fin.length }].concat(comp ? [{ v: 'lista:comparacion', n: comp.casas }] : []) },
-      alertas: { n: pel + seg, peligro: pel, seguridad: seg, peligroDato: pelDato,
-        puertas: [{ v: 'lista:alertas', n: pel + seg }, { v: 'lista:alertas:seguridad', n: seg }] },
+      alertas: { n: pel + seg, peligro: pel, seguridad: seg, peligroDato: pelDato, sinDato: sinDato,
+        puertas: [{ v: 'lista:alertas', n: pel + seg }, { v: 'lista:alertas:seguridad', n: seg }].concat(pelDato ? [{ v: 'lista:alertas:peligro', n: pel }] : []) },
       obras: { n: acc.length, alta: cp('Alta'), media: cp('Media'), baja: cp('Baja'), sin: cp(''), borradores: flat(bor, 'acciones').length,
         puertas: [{ v: 'lista:obras:todas', n: acc.length }, { v: 'lista:obras:alta', n: cp('Alta') }, { v: 'lista:obras:media', n: cp('Media') }, { v: 'lista:obras:baja', n: cp('Baja') }, { v: 'lista:obras:sin', n: cp('') }] },
-      coste: { n: null, texto: 'sin datos: formulario v5' },
+      coste: costeTile(env, acc),
       review: { n: rev.length, casas: casasRev, puertas: [{ v: 'lista:review', n: rev.length }] }
     };
+  }
+
+  /* Cuadro "Actuaciones por banda de coste": sin ningún informe enviado con datos v5 ni banda, "sin datos: formulario v5" (n null);
+     si no, n = actuaciones con banda ("desconocido" incluido), una cifra por banda, en blanco y coste distinto, cada una con su puerta */
+  function costeTile(env, acc) {
+    var hay = env.some(v5De) || acc.some(function (a) { return !!costeDe(a); });
+    if (!hay) return { n: null, texto: 'sin datos: formulario v5' };
+    var bandas = {}, blanco = 0, distintos = 0, n = 0;
+    BANDAS.forEach(function (b) { bandas[b[0]] = 0; });
+    acc.forEach(function (a) { var c = costeDe(a); if (c) { bandas[c]++; n++; } else blanco++; if (costeDistintoDe(a)) distintos++; });
+    var puertas = [{ v: 'lista:coste', n: n }].concat(BANDAS.map(function (b) { return { v: 'lista:coste:' + b[1], n: bandas[b[0]] }; }),
+      [{ v: 'lista:coste:sincoste', n: blanco }, { v: 'lista:coste:distinto', n: distintos }]);
+    return { n: n, bandas: bandas, blanco: blanco, distintos: distintos, texto: '', puertas: puertas };
   }
 
   /* ── La fila "Listas" (n = filas de la lista; Repetido sin cifra hasta leer la temporada anterior) ── */
@@ -207,23 +231,29 @@
 
   /* ── Mapa de problemas: cinco columnas por elemento, una casa enviada cuenta una vez por elemento ── */
   function mapaV3(casas) {
-    var def = sc().elementosDef(), env = enviadas(casas), cnt = {};
+    var def = sc().elementosDef(), env = enviadas(casas), cnt = {}, naDato = env.some(v5De);
     def.forEach(function (e) { cnt[e.clave] = { bueno: 0, regular: 0, malo: 0, sin: 0, na: 0 }; });
     env.forEach(function (c) { var m = marcasDe(c); def.forEach(function (e) { cnt[e.clave][m[e.clave] || 'sin']++; }); });
     var out = [];
     GRUPOS.forEach(function (g) {
       def.map(function (e, i) { return [e, i]; }).filter(function (x) { return x[0].seccion === g[0]; })
         .sort(function (x, y) { var a = cnt[x[0].clave], b = cnt[y[0].clave]; return (b.malo - a.malo) || (b.regular - a.regular) || (x[1] - y[1]); })
-        .forEach(function (x) { var e = x[0], m = cnt[e.clave]; out.push({ clave: e.clave, label: e.label, seccion: e.seccion, bueno: m.bueno, regular: m.regular, malo: m.malo, sin: m.sin, na: m.na }); });
+        .forEach(function (x) { var e = x[0], m = cnt[e.clave]; out.push({ clave: e.clave, label: e.label, seccion: e.seccion, bueno: m.bueno, regular: m.regular, malo: m.malo, sin: m.sin, na: m.na, naDato: naDato || m.na > 0 }); });
     });
     return out;
   }
 
   /* ── Tarjetas: enviados (peligro, revisión de seguridad, peor condición, incompletas, nombre), después borradores, después sin informe ── */
+  function largoDe(clave) { var e = sc().elementosDef().filter(function (x) { return x.clave === clave; })[0]; return e ? String(e.label) : clave; }
   function corto(clave) { var e = sc().elementosDef().filter(function (x) { return x.clave === clave; })[0]; return e ? String(e.label).replace(/\s*\(.*\)\s*/, '').trim() : clave; }
   function banderasDe(c) {
     var b = [], seg = seguridadDe(c), co = c.flags && c.flags.coherencia;
-    if (peligroDe(c)) b.push({ tipo: 'peligro', icono: '⚠', texto: 'peligro', largo: 'Peligro señalado en el formulario' });
+    if (peligroDe(c)) {
+      var ps = (c.flags && c.flags.peligros) || [], t0 = ps.length ? tr(ps[0].texto) : '';
+      var corte = t0.length > 40 ? t0.slice(0, 40).trim() + '…' : t0;
+      b.push({ tipo: 'peligro', icono: '⚠', texto: corte ? 'peligro: ' + corte + (ps.length > 1 ? ' (+' + (ps.length - 1) + ')' : '') : 'peligro',
+        largo: ps.length ? 'Peligro: ' + ps.map(function (p) { return largoDe(p.clave) + ': ' + (tr(p.texto) || 'sin texto'); }).join(' · ') : 'Peligro señalado en el formulario' });
+    }
     if (seg.length) b.push({ tipo: 'seguridad', icono: '🔒', texto: 'revisión seguridad', largo: 'Revisión de seguridad: Malo en ' + seg.map(corto).join(', '), claves: seg.slice() });
     if (co) b.push({ tipo: 'coherencia', icono: '❓', texto: 'estado general incoherente', largo: co === 'bueno_con_malo' ? 'Estado general «Bueno» con marcas Malo' : 'Estado general «Malo» con todo en Bueno' });
     if (c.score && c.score.error) b.push({ tipo: 'datos', icono: '⚠', texto: 'datos con error', largo: 'Elemento repetido o marca no válida: sin puntuación' });
@@ -247,6 +277,7 @@
     return ord.map(function (c) {
       var s = c.score || {}, p = s.puntuacion == null ? null : s.puntuacion;
       return { villaid: c.villaid, villa: c.villa, vm: c.vm, vmId: c.vmId, estado: c.estado, borrador: c.estado === 'borrador', previa: c.estado === 'borrador',
+        trasEnvio: c.estado === 'borrador' && c.revision != null && c.revision >= 1,
         puntuacion: p, banda: c.estado === 'enviado' ? (s.banda || banda(p)) : 'gris', completo: !!s.completo,
         evaluados: s.evaluados || 0, aplicables: s.aplicables == null ? 26 : s.aplicables, error: s.error || null,
         banderas: c.estado ? banderasDe(c) : [], alta: altaDe(c), fecha: c.fecha, enviado_at: c.enviado_at || '', updated: c.updated, v: 'casa:' + c.villaid,
@@ -291,14 +322,22 @@
         '<div class="s">' + comp + '</div>')
       + tile(route, A.n ? 'rojo' : 'verde', 'Alertas', String(A.n), 'lista:alertas',
         a(route, 'lista:alertas:seguridad', plural(A.seguridad, 'revisiones') + ' de seguridad') + ' · '
-        + (A.peligroDato ? a(route, 'lista:alertas:peligro', A.peligro + ' peligro' + (A.peligro === 1 ? '' : 's')) : 'peligro: dato del formulario v5'))
+        + (A.peligroDato ? a(route, 'lista:alertas:peligro', A.peligro + ' peligro' + (A.peligro === 1 ? '' : 's'))
+          + (A.sinDato ? ' · ' + A.sinDato + ' sin dato de peligro (antes de la v5)' : '') : 'peligro: dato del formulario v5'))
       + tile(route, 'naranja', 'Obras por prioridad', O.n + ' <span class="de">actuaciones</span>', 'lista:obras:todas',
         a(route, 'lista:obras:alta', 'Alto ' + O.alta) + ' · ' + a(route, 'lista:obras:media', 'Medio ' + O.media) + ' · ' + a(route, 'lista:obras:baja', 'Bajo ' + O.baja)
         + (O.sin ? ' · ' + a(route, 'lista:obras:sin', 'sin prioridad ' + O.sin) : ''),
         O.borradores ? '<div class="s">' + O.borradores + ' más en borradores (no cuentan)</div>' : '')
-      + tile(route, 'gris', 'Actuaciones por banda de coste', '—', 'lista:coste', '<span class="sin-datos">' + esc(T.coste.texto) + '</span>')
+      + costeTileHtml(T.coste, route)
       + tile(route, '', 'Comentarios Review', String(R.n), 'lista:review', 'en ' + plural(R.casas, 'casas') + ' · origen Review')
       + '</div>';
+  }
+  function costeTileHtml(K, route) {
+    if (!K || K.n === null || K.n === undefined) return tile(route, 'gris', 'Actuaciones por banda de coste', '—', 'lista:coste', '<span class="sin-datos">' + esc((K && K.texto) || 'sin datos: formulario v5') + '</span>');
+    return tile(route, '', 'Actuaciones por banda de coste', K.n + ' <span class="de">con banda</span>', 'lista:coste',
+      BANDAS.map(function (b) { return a(route, 'lista:coste:' + b[1], esc(b[2]) + ' ' + K.bandas[b[0]]); }).join(' · ')
+      + ' · ' + a(route, 'lista:coste:sincoste', 'en blanco ' + K.blanco)
+      + (K.distintos ? ' · ' + a(route, 'lista:coste:distinto', K.distintos + ' coste distinto') : ''));
   }
   function listasRapidasHtml(LR, route) {
     var t = parseInt(route && route.t, 10);
@@ -341,10 +380,11 @@
             + '<td class="num" data-l="Regular">' + celda(e, 'regular', e.regular, e.regular ? 'hr' : 'h0') + '</td>'
             + '<td class="num" data-l="Malo">' + celda(e, 'malo', e.malo, claseCalor(e.malo)) + '</td>'
             + '<td class="num" data-l="Sin marcar">' + celda(e, 'sin', e.sin, e.sin ? 'hs' : 'h0') + '</td>'
-            + '<td class="num" data-l="N/A">' + celda(e, 'na', e.na, 'h0', e.na ? null : '—') + '</td></tr>';
+            + '<td class="num" data-l="N/A">' + celda(e, 'na', e.na, 'h0', e.na || e.naDato ? null : '—') + '</td></tr>';
         }).join('');
       }).join('') + '</tbody></table>'
-      + '<p class="small-print">N/A llega con el formulario v5. Un elemento con muchas casas en Malo es una compra o una obra que se planifica una sola vez.</p></div>';
+      + '<p class="small-print">' + ((MP || []).some(function (e) { return e.naDato; }) ? 'N/A = el elemento no existe en la casa (el motivo está en el informe); los informes anteriores a la v5 no tienen N/A.'
+        : 'N/A llega con el formulario v5.') + ' Un elemento con muchas casas en Malo es una compra o una obra que se planifica una sola vez.</p></div>';
   }
   function tarjetaHtml(k, route) {
     var h = esc(puerta(route, k.v)), vm = esc(k.vm || 'sin villa manager');
@@ -355,7 +395,7 @@
     return '<a class="casa ' + k.banda + '" href="' + h + '"><div class="n">' + esc(k.villa) + '</div>'
       + '<div class="fila"><span class="sc ' + k.banda + '">' + fmt1(k.puntuacion) + '</span>'
       + (k.previa ? ' <small class="prov">vista previa</small>' : k.puntuacion != null && !k.completo ? ' <small class="prov">provisional</small>' : '')
-      + '<span class="cmp">' + k.evaluados + '/' + k.aplicables + '</span>' + (k.borrador ? '<span class="pill borrador">borrador</span>' : '') + '</div>'
+      + '<span class="cmp">' + k.evaluados + '/' + k.aplicables + '</span>' + (k.borrador ? '<span class="pill borrador">' + (k.trasEnvio ? 'borrador tras envío' : 'borrador') + '</span>' : '') + '</div>'
       + '<div class="flags">' + fl + (k.alta ? ' <span class="pill a">Alto ' + k.alta + '</span>' : '')
       + (k.otroInforme ? ' <span class="fl san" title="El formulario abre el informe nº ' + esc(k.otroInforme.formulario) + '">⚠ ' + k.otroInforme.n + ' informes</span>' : '') + '</div>'
       + '<div class="vm">' + vm + (fechas ? ' · ' + fechas : '') + '</div></a>';
@@ -372,7 +412,8 @@
     construirCasasV3: construirCasasV3, elegirInforme: elegirInforme, filtrarVM: filtrarVM, marcasDe: marcasDe,
     tilesV3: tilesV3, listasRapidas: listasRapidas, tablaVM: tablaVM, mapaV3: mapaV3, tarjetas: tarjetas,
     tilesHtml: tilesHtml, listasRapidasHtml: listasRapidasHtml, tablaVMHtml: tablaVMHtml, mapaHtml: mapaHtml, tarjetasHtml: tarjetasHtml,
-    href: href, media: media, banda: banda, fmt1: fmt1, fechaVer: fechaVer, esReview: esReview, sinDetalle: sinDetalle, esFinal: esFinal, prioridad: pri
+    href: href, media: media, banda: banda, fmt1: fmt1, fechaVer: fechaVer, esReview: esReview, sinDetalle: sinDetalle, esFinal: esFinal, prioridad: pri,
+    BANDAS: BANDAS, costeTile: costeTile
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Portada;
   if (raiz && typeof raiz === 'object') raiz.Portada = Portada;
