@@ -104,7 +104,7 @@
      casa sin lista, lista o cuadro → el cuadro con temporada, VM, los filtros de obras y el orden de la tabla (s = vs) */
   function back(route) {
     var r = route || {};
-    if (/^casa:/.test(r.v || '') && r.from) return href(r, { v: r.from }, ['s', 'q', 'g']);
+    if (/^casa:/.test(r.v || '') && r.from) return href(r, { v: r.from }, ['s', 'q', 'g'].concat(CLAVES_OBRAS));   /* ronda de arreglos 2: los filtros de obras del nivel 1 siguen hasta «‹ Cuadro» */
     return href(r, { s: r.vs || '', vs: '' }, CLAVES_OBRAS);
   }
 

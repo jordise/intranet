@@ -686,6 +686,23 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ir(H, '#t=2026&s=media:desc');
     ok('14.10 el chip «⚑ Requiere atención» del cuadro lleva el orden de la tabla (vs)', /href="[^"]*v=lista:atencion[^"]*vs=media:desc[^"]*">⚑ Requiere atención/.test(H.g('filtros').innerHTML), (H.g('filtros').innerHTML.match(/<a class="chip aviso[^>]*>/) || [])[0]);
   });
+  await parte(async function () {
+    console.log('14.11 ronda de arreglos 2: obra del nivel 1 con «Agrupar por casa»: anterior / siguiente en el orden de la pantalla; «‹ Lista» y «‹ Cuadro» vuelven con los filtros de obras');
+    var H = cuadro({ db: (function () { var db = dbGrande(); db.TaInformeTemporadaLineas.forEach(function (l) { if (l.seccion === 'resumen' && l.clave === 'accion_1' && l.informe_id % 2 === 0) l.prioridad = 'Baja'; }); return db; })() });
+    H.ctx.location.hash = '#t=2026&s=media:desc&of=resumen&og=1'; await H.ev('iniciar()');
+    var filas = (H.g('obras').innerHTML.match(/<tr class="obra[^"]*" data-href="[^"]+"/g) || []).map(function (x) { return x.replace(/&amp;/g, '&').match(/data-href="([^"]+)"/)[1]; });
+    var ids = []; filas.forEach(function (d) { var m = d.match(/v=casa:(\d+)/); if (m && ids.indexOf(m[1]) < 0) ids.push(m[1]); });
+    var dest = filas[0] || '';
+    ok('14.11 la fila de obra lleva g=1 y los filtros de obras (of, og) además de from', /[#&]g=1(&|$)/.test(dest) && /[#&]of=resumen(&|$)/.test(dest) && /[#&]og=1(&|$)/.test(dest) && /from=lista:obras:todas:resumen/.test(dest), dest);
+    ir(H, dest); await H.espera(40);
+    var C = H.g('cuerpo').innerHTML.replace(/&amp;/g, '&'), sig = (C.match(/<a class="chip" href="([^"]+)">Siguiente ›/) || [])[1] || '';
+    ok('14.11 la casa es la 1 de ' + ids.length + ' y «Siguiente ›» abre la segunda casa de la pantalla (' + ids[1] + ')', ids.length > 2 && new RegExp('casa 1 de ' + ids.length + ' en').test(C) && new RegExp('v=casa:' + ids[1] + '(&|$)').test(sig), (C.match(/casa \d+ de \d+ en «[^»]*»/) || [])[0] + ' ' + sig);
+    ok('14.11 «Siguiente ›» guarda los filtros de obras', /[#&]of=resumen(&|$)/.test(sig) && /[#&]og=1(&|$)/.test(sig), sig);
+    var at = (C.match(/<a class="atras" href="([^"]+)"/) || [])[1] || '';
+    ir(H, at);
+    var vuelta = ((H.g('cuerpo').innerHTML.match(/<a class="atras" href="([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&');
+    ok('14.11 «‹ Lista» abre la misma lista y su «‹ Cuadro» vuelve al nivel 1 con s, of y og', /^#t=2026&s=media:desc&/.test(vuelta) && /[#&]of=resumen(&|$)/.test(vuelta) && /[#&]og=1(&|$)/.test(vuelta) && !/[#&]v=/.test(vuelta), vuelta);
+  });
 })().then(function () {
   fin = true;
   console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');

@@ -579,10 +579,11 @@ function pintarCuadro(r,casas){
   g('obras').innerHTML=obrasNivel1Html(r,casas);
 }
 /* Nivel 2: v=lista:<tipo>[:...]; la búsqueda, el orden y el grupo los aplica Vistas (las filas visibles = las del CSV) */
-function listaDe(v,casas){const p=String(v).slice(6).split(':');return Listas.listas(p[0],{partes:p.slice(1),t:String(TEMP)},casas,previaCasas());}
+/* Ronda de arreglos 2: g agrupa por casa como el nivel 1 (Listas: orden por nombre), así anterior / siguiente siguen el orden de la pantalla */
+function listaDe(v,casas,gr){const p=String(v).slice(6).split(':');return Listas.listas(p[0],{partes:p.slice(1),t:String(TEMP),g:gr||''},casas,previaCasas());}
 function pintarLista(r,casas){
   if(/^lista:(repetido|comparacion)(:|$)/.test(r.v)&&esperaPrevia())return 'Cargando…';
-  const L=listaDe(r.v,casas);
+  const L=listaDe(r.v,casas,r.g);
   g('cuerpo').innerHTML=avisoPrevia()+Vistas.listaHtml(L,r,{vmNombre:nombreVMActual()});
   return L.titulo||'Lista';
 }
@@ -590,7 +591,7 @@ function pintarLista(r,casas){
 function pintarCasa(r,casas,casa){
   if(casa&&casa.estado==='enviado'&&esperaPrevia())return;
   const prev=previaCasas(),casaPrev=casa?Extras.casaPreviaDe(casa,prev):null;
-  const lista=r.from?listaDe(r.from,casas):Portada.tarjetas(casas);
+  const lista=r.from?listaDe(r.from,casas,r.g):Portada.tarjetas(casas);
   g('cuerpo').innerHTML=avisoPrevia()+Vistas.casaHtml(casa,casaPrev,r,lista);
 }
 
@@ -623,7 +624,7 @@ function obrasNivel1Html(r,casas){
     const extra=i>=MAX_OBRAS&&!MAS?' extra':'';i++;
     let gr='';
     if(r.og&&f.villa!==ult){ult=f.villa;gr='<tr class="grp'+extra+'"><td colspan="'+n+'">'+esc(f.villa)+' · '+filas.filter(x=>x.villa===ult).length+' actuaciones</td></tr>';}
-    const dest=Rutas.href(r,{v:'casa:'+f.villaid,from:fromObras(r),q:r.oq,vs:r.s},[]);
+    const dest=Rutas.href(r,{v:'casa:'+f.villaid,from:fromObras(r),q:r.oq,g:r.og,vs:r.s},Rutas.CLAVES_OBRAS);   /* ronda de arreglos 2: g = og y los filtros de obras viajan con la casa */
     return gr+'<tr class="obra'+extra+'" data-href="'+esc(dest)+'">'+cols.map(c=>'<td data-l="'+esc(c.label)+'"'+(c.clave==='villa'?' class="casa-n"':'')+'>'+celdaObra(f,c)+'</td>').join('')
       +'<td class="abr" data-l=""><a class="abrir" href="'+esc(dest)+'">Abrir ›</a></td></tr>';
   }).join('');

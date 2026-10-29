@@ -174,7 +174,7 @@
           ult = txt(f.villa);
           gr = '<tr class="grp"><td colspan="' + ncols + '">' + esc(ult) + ' · ' + plural(filas.filter(function (x) { return txt(x.villa) === ult; }).length, unidad === 'casas' ? 'filas' : unidad) + '</td></tr>';
         }
-        var dest = f.villaid != null ? href(r, { v: 'casa:' + f.villaid, from: r.v }, ['s', 'q', 'g']) : '';
+        var dest = f.villaid != null ? href(r, { v: 'casa:' + f.villaid, from: r.v }, ['s', 'q', 'g'].concat(OBRAS_N1)) : '';
         return gr + '<tr' + (dest ? ' data-href="' + esc(dest) + '"' : '') + '>' + cols.map(function (c) {
           return '<td data-l="' + esc(c.label) + '" class="' + (c.num ? 'num ' : '') + (c.clave === 'villa' ? 'casa-n' : '') + '">' + celdaHtml(f, c) + '</td>';
         }).join('') + '<td class="abr" data-l="">' + (dest ? '<a class="abrir" href="' + esc(dest) + '">Abrir ›</a>' : '') + '</td></tr>';
@@ -216,6 +216,9 @@
     if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) { /* type=search sin selección */ } }
   }
 
+  /* Ronda de arreglos 2: los filtros de obras del nivel 1 (op, of, od, oq, og) viajan por la lista y la casa hasta «‹ Cuadro» */
+  var OBRAS_N1 = ['op', 'of', 'od', 'oq', 'og'];
+
   /* ── nivel 3: anterior / siguiente por la lista de origen (o las casas del cuadro) ── */
   function navCasa(casa, route, lista) {
     var r = route || {}, ids, titulo;
@@ -224,7 +227,7 @@
     else return { pos: -1, total: 0, titulo: '', prev: null, next: null };
     var id = casa ? String(casa.villaid) : '', pos = -1;
     ids.forEach(function (x, i) { if (String(x) === id) pos = i; });
-    var ir = function (x) { return href(r, { v: 'casa:' + x }, ['from', 's', 'q', 'g']); };
+    var ir = function (x) { return href(r, { v: 'casa:' + x }, ['from', 's', 'q', 'g'].concat(OBRAS_N1)); };
     return { pos: pos, total: ids.length, titulo: titulo,
       prev: pos > 0 ? ir(ids[pos - 1]) : null, next: pos >= 0 && pos < ids.length - 1 ? ir(ids[pos + 1]) : null };
   }

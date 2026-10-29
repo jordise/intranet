@@ -147,5 +147,10 @@ ok('una lista vuelve al cuadro con su orden de la tabla (s = vs) y sin vs', R.ba
 ok('casa sin lista: vuelve al cuadro con s = vs', R.back(R.parse('#t=2026&v=casa:3&vs=nombre:asc')) === '#t=2026&s=nombre:asc');
 ok('casa desde una lista: la lista guarda vs; desde ella, el cuadro recupera el orden', R.back(R.parse(R.back(R.parse('#t=2026&v=casa:3&s=villa:asc&from=lista:condicion&vs=media:desc')))) === '#t=2026&s=media:desc');
 
+console.log('ronda de arreglos 2: los filtros de obras del nivel 1 viajan casa -> lista -> cuadro');
+var c2 = '#t=2026&v=casa:3&q=grifo&g=1&from=lista:obras:todas:resumen&of=resumen&oq=grifo&og=1&vs=media:desc';
+ok('casa abierta desde una obra del nivel 1: «‹ Lista» guarda op/of/od/oq/og', R.back(R.parse(c2)) === '#t=2026&v=lista:obras:todas:resumen&q=grifo&g=1&of=resumen&oq=grifo&og=1&vs=media:desc', R.back(R.parse(c2)));
+ok('y desde la lista, «‹ Cuadro» vuelve al nivel 1 con el orden y los filtros de obras', R.back(R.parse(R.back(R.parse(c2)))) === '#t=2026&s=media:desc&of=resumen&oq=grifo&og=1', R.back(R.parse(R.back(R.parse(c2)))));
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);
