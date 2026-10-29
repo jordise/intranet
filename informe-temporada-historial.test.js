@@ -193,6 +193,35 @@ async function pruebasCableado() {
     ok('reintento con el Worker falso: solo la lectura', H.S.desde(i1).length === 1 && H.S.desde(i1)[0].action === 'data');
     ok('devuelve rev 1', r.rev === 1 && r.escrito === true);
   });
+  await parte(async function () {
+    console.log('4.8 integración (decisión 1 de bro): dep.cambios va en el MISMO PUT que el historial; un solo PUT por Enviar o Reabrir');
+    var F = fakes({ informe_id: 9, estado: 'borrador', revision: null, historial: null, enviado_at: null });
+    var dEnv = Object.assign({}, F.dep, { cambios: { estado: 'enviado', enviado_at: '2026-10-29T14:05:00' } });
+    var r = await Historial.registrarEnvio({ informe_id: 9 }, 'Ana Admin', dEnv);
+    ok('Enviar: una lectura y UN solo PUT', F.llamadas.length === 2 && /^leer /.test(F.llamadas[0]) && /^PUT /.test(F.llamadas[1]), J(F.llamadas));
+    var b = F.escritos[0] || {};
+    ok('el PUT lleva estado enviado + enviado_at + enviado_por + revision 1 + la línea', b.estado === 'enviado' && b.enviado_at === '2026-10-29T14:05:09' && b.enviado_por === 'Ana Admin' && b.revision === 1 && /enviado por Ana Admin \(rev 1\)$/.test(b.historial), J(b));
+    ok('devuelve los cambios con el estado (el formulario los copia en INFORME)', r.escrito === true && r.cambios.estado === 'enviado' && r.cambios.revision === 1, J(r));
+    var n = F.llamadas.length, r2 = await Historial.registrarEnvio({ informe_id: 9 }, 'Ana Admin', dEnv);
+    ok('reintento con la cabecera ya enviada: solo la lectura', F.llamadas.length === n + 1 && r2.escrito === false && r2.cambios.estado === 'enviado', J(F.llamadas.slice(n)));
+    var dReab = Object.assign({}, F.dep, { ahora: function () { return '2026-10-29T16:00:00'; }, cambios: { estado: 'borrador', enviado_at: null } });
+    n = F.escritos.length;
+    var r3 = await Historial.registrarReapertura({ informe_id: 9 }, 'Jordi', dReab);
+    var b3 = F.escritos[n] || {};
+    ok('Reabrir: UN PUT con estado borrador, enviado_at null y la línea de reapertura; revision sigue en 1', F.escritos.length === n + 1 && b3.estado === 'borrador' && b3.enviado_at === null && /reabierto por Jordi \(rev 1\)$/.test(b3.historial) && !('revision' in b3) && F.fila.revision === 1, J(b3));
+    ok('Reabrir devuelve estado borrador', r3.escrito === true && r3.cambios.estado === 'borrador');
+    n = F.escritos.length; await Historial.registrarReapertura({ informe_id: 9 }, 'Jordi', dReab);
+    ok('reintento de Reabrir con la cabecera ya en borrador: ningún PUT', F.escritos.length === n);
+    var G = fakes({ informe_id: 7, estado: 'borrador', revision: 1, historial: '29/10/2026 14:05 enviado por Ana (rev 1)' });
+    await Historial.registrarEnvio({ informe_id: 7 }, 'Ana', Object.assign({}, G.dep, { cambios: { estado: 'enviado' } }));
+    ok('cabecera en borrador con la última línea de envío (cambio fuera del formulario): no es un reintento, rev 2 con su estado', G.escritos.length === 1 && G.fila.estado === 'enviado' && G.fila.revision === 2, J(G.fila));
+    var K = fakes({ informe_id: 8, estado: 'enviado', revision: 1, historial: '29/10/2026 14:05 enviado por Ana (rev 1)\n29/10/2026 15:00 reabierto por Jordi (rev 1)' });
+    await Historial.registrarReapertura({ informe_id: 8 }, 'Jordi', Object.assign({}, K.dep, { cambios: { estado: 'borrador', enviado_at: null } }));
+    ok('reapertura ya apuntada pero cabecera enviada: un PUT con el estado y el historial sin línea repetida', K.escritos.length === 1 && K.fila.estado === 'borrador' && K.fila.historial.split('\n').length === 2, J(K.fila));
+    var M = fakes({ informe_id: 9, estado: 'borrador', revision: null, historial: null }, { enviarFalla: true });
+    var e = await rechaza(Historial.registrarEnvio({ informe_id: 9 }, 'Ana', Object.assign({}, M.dep, { cambios: { estado: 'enviado', enviado_at: 'x' } })));
+    ok('el único PUT falla: error y la cabecera sigue en borrador, sin revisión ni historial', e instanceof Error && M.fila.estado === 'borrador' && M.fila.revision === null && M.fila.historial === null, J(M.fila));
+  });
 }
 
 pruebasCableado().catch(function (e) { ok('las pruebas de cableado terminan', false, e && e.stack); }).then(fin);

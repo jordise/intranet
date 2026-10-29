@@ -3,8 +3,8 @@
    Columnas de Caspio (CASPIO-COLUMNS.md, TaInformeTemporada): enviado_at (DATE/TIME), enviado_por (texto 255),
    revision (entero; vacío = 0), historial (texto 64000; una línea por envío o reapertura).
    Líneas: "<dd/mm/aaaa hh:mm> enviado por <nombre> (rev N)" y "<dd/mm/aaaa hh:mm> reabierto por <nombre> (rev N)".
-   Reglas: el historial se escribe solo DESPUÉS de que el PUT del formulario (Enviar o Reabrir) devuelve OK; antes se
-   vuelve a leer la cabecera; un reintento con la misma revisión no escribe dos veces ("(rev N)" del mismo tipo);
+   Reglas: antes de escribir se vuelve a leer la cabecera; integración v5: el estado del formulario (dep.cambios) va en
+   el MISMO PUT que el historial, un solo PUT por Enviar o Reabrir; un reintento con la misma revisión no escribe dos veces ("(rev N)" del mismo tipo);
    Enviar sube revision en 1, Reabrir no la cambia; los informes enviados antes de la v5 tienen el historial vacío y
    se ven con el aviso "Historial no disponible antes de la v5" y sus fechas guardadas con su significado real.
    Funciones puras + dos funciones de cableado (registrarEnvio, registrarReapertura) que reciben las funciones del
@@ -115,26 +115,35 @@
     });
   }
   function ahoraDe(dep) { return typeof dep.ahora === 'function' ? dep.ahora() : ahoraLocal(); }
+  /* Integración v5 (decisión 1 de bro): dep.cambios = los campos del formulario que van en el MISMO PUT que el historial
+     (Enviar: estado 'enviado' y enviado_at; Reabrir: estado 'borrador' y enviado_at null). Un solo PUT: si falla no queda
+     nada escrito a medias y el informe sigue como estaba. Sin dep.cambios, el PUT lleva solo los campos del historial. */
+  function extraDe(dep) { return dep && dep.cambios && typeof dep.cambios === 'object' ? dep.cambios : null; }
+  /* Un reintento solo se salta la escritura si la cabecera guardada ya tiene el estado que pide el formulario */
+  function estadoListo(f, ex) { return !ex || !('estado' in ex) || txt(f.estado).trim().toLowerCase() === txt(ex.estado).trim().toLowerCase(); }
+  function conEstado(f, ex, c) { return ex && 'estado' in ex ? Object.assign({ estado: txt(f.estado) }, c) : c; }
 
   function registrarEnvio(informe, nombre, dep) {
     var mal = comprobar(informe, dep); if (mal) return mal;
+    var ex = extraDe(dep);
     return leerCabecera(informe, dep).then(function (f) {
       var prev = entero(f.revision), hist = txt(f.historial), ls = lineas(hist), ult = ls.length ? leerLinea(ls[ls.length - 1]) : null;
       /* reintento: la última línea ya es el envío de la revisión guardada (entre dos envíos siempre hay una reapertura) */
-      if (prev > 0 && ult && ult.tipo === 'envio' && ult.rev === prev)
-        return { escrito: false, rev: prev, cambios: { enviado_at: f.enviado_at == null ? null : f.enviado_at, enviado_por: txt(f.enviado_por), revision: prev, historial: hist } };
+      if (prev > 0 && ult && ult.tipo === 'envio' && ult.rev === prev && estadoListo(f, ex))
+        return { escrito: false, rev: prev, cambios: conEstado(f, ex, { enviado_at: f.enviado_at == null ? null : f.enviado_at, enviado_por: txt(f.enviado_por), revision: prev, historial: hist }) };
       var rev = prev + 1, ahora = ahoraDe(dep), quien = nombreLimpio(nombre);
-      var cambios = { enviado_at: ahora, enviado_por: quien, revision: rev, historial: append(hist, lineaEnvio(quien, rev, ahora), rev, 'envio') };
+      var cambios = Object.assign({}, ex || {}, { enviado_at: ahora, enviado_por: quien, revision: rev, historial: append(hist, lineaEnvio(quien, rev, ahora), rev, 'envio') });
       return Promise.resolve(dep.enviar(dep.informeRequest(informe, cambios))).then(function () { return { escrito: true, rev: rev, cambios: cambios }; });
     });
   }
 
   function registrarReapertura(informe, nombre, dep) {
     var mal = comprobar(informe, dep); if (mal) return mal;
+    var ex = extraDe(dep);
     return leerCabecera(informe, dep).then(function (f) {
       var rev = entero(f.revision), hist = txt(f.historial);
-      if (contiene(hist, rev, 'reapertura')) return { escrito: false, rev: rev, cambios: { historial: hist } };
-      var cambios = { historial: append(hist, lineaReapertura(nombre, rev, ahoraDe(dep)), rev, 'reapertura') };
+      if (contiene(hist, rev, 'reapertura') && estadoListo(f, ex)) return { escrito: false, rev: rev, cambios: conEstado(f, ex, { historial: hist }) };
+      var cambios = Object.assign({}, ex || {}, { historial: append(hist, lineaReapertura(nombre, rev, ahoraDe(dep)), rev, 'reapertura') });
       return Promise.resolve(dep.enviar(dep.informeRequest(informe, cambios))).then(function () { return { escrito: true, rev: rev, cambios: cambios }; });
     });
   }
