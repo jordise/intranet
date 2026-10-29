@@ -308,5 +308,13 @@ ok('dos informes de la casa en la temporada: aviso junto a «Abrir formulario» 
 var hNa = V.listaHtml({ titulo: 'N/A', unidad: 'casas', columnas: [{ clave: 'villa', label: 'Casa' }, { clave: 'marca', label: 'Marca' }], filas: [{ villaid: 1, villa: 'A', marca: 'N/A' }], vacio: '' }, R.parse('#t=2026&v=lista:mapa:sofas:na'));
 ok('marca N/A en una lista se ve «N/A» (no «Sin marcar»)', hNa.indexOf('class="mk na">N/A<') >= 0);
 
+console.log('ronda de arreglos 2: resumen sin texto de actuación en la casa; «Sin detalle» como interruptor');
+var cRes = casaBase(); cRes.lineas = cRes.lineas.filter(function (l) { return l.seccion !== 'resumen' && l.seccion !== 'estancia'; });
+cRes.lineas.push(L('resumen', 'accion_2', { texto_1: '', texto_2: 'Riesgo de caída en la escalera', prioridad: 'Alta', orden: 2, linea_id: 400 }));
+cRes.acciones = SC.acciones(cRes.lineas);
+var hRes = WS.Vistas.casaHtml(cRes, null, rc, null), accR = (hRes.split('<h3>Actuaciones')[1] || '').split('<h3>')[0];
+ok('casa: el resumen con motivo y Alta sale como actuación «Sin texto (Resumen 2)» bajo Alto, origen Resumen 2', accR.indexOf('Sin texto (Resumen 2)') >= 0 && accR.indexOf('Riesgo de caída en la escalera') >= 0 && accR.indexOf('Origen: Resumen 2') >= 0 && /grupo-t">Alto</.test(accR) && accR.indexOf('Ninguna actuación registrada') < 0, accR.slice(0, 300));
+ok('casa: «Malo sin actuación: 0 · … 1 actuación», sin «ninguna actuación registrada»', hRes.indexOf('Malo sin actuación: 0 ·') >= 0 && hRes.indexOf('ninguna actuación registrada') < 0, (hRes.match(/Malo sin actuación[^<]*/) || [])[0]);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);

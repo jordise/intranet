@@ -348,5 +348,28 @@ ok('cada puerta del cuadro (cuadros, Listas, tabla VM, casas, mapa) lleva el ord
   && hr10.filter(function (x) { return /[#&]v=/.test(x); }).every(function (x) { return /&vs=media:desc$/.test(x); }) && hr10.filter(function (x) { return !/[#&]v=/.test(x); }).every(function (x) { return !/vs=/.test(x); }),
   J(hr10.filter(function (x) { return /[#&]v=/.test(x) && !/&vs=media:desc$/.test(x); }).slice(0, 3)));
 
+console.log('11. Ronda de arreglos 2: un resumen sin texto de actuación (motivo y prioridad) cuenta; estancia añadida con solo el nombre');
+if (Score && typeof Score.marcas === 'function') {
+  var V11 = [{ villaid: 211, Name: 'Sa Escala', KeyHolder_person: '1' }, { villaid: 212, Name: 'Sa Paret', KeyHolder_person: '2' }, { villaid: 213, Name: 'Es Garatge', KeyHolder_person: '2' }];
+  var I11 = [inf(2110, 211, 'enviado', 'Regular'), inf(2120, 212, 'enviado', 'Regular'), inf(2130, 213, 'enviado', 'Regular')];
+  var L11 = [].concat(
+    marcas(2110, function (k) { return k === 'pavimentos' ? 'Malo' : 'Bueno'; }), [linea(2110, 'resumen', 'accion_1', '', 'Riesgo de caída en la escalera', 'Alta')],
+    marcas(2120, function (k) { return k === 'fachada' ? 'Malo' : 'Bueno'; }), [linea(2120, 'resumen', 'accion_1', '', 'Pared con grietas', 'Media')],
+    marcas(2130, function (k) { return k === 'pintura' ? 'Malo' : 'Bueno'; }), [linea(2130, 'estancia', 'otra_1', 'Garaje:', '', '')]);
+  var C11 = Portada.construirCasasV3(V11, I11, L11, CONTACTS, USERS, 2026);
+  var T11 = Portada.tilesV3(C11, null), LR11 = {}; Portada.listasRapidas(C11, null).forEach(function (x) { LR11[x.v] = x.n; });
+  ok('resumen con motivo + Alta y sin actuación: Obras 3, Alto 1, Medio 1, sin prioridad 1', T11.obras.n === 3 && T11.obras.alta === 1 && T11.obras.media === 1 && T11.obras.sin === 1, J(T11.obras));
+  ok('ninguna de las tres casas sale en "Malo sin actuación"', LR11['lista:malosinact'] === 0, J(LR11));
+  var c211 = C11.filter(function (c) { return c.villaid === 211; })[0] || {};
+  ok('la casa lleva la actuación "Sin texto (Resumen 1)" Alta con su motivo', (c211.acciones || []).length === 1 && c211.acciones[0].accion === 'Sin texto (Resumen 1)' && c211.acciones[0].prioridad === 'Alta' && c211.acciones[0].motivo === 'Riesgo de caída en la escalera', J(c211.acciones));
+  var VMr11 = Portada.tablaVM(C11).total;
+  ok('tabla de villa managers: Alto 1 en el total', VMr11.alta === 1, J(VMr11));
+  if (Listas) {
+    ok('"Requiere atención" incluye la casa con la Alta del resumen', Listas.atencion(C11).filas.some(function (f) { return f.villaid === 211; }));
+    var mal11 = puertas(C11, null, '').filter(function (x) { var n = safe(function () { return filasDe(x.v, C11, null); }); x.lista = n; return n !== x.n; });
+    ok('cada cifra = filas de su lista en este caso', !mal11.length, J(mal11.slice(0, 8)));
+  }
+} else ok('InformeScore.marcas (lector compartido) existe', false);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

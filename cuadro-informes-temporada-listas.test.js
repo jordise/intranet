@@ -299,5 +299,12 @@ var mNa = L.listas('mapa', { partes: ['sofas', 'na'] }, [cNa], null);
 ok('mapa N/A (formulario v5): la casa con sofás en N/A sale en su lista, con su observación', mNa.filas.length === 1 && mNa.filas[0].marca === 'N/A' && mNa.filas[0].observacion === 'No hay sofás', J(mNa.filas));
 ok('N/A estricto: na = "x" no es N/A (menaje cuenta en Bueno)', L.marcasDe(cNa).menaje.marca === 'bueno' && L.listas('mapa', { partes: ['menaje', 'na'] }, [cNa], null).filas.length === 0);
 
+console.log('15. Ronda de arreglos 2: el resumen sin texto de actuación cuenta (regla de las estancias)');
+var lR = [{ seccion: 'interior', clave: 'pavimentos', estado: 'Malo', texto_1: 'Escalón roto' }, { seccion: 'resumen', clave: 'accion_1', orden: 1, texto_1: '', texto_2: 'Riesgo de caída en la escalera', prioridad: 'Alta' }];
+var cR = { villaid: 3, villa: 'Sa Escala', vm: '', vmId: '', informe_id: 3, estado: 'enviado', lineas: lR, score: IS.condicion(lR), flags: IS.banderas({}, lR), acciones: IS.acciones(lR) };
+var oR = L.listas('obras', {}, [cR], null).filas;
+ok('obras: la fila "Sin texto (Resumen 1)" Alto con su motivo y origen Resumen 1', oR.length === 1 && oR[0].accion === 'Sin texto (Resumen 1)' && oR[0].prioridad === 'Alto' && oR[0].motivo === 'Riesgo de caída en la escalera' && oR[0].origen === 'Resumen 1', J(oR));
+ok('"Malo sin actuación" no la incluye; "Requiere atención" sí; obras:alta = 1', L.listas('malosinact', {}, [cR], null).filas.length === 0 && L.listas('atencion', {}, [cR], null).filas.length === 1 && L.listas('obras:alta', {}, [cR], null).filas.length === 1);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exitCode = fail ? 1 : 0;
