@@ -415,7 +415,8 @@
   function fotosHtml(casa, lp) {
     var E = root.Extras;
     if (E && typeof E.galeriaHtml === 'function') return E.galeriaHtml(casa);
-    var n = Object.keys(lp).filter(function (k) { return lp[k].seccion === 'foto' && txt(lp[k].foto_url); }).length;
+    /* ronda de arreglos 2: solo fotos http(s), la misma regla que refsFotos y la galería */
+    var n = Object.keys(lp).filter(function (k) { return lp[k].seccion === 'foto' && /^https?:\/\//i.test(txt(lp[k].foto_url)); }).length;
     return n ? '<p class="mot">' + plural(n, 'fotos') + ' en el informe (el visor de fotos no está cargado).</p>' : '<p class="mot">Este informe no tiene fotos.</p>';
   }
 

@@ -101,7 +101,8 @@
     if (E && typeof E.fotosDe === 'function') E.fotosDe(casa).forEach(function (f) { url[f.clave] = f.url; });
     return (refs[clave] || []).map(function (f) { return { clave: f.clave, url: url[f.clave] || f.foto_url, pie: f.pie || f.clave }; });
   }
-  function fotosDe(casa) { return (casa && casa.lineas || []).filter(function (l) { return l.seccion === 'foto' && tr(l.foto_url); }).length; }
+  /* ronda de arreglos 2: solo fotos http(s), la misma regla que refsFotos y la galería */
+  function fotosDe(casa) { return (casa && casa.lineas || []).filter(function (l) { return l.seccion === 'foto' && /^https?:\/\//i.test(tr(l.foto_url)); }).length; }
   function sc(casa) { return (casa && casa.score) || {}; }
   function puntuacion(casa) { var p = sc(casa).puntuacion; return p == null ? null : p; }
   function completo(casa) { return !!sc(casa).completo; }
