@@ -86,6 +86,7 @@
       if (!k) return;
       if (visto[k]) error = 'datos';
       visto[k] = 1; ultima[k] = l;
+      delete marca[k]; delete na[k]; delete linea[k];   /* ronda de arreglos 2: fila repetida = gana la última en orden, aunque esté en blanco */
       var m = lw(l.estado);
       if (m && !MARCAS[m]) { error = 'datos'; return; }
       if (esNa(l)) { if (m) error = 'datos'; else { na[k] = 1; linea[k] = l; } return; }
@@ -95,7 +96,7 @@
   }
 
   /* Lector compartido de los 26 (cuadro: mapa, listas y casa; la misma regla que la puntuación): por clave {marca: 'bueno'|'regular'|'malo'|'na'|'',
-     linea: la línea que da la marca, o la última de la clave, o null}; fila repetida = gana la última en orden y error 'datos' */
+     linea: la línea que da la marca, o la última de la clave, o null}; fila repetida = gana la última en orden (también en blanco) y error 'datos' */
   function marcas(lineas) {
     var e = leerElementos(lineas), out = {};
     elementosDef().forEach(function (d) {
@@ -147,16 +148,22 @@
 
   /* Texto de la actuación y motivo de una línea de resumen o de estancia ('' = no es actuación).
      Estancia (ronda de arreglos 1, decisión de bro): cuenta si tiene incidencia (texto_1), "Acción recomendada" (texto_2) o prioridad;
-     el texto es la incidencia; sin incidencia, la acción recomendada; sin las dos, "Sin texto (<estancia>)"; motivo = la estancia */
+     el texto es la incidencia; sin incidencia, la acción recomendada; sin las dos, "Sin texto (<estancia>)"; motivo = la estancia.
+     Ronda de arreglos 2 (decisión de bro): una estancia añadida con solo el nombre ("Garaje:") también cuenta ("Sin texto (Garaje)");
+     el resumen cuenta con la misma regla: actuación (texto_1), motivo (texto_2) o prioridad; texto = texto_1, si no "Sin texto (Resumen N)" */
   function leerAccion(l) {
-    if (l.seccion === 'resumen') return { accion: txt(l.texto_1).trim(), motivo: txt(l.texto_2).trim() };
-    var t = txt(l.texto_1), m = /^otra_(\d+)$/.exec(txt(l.clave)), inc = t, motivo = ESTANCIAS[l.clave] || txt(l.clave);
+    if (l.seccion === 'resumen') {
+      var t1 = txt(l.texto_1).trim(), mot = txt(l.texto_2).trim(), n = entero(l.orden) || entero(txt(l.clave).replace(/\D/g, ''));
+      return { accion: t1 || (mot || prioridadNorm(l.prioridad) ? 'Sin texto (Resumen' + (n ? ' ' + n : '') + ')' : ''), motivo: mot };
+    }
+    var t = txt(l.texto_1), m = /^otra_(\d+)$/.exec(txt(l.clave)), inc = t, motivo = ESTANCIAS[l.clave] || txt(l.clave), soloNombre = false;
     if (m) {
       var p = t.indexOf(':'), nombre = p < 0 ? '' : t.slice(0, p).trim();
       inc = p < 0 ? t : t.slice(p + 1);
       motivo = nombre || 'Otra estancia ' + m[1];
+      soloNombre = !!nombre;
     }
-    var accion = inc.trim() || txt(l.texto_2).trim() || (prioridadNorm(l.prioridad) ? 'Sin texto (' + motivo + ')' : '');
+    var accion = inc.trim() || txt(l.texto_2).trim() || (prioridadNorm(l.prioridad) || soloNombre ? 'Sin texto (' + motivo + ')' : '');
     return { accion: accion, motivo: motivo };
   }
 

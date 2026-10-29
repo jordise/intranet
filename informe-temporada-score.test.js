@@ -226,4 +226,25 @@ ok('marcas: N/A sale como "na"; una marca no válida como ""; sin línea = "" y 
 ok('marcas y condicion cuentan lo mismo', (function () { var c = S.condicion(dupL), n = { bueno: 0, regular: 0, malo: 0, na: 0 }; Object.keys(pc9).forEach(function (k) { if (n[pc9[k].marca] !== undefined) n[pc9[k].marca]++; }); return Object.keys(pc9).length === 26 && n.bueno === c.bueno && n.regular === c.regular && n.malo === c.malo && n.na === c.na; })());
 ok('esComentario: huésped con texto_1 o con solo texto_2; nunca vacío ni de otra sección', typeof S.esComentario === 'function' && S.esComentario({ seccion: 'huesped', texto_1: 'Ruido' }) && S.esComentario({ seccion: 'huesped', texto_1: ' ', texto_2: 'Poner cortinas' }) && !S.esComentario({ seccion: 'huesped', texto_1: '', texto_2: '' }) && !S.esComentario({ seccion: 'resumen', texto_1: 'x' }));
 
+console.log('10. Ronda de arreglos 2: el resumen con la regla de las estancias (texto_1, texto_2 o prioridad); estancia añadida con solo el nombre; fila repetida = la última en orden');
+function res(t1, t2, pri, orden, clave) { return { informe_id: 7, seccion: 'resumen', clave: clave || 'accion_' + (orden || 1), orden: orden || 1, texto_1: t1, texto_2: t2, prioridad: pri }; }
+var a10 = S.acciones([res('', 'Riesgo de caída en la escalera', 'Alta', 2)]);
+ok('resumen con motivo y prioridad, sin actuación = una actuación Alta "Sin texto (Resumen 2)", motivo = el motivo', a10.length === 1 && a10[0].accion === 'Sin texto (Resumen 2)' && a10[0].prioridad === 'Alta' && a10[0].motivo === 'Riesgo de caída en la escalera', J(a10));
+var a10b = S.acciones([res('  ', '', 'Media', 3)]);
+ok('resumen con solo la prioridad = "Sin texto (Resumen 3)" Media, sin motivo', a10b.length === 1 && a10b[0].accion === 'Sin texto (Resumen 3)' && a10b[0].prioridad === 'Media' && a10b[0].motivo === '', J(a10b));
+var a10c = S.acciones([res('', 'Pared con grietas', '', 4)]);
+ok('resumen con solo el motivo = "Sin texto (Resumen 4)" sin prioridad', a10c.length === 1 && a10c[0].accion === 'Sin texto (Resumen 4)' && a10c[0].prioridad === '', J(a10c));
+ok('resumen vacío (sin actuación, motivo ni prioridad) no es actuación', S.acciones([res('', '  ', '', 5)]).length === 0);
+var a10d = S.acciones([{ informe_id: 7, seccion: 'resumen', clave: 'accion_6', texto_1: '', texto_2: 'Sin orden', prioridad: 'Baja' }]);
+ok('resumen sin orden: el número sale de la clave (accion_6 -> "Sin texto (Resumen 6)")', a10d.length === 1 && a10d[0].accion === 'Sin texto (Resumen 6)', J(a10d));
+ok('resumen con actuación: el texto sigue siendo texto_1 y el motivo texto_2', (function () { var a = S.acciones([res('Cambiar barandilla', 'Floja', 'Alta', 1)]); return a.length === 1 && a[0].accion === 'Cambiar barandilla' && a[0].motivo === 'Floja'; })());
+var a10e = S.acciones([est('otra_1', 'Garaje:', '', '', 8)]);
+ok('estancia añadida con solo el nombre ("Garaje:") = "Sin texto (Garaje)" sin prioridad', a10e.length === 1 && a10e[0].accion === 'Sin texto (Garaje)' && a10e[0].motivo === 'Garaje' && a10e[0].prioridad === '', J(a10e));
+ok('estancia añadida vacía (texto_1 en blanco, sin acción ni prioridad) no es actuación', S.acciones([est('otra_2', '  ', '', '', 9)]).length === 0);
+var mk10 = S.marcas([linea('pintura', 'malo', { texto_1: 'primera' }), linea('pintura', '', { texto_1: 'segunda, en blanco' })]);
+ok('marcas: fila repetida con la última en blanco = la última gana (marca "", su línea) y error "datos"', mk10.porClave.pintura.marca === '' && mk10.porClave.pintura.linea.texto_1 === 'segunda, en blanco' && mk10.error === 'datos', J(mk10.porClave.pintura));
+var c10 = S.condicion([linea('pintura', 'malo'), linea('pintura', ''), linea('colchones', 'bueno')]);
+ok('condicion cuenta lo mismo que marcas con la última en blanco (pintura no cuenta; sin puntuación)', c10.malo === 0 && c10.bueno === 1 && c10.evaluados === 1 && c10.puntuacion === null && c10.error === 'datos', J(c10));
+ok('fila repetida con la última N/A = N/A', S.marcas([linea('sofas', 'regular'), linea('sofas', '', { na: true })]).porClave.sofas.marca === 'na');
+
 fin();
