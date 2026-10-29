@@ -64,11 +64,23 @@
 
   function banda(p) { return p === null ? 'gris' : p < 50 ? 'rojo' : p < 80 ? 'ambar' : 'verde'; }
 
-  /* N/A: el campo na de la línea (llega con el formulario v5); verdadero = true, 1, '1', 'true', 'sí', 'si', 'yes' */
-  function esNa(l) {
-    var v = l && l.na;
+  /* Sí/No de Caspio (na, peligro): verdadero = true, 1, '1', 'true', 'sí', 'si', 'yes'; lo demás (false, 0, null, 'x') = no */
+  function esSi(v) {
     if (v === true || v === 1) return true;
     return typeof v === 'string' && /^(1|true|s[ií]|yes)$/.test(v.trim().toLowerCase());
+  }
+  /* N/A: el campo na de la línea (llega con el formulario v5) */
+  function esNa(l) { return esSi(l && l.na); }
+
+  /* Banda de coste del formulario v5 (CASPIO-COLUMNS.md): los cinco valores guardados; blanco o texto desconocido = '' (sin dato, nunca 0) */
+  var COSTES = ['desconocido', '<500', '500-2000', '2000-10000', '10000+'];
+  var COSTE_RANGO = { desconocido: 0, '<500': 1, '500-2000': 2, '2000-10000': 3, '10000+': 4 };
+  function costeNorm(v) { var s = lw(v); return COSTE_RANGO.hasOwnProperty(s) ? s : ''; }
+  /* Actuación unida de dos fuentes con dos bandas distintas ('desconocido' no contradice a una banda) */
+  function costeDistinto(a) {
+    var vistos = {};
+    ((a && a.fuentes) || []).forEach(function (f) { var c = costeNorm(f && f.coste); if (c && c !== 'desconocido') vistos[c] = 1; });
+    return Object.keys(vistos).length > 1;
   }
 
   var MAPA_EL = null;
@@ -122,8 +134,20 @@
       completo: !e.error && aplicables > 0 && evaluados === aplicables, banda: banda(p), error: e.error };
   }
 
-  /* Banderas de un informe: peligro (null en v3a: dato del formulario v5), seguridad (claves de seguridad en Malo, en el orden de
-     elementosSeguridad()) y coherencia con el estado general (Bueno con algún Malo; Malo con todo lo evaluado en Bueno) */
+  /* ¿El informe trae datos del formulario v5? Cabecera con revisión ≥ 1, historial o enviado_por, o una línea con N/A, peligro,
+     motivo, texto de peligro, coste o foto con referencia. Las filas de antes de la v5 leen na/peligro = false y lo demás en blanco */
+  function datosV5(informe, lineas) {
+    var i = informe || {};
+    if (entero(i.revision) >= 1 || txt(i.historial).trim() || txt(i.enviado_por).trim()) return true;
+    return (lineas || []).some(function (l) {
+      return !!l && (esNa(l) || esSi(l.peligro) || !!txt(l.na_motivo).trim() || !!txt(l.peligro_texto).trim() || !!costeNorm(l.coste) || !!txt(l.clave_ref).trim());
+    });
+  }
+
+  /* Banderas de un informe: peligro (formulario v5: true con algún tick de peligro en los 26, false en un informe v5 sin ninguno,
+     null = dato desconocido en un informe de antes de la v5) con peligros [{clave, texto}] (la última fila de cada clave, orden de
+     los 26), seguridad (claves de seguridad en Malo, en el orden de elementosSeguridad()) y coherencia con el estado general
+     (Bueno con algún Malo; Malo con todo lo evaluado en Bueno) */
   function banderas(informe, lineas) {
     var malo = {}, evaluados = 0, buenos = 0;
     (lineas || []).forEach(function (l) {
@@ -136,7 +160,10 @@
     var coherencia = null;
     if (g === 'bueno' && Object.keys(malo).length) coherencia = 'bueno_con_malo';
     else if (g === 'malo' && !e.error && evaluados > 0 && buenos === evaluados) coherencia = 'malo_todo_bueno';
-    return { peligro: null, seguridad: elementosSeguridad().filter(function (k) { return malo[k]; }), coherencia: coherencia };
+    var peligros = [];
+    elementosDef().forEach(function (d) { var l = e.ultima[d.clave]; if (l && esSi(l.peligro)) peligros.push({ clave: d.clave, texto: txt(l.peligro_texto).trim() }); });
+    var peligro = peligros.length ? true : datosV5(informe, lineas) ? false : null;
+    return { peligro: peligro, peligros: peligros, seguridad: elementosSeguridad().filter(function (k) { return malo[k]; }), coherencia: coherencia };
   }
 
   /* Palabras de prioridad al leer: Alta/Media/Baja (también Alto/Medio/Bajo guardados, como el cuadro v2); se ven Alto/Medio/Bajo; otra palabra = sin prioridad */
@@ -169,7 +196,9 @@
 
   /* Actuaciones distintas de un informe: resumen (texto_1) + estancias (leerAccion), unidas por el texto exacto (sin espacios al
      principio y al final, mayúsculas cuentan); gana la prioridad más alta; se guardan todas las fuentes; motivo = el primero
-     que no esté vacío (texto_2 del resumen, o el nombre de la estancia); coste = null hasta el formulario v5.
+     que no esté vacío (texto_2 del resumen, o el nombre de la estancia).
+     Coste (formulario v5): cada fuente con banda la lleva en fuentes[i].coste (sin banda, sin la clave); el de la actuación = la
+     banda más alta de sus fuentes, si no 'desconocido' si una lo dice, si no null (blanco). Dos bandas distintas: costeDistinto(a).
      Orden: Alta, Media, Baja, sin prioridad; dentro, resumen antes que estancia y por orden */
   function acciones(lineas) {
     var filas = (lineas || []).filter(function (l) { return l && (l.seccion === 'resumen' || l.seccion === 'estancia'); })
@@ -189,11 +218,15 @@
         if (RANGO[pri] < RANGO[o.prioridad]) o.prioridad = pri;
         if (!o.motivo && x.motivo) o.motivo = x.motivo;
       }
-      o.fuentes.push({ seccion: l.seccion, clave: txt(l.clave), orden: entero(l.orden) });
+      var f = { seccion: l.seccion, clave: txt(l.clave), orden: entero(l.orden) }, c = costeNorm(l.coste);
+      if (c) f.coste = c;
+      o.fuentes.push(f);
     });
     out.sort(function (a, b) { return (RANGO[a.prioridad] - RANGO[b.prioridad]) || (a.pos - b.pos); });
     return out.map(function (o) {
-      return { accion: o.accion, prioridad: o.prioridad, prioridadVer: prioridadVer(o.prioridad), motivo: o.motivo, fuentes: o.fuentes, coste: null };
+      var c = null;
+      o.fuentes.forEach(function (f) { if (f.coste && (c === null || COSTE_RANGO[f.coste] > COSTE_RANGO[c])) c = f.coste; });
+      return { accion: o.accion, prioridad: o.prioridad, prioridadVer: prioridadVer(o.prioridad), motivo: o.motivo, fuentes: o.fuentes, coste: c };
     });
   }
 
@@ -213,9 +246,29 @@
     return { n: n, puntuacionA: puntuar(cA.bueno, cA.regular, n), puntuacionB: puntuar(cB.bueno, cB.regular, n), cambios: cambios, repetidos: repetidos, error: null };
   }
 
+  /* Fotos con referencia (formulario v5, clave_ref de las 6 líneas 'foto'): {clave_ref: [{clave, foto_url, pie}]} en el orden de las
+     fotos; sin foto_url o sin referencia, fuera. clave_ref = una clave de los 26, una estancia o 'otra' */
+  function refsFotos(lineas) {
+    var n = function (k) { var m = /(\d+)$/.exec(txt(k)); return m ? parseInt(m[1], 10) : 99; }, out = {};
+    (lineas || []).filter(function (l) { return l && l.seccion === 'foto' && txt(l.foto_url).trim() && txt(l.clave_ref).trim(); })
+      .sort(function (a, b) { return n(a.clave) - n(b.clave); })
+      .forEach(function (l) { var r = txt(l.clave_ref).trim(); (out[r] = out[r] || []).push({ clave: txt(l.clave), foto_url: txt(l.foto_url).trim(), pie: txt(l.texto_1).trim() }); });
+    return out;
+  }
+  /* Palabra de una clave_ref: la etiqueta del elemento, el nombre de la estancia, 'Otra'; si no, la clave */
+  function etiquetaRef(clave) {
+    var k = txt(clave).trim();
+    if (!k) return '';
+    if (k === 'otra') return 'Otra';
+    if (ESTANCIAS[k]) return ESTANCIAS[k];
+    var e = elementosDef().filter(function (x) { return x.clave === k; })[0];
+    return e ? e.label : k;
+  }
+
   var InformeScore = {
     elementosDef: elementosDef, elementosSeguridad: elementosSeguridad, condicion: condicion, banderas: banderas,
-    acciones: acciones, comparar: comparar, redondear1: redondear1, marcas: marcas, esNa: esNa, esComentario: esComentario
+    acciones: acciones, comparar: comparar, redondear1: redondear1, marcas: marcas, esNa: esNa, esComentario: esComentario,
+    esSi: esSi, COSTES: COSTES, costeNorm: costeNorm, costeDistinto: costeDistinto, datosV5: datosV5, refsFotos: refsFotos, etiquetaRef: etiquetaRef
   };
   if (typeof module === 'object' && module && module.exports) module.exports = InformeScore;
   if (raiz) raiz.InformeScore = InformeScore;
