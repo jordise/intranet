@@ -159,9 +159,10 @@ ok('partirEstancia sin nombre', ctx.partirEstancia('algo').nombre === '' && ctx.
 ok('filaVacia', ctx.filaVacia({ estado: '', texto_1: ' ', texto_2: '', prioridad: '', foto_url: '' }) === true && ctx.filaVacia({ prioridad: 'Alta' }) === false && ctx.filaVacia(undefined) === true);
 
 console.log('9. Pagina');
-ok('VERSIÓN ACTUAL: v4 en las 5 primeras lineas', /VERSIÓN ACTUAL: v4 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
-ok('PAGE_VERSION = 4', /const PAGE_VERSION = 4;/.test(SRC));
-ok('titulo v4', SRC.indexOf('<title>Informe de temporada v4 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v5 en las 5 primeras lineas', /VERSIÓN ACTUAL: v5 \|/.test(SRC.split('\n').slice(0, 5).join('\n')));
+ok('PAGE_VERSION = 5', /const PAGE_VERSION = 5;/.test(SRC));
+ok('titulo v5', SRC.indexOf('<title>Informe de temporada v5 — 3Villas</title>') > 0);
+ok('HISTORIAL v5 presente, antes de la v4, una línea que cierra una sola vez', (function () { var a = SRC.indexOf('<!-- HISTORIAL: v5 - 29/10/2026'), b = SRC.indexOf('<!-- HISTORIAL: v4 - 27/10/2026'); return a > 0 && a < b && SRC.slice(a, b).split('-->').length === 2 && SRC.slice(a, b).split('\n').length === 2; })());
 /* v4: un <select> que solo dispara 'change' (prioridad, origen) tambien guarda */
 ok('select change: el manejador de change trata un <select> con data-campo como escritura (alEscribir)', /addEventListener\('change'[\s\S]{0,400}t\.tagName==='SELECT'&&t\.dataset&&t\.dataset\.campo\)return alEscribir\(e\)/.test(SRC));
 ok('HISTORIAL v4 presente', /<!-- HISTORIAL: v4 - 27\/10\/2026/.test(SRC));
@@ -223,7 +224,8 @@ function baseDb(extra) {
 function informe9(extra) { return Object.assign({ informe_id: 9, villaid: 12, temporada: 2026, UserID: 'U2', estado: 'borrador', estado_general: '', observaciones_finales: '', fecha_revision: '2026-10-26T00:00:00' }, extra || {}); }
 function pagina(o) {
   o = o || {};
-  return A.cargar({ archivo: P, db: o.db || baseDb({ TaInformeTemporada: [informe9()] }), rol: o.rol || 'admin', email: o.email, search: o.search || '?villaid=12&temporada=2026', almacen: o.almacen, confirmar: o.confirmar });
+  /* v5 (integración): scripts = los <script src> locales de la página (score, historial, puntuación, ayuda), como en el navegador */
+  return A.cargar({ archivo: P, db: o.db || baseDb({ TaInformeTemporada: [informe9()] }), rol: o.rol || 'admin', email: o.email, search: o.search || '?villaid=12&temporada=2026', almacen: o.almacen, confirmar: o.confirmar, scripts: true });
 }
 function registro(H, desde, titulo) {
   console.log('        llamadas (' + titulo + '):');
@@ -704,5 +706,97 @@ async function pruebasConFetch() {
   ok('selects coste y «Se refiere a:» desactivados', (mh.match(/<select[^>]*data-campo="(coste|clave_ref)"[^>]*>/g) || []).length === 13 && (mh.match(/<select[^>]*data-campo="(coste|clave_ref)"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
   await pulsa(H, 'exterior|barbacoa', 'na', 'N/A', false);
   ok('pulsar N/A en solo lectura: nada cambia', !H.ev("LINEAS['exterior|barbacoa']"));
+  });
+
+  /* ── 13. v5, integración: scripts, condición provisional, «?», historial con UN solo PUT, hoja en papel en las cuatro filas ── */
+  await parte(async function () {
+  console.log('13.1 v5 integración: los cuatro <script src> del formulario v5 después de nav-component.js, con ?v=5');
+  var locales = A.scriptsLocales(SRC);
+  ok('scripts locales, en orden: score, historial, puntuación, ayuda', locales.join(',') === 'informe-temporada-score.js,informe-temporada-historial.js,informe-temporada-puntuacion.js,informe-temporada-ayuda.js', locales.join(','));
+  ok('van después de nav-component.js y con ?v=5', ['score', 'historial', 'puntuacion', 'ayuda'].every(function (n) { var t = '<script src="informe-temporada-' + n + '.js?v=5"></script>'; return SRC.indexOf(t) > SRC.indexOf('<script src="nav-component.js"></script>'); }));
+  ok('los cuatro archivos existen', locales.every(function (f) { return fs.existsSync(f); }));
+  });
+  await parte(async function () {
+  console.log('13.2 v5 integración: condición provisional, «¿Cómo se calcula?», historial y el «?» de cada elemento');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Bueno' },
+    { linea_id: 2, informe_id: 9, seccion: 'exterior', clave: 'piscina', na: true, na_motivo: 'sin piscina' },
+    { linea_id: 3, informe_id: 9, seccion: 'huesped', clave: 'comentario_1', estado: 'Review', texto_1: 'Ruido' }] }) });
+  await H.ev('iniciar()'); var mh = H.g('main').innerHTML;
+  ok('línea gris bajo la cabecera: «Condición provisional: 100,0 · 1 de 25 evaluados · 1 N/A» (los comentarios no cuentan)', /<\/table><p class="cond-prov" data-banda="verde"[^>]*><span class="cond-prov-t">Condición provisional: 100,0 · 1 de 25 evaluados · 1 N\/A<\/span>/.test(mh), (mh.match(/<p class="cond-prov[\s\S]{0,200}/) || [''])[0]);
+  ok('botón «¿Cómo se calcula?» y su caja oculta', /<button type="button" class="como-calc" data-accion="como-se-calcula"[^>]*>¿Cómo se calcula\?<\/button>/.test(mh) && /<div class="como-calc-caja" id="comoSeCalcula" role="note" hidden>/.test(mh));
+  ok('historial: borrador sin envíos = «Sin envíos registrados (el historial empieza con la v5)»', /<div class="historial">[\s\S]*Sin envíos registrados \(el historial empieza con la v5\)/.test(mh));
+  ok('26 «?» de ejemplos, uno por elemento, cada uno con Bueno / Regular / Malo; ningún <details>', (mh.match(/data-accion="ayuda"/g) || []).length === 26 && (mh.match(/<ul class="ayuda-box" hidden><li class="ayuda-bueno"><b>Bueno:<\/b> [^<]+<\/li><li class="ayuda-regular"><b>Regular:<\/b> [^<]+<\/li><li class="ayuda-malo"><b>Malo:<\/b> [^<]+<\/li><\/ul>/g) || []).length === 26 && mh.indexOf('<details') < 0);
+  ok('el «?» va en la celda del elemento, tras su nombre', /<td class="c-el"><span class="dot"[^>]*><\/span>Colchones y almohadas<span class="ayuda" data-clave="colchones"><button type="button" class="ayuda-q"/.test(filaDe(mh, 'interior|colchones')));
+  var t = { textContent: '' }, at = {}, pp = { querySelector: function () { return t; }, setAttribute: function (k, v) { at[k] = v; } };
+  H.doc.querySelector = function (s) { return s === '.cond-prov' ? pp : null; };
+  H.ev("editarFila('interior|colchones','estado','Malo')");
+  ok('cada marca repinta la cifra: Malo en colchones = «Condición provisional: 50,0 · 2 de 25 evaluados · 1 N/A», banda ámbar', t.textContent === 'Condición provisional: 50,0 · 2 de 25 evaluados · 1 N/A' && at['data-banda'] === 'ambar', t.textContent + ' ' + at['data-banda']);
+  t.textContent = ''; H.ev("editarFila('interior|colchones','texto_1','Hundido')");
+  ok('escribir una observación no recalcula', t.textContent === '');
+  var caja = H.g('comoSeCalcula'); caja.hidden = true; var b = { attrs: {}, setAttribute: function (k, v) { this.attrs[k] = v; } };
+  H.ctx.alternarComoCalc(b);
+  ok('«¿Cómo se calcula?» abre la caja y marca aria-expanded', caja.hidden === false && b.attrs['aria-expanded'] === 'true');
+  H.ctx.alternarComoCalc(b);
+  ok('otro toque la cierra', caja.hidden === true && b.attrs['aria-expanded'] === 'false');
+  var u = { hidden: true }, bq = { parentNode: { querySelector: function () { return u; } }, attrs: {}, setAttribute: function (k, v) { this.attrs[k] = v; } };
+  H.ctx.alternarAyuda(bq);
+  ok('el «?» abre sus tres ejemplos', u.hidden === false && bq.attrs['aria-expanded'] === 'true');
+  });
+  await parte(async function () {
+  console.log('13.3 v5 integración: Enviar = UN solo PUT con estado, enviado_at, enviado_por, revision e historial; Reabrir igual');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })] }) });
+  await H.ev('iniciar()');
+  i = H.S.marca(); await H.ev('enviarInforme()'); c = H.S.desde(i); registro(H, i, 'Enviar v5');
+  var puts = c.filter(function (x) { return x.relay === 'PUT' && x.table === 'TaInformeTemporada'; }), f = H.S.db.TaInformeTemporada[0];
+  ok('lectura de la cabecera y UN solo PUT de la cabecera', puts.length === 1 && c.map(function (x) { return x.relay || 'GET'; }).join() === 'GET,PUT' && c[0].where === 'informe_id=9', c.map(function (x) { return H.S.texto(x); }).join(' | '));
+  ok('el PUT lleva estado enviado, enviado_at, enviado_por, revision 1 y la línea del historial', puts[0].body.estado === 'enviado' && /^\d{4}-\d\d-\d\dT/.test(puts[0].body.enviado_at) && puts[0].body.enviado_por === 'Ana Admin' && puts[0].body.revision === 1 && /^\d\d\/\d\d\/\d{4} \d\d:\d\d enviado por Ana Admin \(rev 1\)$/.test(puts[0].body.historial), JSON.stringify(puts[0].body));
+  ok('Caspio y la página quedan iguales (estado, revision, historial)', f.estado === 'enviado' && f.revision === 1 && H.ev('INFORME.estado') === 'enviado' && H.ev('INFORME.revision') === 1 && H.ev('INFORME.historial') === f.historial);
+  ok('la página repinta el historial con la línea', H.g('main').innerHTML.indexOf('enviado por Ana Admin (rev 1)') > 0 && /Revisión actual: 1/.test(H.g('main').innerHTML));
+  i = H.S.marca(); await H.ev('reabrirInforme()'); c = H.S.desde(i);
+  puts = c.filter(function (x) { return x.relay === 'PUT'; });
+  ok('Reabrir: lectura y UN solo PUT con estado borrador, enviado_at null y «reabierto por … (rev 1)»; revision sigue en 1', puts.length === 1 && puts[0].body.estado === 'borrador' && puts[0].body.enviado_at === null && /reabierto por Ana Admin \(rev 1\)$/.test(puts[0].body.historial) && !('revision' in puts[0].body) && f.revision === 1 && f.estado === 'borrador' && H.ev('INFORME.estado') === 'borrador', JSON.stringify(puts[0] && puts[0].body));
+  await H.ev('enviarInforme()');
+  ok('segundo envío = rev 2 y tres líneas', f.revision === 2 && f.estado === 'enviado' && f.historial.split('\n').length === 3 && /enviado por Ana Admin \(rev 2\)$/.test(f.historial), f.historial);
+  });
+  await parte(async function () {
+  console.log('13.4 v5 integración: si el único PUT falla, el informe sigue en borrador sin nada a medias y Enviar sigue para reintentar');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })] }) });
+  await H.ev('iniciar()');
+  H.S.falla(function (x) { return x.relay === 'PUT' && x.table === 'TaInformeTemporada'; });
+  await H.ev('enviarInforme()');
+  var f = H.S.db.TaInformeTemporada[0];
+  ok('aviso «No guardado», Caspio sin estado enviado, sin revision ni historial', /No guardado/.test(H.g('toast').textContent) && f.estado === 'borrador' && f.revision === undefined && f.historial === undefined && H.ev('INFORME.estado') === 'borrador', H.g('toast').textContent + ' ' + JSON.stringify(f));
+  ok('el botón Enviar sigue a la vista', H.g('bEnviar').hidden === false);
+  await H.ev('enviarInforme()');
+  ok('el reintento envía con rev 1 y una sola línea', f.estado === 'enviado' && f.revision === 1 && f.historial.split('\n').length === 1);
+  });
+  await parte(async function () {
+  console.log('13.5 v5 integración: la hoja en papel (hojaV5) en las cuatro filas; un informe enviado en solo lectura enseña esas líneas');
+  H = pagina({ rol: 'staff', email: 'vm@3villas.com', db: baseDb({ TaInformeTemporada: [informe9({ estado: 'enviado', estado_general: 'Bueno', updated_at: '2026-10-27T18:20:00' })], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'exterior', clave: 'piscina', na: true, na_motivo: 'sin piscina' },
+    { linea_id: 2, informe_id: 9, seccion: 'seguridad', clave: 'instalacion_electrica', estado: 'Malo', peligro: true, peligro_texto: 'Cable pelado junto a la ducha' },
+    { linea_id: 3, informe_id: 9, seccion: 'resumen', clave: 'accion_1', texto_1: 'Cambiar el cuadro eléctrico', coste: '2000-10000' },
+    { linea_id: 4, informe_id: 9, seccion: 'estancia', clave: 'cocina', texto_1: 'Grifo', texto_2: 'Cambiar grifo', coste: '<500' },
+    { linea_id: 5, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Gresite', clave_ref: 'piscina' }] }) });
+  await H.ev('iniciar()'); var mh = H.g('main').innerHTML;
+  ok('elemento N/A: «N/A: sin piscina» en la celda de observaciones', /<td class="c-obs"[\s\S]*<div class="h-v5 h-na">N\/A: sin piscina<\/div><\/td><\/tr>/.test(filaDe(mh, 'exterior|piscina')));
+  ok('elemento con peligro: «⚠ Cable pelado junto a la ducha»', /<div class="h-v5 h-peligro">⚠ Cable pelado junto a la ducha<\/div><\/td><\/tr>/.test(filaDe(mh, 'seguridad|instalacion_electrica')));
+  ok('actuación: «Coste estimado: 2.000 a 10.000 €» en la celda de la actuación', /data-l="Actuación prioritaria">[\s\S]*<div class="h-v5 h-coste">Coste estimado: 2\.000 a 10\.000 €<\/div><\/td><td class="c-txt" data-l="Motivo/.test(filaDe(mh, 'resumen|accion_1')));
+  ok('estancia: «Coste estimado: menos de 500 €» tras la acción recomendada', /data-l="Acción recomendada">[\s\S]*<div class="h-v5 h-coste">Coste estimado: menos de 500 €<\/div><\/td><td class="c-pri">/.test(filaDe(mh, 'estancia|cocina')));
+  ok('foto: «Se refiere a: Piscina …» bajo el pie', /<div class="foto" data-k="foto\|foto_1">[\s\S]*class="in pie"[\s\S]*<div class="h-v5 h-ref">Se refiere a: Piscina/.test(mh));
+  ok('filas sin datos v5: ninguna línea .h-v5', !/h-v5/.test(filaDe(mh, 'interior|pintura')) && !/h-v5/.test(filaDe(mh, 'resumen|accion_2')));
+  ok('solo lectura: la hoja lleva la clase solo (las líneas se ven en pantalla en lugar de los controles)', /<div class="hoja solo">/.test(mh));
+  ok('enviado antes de la v5 (historial vacío): «Historial no disponible antes de la v5» y el último guardado con su fecha', /Historial no disponible antes de la v5/.test(mh) && /Último guardado: 27\/10\/2026 18:20/.test(mh));
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado: 'enviado', estado_general: 'Bueno' })] }) });
+  await H.ev('iniciar()');
+  ok('admin con un informe enviado: editable, sin la clase solo', /<div class="hoja">/.test(H.g('main').innerHTML));
+  });
+  await parte(async function () {
+  console.log('13.6 v5 integración: estilos (pantalla, solo lectura, móvil, papel)');
+  ok('pantalla: estilos de la condición, la caja, el historial y el «?»', ['.cond-prov{', '.como-calc{', '.como-calc-caja{', '.historial{', '.ayuda{', '.ayuda-q{', '.ayuda-box{', '.ayuda-bueno b{', '.ayuda-regular b{', '.ayuda-malo b{'].every(function (x) { return CODIGO.indexOf(x) > 0; }));
+  ok('solo lectura: .hoja.solo .h-v5 se ve y los controles nuevos no', /\.hoja\.solo \.h-v5\{display:block\}/.test(CODIGO) && /\.hoja\.solo \.na-caja,\.hoja\.solo label\.peligro,\.hoja\.solo \.peligro-caja,\.hoja\.solo label\.coste,\.hoja\.solo label\.f-ref\{display:none!important\}/.test(CODIGO));
+  ok('móvil: la etiqueta ⚠ Peligro con 44 px de alto, N/A de 12 px en su casilla, «?» de 32 px', /label\.peligro\{[^}]*min-height:44px/.test(MOVIL) && /\.c-st \.st\[data-v="N\/A"\]\{font-size:12px\}/.test(MOVIL) && /\.ayuda-q\{width:32px;height:32px/.test(MOVIL));
+  ok('papel: sin las etiquetas de los controles nuevos ni las ayudas; .h-v5 sale', /label\.peligro,label\.coste,label\.f-ref,\.na-caja,\.peligro-caja,\.ayuda,\.como-calc,\.como-calc-caja\{display:none!important\}/.test(PRINT) && /\.h-v5\{display:block\}/.test(PRINT));
   });
 }

@@ -11,6 +11,14 @@ function scriptPrincipal(src) {
   throw new Error('no encuentro el script principal');
 }
 
+/* Integración v5: los <script src> locales de la página (p. ej. informe-temporada-historial.js?v=5), en su orden;
+   auth.js, nav.js y nav-component.js no: el arnés los finge. cargar() los ejecuta antes del script principal solo con opts.scripts. */
+function scriptsLocales(src) {
+  var re = /<script src="([^"?]+)(?:\?[^"]*)?"><\/script>/g, m, out = [];
+  while ((m = re.exec(src))) if (['auth.js', 'nav.js', 'nav-component.js'].indexOf(m[1]) < 0) out.push(m[1]);
+  return out;
+}
+
 function resp(status, text) {
   return { ok: status >= 200 && status < 300, status: status, text: function () { return Promise.resolve(text); }, json: function () { return Promise.resolve(JSON.parse(text)); } };
 }
@@ -85,7 +93,7 @@ function elemento(id) {
   return e;
 }
 
-/* opts: archivo, db, rol, email, nombre, search, ahora (Date), almacen (objeto de localStorage) */
+/* opts: archivo, db, rol, email, nombre, search, ahora (Date), almacen (objeto de localStorage), scripts (true = carga los <script src> locales) */
 function cargar(opts) {
   var src = fs.readFileSync(opts.archivo, 'utf8');
   var S = servidor(opts.db || {});
@@ -125,6 +133,7 @@ function cargar(opts) {
   };
   vm.createContext(ctx);
   ctx.window = vm.runInContext('this', ctx);
+  if (opts.scripts) scriptsLocales(src).forEach(function (f) { vm.runInContext(fs.readFileSync(require('path').join(require('path').dirname(opts.archivo), f), 'utf8'), ctx, { filename: f }); });
   vm.runInContext(scriptPrincipal(src), ctx, { filename: opts.archivo });
   var H = {
     ctx: ctx, S: S, els: els, timers: timers, log: log, almacen: almacen, src: src,
@@ -141,4 +150,4 @@ function cargar(opts) {
   return H;
 }
 
-module.exports = { cargar: cargar, servidor: servidor, filtra: filtra, scriptPrincipal: scriptPrincipal };
+module.exports = { cargar: cargar, servidor: servidor, filtra: filtra, scriptPrincipal: scriptPrincipal, scriptsLocales: scriptsLocales };
