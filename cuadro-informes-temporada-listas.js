@@ -236,7 +236,9 @@
       sin: 'Actuaciones sin prioridad', sindetalle: 'Actuaciones sin detalle (falta motivo o prioridad)' };
     var filas = filasObras(casas.filter(enviada), f), borr = filasObras(casas.filter(function (c) { return c.estado === 'borrador'; }), f).length;
     var hay = casas.filter(enviada).some(function (c) { return acciones(c).length; });
-    return L(T[p] || 'Actuaciones', 'actuaciones', OBRA_COLS, filas,
+    var fu = lw(f.fuente), extra = (fu === 'resumen' || fu === 'estancia' ? ' · origen ' + (fu === 'resumen' ? 'Resumen' : 'Estancia') : '')
+      + (p !== 'sindetalle' && f.sindetalle && f.sindetalle !== '0' ? ' · sin detalle' : '');   /* ronda de arreglos 1: los filtros en el título (cabecera de impresión) */
+    return L((T[p] || 'Actuaciones') + extra, 'actuaciones', OBRA_COLS, filas,
       !hay ? 'Ninguna actuación en los informes enviados.' : 'Ninguna actuación con estos filtros en los informes enviados. Quita un filtro.',
       { nota: NOTA_OBRAS, enBorradores: borr });
   }

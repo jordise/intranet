@@ -174,8 +174,17 @@
       return '<div class="uso">Uso interno · dirección</div>Temporada ' + esc(t) + ' · ' + esc((c && c.villa) || info.titulo || 'Casa')
         + ' · VM ' + esc((c && c.vm) || '—') + ' · ' + estado;
     }
-    var partes = ['Temporada ' + t, 'VM: ' + (route.vm ? (info.vmNombre || route.vm) : 'todos'), 'Informes enviados'];
-    if (/^lista:/.test(String(route.v || '')) && info.titulo) partes.push(info.titulo);
+    var v = String(route.v || ''), partes = ['Temporada ' + t, 'VM: ' + (route.vm ? (info.vmNombre || route.vm) : 'todos')];
+    if (!/^lista:estado(:|$)/.test(v)) partes.push('Informes enviados');   /* las listas de estado cuentan también borradores y casas sin informe */
+    if (!v) {   /* ronda de arreglos 1: los filtros de las obras del cuadro (diseño punto 15) */
+      var OP = { alta: 'prioridad Alto', media: 'prioridad Medio', baja: 'prioridad Bajo', sin: 'sin prioridad' }, OF = { resumen: 'origen Resumen', estancia: 'origen Estancia' };
+      if (OP[route.op]) partes.push('obras: ' + OP[route.op]);
+      if (OF[route.of]) partes.push(OF[route.of]);
+      if (String(route.od) === '1') partes.push('sin detalle');
+      if (route.oq) partes.push('búsqueda de obras «' + route.oq + '»');
+      if (String(route.og) === '1') partes.push('obras agrupadas por casa');
+    }
+    if (/^lista:/.test(v) && info.titulo) partes.push(info.titulo);
     if (route.q) partes.push('búsqueda «' + route.q + '»');
     if (String(route.g) === '1') partes.push('agrupado por casa');
     return esc(partes.join(' · '));

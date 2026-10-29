@@ -271,6 +271,12 @@ function casa(o) {
   ok('casa sin datos: "Uso interno" y "Sin informe", sin error', phs.indexOf('Uso interno · dirección') >= 0 && phs.indexOf('Sin informe') >= 0, phs);
   ok('una búsqueda con < > va escapada', X.printHeader({ t: '2026', v: 'lista:obras', q: '<img>' }).indexOf('&lt;img&gt;') >= 0);
   ok('sin ruta no rompe', typeof safe(function () { return X.printHeader(null); }) === 'string');
+  /* Ronda de arreglos 1: los filtros de obras del cuadro en la cabecera; "Informes enviados" solo donde la vista cuenta enviados */
+  var pf = X.printHeader({ t: '2026', vm: '', v: '', op: 'alta', of: 'estancia', od: '1', oq: 'grifo', og: '1' });
+  ok('cuadro con filtros de obras: los nombra', pf === 'Temporada 2026 · VM: todos · Informes enviados · obras: prioridad Alto · origen Estancia · sin detalle · búsqueda de obras «grifo» · obras agrupadas por casa', pf);
+  ok('obras sin prioridad: "obras: sin prioridad"', X.printHeader({ t: '2026', v: '', op: 'sin' }).indexOf('obras: sin prioridad') >= 0);
+  var pb = X.printHeader({ t: '2026', vm: '', v: 'lista:estado:borrador' }, { titulo: 'Casas con informe en borrador' });
+  ok('lista de borradores o de todas las casas: sin "Informes enviados"', pb === 'Temporada 2026 · VM: todos · Casas con informe en borrador' && X.printHeader({ t: '2026', v: 'lista:estado:todas' }, { titulo: 'Todas las casas' }).indexOf('Informes enviados') < 0, pb);
 
   console.log('7. Hoja de estilos: móvil, impresión, foco');
   var css = '';

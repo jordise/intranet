@@ -291,6 +291,8 @@ ok('ruta lista:obras:<prioridad>:<origen> = filtros de prioridad y origen', list
   && lista('obras:alta:estancia').filas.every(function (f) { return f.prioridadClave === 'alta' && f.fuentes.some(function (x) { return x.seccion === 'estancia'; }); }));
 ok('ruta lista:obras:todas:resumen:sindetalle = origen resumen y sin detalle', lista('obras:todas:resumen:sindetalle').filas.length === lista('obras', { fuente: 'resumen', sindetalle: '1' }).filas.length
   && lista('obras:todas:resumen:sindetalle').filas.every(function (f) { return f.detalle && f.fuentes.some(function (x) { return x.seccion === 'resumen'; }); }) && lista('obras:todas:resumen:sindetalle').filas.length < ob.filas.length);
+ok('el título nombra el origen y "sin detalle" (cabecera de impresión de la lista)', lista('obras:alta:estancia').titulo === 'Actuaciones de prioridad Alto · origen Estancia'
+  && lista('obras:todas:resumen:sindetalle').titulo === 'Todas las actuaciones · origen Resumen · sin detalle' && lista('obras:sindetalle').titulo === 'Actuaciones sin detalle (falta motivo o prioridad)', lista('obras:todas:resumen:sindetalle').titulo);
 var cNa = { villaid: 2, villa: 'Con N/A', vm: '', vmId: '', informe_id: 2, estado: 'enviado', score: {}, flags: {}, acciones: [],
   lineas: [{ seccion: 'interior', clave: 'sofas', estado: '', na: true, texto_1: 'No hay sofás' }, { seccion: 'interior', clave: 'menaje', estado: 'Bueno', na: 'x' }] };
 var mNa = L.listas('mapa', { partes: ['sofas', 'na'] }, [cNa], null);

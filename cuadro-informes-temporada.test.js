@@ -678,7 +678,7 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ok('14.10 la fila de obra lleva los filtros en from (lista:obras:baja:resumen) y el orden de la tabla en vs', /from=lista:obras:baja:resumen/.test(dest) && /vs=media:desc/.test(dest), dest);
     ir(H, dest); await H.espera(40);
     var C = H.g('cuerpo').innerHTML;
-    ok('14.10 anterior / siguiente por las 9 obras Bajo filtradas, no por todas', / de 9 en «Actuaciones de prioridad Bajo»/.test(C), (C.match(/casa \d+ de \d+ en «[^»]*»/) || [])[0]);
+    ok('14.10 anterior / siguiente por las 9 obras Bajo filtradas, no por todas', / de 9 en «Actuaciones de prioridad Bajo · origen Resumen»/.test(C), (C.match(/casa \d+ de \d+ en «[^»]*»/) || [])[0]);
     var at = C.match(/<a class="atras" href="([^"]+)"/), lista = at ? at[1].replace(/&amp;/g, '&') : '';
     ir(H, lista);
     var vuelta = (H.g('cuerpo').innerHTML.match(/<a class="atras" href="([^"]+)"/) || [])[1] || '';
