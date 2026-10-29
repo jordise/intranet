@@ -129,17 +129,19 @@
     }).join('') + '<th class="abr"></th></tr></thead>';
   }
 
-  /* Chips de obras: lista:obras:<prioridad>[:resumen|estancia][:sindetalle] (ronda de arreglos 1: grupo Origen, como el nivel 1) */
+  /* Chips de obras: lista:obras:<prioridad>[:resumen|estancia][:sindetalle] (ronda de arreglos 1: grupo Origen, como el nivel 1).
+     Ronda de arreglos 2: «Sin detalle» es un interruptor (encendido = sufijo :sindetalle; el clic lo quita), nunca una prioridad;
+     la ruta del cuadro lista:obras:sindetalle se lee como Todas + Sin detalle encendido */
   function chipsObrasHtml(route) {
-    var p = tipoDe(route).split(':'), act = p[1] || 'todas', ex = p.slice(2);
-    var fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0] || '', sd = ex.indexOf('sindetalle') >= 0 ? ':sindetalle' : '';
-    var ruta = function (pri, f) { return 'lista:obras:' + pri + (f ? ':' + f : '') + sd; };
-    var chip = function (on, v, t) { return '<a class="chip' + (on ? ' on' : '') + '" href="' + esc(href(route, { v: v }, ['q', 'g', 's'])) + '" aria-pressed="' + on + '">' + t + '</a>'; };
+    var p = tipoDe(route).split(':'), act = p[1] === 'sindetalle' ? 'todas' : (p[1] || 'todas'), ex = p.slice(2);
+    var fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0] || '', sdOn = p[1] === 'sindetalle' || ex.indexOf('sindetalle') >= 0, sd = sdOn ? ':sindetalle' : '';
+    var ruta = function (pri, f, d) { return 'lista:obras:' + pri + (f ? ':' + f : '') + (d === undefined ? sd : d); };
+    var chip = function (on, v, t, cls) { return '<a class="' + (cls || '') + 'chip' + (on ? ' on' : '') + '" href="' + esc(href(route, { v: v }, ['q', 'g', 's'])) + '" aria-pressed="' + on + '">' + t + '</a>'; };
     var ch = function (val, t) { return chip(act === val, ruta(val, fu), t); };
     var chO = function (val, t) { return chip(fu === val, ruta(act, val), t); };
     return '<div class="herr"><div class="grupo"><span>Prioridad</span>' + ch('todas', 'Todas') + ch('alta', 'Alto') + ch('media', 'Medio') + ch('baja', 'Bajo') + ch('sin', 'Sin prioridad') + '</div>'
       + '<div class="grupo"><span>Origen</span>' + chO('', 'Todos') + chO('resumen', 'Resumen') + chO('estancia', 'Estancia') + '</div>'
-      + '<div class="grupo">' + ch('sindetalle', 'Sin detalle') + '</div>'
+      + '<div class="grupo">' + chip(sdOn, ruta(act, fu, sdOn ? '' : ':sindetalle'), (sdOn ? '✓ ' : '') + 'Sin detalle', 'toggle ') + '</div>'
       + '<a class="toggle chip' + (route.g ? ' on' : '') + '" href="' + esc(href(route, { g: route.g ? '' : '1' }, ['v', 's', 'q'])) + '" aria-pressed="' + !!route.g + '">' + (route.g ? '✓ ' : '') + 'Agrupar por casa</a></div>';
   }
 

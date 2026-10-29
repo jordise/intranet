@@ -152,7 +152,7 @@ ok('obras: cuenta en actuaciones', ho.indexOf('4 actuaciones') >= 0);
 ok('obras: orígenes unidos con +', ho.indexOf('Resumen 1 + Baño 1') >= 0);
 ok('obras: prioridad como en el formulario (Alto) y «sin prioridad»', ho.indexOf('class="pri alto">Alto<') >= 0 && ho.indexOf('class="pri sin">sin prioridad<') >= 0, ho);
 ok('obras: coste «—» hasta la v5', ho.indexOf('>—<') >= 0);
-ok('obras: chips de prioridad y «Agrupar por casa»', ho.indexOf('v=lista:obras:media') >= 0 && ho.indexOf('v=lista:obras:sindetalle') >= 0 && ho.indexOf('Agrupar por casa') >= 0);
+ok('obras: chips de prioridad y «Agrupar por casa» (ronda 2: «Sin detalle» desde Alto = lista:obras:alta:sindetalle)', ho.indexOf('v=lista:obras:media') >= 0 && ho.indexOf('v=lista:obras:alta:sindetalle') >= 0 && ho.indexOf('Agrupar por casa') >= 0);
 ok('obras: la chip activa marcada', /class="chip on"[^>]*aria-pressed="true"[^>]*>Alto</.test(ho), (ho.match(/<a class="chip[^>]*>Alto<\/a>/) || [])[0]);
 var hg = V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:todas&g=1'));
 ok('agrupar: una fila de grupo por casa con su cuenta', cuenta(hg, 'class="grp"') === 2 && hg.indexOf('Buganvilla · 2 actuaciones') >= 0, hg);
@@ -315,6 +315,17 @@ cRes.acciones = SC.acciones(cRes.lineas);
 var hRes = WS.Vistas.casaHtml(cRes, null, rc, null), accR = (hRes.split('<h3>Actuaciones')[1] || '').split('<h3>')[0];
 ok('casa: el resumen con motivo y Alta sale como actuación «Sin texto (Resumen 2)» bajo Alto, origen Resumen 2', accR.indexOf('Sin texto (Resumen 2)') >= 0 && accR.indexOf('Riesgo de caída en la escalera') >= 0 && accR.indexOf('Origen: Resumen 2') >= 0 && /grupo-t">Alto</.test(accR) && accR.indexOf('Ninguna actuación registrada') < 0, accR.slice(0, 300));
 ok('casa: «Malo sin actuación: 0 · … 1 actuación», sin «ninguna actuación registrada»', hRes.indexOf('Malo sin actuación: 0 ·') >= 0 && hRes.indexOf('ninguna actuación registrada') < 0, (hRes.match(/Malo sin actuación[^<]*/) || [])[0]);
+
+function chipSd(h) { return (h.match(/<a class="[^"]*chip[^"]*"[^>]*>(✓ )?Sin detalle<\/a>/) || [''])[0].replace(/&amp;/g, '&'); }
+var sdOff = chipSd(V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:alta')));
+ok('«Sin detalle» apagado: interruptor que añade :sindetalle y guarda la prioridad (alta)', /aria-pressed="false"/.test(sdOff) && /v=lista:obras:alta:sindetalle[&"]/.test(sdOff) && sdOff.indexOf('✓') < 0, sdOff);
+var hSd = V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:todas:sindetalle')), sdOn = chipSd(hSd), hrSd = (hSd.match(/href="[^"]*"/g) || []).join(' ').replace(/&amp;/g, '&');
+ok('«Sin detalle» encendido (casa abierta desde el nivel 1): ✓, aria-pressed y el clic lo quita (lista:obras:todas)', /aria-pressed="true"/.test(sdOn) && sdOn.indexOf('✓ Sin detalle') >= 0 && /v=lista:obras:todas[&"]/.test(sdOn), sdOn);
+ok('con «Sin detalle» encendido: «Todas» encendida y las prioridades guardan :sindetalle; nunca sindetalle:sindetalle ni como prioridad', /class="chip on"[^>]*>Todas</.test(hSd) && hrSd.indexOf('v=lista:obras:media:sindetalle') >= 0 && hrSd.indexOf('sindetalle:sindetalle') < 0 && !/obras:sindetalle[:&]/.test(hrSd), hrSd.slice(0, 400));
+var hLeg = V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:sindetalle')), sdLeg = chipSd(hLeg);
+ok('la ruta del cuadro lista:obras:sindetalle = Todas + «Sin detalle» encendido; el clic lo quita', /aria-pressed="true"/.test(sdLeg) && /v=lista:obras:todas[&"]/.test(sdLeg) && /class="chip on"[^>]*>Todas</.test(hLeg) && hLeg.replace(/&amp;/g, '&').indexOf('v=lista:obras:baja:sindetalle') >= 0, sdLeg);
+var sdOr = chipSd(V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:media:estancia:sindetalle')));
+ok('con origen: el interruptor guarda prioridad y origen (lista:obras:media:estancia)', /aria-pressed="true"/.test(sdOr) && /v=lista:obras:media:estancia[&"]/.test(sdOr), sdOr);
 
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);
