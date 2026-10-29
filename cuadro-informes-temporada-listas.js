@@ -51,12 +51,19 @@
   /* Prioridad guardada Alta/Media/Baja (o Alto/Medio/Bajo de la v1) -> 'alta' | 'media' | 'baja' | '' */
   function prioridadClave(p) { var s = lw(p), m = { alto: 'alta', medio: 'media', bajo: 'baja' }; s = m[s] || s; return RANGO[s] ? s : ''; }
 
-  /* Marcas de una casa: clave -> {marca, obs}; una línea por elemento (gana el linea_id más alto); caché por objeto */
+  /* Marcas de una casa: clave -> {marca, obs}; con InformeScore.marcas la regla de la puntuación (fila repetida = la última en orden,
+     N/A estricto = 'na'); sin él, una línea por elemento (gana el linea_id más alto); caché por objeto */
   var CACHE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   function marcasDe(casa) {
     if (!casa) return {};
     if (CACHE && CACHE.has(casa)) return CACHE.get(casa);
-    var sec = {}, out = {}, id = {};
+    var sec = {}, out = {}, id = {}, S = IS();
+    if (typeof S.marcas === 'function') {
+      var pc = S.marcas(casa.lineas || []).porClave;
+      Object.keys(pc).forEach(function (k) { out[k] = { marca: pc[k].marca, obs: pc[k].linea ? tr(pc[k].linea.texto_1) : '' }; });
+      if (CACHE) CACHE.set(casa, out);
+      return out;
+    }
     defs().forEach(function (e) { sec[e.seccion + '|' + e.clave] = e.clave; out[e.clave] = { marca: '', obs: '' }; });
     (casa.lineas || []).forEach(function (l) {
       var k = l && sec[l.seccion + '|' + l.clave]; if (!k) return;
@@ -226,7 +233,7 @@
   function comentarios(casas, sub, soloReview) {
     var o = soloReview ? 'review' : lw(sub), filas = [];
     casas.filter(enviada).slice().sort(porNombre).forEach(function (c) {
-      (c.lineas || []).filter(function (l) { return l.seccion === 'huesped' && tr(l.texto_1); })
+      (c.lineas || []).filter(function (l) { var S = IS(); return typeof S.esComentario === 'function' ? S.esComentario(l) : l.seccion === 'huesped' && (tr(l.texto_1) || tr(l.texto_2)); })
         .sort(function (a, b) { return (parseInt(a.orden, 10) || 0) - (parseInt(b.orden, 10) || 0); })
         .forEach(function (l) {
           var or = tr(l.estado);

@@ -39,9 +39,9 @@
   /* Prioridad guardada Alta / Media / Baja (Alto / Medio / Bajo cuentan igual, como prioridadGuardar del formulario); '' = sin prioridad */
   function pri(a) { var s = lw(a && a.prioridad); return { alta: 'Alta', media: 'Media', baja: 'Baja', alto: 'Alta', medio: 'Media', bajo: 'Baja' }[s] || ''; }
   function sinDetalle(a) { return !tr(a && a.motivo) || !pri(a); }
-  /* Comentario de huésped con origen Review (columna estado) y algún texto */
-  function esReview(l) { return !!l && l.seccion === 'huesped' && lw(l.estado) === 'review' && !!(tr(l.texto_1) || tr(l.texto_2)); }
-  function esNA(v) { if (v === true || v === 1) return true; var s = lw(v); return !!s && s !== '0' && s !== 'false' && s !== 'no'; }
+  /* Comentario de huésped con origen Review (columna estado) y algún texto: la regla de InformeScore.esComentario (cuadro, lista y casa) */
+  function esComentario(l) { var S = sc(); return typeof S.esComentario === 'function' ? S.esComentario(l) : !!l && l.seccion === 'huesped' && !!(tr(l.texto_1) || tr(l.texto_2)); }
+  function esReview(l) { return esComentario(l) && lw(l.estado) === 'review'; }
   function esFinal(c) { return !!(c && c.score && c.score.completo === true && c.score.puntuacion != null); }
   function enviadas(casas) { return (casas || []).filter(function (c) { return c.estado === 'enviado'; }); }
   function flat(casas, campo) { return [].concat.apply([], (casas || []).map(function (c) { return c[campo] || []; })); }
@@ -95,15 +95,22 @@
     if (!vm) return casas || [];
     return (casas || []).filter(function (c) { return vm === SIN_VM ? !c.vmId : c.vmId === vm; });
   }
-  /* Marca de cada uno de los 26 elementos: bueno | regular | malo | na | '' (sin marcar); fila repetida: gana el linea_id más alto */
+  /* Marca de cada uno de los 26 elementos: bueno | regular | malo | na | '' (sin marcar). Con InformeScore.marcas (ronda de arreglos 1):
+     la misma regla que la puntuación (fila repetida = la última en orden, N/A estricto); sin él, la regla antigua (linea_id más alto) */
   function marcasDe(casa) {
-    var def = sc().elementosDef(), es = {}, mejor = {}, out = {};
+    var S = sc();
+    if (typeof S.marcas === 'function') {
+      var pc = S.marcas((casa && casa.lineas) || []).porClave, r = {};
+      Object.keys(pc).forEach(function (k) { r[k] = pc[k].marca; });
+      return r;
+    }
+    var def = S.elementosDef(), es = {}, mejor = {}, out = {};
     def.forEach(function (e) { es[e.seccion + '|' + e.clave] = e.clave; });
     ((casa && casa.lineas) || []).forEach(function (l) {
       var k = l && es[l.seccion + '|' + l.clave]; if (!k) return;
       var p = mejor[k]; if (p && (idNum(p.linea_id) || 0) >= (idNum(l.linea_id) || 0)) return; mejor[k] = l;
     });
-    def.forEach(function (e) { var l = mejor[e.clave], m = l ? (esNA(l.na) ? 'na' : lw(l.estado)) : ''; out[e.clave] = ['bueno', 'regular', 'malo', 'na'].indexOf(m) >= 0 ? m : ''; });
+    def.forEach(function (e) { var l = mejor[e.clave], m = l ? (l.na === true || l.na === 1 ? 'na' : lw(l.estado)) : ''; out[e.clave] = ['bueno', 'regular', 'malo', 'na'].indexOf(m) >= 0 ? m : ''; });
     return out;
   }
   function malosDe(c) { var m = marcasDe(c); return Object.keys(m).filter(function (k) { return m[k] === 'malo'; }).length; }

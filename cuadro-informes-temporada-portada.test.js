@@ -310,5 +310,32 @@ if (Listas && FIX && typeof Listas.listas === 'function') {
   console.log('  OMITIDA  acuerdo cifra = filas: falta ' + (!Listas ? 'cuadro-informes-temporada-listas.js' : '') + (!Listas && !FIX ? ' y ' : '') + (!FIX ? 'cuadro-informes-temporada-fixtures.js' : '') + ' (lane D); corre sola cuando el integrador une las lanes');
 }
 
+console.log('10. Ronda de arreglos 1: estancia con solo la acción, comentario con solo el detalle, filas repetidas y N/A con la regla de la puntuación');
+if (Score && typeof Score.marcas === 'function') {
+  var V10 = [{ villaid: 201, Name: 'Ca na Campana', KeyHolder_person: '1' }, { villaid: 202, Name: 'Sa Repetida', KeyHolder_person: '1' }, { villaid: 203, Name: 'Es Na', KeyHolder_person: '2' }];
+  var I10 = [inf(2010, 201, 'enviado', 'Regular'), inf(2020, 202, 'enviado', 'Bueno'), inf(2030, 203, 'enviado', 'Bueno')];
+  var L10 = [].concat(
+    marcas(2010, function (k) { return k === 'pintura' ? 'Malo' : 'Bueno'; }),
+    [linea(2010, 'estancia', 'cocina', '', 'Cambiar campana', 'Alta'), linea(2010, 'huesped', 'tema_1', '', 'Poner cortinas opacas', '', 'Review')],
+    [{ linea_id: 9000, informe_id: 2020, seccion: 'interior', clave: 'pintura', estado: 'Bueno', texto_1: '', texto_2: '', prioridad: '', orden: 1 }],
+    [{ linea_id: 10, informe_id: 2020, seccion: 'interior', clave: 'pintura', estado: 'Malo', texto_1: 'paredes', texto_2: '', prioridad: '', orden: 1 }],
+    marcas(2030, function (k) { return k === 'sofas' ? 'Bueno' : null; }).filter(Boolean).map(function (l) { l.na = 'x'; return l; }));
+  var C10 = Portada.construirCasasV3(V10, I10, L10, CONTACTS, USERS, 2026);
+  var T10 = Portada.tilesV3(C10, null), LR10 = {}; Portada.listasRapidas(C10, null).forEach(function (x) { LR10[x.v] = x.n; });
+  ok('estancia con solo "Acción recomendada" (Alta): Obras 1, Alto 1', T10.obras.n === 1 && T10.obras.alta === 1, J(T10.obras));
+  ok('esa casa no sale en "Malo sin actuación" (solo Sa Repetida: Malo y ninguna actuación) y sí en "Requiere atención"', LR10['lista:malosinact'] === 1 && LR10['lista:atencion'] >= 1
+    && (!Listas || Listas.malosinact(C10).filas.map(function (f) { return f.villaid; }).join() === '202') && (!Listas || Listas.atencion(C10).filas.some(function (f) { return f.villaid === 201; })), J(LR10));
+  ok('comentario Review con solo "Detalle / mejora": el cuadro cuenta 1', T10.review.n === 1, J(T10.review));
+  var M10 = {}; Portada.mapaV3(C10).forEach(function (e) { M10[e.clave] = e; });
+  var c202 = C10.filter(function (c) { return c.villaid === 202; })[0];
+  ok('fila repetida: el mapa da la marca que da la puntuación (la última en orden: Malo), no la de linea_id más alto', Portada.marcasDe(c202).pintura === 'malo' && c202.score.error === 'datos', J([Portada.marcasDe(c202).pintura, c202.score]));
+  ok('na = "x" no es N/A (regla estricta de la puntuación): Es Na cuenta sofás en Bueno', Portada.marcasDe(C10.filter(function (c) { return c.villaid === 203; })[0]).sofas === 'bueno' && M10.sofas.na === 0, J(M10.sofas));
+  if (Listas) {
+    var mal10 = puertas(C10, null, '').filter(function (x) { var n = safe(function () { return filasDe(x.v, C10, null); }); x.lista = n; return n !== x.n; });
+    ok('cada cifra = filas de su lista en este caso (obras, alto, review, malo sin actuación, mapa)', !mal10.length, J(mal10.slice(0, 8)));
+    ok('Listas da la misma marca que el mapa en la fila repetida', Listas.marcasDe(c202).pintura.marca === 'malo' && Listas.marcasDe(c202).pintura.obs === 'paredes', J(Listas.marcasDe(c202).pintura));
+  }
+} else ok('InformeScore.marcas (lector compartido) existe', false);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);
