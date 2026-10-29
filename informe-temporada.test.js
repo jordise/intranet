@@ -527,4 +527,182 @@ async function pruebasConFetch() {
   await H.ev('iniciar()'); mh = H.g('main').innerHTML;
   ok('enviado (villa manager): sin hueco vacio, pastilla Enviado, casillas y selects desactivados', !/foto vacia/.test(mh) && /<span class="pill enviado">Enviado<\/span>/.test(mh) && (mh.match(/<button[^>]*class="st[^"]*"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }) && (mh.match(/<select\b[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
   });
+  /* ── 12. v5, carril A (29/10/2026): N/A con motivo, ⚠ Peligro con texto, coste estimado, «Se refiere a:» de la foto ──
+     Columnas de Caspio de CASPIO-COLUMNS.md: na y peligro (Sí/No: true/false), na_motivo, peligro_texto, coste, clave_ref. */
+  var V5 = ['na', 'na_motivo', 'peligro', 'peligro_texto', 'coste', 'clave_ref'];
+  function filaDe(html, k) { return (html.match(new RegExp('<tr[^>]*data-k="' + k.replace('|', '\\|') + '"[\\s\\S]*?</tr>')) || [''])[0]; }
+  function cajaFalsa(k) { return { dataset: { k: k } }; }
+  function pulsa(H, k, campo, v, on) {
+    var b = { disabled: false, dataset: { campo: campo, v: v }, classList: { contains: function (c) { return c === 'on' && !!on; } } };
+    b.closest = function (s) { return s === '.st' ? b : cajaFalsa(k); };
+    return H.ctx.alPulsar({ target: b });
+  }
+  await parte(async function () {
+  console.log('12.1 v5: las dos listas de columnas del guardado llevan las seis columnas nuevas');
+  H = pagina();
+  var L5 = { seccion: 'exterior', clave: 'piscina', orden: 6, estado: '', texto_1: '', texto_2: '', prioridad: '', foto_url: '', na: true, na_motivo: 'sin piscina', peligro: false, peligro_texto: '', coste: '', clave_ref: '' };
+  var p1 = H.ctx.lineaRequest(9, L5), p2 = H.ctx.lineaRequest(9, Object.assign({}, L5, { linea_id: 8 }));
+  ok('POST: las seis columnas nuevas en el cuerpo', V5.every(function (c) { return Object.prototype.hasOwnProperty.call(p1.body, c); }), JSON.stringify(p1.body));
+  ok('PUT: las seis columnas nuevas en el cuerpo', p2.method === 'PUT' && V5.every(function (c) { return Object.prototype.hasOwnProperty.call(p2.body, c); }), JSON.stringify(p2.body));
+  ok('na y peligro van como true / false (columnas Sí/No), nunca texto', p1.body.na === true && p1.body.peligro === false && p2.body.na === true && p2.body.peligro === false);
+  ok('na_motivo con su texto; coste en blanco sigue en blanco (nunca "0")', p1.body.na_motivo === 'sin piscina' && p1.body.coste === '' && p1.body.clave_ref === '');
+  var vieja = H.ctx.lineaRequest(9, { seccion: 'interior', clave: 'pintura', orden: 1, estado: 'Bueno', texto_1: '', texto_2: '', prioridad: '', foto_url: '' });
+  ok('fila sin los campos nuevos (v4 o recien creada): na y peligro false, textos ""', vieja.body.na === false && vieja.body.peligro === false && vieja.body.na_motivo === '' && vieja.body.peligro_texto === '' && vieja.body.coste === '' && vieja.body.clave_ref === '', JSON.stringify(vieja.body));
+  ok('coste y clave_ref con su valor', H.ctx.lineaRequest(9, { seccion: 'resumen', clave: 'accion_1', coste: '500-2000' }).body.coste === '500-2000' && H.ctx.lineaRequest(9, { seccion: 'foto', clave: 'foto_1', clave_ref: 'piscina' }).body.clave_ref === 'piscina');
+  var Ls = H.ctx.lineasDesdeFilas([
+    { linea_id: 1, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '', na: true, na_motivo: 'sin piscina', peligro: null, peligro_texto: null, coste: null, clave_ref: null },
+    { linea_id: 2, informe_id: 9, seccion: 'seguridad', clave: 'instalacion_electrica', estado: 'Malo', peligro: true, peligro_texto: 'cable pelado' },
+    { linea_id: 3, informe_id: 9, seccion: 'resumen', clave: 'accion_1', texto_1: 'Cuadro', coste: '2000-10000' },
+    { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg', clave_ref: 'piscina' },
+    { linea_id: 5, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Bueno' }]);
+  ok('lectura: na true sigue true, peligro null pasa a false', Ls['exterior|piscina'].na === true && Ls['exterior|piscina'].peligro === false && Ls['exterior|piscina'].na_motivo === 'sin piscina');
+  ok('lectura: textos nuevos null pasan a ""', Ls['exterior|piscina'].peligro_texto === '' && Ls['exterior|piscina'].coste === '' && Ls['exterior|piscina'].clave_ref === '');
+  ok('lectura: peligro, coste y clave_ref con su valor', Ls['seguridad|instalacion_electrica'].peligro === true && Ls['seguridad|instalacion_electrica'].peligro_texto === 'cable pelado' && Ls['resumen|accion_1'].coste === '2000-10000' && Ls['foto|foto_1'].clave_ref === 'piscina');
+  ok('lectura: fila de antes de la v5 (sin columnas nuevas): na y peligro false', Ls['interior|pintura'].na === false && Ls['interior|pintura'].peligro === false && Ls['interior|pintura'].na_motivo === '');
+  ok('lectura: "1" y "true" tambien son si', H.ctx.lineasDesdeFilas([{ linea_id: 1, seccion: 'interior', clave: 'menaje', na: '1', peligro: 'true' }])['interior|menaje'].na === true && H.ctx.lineasDesdeFilas([{ linea_id: 1, seccion: 'interior', clave: 'menaje', na: '1', peligro: 'true' }])['interior|menaje'].peligro === true);
+  ok('filaVacia: solo N/A, solo peligro, solo coste o solo clave_ref = fila con datos', [{ na: true }, { peligro: true }, { coste: 'desconocido' }, { clave_ref: 'otra' }, { na_motivo: 'x' }, { peligro_texto: 'x' }].every(function (L) { return H.ctx.filaVacia(L) === false; }));
+  ok('filaVacia: campos nuevos en blanco o false = vacia', H.ctx.filaVacia({ estado: '', texto_1: '', na: false, na_motivo: '', peligro: false, peligro_texto: '', coste: '', clave_ref: '' }) === true);
+  await H.ev('iniciar()'); i = H.S.marca();
+  H.ev("editarFila('exterior|barbacoa','na',true)"); H.ev("editarFila('exterior|barbacoa','na_motivo','no hay')");
+  await guarda(H);
+  c = H.S.desde(i).filter(function (x) { return x.relay === 'POST' && x.table === 'TaInformeTemporadaLineas'; });
+  ok('fila nueva solo con N/A: se guarda (POST con na true y su motivo, estado vacio)', c.length === 1 && c[0].body.na === true && c[0].body.na_motivo === 'no hay' && c[0].body.estado === '', c.length ? JSON.stringify(c[0].body) : 'sin POST');
+  });
+  await parte(async function () {
+  console.log('12.2 v5: N/A excluye Bueno / Regular / Malo y al reves');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [{ linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', orden: 6, estado: 'Bueno', texto_1: '' }] }) });
+  await H.ev('iniciar()');
+  k = 'exterior|piscina';
+  await pulsa(H, k, 'na', 'N/A', false); await H.espera(40);
+  ok('pulsar N/A en una fila con Bueno: na true y estado vacio', H.ev("LINEAS['" + k + "'].na") === true && H.ev("LINEAS['" + k + "'].estado") === '');
+  ok('y se guarda: PUT con na true y estado ""', H.S.db.TaInformeTemporadaLineas[0].na === true && H.S.db.TaInformeTemporadaLineas[0].estado === '');
+  H.ev("editarFila('" + k + "','na_motivo','sin piscina')");
+  await pulsa(H, k, 'estado', 'Regular', false);
+  ok('pulsar Regular en una fila N/A: estado Regular, na false y el motivo se borra', H.ev("LINEAS['" + k + "'].estado") === 'Regular' && H.ev("LINEAS['" + k + "'].na") === false && H.ev("LINEAS['" + k + "'].na_motivo") === '');
+  await pulsa(H, k, 'na', 'N/A', false);
+  await pulsa(H, k, 'na', 'N/A', true); await H.espera(40);
+  ok('pulsar N/A otra vez (ya marcada): na false; el estado sigue vacio', H.ev("LINEAS['" + k + "'].na") === false && H.ev("LINEAS['" + k + "'].estado") === '');
+  ok('nunca na true con estado a la vez', !(H.S.db.TaInformeTemporadaLineas[0].na === true && H.S.db.TaInformeTemporadaLineas[0].estado));
+  var cm = H.ctx.cambiosMarca({ estado: 'Malo', na: false }, 'na', 'N/A');
+  ok('cambiosMarca: N/A = {na: true, estado: ""}', cm.na === true && cm.estado === '' && Object.keys(cm).length === 2, JSON.stringify(cm));
+  cm = H.ctx.cambiosMarca({ estado: '', na: true, na_motivo: 'x' }, 'estado', 'Bueno');
+  ok('cambiosMarca: marca sobre N/A = {estado, na: false, na_motivo: ""}', cm.estado === 'Bueno' && cm.na === false && cm.na_motivo === '', JSON.stringify(cm));
+  cm = H.ctx.cambiosMarca({ estado: 'Bueno', na: false }, 'estado', 'Malo');
+  ok('cambiosMarca: marca sin N/A = solo el estado', cm.estado === 'Malo' && Object.keys(cm).length === 1, JSON.stringify(cm));
+  cm = H.ctx.cambiosMarca({ estado: '', na: true, na_motivo: 'x' }, 'na', '');
+  ok('cambiosMarca: quitar N/A = {na: false, na_motivo: ""}', cm.na === false && cm.na_motivo === '' && cm.estado === undefined, JSON.stringify(cm));
+  });
+  await parte(async function () {
+  console.log('12.3 v5: la fila de elemento en pantalla (N/A, motivo, ⚠ Peligro)');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '', na: true, na_motivo: 'sin piscina' },
+    { linea_id: 2, informe_id: 9, seccion: 'seguridad', clave: 'instalacion_electrica', estado: 'Bueno', peligro: true, peligro_texto: 'enchufe suelto en la terraza' }] }) });
+  await H.ev('iniciar()'); var mh = H.g('main').innerHTML;
+  var fp = filaDe(mh, 'interior|pintura');
+  ok('cuarta marca N/A justo despues de Malo y antes de Observaciones', /data-v="Malo"[\s\S]*?<\/td><td class="c-st c-na"><button type="button" class="st na"[^>]*data-campo="na" data-v="N\/A"[^>]*><span class="cx">☐<\/span> N\/A<\/button><\/td><td class="c-obs"/.test(fp), fp.slice(0, 900));
+  ok('las 26 filas de elemento tienen N/A', (mh.match(/data-campo="na" data-v="N\/A"/g) || []).length === 26);
+  ok('motivo de N/A: caja de una linea oculta hasta elegir N/A, con "p. ej. sin piscina"', /<div class="na-caja" hidden><input class="in na-motivo" data-campo="na_motivo"[^>]*placeholder="p\. ej\. sin piscina"/.test(fp), fp);
+  var fpi = filaDe(mh, 'exterior|piscina');
+  ok('fila N/A: la marca N/A con X, Bueno / Regular / Malo con ☐, el motivo a la vista con su texto', /data-v="N\/A"[^>]*aria-pressed="true"[^>]*><span class="cx">X<\/span> N\/A/.test(fpi) && /class="st on"/.test(fpi) === false && /<div class="na-caja"><input class="in na-motivo" data-campo="na_motivo"[^>]*value="sin piscina"/.test(fpi), fpi);
+  ok('⚠ Peligro: una casilla en cada fila de elemento (26), tambien en Bueno', (mh.match(/<input type="checkbox" class="pel-chk" data-campo="peligro"/g) || []).length === 26 && /⚠ Peligro/.test(fp));
+  ok('texto del peligro oculto hasta marcar la casilla', /<div class="peligro-caja" hidden><input class="in peligro-texto" data-campo="peligro_texto"/.test(fp));
+  var fe = filaDe(mh, 'seguridad|instalacion_electrica');
+  ok('fila con peligro: casilla marcada y el texto a la vista', /data-campo="peligro" checked/.test(fe) && /<div class="peligro-caja"><input class="in peligro-texto" data-campo="peligro_texto"[^>]*value="enchufe suelto en la terraza"/.test(fe) && /data-v="Bueno"[^>]*>X</.test(fe), fe);
+  ok('el peligro va al final de la celda de observaciones (despues de la caja de texto)', /<td class="c-obs"[\s\S]*?<\/textarea><div class="ta-p">[^<]*<\/div><label class="peligro">/.test(fe));
+  ok('cabecera: Observaciones cubre la columna N/A (colspan 2) en las tres tablas', (mh.match(/<th class="c-obs-h" colspan="2">Observaciones \/ acción recomendada<\/th>/g) || []).length === 3);
+  });
+  await parte(async function () {
+  console.log('12.4 v5: coste estimado en las 5 actuaciones y las estancias; «Se refiere a:» en las fotos');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'resumen', clave: 'accion_2', texto_1: 'Cambiar termo', coste: '500-2000' },
+    { linea_id: 2, informe_id: 9, seccion: 'estancia', clave: 'cocina', texto_1: 'Grifo', coste: 'desconocido' },
+    { linea_id: 3, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Gresite', clave_ref: 'piscina' }] }) });
+  await H.ev('iniciar()'); var mh = H.g('main').innerHTML;
+  ok('cinco selects coste en las actuaciones', [1, 2, 3, 4, 5].every(function (n) { return /data-campo="coste"/.test(filaDe(mh, 'resumen|accion_' + n)); }));
+  ok('siete selects coste en las estancias', ['salon', 'cocina', 'dormitorio_principal', 'dormitorio_2', 'bano_1', 'bano_2', 'exterior_piscina'].every(function (e) { return /data-campo="coste"/.test(filaDe(mh, 'estancia|' + e)); }));
+  var f1 = filaDe(mh, 'resumen|accion_1');
+  ok('coste: "Coste estimado:" y — / desconocido / menos de 500 € / 500 a 2.000 € / 2.000 a 10.000 € / más de 10.000 €', /<label class="coste">Coste estimado: <select class="sel vacio" data-campo="coste"><option value="" selected>—<\/option><option value="desconocido">desconocido<\/option><option value="&lt;500">menos de 500 €<\/option><option value="500-2000">500 a 2\.000 €<\/option><option value="2000-10000">2\.000 a 10\.000 €<\/option><option value="10000\+">más de 10\.000 €<\/option><\/select><\/label>/.test(f1), f1);
+  ok('el coste va despues de la actuacion (en su celda), la prioridad sigue en la suya', /data-l="Actuación prioritaria"><textarea[\s\S]*?<\/div><label class="coste">[\s\S]*?<\/label><\/td><td class="c-txt" data-l="Motivo \/ impacto">/.test(f1));
+  ok('coste guardado "500-2000": se ve elegido', /<option value="500-2000" selected>500 a 2\.000 €<\/option>/.test(filaDe(mh, 'resumen|accion_2')));
+  ok('estancia: el coste va despues de la accion recomendada, "desconocido" elegido', /data-l="Acción recomendada"><textarea[\s\S]*?<label class="coste">[\s\S]*?<option value="desconocido" selected>desconocido<\/option>/.test(filaDe(mh, 'estancia|cocina')));
+  var foto = (mh.match(/<div class="foto" data-k="foto\|foto_1">[\s\S]*?class="f-ctl"/) || [''])[0];
+  ok('foto: «Se refiere a:» bajo el pie, con la referencia guardada elegida', /data-campo="texto_1"[\s\S]*?<label class="f-ref">Se refiere a: <select class="sel" data-campo="clave_ref">/.test(foto) && /<option value="piscina" selected>Piscina<\/option>/.test(foto), foto.slice(0, 400));
+  var opts = (foto.match(/<option value="[^"]*"/g) || []).map(function (x) { return x.slice(15, -1); });
+  ok('las opciones: — + 26 elementos + 7 estancias + otra (35)', opts.length === 35 && opts[0] === '' && opts[opts.length - 1] === 'otra' && opts.indexOf('instalacion_electrica') > 0 && opts.indexOf('exterior_piscina') > 0 && opts.indexOf('salon') > 0, opts.length + ': ' + opts.join(','));
+  ok('grupos Interior, Exterior, Seguridad e instalaciones y Estancias', /<optgroup label="Interior">[\s\S]*<optgroup label="Exterior">[\s\S]*<optgroup label="Seguridad e instalaciones">[\s\S]*<optgroup label="Estancias">/.test(foto));
+  ok('el hueco vacio de foto no lleva «Se refiere a:»', !/data-campo="clave_ref"/.test((mh.match(/<div class="foto vacia"[\s\S]*?<\/div><\/div>/) || [''])[0]));
+  ok('el pie sigue aparte de la referencia (texto_1 = pie, clave_ref = referencia)', (foto.match(/data-campo="texto_1"/g) || []).length === 1 && (foto.match(/data-campo="clave_ref"/g) || []).length === 1);
+  var sel = { tagName: 'SELECT', value: '10000+', dataset: { campo: 'coste' }, classList: { toggle: function () {} }, closest: function () { return { dataset: { k: 'estancia|salon' }, querySelector: function () { return null; } }; } };
+  H.ctx.alEscribir({ target: sel });
+  ok('elegir un coste lo apunta en la fila (sucia, guardado programado)', H.ev("LINEAS['estancia|salon'].coste") === '10000+' && H.ev("LINEAS['estancia|salon']._sucio") === true && H.pendientes(1500) === 1);
+  sel = { tagName: 'SELECT', value: 'barbacoa', dataset: { campo: 'clave_ref' }, classList: { toggle: function () {} }, closest: function () { return { dataset: { k: 'foto|foto_1' }, querySelector: function () { return null; } }; } };
+  H.ctx.alEscribir({ target: sel });
+  ok('elegir «Se refiere a:» lo apunta en clave_ref (el pie no cambia)', H.ev("LINEAS['foto|foto_1'].clave_ref") === 'barbacoa' && H.ev("LINEAS['foto|foto_1'].texto_1") === 'Gresite');
+  await guarda(H);
+  ok('y se guardan', H.S.db.TaInformeTemporadaLineas.some(function (r) { return r.clave === 'foto_1' && r.clave_ref === 'barbacoa'; }) && H.S.db.TaInformeTemporadaLineas.some(function (r) { return r.clave === 'salon' && r.coste === '10000+'; }));
+  await H.ev("quitarFoto('foto|foto_1')");
+  ok('Quitar la foto borra tambien su referencia', H.S.db.TaInformeTemporadaLineas.filter(function (r) { return r.clave === 'foto_1'; })[0].clave_ref === '' && H.ev("LINEAS['foto|foto_1'].clave_ref") === '');
+  });
+  await parte(async function () {
+  console.log('12.5 v5: ⚠ Peligro y motivo al escribir; borrador local con los campos nuevos');
+  H = pagina(); await H.ev('iniciar()');
+  var caja = { dataset: { k: 'interior|electrodomesticos' }, querySelector: function () { return null; } };
+  var chk = { dataset: { campo: 'peligro' }, tagName: 'INPUT', type: 'checkbox', checked: true, value: 'on', closest: function () { return caja; } };
+  H.ctx.alEscribir({ target: chk });
+  ok('marcar ⚠ Peligro: peligro true (no "on"), fila sucia, guardado programado', H.ev("LINEAS['interior|electrodomesticos'].peligro") === true && H.ev("LINEAS['interior|electrodomesticos']._sucio") === true && H.pendientes(1500) === 1);
+  var ver = H.ev("LINEAS['interior|electrodomesticos']._ver");
+  H.ctx.alEscribir({ target: chk });
+  ok('el mismo valor otra vez (input y change del mismo toque): no cambia nada', H.ev("LINEAS['interior|electrodomesticos']._ver") === ver);
+  var txt = { dataset: { campo: 'peligro_texto' }, tagName: 'INPUT', value: 'horno da calambre', closest: function () { return caja; } };
+  H.ctx.alEscribir({ target: txt });
+  ok('texto del peligro apuntado', H.ev("LINEAS['interior|electrodomesticos'].peligro_texto") === 'horno da calambre');
+  var b = JSON.parse(H.almacen['informe:12:2026'] || '{}')['interior|electrodomesticos'] || {};
+  ok('borrador local con peligro y su texto', b.peligro === true && b.peligro_texto === 'horno da calambre', JSON.stringify(b));
+  chk.checked = false; H.ctx.alEscribir({ target: chk });
+  ok('desmarcar ⚠ Peligro: peligro false y el texto se borra', H.ev("LINEAS['interior|electrodomesticos'].peligro") === false && H.ev("LINEAS['interior|electrodomesticos'].peligro_texto") === '');
+  ok('el change de una casilla tambien llega a alEscribir', /addEventListener\('change'[\s\S]{0,700}t\.type==='checkbox'&&t\.dataset&&t\.dataset\.campo\)return alEscribir\(e\)/.test(SRC));
+  var alm = { 'informe:12:2026': JSON.stringify({ 'exterior|piscina': { seccion: 'exterior', clave: 'piscina', estado: '', texto_1: '', texto_2: '', prioridad: '', na: true, na_motivo: 'sin piscina' } }) };
+  H = pagina({ almacen: alm, db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [{ linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '' }] }) });
+  await H.ev('iniciar()');
+  ok('borrador con N/A sin guardar: se mezcla (na true, motivo) y queda sucio', H.ev("LINEAS['exterior|piscina'].na") === true && H.ev("LINEAS['exterior|piscina'].na_motivo") === 'sin piscina' && H.ev("LINEAS['exterior|piscina']._sucio") === true);
+  alm = { 'informe:12:2026': JSON.stringify({ 'exterior|piscina': { seccion: 'exterior', clave: 'piscina', estado: '', texto_1: '', texto_2: '', prioridad: '' } }) };
+  H = pagina({ almacen: alm, db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [{ linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '', na: true, na_motivo: 'sin piscina' }] }) });
+  await H.ev('iniciar()');
+  ok('borrador de la v4 (sin campos nuevos) igual a Caspio: no se marca ni borra el N/A guardado', H.ev("LINEAS['exterior|piscina']._sucio") === false && H.ev("LINEAS['exterior|piscina'].na") === true && H.ev("LINEAS['exterior|piscina'].na_motivo") === 'sin piscina');
+  });
+  await parte(async function () {
+  console.log('12.6 v5: Enviar se para con N/A sin motivo o peligro sin texto (y dice cuales)');
+  H = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'exterior', clave: 'piscina', estado: '', na: true, na_motivo: '' },
+    { linea_id: 2, informe_id: 9, seccion: 'exterior', clave: 'barbacoa', estado: '', na: true, na_motivo: '  ' },
+    { linea_id: 3, informe_id: 9, seccion: 'seguridad', clave: 'instalacion_electrica', estado: 'Malo', peligro: true, peligro_texto: '' },
+    { linea_id: 4, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Regular', texto_1: '' }] }) });
+  await H.ev('iniciar()');
+  var f = H.ev('faltasEnvio(LINEAS)');
+  ok('faltasEnvio: N/A sin motivo (tambien solo espacios) y peligro sin texto, en el orden de la hoja', f.na.join() === 'exterior|piscina,exterior|barbacoa' && f.peligro.join() === 'seguridad|instalacion_electrica', JSON.stringify(f));
+  var msg = H.ev('mensajeFaltas(faltasEnvio(LINEAS))');
+  ok('mensaje: "Falta el motivo de N/A en: Piscina, Barbacoa" y "Falta describir el peligro en: Instalación eléctrica"', msg.indexOf('Falta el motivo de N/A en: Piscina, Barbacoa') >= 0 && msg.indexOf('Falta describir el peligro en: Instalación eléctrica') >= 0, msg);
+  ok('sin faltas: mensaje vacio (Malo sin observacion, actuaciones sin coste y fotos sin referencia pasan)', H.ev("mensajeFaltas(faltasEnvio({'interior|pintura':{seccion:'interior',clave:'pintura',estado:'Malo',texto_1:''},'resumen|accion_1':{seccion:'resumen',clave:'accion_1',texto_1:'x',coste:''},'foto|foto_1':{seccion:'foto',clave:'foto_1',foto_url:'u',clave_ref:''},'exterior|piscina':{seccion:'exterior',clave:'piscina',na:true,na_motivo:'sin piscina'},'seguridad|cerraduras':{seccion:'seguridad',clave:'cerraduras',peligro:true,peligro_texto:'bombin roto'}}))") === '');
+  i = H.S.marca(); var antes = H.log.length;
+  await H.ev('enviarInforme()');
+  ok('Enviar: no se envia y no pregunta', H.S.desde(i).every(function (x) { return !(x.body && x.body.estado === 'enviado'); }) && H.ev('INFORME.estado') === 'borrador' && H.log.slice(antes).every(function (l) { return l.indexOf('confirm') !== 0; }));
+  ok('el aviso dice que falta y donde', /Falta el motivo de N\/A en: Piscina, Barbacoa/.test(H.g('toast').textContent) && /Falta describir el peligro en: Instalación eléctrica/.test(H.g('toast').textContent), H.g('toast').textContent);
+  ok('enviarInforme: la revision v5 va antes del confirm', fnSource(SRC, 'enviarInforme').indexOf('faltasEnvio(') > 0 && fnSource(SRC, 'enviarInforme').indexOf('faltasEnvio(') < fnSource(SRC, 'enviarInforme').indexOf('confirm('));
+  H.ev("editarFila('exterior|piscina','na_motivo','sin piscina')"); H.ev("editarFila('exterior|barbacoa','na_motivo','no hay')"); H.ev("editarFila('seguridad|instalacion_electrica','peligro_texto','cuadro quemado')");
+  await H.ev('enviarInforme()');
+  ok('con los motivos y el texto: se envia', H.S.db.TaInformeTemporada[0].estado === 'enviado' && H.ev('INFORME.estado') === 'enviado');
+  ok('y lo escrito llega a Caspio', H.S.db.TaInformeTemporadaLineas.filter(function (r) { return r.clave === 'piscina'; })[0].na_motivo === 'sin piscina' && H.S.db.TaInformeTemporadaLineas.filter(function (r) { return r.clave === 'instalacion_electrica'; })[0].peligro_texto === 'cuadro quemado');
+  });
+  await parte(async function () {
+  console.log('12.7 v5: informe enviado, solo lectura: N/A, peligro, coste y referencia desactivados');
+  H = pagina({ rol: 'staff', email: 'vm@3villas.com', db: baseDb({ TaInformeTemporada: [informe9({ estado: 'enviado', estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 4, informe_id: 9, seccion: 'foto', clave: 'foto_1', foto_url: 'https://x.com/a.jpg?v=5', texto_1: 'Pie', clave_ref: 'piscina' },
+    { linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', na: true, na_motivo: 'sin piscina' }] }) });
+  await H.ev('iniciar()'); var mh = H.g('main').innerHTML;
+  ok('botones N/A desactivados', (mh.match(/<button[^>]*data-campo="na"[^>]*>/g) || []).length === 26 && (mh.match(/<button[^>]*data-campo="na"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
+  ok('casillas ⚠ Peligro y cajas nuevas desactivadas', (mh.match(/<input[^>]*data-campo="(peligro|peligro_texto|na_motivo)"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
+  ok('selects coste y «Se refiere a:» desactivados', (mh.match(/<select[^>]*data-campo="(coste|clave_ref)"[^>]*>/g) || []).length === 13 && (mh.match(/<select[^>]*data-campo="(coste|clave_ref)"[^>]*>/g) || []).every(function (t) { return / disabled/.test(t); }));
+  await pulsa(H, 'exterior|barbacoa', 'na', 'N/A', false);
+  ok('pulsar N/A en solo lectura: nada cambia', !H.ev("LINEAS['exterior|barbacoa']"));
+  });
 }

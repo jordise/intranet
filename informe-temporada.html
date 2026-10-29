@@ -308,7 +308,9 @@ function whereInforme(villaid,temporada){return 'villaid='+parseInt(villaid,10)+
 function whereLinea(informeId,seccion,clave){const q=s=>String(s).replace(/'/g,"''");return 'informe_id='+parseInt(informeId,10)+" AND seccion='"+q(seccion)+"' AND clave='"+q(clave)+"'";}
 /* Una fila -> una peticion. Conocida (linea_id): PUT where linea_id; nueva: POST (luego se lee otra vez). Nunca la accion update del Worker. */
 function lineaRequest(informeId,L){
-  const v={};['estado','texto_1','texto_2','prioridad','foto_url'].forEach(c=>{v[c]=L[c]==null?'':String(L[c]);});
+  const v={};['estado','texto_1','texto_2','prioridad','foto_url','na_motivo','peligro_texto','coste','clave_ref'].forEach(c=>{v[c]=L[c]==null?'':String(L[c]);});
+  /* v5: na y peligro son columnas Sí/No de Caspio: van como true / false (vacío o null = false) */
+  ['na','peligro'].forEach(c=>{const x=L[c];v[c]=x===true||x===1||['1','true','sí','si','yes'].indexOf(String(x==null?'':x).trim().toLowerCase())>=0;});
   if(L.linea_id)return{method:'PUT',url:WORKER+'?action=save&table=TaInformeTemporadaLineas&where='+encodeURIComponent('linea_id='+parseInt(L.linea_id,10))+'&method=PUT',body:v};
   return{method:'POST',url:WORKER+'?action=save&table=TaInformeTemporadaLineas&method=POST',body:Object.assign({informe_id:parseInt(informeId,10),seccion:L.seccion,clave:L.clave,orden:L.orden},v)};
 }
@@ -317,6 +319,8 @@ function lineaRequest(informeId,L){
 function mejorLinea(rows){let m=null;(rows||[]).forEach(r=>{if(r&&(!m||(parseInt(r.linea_id,10)||0)>(parseInt(m.linea_id,10)||0)))m=r;});return m;}
 /* Cabecera repetida para villa y temporada: vale la de informe_id más bajo (la primera que se creó) */
 function primerInforme(rows){let m=null;(rows||[]).forEach(r=>{if(r&&r.informe_id&&(!m||parseInt(r.informe_id,10)<parseInt(m.informe_id,10)))m=r;});return m;}
+/* v5: valor de una columna Sí/No (na, peligro): true, 1, '1', 'true', 'sí', 'si', 'yes' = sí; lo demás (null incluido) = no */
+function siNo(v){return v===true||v===1||['1','true','sí','si','yes'].indexOf(String(v==null?'':v).trim().toLowerCase())>=0;}
 /* Filas de Caspio -> LINEAS ('seccion|clave' -> fila); campos null -> '', orden por defecto, gana el linea_id más alto */
 function lineasDesdeFilas(rows){
   const out={};
@@ -325,7 +329,8 @@ function lineasDesdeFilas(rows){
     const k=r.seccion+'|'+r.clave,prev=out[k];
     if(prev&&(parseInt(prev.linea_id,10)||0)>=(parseInt(r.linea_id,10)||0))return;
     const L=Object.assign({},r,{_sucio:false,_ver:0});
-    ['estado','texto_1','texto_2','prioridad','foto_url'].forEach(c=>{L[c]=r[c]==null?'':String(r[c]);});
+    ['estado','texto_1','texto_2','prioridad','foto_url','na_motivo','peligro_texto','coste','clave_ref'].forEach(c=>{L[c]=r[c]==null?'':String(r[c]);});
+    L.na=siNo(r.na);L.peligro=siNo(r.peligro); /* v5: Sí/No; null (filas de antes de la v5) = false */
     if(!L.orden){const d=defDe(r.seccion,r.clave);if(d)L.orden=d.orden;}
     out[k]=L;
   });
@@ -345,6 +350,27 @@ function informeRequest(inf,cambios){
   return{method:'POST',url:WORKER+'?action=save&table=TaInformeTemporada&method=POST',body:Object.assign({villaid:parseInt(inf.villaid,10),UserID:String(inf.UserID||''),temporada:parseInt(inf.temporada,10),estado:'borrador',updated_at:ahoraCaspio()},c)};
 }
 function validarEnvio(inf){return inf&&String(inf.estado_general||'').trim()?'':'Falta el estado general';}
+/* v5: lo que para Enviar en las filas de elemento, en el orden de la hoja: N/A sin motivo y ⚠ Peligro sin texto (claves 'seccion|clave').
+   Lo demás (Malo sin observación, coste en blanco, foto sin referencia) pasa. */
+function faltasEnvio(lineas){
+  const f={na:[],peligro:[]},vacio=v=>!String(v==null?'':v).trim();
+  seccionesDef().filter(s=>s.tipo==='estado').forEach(s=>s.claves.forEach(c=>{
+    const k=s.id+'|'+c[0],L=(lineas||{})[k];if(!L)return;
+    if(siNo(L.na)&&vacio(L.na_motivo))f.na.push(k);
+    if(siNo(L.peligro)&&vacio(L.peligro_texto))f.peligro.push(k);
+  }));
+  return f;
+}
+function mensajeFaltas(f){
+  const nom=k=>{const p=k.split('|'),d=defDe(p[0],p[1]);return d?d.label.split(' (')[0]:p[1];},m=[];
+  if(f&&f.na.length)m.push('Falta el motivo de N/A en: '+f.na.map(nom).join(', '));
+  if(f&&f.peligro.length)m.push('Falta describir el peligro en: '+f.peligro.map(nom).join(', '));
+  return m.join('. ');
+}
+function enfocarFalta(f){
+  const k=f.na.length?f.na[0]:f.peligro[0];if(!k)return;
+  enfocar(document.querySelector('[data-k="'+k+'"]'),f.na.length?'na_motivo':'peligro_texto');
+}
 /* Enviado = solo lectura para el villa manager; admin y manager pueden seguir editando o reabrir */
 function soloLectura(inf,role){return!!inf&&String(inf.estado||'').trim().toLowerCase()==='enviado'&&!esAdminManager(role);}
 /* 6 letras o cifras al azar: la dirección pública de la foto no se puede adivinar */
@@ -376,7 +402,7 @@ function urlDeSubida(t){
 /* Estancia añadida (otra_N): texto_1 = "<estancia>: <incidencia>"; v2: siempre con ": " (sin nombre: ": <incidencia>"), vacío si no hay nada */
 function textoEstancia(nombre,incidencia){const n=String(nombre||'').trim(),i=String(incidencia||'');return n||i?n+': '+i:'';}
 function partirEstancia(texto){const t=String(texto||''),p=t.indexOf(':');if(p<0)return{nombre:'',incidencia:t};return{nombre:t.slice(0,p).trim(),incidencia:t.slice(p+1).replace(/^ /,'')};}
-function filaVacia(L){return!L||['estado','texto_1','texto_2','prioridad','foto_url'].every(c=>!String(L[c]==null?'':L[c]).trim());}
+function filaVacia(L){return!L||(['estado','texto_1','texto_2','prioridad','foto_url','na_motivo','peligro_texto','coste','clave_ref'].every(c=>!String(L[c]==null?'':L[c]).trim())&&L.na!==true&&L.peligro!==true);}
 
 /* ── Estado de la pagina ── */
 let ROL='',USERS=[],CONTACTS=[],ME=null,VILLA=null,INFORME=null,SOLO=false;
@@ -505,7 +531,8 @@ function haySucios(){return CAB_SUCIO||Object.values(LINEAS).some(L=>L._sucio);}
 function claveBorrador(){return 'informe:'+parseInt(VILLAID,10)+':'+TEMPORADA;}
 function borradorDe(lineas,cab){
   const d={};
-  Object.keys(lineas||{}).forEach(k=>{const L=lineas[k];if(L&&L._sucio)d[k]={seccion:L.seccion,clave:L.clave,estado:L.estado||'',texto_1:L.texto_1||'',texto_2:L.texto_2||'',prioridad:L.prioridad||''};});
+  Object.keys(lineas||{}).forEach(k=>{const L=lineas[k];if(L&&L._sucio)d[k]={seccion:L.seccion,clave:L.clave,estado:L.estado||'',texto_1:L.texto_1||'',texto_2:L.texto_2||'',prioridad:L.prioridad||'',
+    na:L.na===true,na_motivo:L.na_motivo||'',peligro:L.peligro===true,peligro_texto:L.peligro_texto||'',coste:L.coste||'',clave_ref:L.clave_ref||''};});
   if(cab)d.__cab=cab;
   return d;
 }
@@ -522,6 +549,8 @@ function borrarBorrador(){try{localStorage.removeItem(claveBorrador());}catch(e)
 function mezclarBorrador(d){
   let n=0;if(!d)return 0;
   const campos=['estado','texto_1','texto_2','prioridad'],txt=v=>v==null?'':String(v);
+  /* v5: los campos nuevos solo cuentan si el borrador los trae (un borrador de la v4 no borra un N/A guardado) */
+  const nuevos=['na','na_motivo','peligro','peligro_texto','coste','clave_ref'],norm=(c,v)=>c==='na'||c==='peligro'?siNo(v):txt(v);
   Object.keys(d).forEach(k=>{
     const b=d[k];if(!b||typeof b!=='object')return;
     if(k==='__cab'){
@@ -531,8 +560,9 @@ function mezclarBorrador(d){
     }
     const p=k.split('|');if(p.length!==2||!defDe(p[0],p[1]))return;
     const actual=LINEAS[k];
-    if(campos.every(c=>txt(b[c])===txt(actual&&actual[c])))return;
-    const L=fila(k);campos.forEach(c=>{L[c]=txt(b[c]);});L._sucio=true;L._ver++;n++;
+    const cs=campos.concat(nuevos.filter(c=>b[c]!==undefined));
+    if(cs.every(c=>norm(c,b[c])===norm(c,actual&&actual[c])))return;
+    const L=fila(k);cs.forEach(c=>{L[c]=norm(c,b[c]);});L._sucio=true;L._ver++;n++;
   });
   return n;
 }
@@ -548,6 +578,9 @@ async function enviarInforme(){
   if(SOLO)return;
   const err=validarEnvio(INFORME);
   if(err){toast(err,'error');return;}
+  /* v5: N/A sin motivo y peligro sin texto paran el envío y dicen dónde */
+  const faltas=faltasEnvio(LINEAS),fm=mensajeFaltas(faltas);
+  if(fm){toast(fm,'error');enfocarFalta(faltas);return;}
   if(!confirm('¿Enviar el informe de '+nombreVilla()+'? Después solo podrá cambiarlo administración.'))return;
   if(!(await guardarPendientes())||haySucios()){toast('No enviado: hay cambios sin guardar. Vuelve a intentarlo.','error');return;}
   try{
@@ -578,15 +611,48 @@ function alPulsar(e){
   const v=b.classList.contains('on')?'':b.dataset.v;
   /* v3: las casillas de la fila (o de "Estado general") pasan a X / ☐ */
   pintarMarcas(caja,campo,v);
-  if(k==='__cab')editarCab(campo,v);else editarFila(k,campo,v);
+  if(k==='__cab')editarCab(campo,v);
+  else{
+    /* v5: N/A quita Bueno / Regular / Malo; una marca quita N/A (y su motivo) */
+    const cm=cambiosMarca(LINEAS[k],campo,v);
+    Object.keys(cm).forEach(c=>editarFila(k,c,cm[c]));
+    pintarFilaV5(caja,LINEAS[k]);
+    if(cm.na===true)enfocar(caja,'na_motivo');
+  }
   guardarPendientes();
 }
+/* v5: los cambios de un toque en la fila: N/A = {na: true, estado: ''}; quitar N/A = {na: false, na_motivo: ''};
+   una marca sobre una fila N/A = {estado, na: false, na_motivo: ''}; si no, solo el campo pulsado */
+function cambiosMarca(L,campo,v){
+  const c={};
+  if(campo==='na'){if(v!==''){c.na=true;c.estado='';}else{c.na=false;c.na_motivo='';}return c;}
+  c[campo]=v;
+  if(campo==='estado'&&v!==''&&L&&siNo(L.na)){c.na=false;c.na_motivo='';}
+  return c;
+}
+/* v5: repinta las marcas, N/A y las cajas que se abren (motivo de N/A, texto del peligro) de una fila ya pintada */
+function pintarFilaV5(caja,L){
+  if(!caja||!caja.querySelector||!L)return;
+  pintarMarcas(caja,'estado',L.estado||'');
+  pintarMarcas(caja,'na',siNo(L.na)?'N/A':'');
+  const a=caja.querySelector('.na-caja');if(a)a.hidden=!siNo(L.na);
+  const p=caja.querySelector('.peligro-caja');if(p)p.hidden=!siNo(L.peligro);
+  [['na_motivo',L.na_motivo],['peligro_texto',L.peligro_texto]].forEach(x=>{const i=caja.querySelector('[data-campo="'+x[0]+'"]');if(i&&i.value!==String(x[1]||''))i.value=String(x[1]||'');});
+}
+function enfocar(caja,campo){const i=caja&&caja.querySelector&&caja.querySelector('[data-campo="'+campo+'"]');if(i&&i.focus)i.focus();}
 function alEscribir(e){
   const t=e.target;if(!t.dataset||!t.dataset.campo||SOLO)return;
   if(t.tagName==='TEXTAREA'){crecer(t);const p=t.nextElementSibling;if(p&&p.classList&&p.classList.contains('ta-p'))p.textContent=t.value;}
   if(t.tagName==='SELECT')t.classList.toggle('vacio',!t.value);
   const caja=t.closest('[data-k]');if(!caja)return;const k=caja.dataset.k,campo=t.dataset.campo;
   if(campo==='foto')return;
+  /* v5: casilla ⚠ Peligro = true / false (nunca "on"); input y change del mismo toque no cuentan dos veces; desmarcar borra el texto */
+  if(t.type==='checkbox'){
+    const on=!!t.checked,L=fila(k);if(siNo(L[campo])===on)return;
+    editarFila(k,campo,on);if(campo==='peligro'&&!on)editarFila(k,'peligro_texto','');
+    pintarFilaV5(caja,LINEAS[k]);if(on)enfocar(caja,'peligro_texto');
+    programar(1500);return;
+  }
   if(k==='__cab')editarCab(campo,t.value);
   else if(campo==='est_nombre'||campo==='est_inc')editarFila(k,'texto_1',textoEstancia(caja.querySelector('[data-campo=est_nombre]').value,caja.querySelector('[data-campo=est_inc]').value));
   else editarFila(k,campo,campo==='prioridad'?prioridadGuardar(t.value):t.value);
@@ -623,15 +689,38 @@ function pintarMarcas(caja,campo,v){
   });
 }
 function dot(k){const L=LINEAS[k];return '<span class="dot'+(L&&L._sucio?' sucio':'')+'" data-dot="'+k+'"></span>';}
+/* v5: cuarta marca N/A (gris, mismo tamaño), con "☐" / "X" como las otras */
+function casillaNA(on){return '<td class="c-st c-na"><button type="button" class="st na'+(on?' on':'')+'" data-campo="na" data-v="N/A" aria-label="N/A: no aplica" aria-pressed="'+on+'"'+dis()+'><span class="cx">'+(on?'X':'☐')+'</span> N/A</button></td>';}
+/* v5: caja de una línea (input, no textarea: una sola caja de texto por fila) */
+function cajaLinea(campo,v,cls,ph,etiqueta){return '<input class="in '+cls+'" data-campo="'+campo+'" maxlength="255" value="'+escQ(v)+'" placeholder="'+escQ(ph)+'" aria-label="'+escQ(etiqueta)+'"'+dis()+'>';}
 function filaEstadoHtml(sec,c){
-  const k=sec+'|'+c[0],e=valor(sec,c[0],'estado');
-  return '<tr data-k="'+k+'"><td class="c-el">'+dot(k)+esc(c[1])+'</td>'+['Bueno','Regular','Malo'].map(v=>casilla(v,e)).join('')
-    +'<td class="c-obs" data-l="Observaciones / acción recomendada">'+ta('texto_1',valor(sec,c[0],'texto_1'))+'</td></tr>';
+  const k=sec+'|'+c[0],e=valor(sec,c[0],'estado'),L=LINEAS[k],na=!!L&&siNo(L.na),pe=!!L&&siNo(L.peligro);
+  return '<tr data-k="'+k+'"><td class="c-el">'+dot(k)+esc(c[1])+'</td>'+['Bueno','Regular','Malo'].map(v=>casilla(v,na?'':e)).join('')+casillaNA(na)
+    +'<td class="c-obs" data-l="Observaciones / acción recomendada">'
+    +'<div class="na-caja"'+(na?'':' hidden')+'>'+cajaLinea('na_motivo',valor(sec,c[0],'na_motivo'),'na-motivo','p. ej. sin piscina','Motivo de N/A')+'</div>'
+    +ta('texto_1',valor(sec,c[0],'texto_1'))
+    +'<label class="peligro"><input type="checkbox" class="pel-chk" data-campo="peligro"'+(pe?' checked':'')+dis()+'> ⚠ Peligro</label>'
+    +'<div class="peligro-caja"'+(pe?'':' hidden')+'>'+cajaLinea('peligro_texto',valor(sec,c[0],'peligro_texto'),'peligro-texto','¿Qué peligro hay? (obligatorio)','Texto del peligro')+'</div></td></tr>';
+}
+/* v5: banda de coste (opcional; en blanco sigue en blanco, nunca "0"). Valores de Caspio: desconocido, <500, 500-2000, 2000-10000, 10000+ */
+function costesDef(){return [['desconocido','desconocido'],['<500','menos de 500 €'],['500-2000','500 a 2.000 €'],['2000-10000','2.000 a 10.000 €'],['10000+','más de 10.000 €']];}
+function selCoste(actual){return '<label class="coste">Coste estimado: '+selHtml('coste',costesDef(),actual,'—')+'</label>';}
+/* v5: «Se refiere a:» de la foto = los 26 elementos + las 7 estancias + otra (clave_ref); el pie (texto_1) va aparte */
+function selClaveRef(actual){
+  const a=String(actual||''),corto=l=>String(l).split(' (')[0];let hay=!a;
+  const op=(v,l)=>{const on=v===a;if(on)hay=true;return '<option value="'+escQ(v)+'"'+(on?' selected':'')+'>'+esc(l)+'</option>';};
+  let h='<label class="f-ref">Se refiere a: <select class="sel'+(a?'':' vacio')+'" data-campo="clave_ref"'+dis()+'>'+op('','—');
+  seccionesDef().filter(s=>s.tipo==='estado'||s.tipo==='estancia').forEach(s=>{
+    h+='<optgroup label="'+escQ(s.tipo==='estancia'?'Estancias':s.titulo.replace(/^\d+\. /,''))+'">'+s.claves.map(c=>op(c[0],corto(c[1]))).join('')+'</optgroup>';
+  });
+  h+=op('otra','Otra');
+  if(!hay)h+='<option value="'+escQ(a)+'" selected>'+esc(a)+'</option>';
+  return h+'</select></label>';
 }
 function filaAccionHtml(c,i){
   const k='resumen|'+c[0];
   return '<tr data-k="'+k+'"><td class="c-n">'+(i+1)+dot(k)+'</td>'
-    +'<td class="c-txt" data-l="Actuación prioritaria">'+ta('texto_1',valor('resumen',c[0],'texto_1'))+'</td>'
+    +'<td class="c-txt" data-l="Actuación prioritaria">'+ta('texto_1',valor('resumen',c[0],'texto_1'))+selCoste(valor('resumen',c[0],'coste'))+'</td>'
     +'<td class="c-txt" data-l="Motivo / impacto">'+ta('texto_2',valor('resumen',c[0],'texto_2'))+'</td>'
     +'<td class="c-pri">'+selPrioridad(valor('resumen',c[0],'prioridad'))+'</td></tr>';
 }
@@ -644,7 +733,7 @@ function filaEstanciaHtml(clave,label,esOtra){
     inc=ta('est_inc',p.incidencia);
   }else{est=esc(label);inc=ta('texto_1',t);}
   return '<tr data-k="'+k+'"><td class="c-e">'+dot(k)+est+'</td><td class="c-txt" data-l="Incidencia detectada">'+inc+'</td>'
-    +'<td class="c-txt" data-l="Acción recomendada">'+ta('texto_2',valor('estancia',clave,'texto_2'))+'</td>'
+    +'<td class="c-txt" data-l="Acción recomendada">'+ta('texto_2',valor('estancia',clave,'texto_2'))+selCoste(valor('estancia',clave,'coste'))+'</td>'
     +'<td class="c-pri">'+selPrioridad(valor('estancia',clave,'prioridad'))+'</td></tr>';
 }
 function filaHuespedHtml(c){
@@ -661,7 +750,7 @@ function fotoHtml(c){
     +(u?'<button type="button" class="f-quitar" data-quitar="'+k+'">Quitar</button>':'')+'</div>';
   if(vacia)return '<div class="foto vacia" data-k="'+k+'">'+dot(k)+'<div class="f-img"><span>📷 Añadir foto</span></div>'+ctl+'</div>';
   return '<div class="foto" data-k="'+k+'">'+dot(k)+'<div class="f-img">'+(u?'<img src="'+escQ(fotoUrl(u))+'" alt="'+escQ(c[1])+'">':'')+'</div>'
-    +ta('texto_1',valor('foto',c[0],'texto_1'),'pie','Pie de foto')+ctl+'</div>';
+    +ta('texto_1',valor('foto',c[0],'texto_1'),'pie','Pie de foto')+selClaveRef(valor('foto',c[0],'clave_ref'))+ctl+'</div>';
 }
 /* Las fotos llenas y UN hueco vacío al final (ninguno en solo lectura); hasta seis */
 function fotosHtml(){
@@ -688,7 +777,8 @@ function seccionHtml(s){
     b+='<table class="t t-gen" data-k="__cab"><tbody><tr><th>Estado general de la villa</th><td class="c-gen">'+['Bueno','Regular','Malo'].map(v=>opcionGeneral(v,INFORME.estado_general||'')).join('')+'</td></tr></tbody></table>';
     b+='<table class="t t-acc">'+cabeza([['Nº','c-n'],['Actuación prioritaria','c-txt-h'],['Motivo / impacto','c-txt-h'],['Prioridad','c-pri']])+'<tbody>'+s.claves.map(filaAccionHtml).join('')+'</tbody></table>';
   }else if(s.tipo==='estado'){
-    b+='<table class="t t-est">'+cabeza(CAB_ESTADO)+'<tbody>'+s.claves.map(c=>filaEstadoHtml(s.id,c)).join('')+'</tbody></table>';
+    /* v5: la columna N/A va bajo "Observaciones" (colspan 2): la cabecera de la hoja de Rafa no cambia y el botón dice "N/A" */
+    b+='<table class="t t-est">'+cabeza(CAB_ESTADO).replace('<th class="c-obs-h">','<th class="c-obs-h" colspan="2">')+'<tbody>'+s.claves.map(c=>filaEstadoHtml(s.id,c)).join('')+'</tbody></table>';
   }else if(s.tipo==='estancia'){
     const vis=visibles('estancia',s.extra);
     b+='<table class="t t-inc">'+cabeza([['Estancia','c-e'],['Incidencia detectada','c-txt-h'],['Acción recomendada','c-txt-h'],['Prioridad','c-pri']])+'<tbody>'
@@ -804,7 +894,7 @@ async function quitarFoto(k){
   if(!confirm('¿Quitar esta foto?'))return;
   const L=LINEAS[k];if(!L)return;
   if(L._vuelo){try{await L._vuelo;}catch(e){}}
-  L.foto_url='';L.texto_1='';L._sucio=true;L._ver++;
+  L.foto_url='';L.texto_1='';L.clave_ref='';L._sucio=true;L._ver++;
   repintarFoto(k);
   const ok=await guardarFila(k);
   pintarGuardado();
@@ -854,6 +944,7 @@ document.addEventListener('change',e=>{
   const t=e.target;
   /* v4: un <select> (prioridad, origen) no siempre dispara 'input' (depende del navegador): se trata como escritura */
   if(t.tagName==='SELECT'&&t.dataset&&t.dataset.campo)return alEscribir(e);
+  if(t.type==='checkbox'&&t.dataset&&t.dataset.campo)return alEscribir(e);
   if(t.dataset&&t.dataset.campo==='foto'&&t.files&&t.files[0]){subirFoto(t.closest('[data-k]').dataset.k,t.files[0]);t.value='';return;}
   if(t.dataset&&t.dataset.campo==='fecha_revision'&&!SOLO){editarCab('fecha_revision',t.value);programar(800);}
 });
