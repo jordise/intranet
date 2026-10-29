@@ -165,6 +165,7 @@ ok('Obras: 3 actuaciones (Alta 1, Media 1, Baja 0, sin prioridad 1); 2 más en b
 ok('Actuaciones por banda de coste: sin datos (null)', K.n === null && /formulario v5/.test(K.texto || ''), J(K));
 ok('Comentarios Review: 1 fila con texto en 1 casa (fila Review vacía y Parte no cuentan)', R.n === 1 && R.casas === 1, J(R));
 ok('cada cuadro trae sus puertas (lista + cifra)', ['entregados', 'condicion', 'alertas', 'obras', 'review'].every(function (k) { return T[k] && Array.isArray(T[k].puertas) && T[k].puertas.length; }));
+ok('media redondea hacia arriba en décimas exactas: 50,3 y 50,4 -> 50,4 (en coma flotante saldría 50,3); 50,3 y 78,6 -> 64,5', Portada.media([50.3, 50.4]) === 50.4 && Portada.media([50.3, 78.6]) === 64.5 && Portada.media([]) === null && Portada.media([null, 80]) === 80, Portada.media([50.3, 50.4]));
 var vacio = safe(function () { return Portada.tilesV3([], []); }) || {};
 ok('temporada vacía: ceros y media null (nunca 0)', vacio.entregados && vacio.entregados.n === 0 && vacio.condicion.media === null && vacio.condicion.peor === null && vacio.obras.n === 0, J(vacio.condicion));
 
