@@ -573,14 +573,14 @@ async function pruebasConFetch() {
   H = pagina({ db: baseDb({ TaInformeTemporada: [informe9()], TaInformeTemporadaLineas: [{ linea_id: 5, informe_id: 9, seccion: 'exterior', clave: 'piscina', orden: 6, estado: 'Bueno', texto_1: '' }] }) });
   await H.ev('iniciar()');
   k = 'exterior|piscina';
-  await pulsa(H, k, 'na', 'N/A', false);
+  await pulsa(H, k, 'na', 'N/A', false); await H.espera(40);
   ok('pulsar N/A en una fila con Bueno: na true y estado vacio', H.ev("LINEAS['" + k + "'].na") === true && H.ev("LINEAS['" + k + "'].estado") === '');
   ok('y se guarda: PUT con na true y estado ""', H.S.db.TaInformeTemporadaLineas[0].na === true && H.S.db.TaInformeTemporadaLineas[0].estado === '');
   H.ev("editarFila('" + k + "','na_motivo','sin piscina')");
   await pulsa(H, k, 'estado', 'Regular', false);
   ok('pulsar Regular en una fila N/A: estado Regular, na false y el motivo se borra', H.ev("LINEAS['" + k + "'].estado") === 'Regular' && H.ev("LINEAS['" + k + "'].na") === false && H.ev("LINEAS['" + k + "'].na_motivo") === '');
   await pulsa(H, k, 'na', 'N/A', false);
-  await pulsa(H, k, 'na', 'N/A', true);
+  await pulsa(H, k, 'na', 'N/A', true); await H.espera(40);
   ok('pulsar N/A otra vez (ya marcada): na false; el estado sigue vacio', H.ev("LINEAS['" + k + "'].na") === false && H.ev("LINEAS['" + k + "'].estado") === '');
   ok('nunca na true con estado a la vez', !(H.S.db.TaInformeTemporadaLineas[0].na === true && H.S.db.TaInformeTemporadaLineas[0].estado));
   var cm = H.ctx.cambiosMarca({ estado: 'Malo', na: false }, 'na', 'N/A');
