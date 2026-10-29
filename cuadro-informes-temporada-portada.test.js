@@ -371,5 +371,18 @@ if (Score && typeof Score.marcas === 'function') {
   }
 } else ok('InformeScore.marcas (lector compartido) existe', false);
 
+console.log('12. Ronda de arreglos 2: «n de N» abre las n casas con puntuación final (cuadro Condición media y tabla de villa managers)');
+var R12 = { t: '2026', vm: '', v: '', s: '' }, T12 = Portada.tilesV3(CASAS, null), th12 = Portada.tilesHtml(T12, R12).replace(/&amp;/g, '&');
+var ln12 = (th12.match(/<a [^>]*href="([^"]*)"[^>]*>\d+ de \d+ casas con puntuación final<\/a>/) || [])[1] || '';
+ok('cuadro: el enlace «n de N casas con puntuación final» abre lista:condicion:final', /v=lista:condicion:final(&|$)/.test(ln12), ln12);
+ok('cuadro: la puerta lista:condicion:final cuenta n (' + T12.condicion.n + ')', (T12.condicion.puertas || []).some(function (p) { return p.v === 'lista:condicion:final' && p.n === T12.condicion.n; }), J(T12.condicion.puertas));
+var vh12 = Portada.tablaVMHtml(Portada.tablaVM(CASAS), R12).replace(/&amp;/g, '&');
+var cel12 = vh12.match(/<td class="num" data-l="Condición media"><a class="cel" href="[^"]*"/g) || [];
+ok('tabla de villa managers: cada celda «Condición media · n de N» abre lista:condicion:final', cel12.length > 1 && cel12.every(function (x) { return /v=lista:condicion:final(&|")/.test(x); }), J(cel12.slice(0, 2)));
+if (Listas) {
+  var V12 = Portada.tablaVM(CASAS), mal12 = V12.filas.concat([V12.total]).filter(function (f) { var cs = f.vmId ? Portada.filtrarVM(CASAS, f.vmId) : CASAS; return filasDe('lista:condicion:final', cs, null) !== f.n; });
+  ok('tabla de villa managers: n = filas de lista:condicion:final en cada fila y en el total', !mal12.length, J(mal12.map(function (f) { return [f.nombre, f.n]; })));
+}
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

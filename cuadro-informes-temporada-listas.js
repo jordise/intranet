@@ -173,10 +173,12 @@
     return L(T[x], 'casas', BASE.concat([COL.estado, COL.fecha, COL.guardado, COL.puntuacion, COL.completitud]), ordenRiesgo(sel).map(filaCasa),
       x === 'sin' ? 'Todas las casas tienen informe con el filtro elegido.' : 'Ninguna casa está en este estado con el filtro elegido.');
   }
-  function condicion(casas) {
-    var f = casas.filter(enviada).map(filaCasa).sort(function (a, b) { return cmp(a.puntuacion, b.puntuacion) || porNombre(a, b); });
-    return L('Casas por condición (peor primero, informes enviados)', 'casas', BASE.concat([COL.puntuacion, COL.completitud, COL.final, COL.guardado]), f,
-      'Ningún informe enviado con este filtro: no hay condición que calcular.');
+  /* sub = 'final' (ronda de arreglos 2): solo las casas con puntuación final, el «n» de «n de N» del cuadro y de la tabla de villa managers */
+  function condicion(casas, sub) {
+    var fin = sub === 'final';
+    var f = casas.filter(function (c) { return enviada(c) && (!fin || (completo(c) && puntuacion(c) != null)); }).map(filaCasa).sort(function (a, b) { return cmp(a.puntuacion, b.puntuacion) || porNombre(a, b); });
+    return L(fin ? 'Casas con puntuación final (peor primero, informes enviados)' : 'Casas por condición (peor primero, informes enviados)', 'casas', BASE.concat([COL.puntuacion, COL.completitud, COL.final, COL.guardado]), f,
+      fin && casas.some(enviada) ? 'Ningún informe enviado tiene los elementos aplicables marcados: ninguna puntuación final todavía (ver Provisionales).' : 'Ningún informe enviado con este filtro: no hay condición que calcular.');
   }
   function provisionales(casas) {
     var f = casas.filter(function (c) { return enviada(c) && !completo(c); }).map(filaCasa).sort(function (a, b) { return cmp(a.evaluados, b.evaluados) || porNombre(a, b); });
@@ -415,7 +417,7 @@
     var x;
     switch (n.kind) {
       case 'estado': x = estado(cs, p[0]); break;
-      case 'condicion': x = condicion(cs); break;
+      case 'condicion': x = condicion(cs, p[0]); break;
       case 'provisionales': x = provisionales(cs); break;
       case 'alertas': x = alertas(cs, p[0]); break;
       case 'obras': {

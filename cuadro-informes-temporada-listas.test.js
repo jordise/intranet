@@ -306,5 +306,11 @@ var oR = L.listas('obras', {}, [cR], null).filas;
 ok('obras: la fila "Sin texto (Resumen 1)" Alto con su motivo y origen Resumen 1', oR.length === 1 && oR[0].accion === 'Sin texto (Resumen 1)' && oR[0].prioridad === 'Alto' && oR[0].motivo === 'Riesgo de caída en la escalera' && oR[0].origen === 'Resumen 1', J(oR));
 ok('"Malo sin actuación" no la incluye; "Requiere atención" sí; obras:alta = 1', L.listas('malosinact', {}, [cR], null).filas.length === 0 && L.listas('atencion', {}, [cR], null).filas.length === 1 && L.listas('obras:alta', {}, [cR], null).filas.length === 1);
 
+console.log('16. Ronda de arreglos 2: lista:condicion:final = solo las casas con puntuación final (el «n» de «n de N»)');
+var nFin = ENV.filter(function (c) { return c.score && c.score.completo === true && c.score.puntuacion != null; }).length, cf = lista('condicion:final');
+ok('condicion:final = ' + nFin + ' casas (enviadas, completas, con puntuación), todas «final», peor primero', nFin > 0 && nFin < 19 && cf.filas.length === nFin && cf.filas.every(function (f) { return f.final === 'final'; })
+  && cf.filas.every(function (f, i, a) { return i === 0 || a[i - 1].puntuacion <= f.puntuacion; }), J([nFin, cf.filas.length]));
+ok('su título lo dice; lista:condicion sigue con las 19', cf.titulo === 'Casas con puntuación final (peor primero, informes enviados)' && lista('condicion').filas.length === 19, cf.titulo);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exitCode = fail ? 1 : 0;

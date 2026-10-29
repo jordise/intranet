@@ -143,7 +143,7 @@
         puertas: [{ v: 'lista:estado:enviado', n: env.length }, { v: 'lista:estado:borrador', n: bor.length }, { v: 'lista:estado:sin', n: sin.length }] },
       condicion: { media: med, banda: banda(med), n: fin.length, N: env.length, provisionales: env.length - fin.length,
         peor: peor ? { villaid: peor.villaid, villa: peor.villa, puntuacion: peor.score.puntuacion } : null, comparacion: comp,
-        puertas: [{ v: 'lista:condicion', n: env.length }, { v: 'lista:provisionales', n: env.length - fin.length }].concat(comp ? [{ v: 'lista:comparacion', n: comp.casas }] : []) },
+        puertas: [{ v: 'lista:condicion', n: env.length }, { v: 'lista:condicion:final', n: fin.length }, { v: 'lista:provisionales', n: env.length - fin.length }].concat(comp ? [{ v: 'lista:comparacion', n: comp.casas }] : []) },
       alertas: { n: pel + seg, peligro: pel, seguridad: seg, peligroDato: pelDato,
         puertas: [{ v: 'lista:alertas', n: pel + seg }, { v: 'lista:alertas:seguridad', n: seg }] },
       obras: { n: acc.length, alta: cp('Alta'), media: cp('Media'), baja: cp('Baja'), sin: cp(''), borradores: flat(bor, 'acciones').length,
@@ -284,7 +284,7 @@
         a(route, 'lista:estado:borrador', E.borrador + ' en borrador') + ' · ' + a(route, 'lista:estado:sin', E.sin + ' sin informe'),
         '<div class="bar"><i style="width:' + E.pct + '%"></i></div>')
       + tile(route, CLASE_TILE[C.banda] || 'gris', 'Condición media', fmt1(C.media), 'lista:condicion',
-        a(route, 'lista:condicion', C.n + ' de ' + C.N + ' casas con puntuación final')
+        a(route, 'lista:condicion:final', C.n + ' de ' + C.N + ' casas con puntuación final')   /* ronda de arreglos 2: el enlace abre las n finales */
         + (C.provisionales ? ' · ' + a(route, 'lista:provisionales', plural(C.provisionales, 'provisionales')) : '')
         + (C.peor ? ' · la más baja: ' + a(route, 'casa:' + C.peor.villaid, esc(C.peor.villa) + ' ' + fmt1(C.peor.puntuacion), { from: 'lista:condicion' }) : ''),
         '<div class="s">' + comp + '</div>')
@@ -318,7 +318,7 @@
     var fila = function (f, tot) {
       return '<tr' + (tot ? ' class="total"' : '') + '><td data-l="Villa manager"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:estado:todas', vs: vsDe(route) })) + '"><b>' + esc(f.nombre) + '</b></a></td>'
         + cel(f, 'estado:todas', f.casas, 'Casas') + cel(f, 'estado:enviado', f.enviados, 'Enviados') + cel(f, 'estado:borrador', f.borradores, 'Borrador') + cel(f, 'estado:sin', f.sin, 'Sin informe')
-        + cel(f, 'condicion', '<span class="sc ' + banda(f.media) + '">' + fmt1(f.media) + '</span> <span class="cmp">' + f.n + ' de ' + f.N + '</span>', 'Condición media')
+        + cel(f, 'condicion:final', '<span class="sc ' + banda(f.media) + '">' + fmt1(f.media) + '</span> <span class="cmp">' + f.n + ' de ' + f.N + '</span>', 'Condición media')
         + cel(f, 'marcas:malo', f.malo, 'Malo') + cel(f, 'obras:alta', f.alta, 'Alto') + cel(f, 'alertas', f.alertas, 'Alertas')
         + cel(f, 'estado:enviado', f.ultimo ? fechaVer(f.ultimo) : '—', 'Último envío') + '</tr>';
     };
