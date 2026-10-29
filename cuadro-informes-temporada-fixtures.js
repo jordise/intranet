@@ -108,10 +108,10 @@
     if (v === 104) out.push(linea(inf, 'estancia', 'bano_1', 5, { texto_1: 'Cambiar el grifo de la ducha del baño 1', texto_2: 'Cambiar grifo', prioridad: 'Alta' }));
     if (i % 3 === 0) out.push(linea(inf, 'estancia', 'cocina', 2, { texto_1: 'Campana extractora con ruido en ' + NOMBRES[i], texto_2: 'Revisar motor', prioridad: i % 2 ? 'Media' : 'Baja' }));
   }
-  /* Comentarios de huéspedes: i % 4 filas; origen Review, Parte, Propuesta o vacío, en ese orden */
+  /* Comentarios de huéspedes: i % 5 filas; origen Review, Parte, Propuesta o vacío (sin origen), en ese orden */
   function lineasHuesped(inf, i, out) {
     var o = ['Review', 'Parte', 'Propuesta', ''];
-    for (var k = 0; k < i % 4; k++) out.push(linea(inf, 'huesped', 'comentario_' + (k + 1), k + 1, { estado: o[k], texto_1: 'Comentario ' + (k + 1) + ' de ' + NOMBRES[i], texto_2: k === 2 ? 'Mejora propuesta' : '' }));
+    for (var k = 0; k < i % 5; k++) out.push(linea(inf, 'huesped', 'comentario_' + (k + 1), k + 1, { estado: o[k], texto_1: 'Comentario ' + (k + 1) + ' de ' + NOMBRES[i], texto_2: k === 2 ? 'Mejora propuesta' : '' }));
   }
   /* Fotos: i % 7 fotos con pie */
   function lineasFotos(inf, i, out) {

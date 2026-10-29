@@ -201,7 +201,19 @@ ok('una casa sin motivo no entra (120, todo Bueno y sin actuaciones)', porVilla(
 console.log('8. malosinact (Malo sin actuación)');
 var ms = lista('malosinact');
 ok('malosinact = solo la 111', J(ids(ms.filas)) === J([111]), J(ids(ms.filas)));
-ok('la 111: 3 marcas Malo y sus elementos', ms.filas[0] && ms.filas[0].malo === 3 && ms.filas[0].elementos.split(', ').length === 3);
+ok('la 111: 3 marcas Malo y sus elementos', ms.filas[0] && ms.filas[0].malo === 3 && ms.filas[0].elementos.split(' · ').length === 3);
+var IS0 = global.InformeScore;
+global.InformeScore = Object.assign({}, IS0, { elementosDef: function () { return IS0.elementosDef().map(function (e) {
+  var r = { seccion: e.seccion, clave: e.clave, label: e.label };
+  if (e.clave === 'sofas') r.label = 'Sofás, tapicerías y alfombras';
+  if (e.clave === 'mobiliario_cocina') r.label = 'Mobiliario y módulos de cocina';
+  if (e.clave === 'fachada') r.label = 'Fachada y pintura exterior';
+  if (e.clave === 'pintura') r.label = 'Pintura interior (paredes, techos, carpintería)';
+  return r; }); } });
+var msR = lista('malosinact'), mpR = lista('mapa:pintura:todas');
+global.InformeScore = IS0;
+ok('etiquetas reales con comas: "Sofás, tapicerías y alfombras" entera, separador " · "', msR.filas[0] && msR.filas[0].elementos === 'Sofás, tapicerías y alfombras · Mobiliario y módulos de cocina · Fachada y pintura exterior', msR.filas[0] && msR.filas[0].elementos);
+ok('etiqueta corta sin el paréntesis: "Pintura interior"', /: Pintura interior$/.test(mpR.titulo) && mpR.filas[0].elemento === 'Pintura interior', mpR.titulo);
 ok('temporada vacía: lista vacía con razón', lista('malosinact', {}, VACIA, null).filas.length === 0 && lista('malosinact', {}, VACIA, null).vacio.length > 0);
 
 console.log('9. repetido y comparacion (temporada 2025)');
@@ -258,6 +270,8 @@ var cn = L.csv({ columnas: [{ clave: 'a', label: 'A' }, { clave: 'n', label: 'N'
 var cl = cn.replace(/^﻿/, '').split('\r\n');
 ok('números con coma decimal; null vacío', cl[1].split(';')[1] === '96,2' && cl[2] === ';;-3', J(cl));
 ok('texto que empieza por = lleva apóstrofo; ";" y comillas van entre comillas', cl[1].split(';')[0] === "'=SUMA(1)" && /"x;y ""z"""/.test(cl[1]), cl[1]);
+var cneg = L.csv({ columnas: [{ clave: 'd', label: 'Diferencia', num: true }], filas: [{ d: -9.6 }] }).replace(/^\uFEFF/, '').split('\r\n');
+ok('un número negativo sale "-9,6" (sin apóstrofo: no es una fórmula)', cneg[1] === '-9,6', cneg[1]);
 ok('CSV de una lista vacía = solo la cabecera', L.csv(lista('coste')).replace(/^﻿/, '').split('\r\n').filter(Boolean).length === 1);
 
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
