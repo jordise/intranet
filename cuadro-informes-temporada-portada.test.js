@@ -384,5 +384,12 @@ if (Listas) {
   ok('tabla de villa managers: n = filas de lista:condicion:final en cada fila y en el total', !mal12.length, J(mal12.map(function (f) { return [f.nombre, f.n]; })));
 }
 
+console.log('13. Antes del push: la cifra del cuadro «Condición media» (la media de las n finales) abre lista:condicion:final');
+var t13 = (th12.split('<div class="tile').filter(function (x) { return x.indexOf('Condición media') >= 0; })[0]) || '';
+var v13 = (t13.match(/<div class="v"><a href="([^"]*)"/) || [])[1] || '', d13 = (t13.match(/data-href="([^"]*)"/) || [])[1] || '';
+ok('la cifra y la tarjeta entera abren lista:condicion:final', /v=lista:condicion:final(&|$)/.test(v13) && /v=lista:condicion:final(&|$)/.test(d13), J([v13, d13]));
+var e13 = (t13.match(/<a [^>]*href="([^"]*)"[^>]*>los (\d+) enviados<\/a>/) || []);
+ok('las N enviadas siguen a un clic (lista:condicion, «los N enviados»)', /v=lista:condicion(&|$)/.test(e13[1] || '') && +e13[2] === T12.condicion.N, J(e13.slice(1)));
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

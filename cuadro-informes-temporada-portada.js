@@ -283,8 +283,9 @@
       + tile(route, 'verde', 'Entregados', E.n + ' <span class="de">de ' + E.de + '</span>', 'lista:estado:enviado',
         a(route, 'lista:estado:borrador', E.borrador + ' en borrador') + ' · ' + a(route, 'lista:estado:sin', E.sin + ' sin informe'),
         '<div class="bar"><i style="width:' + E.pct + '%"></i></div>')
-      + tile(route, CLASE_TILE[C.banda] || 'gris', 'Condición media', fmt1(C.media), 'lista:condicion',
+      + tile(route, CLASE_TILE[C.banda] || 'gris', 'Condición media', fmt1(C.media), 'lista:condicion:final',   /* antes del push: la cifra es la media de las n finales y abre esas n */
         a(route, 'lista:condicion:final', C.n + ' de ' + C.N + ' casas con puntuación final')   /* ronda de arreglos 2: el enlace abre las n finales */
+        + ' · ' + a(route, 'lista:condicion', 'los ' + C.N + ' enviados')
         + (C.provisionales ? ' · ' + a(route, 'lista:provisionales', plural(C.provisionales, 'provisionales')) : '')
         + (C.peor ? ' · la más baja: ' + a(route, 'casa:' + C.peor.villaid, esc(C.peor.villa) + ' ' + fmt1(C.peor.puntuacion), { from: 'lista:condicion' }) : ''),
         '<div class="s">' + comp + '</div>')
