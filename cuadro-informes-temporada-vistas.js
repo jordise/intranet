@@ -356,8 +356,9 @@
       return '<tr class="sec-row"><td class="sec" colspan="3">' + g[1] + '</td></tr>' + defs.filter(function (e) { return e.seccion === g[0]; }).map(function (e) {
         var m = mk[e.clave];
         var pt = obsPartes(m), cel = (pt[0] ? '<span class="fl peligro">' + esc(pt[0]) + '</span> ' : '') + esc([pt[1], pt[2]].filter(Boolean).join(' · '));
-        return '<tr><td class="casa-n" data-l="Elemento">' + esc(e.label) + '</td><td data-l="Marca">' + marcaHtml(m.marca) + '</td><td data-l="Observación">'
-          + (pt[0] || pt[1] || pt[2] ? cel.trim() : '<span class="mot">—</span>') + fotosRefHtml(casa, e.clave) + '</td></tr>';
+        /* ronda de arreglos 1 (v5/v3b): la chip, la observación y las fotos en UN bloque .obs-c: a 390 px la celda flex tiene dos piezas (etiqueta y bloque) y no se sale */
+        return '<tr><td class="casa-n" data-l="Elemento">' + esc(e.label) + '</td><td data-l="Marca">' + marcaHtml(m.marca) + '</td><td data-l="Observación"><div class="obs-c">'
+          + (pt[0] || pt[1] || pt[2] ? cel.trim() : '<span class="mot">—</span>') + fotosRefHtml(casa, e.clave) + '</div></td></tr>';
       }).join('');
     }).join('') + '</tbody></table>' + hojaHtml(defs, mk);
   }
@@ -443,7 +444,8 @@
       + (casa.general ? '<br>Estado general: ' + esc((MARCA[lw(casa.general)] || [casa.general])[0]) : '')
       + '<br><span class="pill ' + (est || 'sin') + '">' + (est === 'borrador' && rev >= 1 ? 'borrador tras envío' : ESTADO[est]) + '</span> '
       + (hist.length ? '<div class="hv-hist"><b>Historial</b><ul class="mot">' + hist.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>'
-        : '<span class="small-print">historial no disponible antes de la v5</span>') + '</div>'
+        /* ronda de arreglos 1 (v5/v3b, diseño 17): el aviso de antes de la v5 solo para un informe ENVIADO sin historial; sin informe o borrador sin envíos = «Sin envíos registrados», como el formulario */
+        : '<span class="small-print">' + (est === 'enviado' ? 'historial no disponible antes de la v5' : 'Sin envíos registrados') + '</span>') + '</div>'
       + (est !== '' ? '<div class="hv-flags">' + flagsLargoHtml(casa) + '</div>' : '') + '</div>'
       + '<div class="hv-score"><span class="sc ' + esc(bandaV) + '">' + (est === '' ? '—' : fmt1(punt)) + '</span><div class="cmp">Condición · ' + comp + estadoP + '</div></div>'
       + '<div class="hv-btns no-print"><a class="btn" href="' + esc(url) + '">Abrir formulario</a>'

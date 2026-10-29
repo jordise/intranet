@@ -156,7 +156,7 @@
         peor: peor ? { villaid: peor.villaid, villa: peor.villa, puntuacion: peor.score.puntuacion } : null, comparacion: comp,
         puertas: [{ v: 'lista:condicion', n: env.length }, { v: 'lista:condicion:final', n: fin.length }, { v: 'lista:provisionales', n: env.length - fin.length }].concat(comp ? [{ v: 'lista:comparacion', n: comp.casas }] : []) },
       alertas: { n: pel + seg, peligro: pel, seguridad: seg, peligroDato: pelDato, sinDato: sinDato,
-        puertas: [{ v: 'lista:alertas', n: pel + seg }, { v: 'lista:alertas:seguridad', n: seg }].concat(pelDato ? [{ v: 'lista:alertas:peligro', n: pel }] : []) },
+        puertas: [{ v: 'lista:alertas', n: pel + seg }, { v: 'lista:alertas:seguridad', n: seg }].concat(pelDato ? [{ v: 'lista:alertas:peligro', n: pel }, { v: 'lista:alertas:sindato', n: sinDato }] : []) },
       obras: { n: acc.length, alta: cp('Alta'), media: cp('Media'), baja: cp('Baja'), sin: cp(''), borradores: flat(bor, 'acciones').length,
         puertas: [{ v: 'lista:obras:todas', n: acc.length }, { v: 'lista:obras:alta', n: cp('Alta') }, { v: 'lista:obras:media', n: cp('Media') }, { v: 'lista:obras:baja', n: cp('Baja') }, { v: 'lista:obras:sin', n: cp('') }] },
       coste: costeTile(env, acc),
@@ -323,7 +323,7 @@
       + tile(route, A.n ? 'rojo' : 'verde', 'Alertas', String(A.n), 'lista:alertas',
         a(route, 'lista:alertas:seguridad', plural(A.seguridad, 'revisiones') + ' de seguridad') + ' · '
         + (A.peligroDato ? a(route, 'lista:alertas:peligro', A.peligro + ' peligro' + (A.peligro === 1 ? '' : 's'))
-          + (A.sinDato ? ' · ' + A.sinDato + ' sin dato de peligro (antes de la v5)' : '') : 'peligro: dato del formulario v5'))
+          + (A.sinDato ? ' · ' + a(route, 'lista:alertas:sindato', A.sinDato + ' sin dato de peligro (antes de la v5)') : '') : 'peligro: dato del formulario v5'))   /* ronda de arreglos 1 (v5/v3b): la cifra abre su lista */
       + tile(route, 'naranja', 'Obras por prioridad', O.n + ' <span class="de">actuaciones</span>', 'lista:obras:todas',
         a(route, 'lista:obras:alta', 'Alto ' + O.alta) + ' · ' + a(route, 'lista:obras:media', 'Medio ' + O.media) + ' · ' + a(route, 'lista:obras:baja', 'Bajo ' + O.baja)
         + (O.sin ? ' · ' + a(route, 'lista:obras:sin', 'sin prioridad ' + O.sin) : ''),

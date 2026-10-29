@@ -461,7 +461,9 @@ function urlDeSubida(t){
 /* Estancia añadida (otra_N): texto_1 = "<estancia>: <incidencia>"; v2: siempre con ": " (sin nombre: ": <incidencia>"), vacío si no hay nada */
 function textoEstancia(nombre,incidencia){const n=String(nombre||'').trim(),i=String(incidencia||'');return n||i?n+': '+i:'';}
 function partirEstancia(texto){const t=String(texto||''),p=t.indexOf(':');if(p<0)return{nombre:'',incidencia:t};return{nombre:t.slice(0,p).trim(),incidencia:t.slice(p+1).replace(/^ /,'')};}
-function filaVacia(L){return!L||(['estado','texto_1','texto_2','prioridad','foto_url','na_motivo','peligro_texto','coste','clave_ref'].every(c=>!String(L[c]==null?'':L[c]).trim())&&L.na!==true&&L.peligro!==true);}
+/* ronda de arreglos 1 (v5/v3b): na y peligro con la regla Sí/No de siNo (true, 1, '1', 'true', 'sí', 'yes' = datos), no solo === true;
+   la regla va dentro (como en lineaRequest) para que la función siga sola */
+function filaVacia(L){const si=v=>v===true||v===1||['1','true','sí','si','yes'].indexOf(String(v==null?'':v).trim().toLowerCase())>=0;return!L||(['estado','texto_1','texto_2','prioridad','foto_url','na_motivo','peligro_texto','coste','clave_ref'].every(c=>!String(L[c]==null?'':L[c]).trim())&&!si(L.na)&&!si(L.peligro));}
 
 /* ── Estado de la pagina ── */
 let ROL='',USERS=[],CONTACTS=[],ME=null,VILLA=null,INFORME=null,SOLO=false;
@@ -591,7 +593,7 @@ function claveBorrador(){return 'informe:'+parseInt(VILLAID,10)+':'+TEMPORADA;}
 function borradorDe(lineas,cab){
   const d={};
   Object.keys(lineas||{}).forEach(k=>{const L=lineas[k];if(L&&L._sucio)d[k]={seccion:L.seccion,clave:L.clave,estado:L.estado||'',texto_1:L.texto_1||'',texto_2:L.texto_2||'',prioridad:L.prioridad||'',
-    na:L.na===true,na_motivo:L.na_motivo||'',peligro:L.peligro===true,peligro_texto:L.peligro_texto||'',coste:L.coste||'',clave_ref:L.clave_ref||''};});
+    na:siNo(L.na),na_motivo:L.na_motivo||'',peligro:siNo(L.peligro),peligro_texto:L.peligro_texto||'',coste:L.coste||'',clave_ref:L.clave_ref||''};});
   if(cab)d.__cab=cab;
   return d;
 }
@@ -700,7 +702,18 @@ function pintarFilaV5(caja,L){
   const a=caja.querySelector('.na-caja');if(a)a.hidden=!siNo(L.na);
   const p=caja.querySelector('.peligro-caja');if(p)p.hidden=!siNo(L.peligro);
   [['na_motivo',L.na_motivo],['peligro_texto',L.peligro_texto]].forEach(x=>{const i=caja.querySelector('[data-campo="'+x[0]+'"]');if(i&&i.value!==String(x[1]||''))i.value=String(x[1]||'');});
+  repintarHoja(caja,L);
 }
+/* ronda de arreglos 1 (v5/v3b): las líneas de papel (.h-v5) de UNA fila otra vez desde LINEAS, tras la última caja de la fila
+   (elemento: .peligro-caja; actuación y estancia: label.coste; foto: label.f-ref), donde las pinta hojaV5 */
+function repintarHoja(caja,L){
+  if(!caja||!caja.querySelector||!caja.querySelectorAll)return;
+  const a=caja.querySelector('.peligro-caja,label.coste,label.f-ref');if(!a||!a.insertAdjacentHTML)return;
+  caja.querySelectorAll('.h-v5').forEach(x=>x.remove());
+  a.insertAdjacentHTML('afterend',hojaV5(L));
+}
+/* Antes de imprimir (botón Imprimir o el menú del navegador): todas las filas con su papel al día */
+function repintarHojas(){document.querySelectorAll('[data-k]').forEach(c=>{const k=c.dataset&&c.dataset.k;if(k&&k!=='__cab')repintarHoja(c,LINEAS[k]);});}
 function enfocar(caja,campo){const i=caja&&caja.querySelector&&caja.querySelector('[data-campo="'+campo+'"]');if(i&&i.focus)i.focus();}
 function alEscribir(e){
   const t=e.target;if(!t.dataset||!t.dataset.campo||SOLO)return;
@@ -718,6 +731,8 @@ function alEscribir(e){
   if(k==='__cab')editarCab(campo,t.value);
   else if(campo==='est_nombre'||campo==='est_inc')editarFila(k,'texto_1',textoEstancia(caja.querySelector('[data-campo=est_nombre]').value,caja.querySelector('[data-campo=est_inc]').value));
   else editarFila(k,campo,campo==='prioridad'?prioridadGuardar(t.value):t.value);
+  /* ronda de arreglos 1 (v5/v3b): lo que sale en papel de esta fila sigue a lo escrito */
+  if(['na_motivo','peligro_texto','coste','clave_ref'].indexOf(campo)>=0)repintarHoja(caja,LINEAS[k]);
   /* v2: en el móvil la caja no siempre pierde el foco antes de cerrar: se guarda también mientras se escribe (1,5 s sin teclear) */
   programar(1500);
 }
@@ -1050,6 +1065,7 @@ document.addEventListener('change',e=>{
   if(t.dataset&&t.dataset.campo==='foto'&&t.files&&t.files[0]){subirFoto(t.closest('[data-k]').dataset.k,t.files[0]);t.value='';return;}
   if(t.dataset&&t.dataset.campo==='fecha_revision'&&!SOLO){editarCab('fecha_revision',t.value);programar(800);}
 });
+window.addEventListener('beforeprint',repintarHojas);
 window.addEventListener('beforeunload',e=>{if(haySucios()){e.preventDefault();e.returnValue='';}});
 /* v2: en el móvil la página se oculta o se cierra sin focusout: se guarda lo pendiente */
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&INFORME&&!SOLO&&haySucios())return guardarPendientes();});
@@ -1059,6 +1075,7 @@ document.addEventListener('DOMContentLoaded',iniciar);
 </script>
 </body>
 </html>
+<!-- HISTORIAL: v5 ronda de arreglos 1 - 29/10/2026 — tras las dos revisiones de la v5 (sin cambiar la versión): las líneas de papel (.h-v5) de una fila se pintan otra vez al marcar o quitar N/A o ⚠ Peligro y al escribir el motivo, el peligro, el coste o «Se refiere a:» (repintarHoja en pintarFilaV5 y alEscribir), y todas antes de imprimir (beforeprint): lo que sale en papel es lo que hay en pantalla; filaVacia y el borrador local leen na y peligro con la regla Sí/No (true, 1, "1", "true", "sí", "yes"); la regla «N/A sin motivo = sin dato» en la puntuación queda pendiente de decisión (cambia pruebas existentes); pruebas en informe-temporada.test.js partes 14.1 y 14.2 -->
 <!-- HISTORIAL: v5 - 29/10/2026 — formulario v5 (job informe-form-v5-v3b; Gary 29/10/2026: "the improved form for the villa managers to fill out"; cinco carriles A a E y la integración): N/A por elemento como cuarta marca, con motivo obligatorio (columnas na, na_motivo); ⚠ Peligro en cada elemento, con texto obligatorio (peligro, peligro_texto); coste estimado opcional en las 5 actuaciones y en las estancias (coste: desconocido, <500, 500-2000, 2000-10000, 10000+; en blanco sigue en blanco); «Se refiere a:» en cada foto (clave_ref); Enviar se para y dice dónde si hay un N/A sin motivo o un peligro sin texto; el guardado automático y el borrador del móvil llevan las seis columnas nuevas. Bajo la cabecera, la condición provisional del villa manager con «¿Cómo se calcula?» (informe-temporada-puntuacion.js sobre informe-temporada-score.js) y el historial de envíos (informe-temporada-historial.js: enviado_at, enviado_por, revision, historial); Enviar y Reabrir escriben UN solo PUT con el estado y la línea del historial, así un fallo deja el informe como estaba. Un «?» en cada elemento con un ejemplo de Bueno, Regular y Malo (informe-temporada-ayuda.js). En papel (hojaV5) salen el motivo de N/A, el peligro, el coste y la referencia de la foto; un informe enviado en solo lectura enseña esas mismas líneas en pantalla. Pruebas: informe-temporada.test.js, informe-temporada-historial.test.js, informe-temporada-puntuacion.test.js, informe-temporada-ayuda.test.js e informe-temporada-hoja.test.js. -->
 <!-- HISTORIAL: v4 - 27/10/2026 — arreglo: elegir una prioridad (Alto/Medio/Bajo) o un origen (Review/Parte/Propuesta) no se guardaba cuando el navegador solo dispara 'change' en el <select> (visto en el paseo en vivo del 27/10/2026 17:1x: la fila se guardó con prioridad vacía); ahora 'change' en un <select> se trata como escritura y programa el guardado. Prueba: informe-temporada.test.js caso 'select change'. -->
 <!-- HISTORIAL: v3 - 27/10/2026 — la pantalla es la misma hoja que el modelo de Rafa (logo, título rojo, tablas Elemento | Bueno | Regular | Malo | Observaciones), en escritorio y en móvil; la impresión usa la misma maqueta; sin cambios de datos. Ronda de arreglos 2: Gary vio la v2 en vivo y dijo que no se parecía al formulario de Rafa (tarjetas de móvil con tres botones). Ahora: hoja blanca de 820 px con logo-negro.png y raya roja, título Informe de Fin de Temporada, tabla de cabecera Villa / Villa manager / Fecha de revisión / Temporada, Estado general con casillas, cinco actuaciones siempre (sin el botón de añadir actuación), tablas de Interior, Exterior y Seguridad con las palabras del PDF, siete estancias fijas con enlace para añadir estancia, tres comentarios fijos, observaciones finales en texto libre y fotos a lo ancho con un solo hueco vacío. Prioridad en desplegable Elegir / Alto / Medio / Bajo (se sigue guardando Alta / Media / Baja). En el móvil (menos de 700 px) la misma tabla: elemento y casillas de 44 px en una línea y la observación debajo. Fuera printHtml y la vista de impresión aparte. Pruebas en informe-temporada.test.js (partes 9, 10.6 y 11) y arnes-informe.js reconstruido. -->

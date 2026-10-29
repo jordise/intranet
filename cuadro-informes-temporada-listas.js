@@ -214,8 +214,20 @@
     return L('Informes enviados con puntuación provisional (no completos)', 'casas', BASE.concat([COL.puntuacion, COL.completitud, COL.guardado]), f,
       casas.some(enviada) ? 'Todos los informes enviados tienen los 26 elementos marcados.' : 'Ningún informe enviado con este filtro.');
   }
+  /* ronda de arreglos 1 (v5/v3b): lista:alertas:sindato = las casas ENVIADAS sin dato de peligro (flags.peligro null: informe de antes de la v5),
+     la misma regla que la cifra «N sin dato de peligro» de Alertas (portada tilesV3) */
+  function sinDatoPeligro(casas) {
+    var filas = casas.filter(function (c) { return enviada(c) && (!c.flags || c.flags.peligro === null || c.flags.peligro === undefined); }).slice().sort(porNombre).map(function (c) {
+      var p = puntuacion(c);
+      return Object.assign(base(c), { tipoAlerta: 'sindato', alerta: 'Sin dato de peligro', detalle: 'Informe enviado antes del formulario v5: no recogía el peligro', puntuacion: p, banda: bandaDe(p) });
+    });
+    return L('Informes enviados sin dato de peligro (antes del formulario v5)', 'casas',
+      BASE.concat([{ clave: 'alerta', label: 'Alerta' }, { clave: 'detalle', label: 'Detalle' }, COL.puntuacion]), filas,
+      'Todos los informes enviados traen el dato de peligro del formulario v5.');
+  }
   function alertas(casas, sub) {
     var s = sub || '', filas = [];
+    if (s === 'sindato') return sinDatoPeligro(casas);
     casas.filter(enviada).slice().sort(porNombre).forEach(function (c) {
       var p = puntuacion(c), mk = marcasDe(c);
       var ps = (c.flags && Array.isArray(c.flags.peligros)) ? c.flags.peligros : [];

@@ -250,7 +250,8 @@
      fotos; sin foto_url o sin referencia, fuera. clave_ref = una clave de los 26, una estancia o 'otra' */
   function refsFotos(lineas) {
     var n = function (k) { var m = /(\d+)$/.exec(txt(k)); return m ? parseInt(m[1], 10) : 99; }, out = {};
-    (lineas || []).filter(function (l) { return l && l.seccion === 'foto' && txt(l.foto_url).trim() && txt(l.clave_ref).trim(); })
+    /* ronda de arreglos 1 (v5/v3b): solo direcciones http(s), como Extras.fotosDe; un javascript: o data: guardado nunca llega a un enlace */
+    (lineas || []).filter(function (l) { return l && l.seccion === 'foto' && /^https?:\/\//i.test(txt(l.foto_url).trim()) && txt(l.clave_ref).trim(); })
       .sort(function (a, b) { return n(a.clave) - n(b.clave); })
       .forEach(function (l) { var r = txt(l.clave_ref).trim(); (out[r] = out[r] || []).push({ clave: txt(l.clave), foto_url: txt(l.foto_url).trim(), pie: txt(l.texto_1).trim() }); });
     return out;
