@@ -336,6 +336,13 @@ if (Score && typeof Score.marcas === 'function') {
     ok('Listas da la misma marca que el mapa en la fila repetida', Listas.marcasDe(c202).pintura.marca === 'malo' && Listas.marcasDe(c202).pintura.obs === 'paredes', J(Listas.marcasDe(c202).pintura));
   }
 } else ok('InformeScore.marcas (lector compartido) existe', false);
+var R10 = { t: '2026', vm: '', v: '', s: 'media:desc' };
+var h10 = [Portada.tilesHtml(Portada.tilesV3(CASAS, null), R10), Portada.listasRapidasHtml(Portada.listasRapidas(CASAS, null), R10), Portada.tablaVMHtml(Portada.tablaVM(CASAS, 'media:desc'), R10),
+  Portada.tarjetasHtml(Portada.tarjetas(CASAS), R10), Portada.mapaHtml(Portada.mapaV3(CASAS), R10)].join('');
+var hr10 = (h10.match(/href="[^"]*"/g) || []).map(function (x) { return x.slice(6, -1).replace(/&amp;/g, '&'); });
+ok('cada puerta del cuadro (cuadros, Listas, tabla VM, casas, mapa) lleva el orden de la tabla en vs; las cabeceras de la tabla no', hr10.length > 50
+  && hr10.filter(function (x) { return /[#&]v=/.test(x); }).every(function (x) { return /&vs=media:desc$/.test(x); }) && hr10.filter(function (x) { return !/[#&]v=/.test(x); }).every(function (x) { return !/vs=/.test(x); }),
+  J(hr10.filter(function (x) { return /[#&]v=/.test(x) && !/&vs=media:desc$/.test(x); }).slice(0, 3)));
 
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL' + (omitidas ? ', ' + omitidas + ' OMITIDA' : ''));
 process.exit(fail ? 1 : 0);

@@ -138,5 +138,14 @@ ok('primera casa: ← = nada', R.teclas(ev('ArrowLeft'), { prev: null, next: nav
 ok('sin navegación (cuadro o lista) = nada', R.teclas(ev('ArrowLeft'), null) === null && R.teclas(ev('ArrowLeft'), {}) === null);
 ok('sin evento = nada', R.teclas(null, nav) === null);
 
+console.log('ronda de arreglos 1: vs = el orden de la tabla de villa managers mientras se está fuera del cuadro');
+ok('vs se lee como un orden (clave:asc|desc) y lo ilegible se vacía', R.parse('#vs=media:desc').vs === 'media:desc' && R.parse('#vs=media').vs === '');
+ok('vs se escribe al final', R.serialize({ t: '2026', v: 'lista:condicion', vs: 'media:desc' }) === '#t=2026&v=lista:condicion&vs=media:desc');
+var rvs = R.parse('#t=2026&v=lista:condicion&s=villa:asc&vs=media:desc');
+ok('href con cambio guarda vs como la temporada y el VM', R.href(rvs, { v: 'casa:3', from: 'lista:condicion' }, ['s']) === '#t=2026&v=casa:3&s=villa:asc&from=lista:condicion&vs=media:desc', R.href(rvs, { v: 'casa:3', from: 'lista:condicion' }, ['s']));
+ok('una lista vuelve al cuadro con su orden de la tabla (s = vs) y sin vs', R.back(rvs) === '#t=2026&s=media:desc', R.back(rvs));
+ok('casa sin lista: vuelve al cuadro con s = vs', R.back(R.parse('#t=2026&v=casa:3&vs=nombre:asc')) === '#t=2026&s=nombre:asc');
+ok('casa desde una lista: la lista guarda vs; desde ella, el cuadro recupera el orden', R.back(R.parse(R.back(R.parse('#t=2026&v=casa:3&s=villa:asc&from=lista:condicion&vs=media:desc')))) === '#t=2026&s=media:desc');
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);

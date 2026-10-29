@@ -670,6 +670,22 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     await H5.ctx.cambiarTemporada(2027);
     ok('14.9 temporada vacía: el mapa todo h0 (130 cifras) y 22 tarjetas SIN INFORME', !/heat (h[1-4]|hr|hb|hs)"/.test(H5.g('mapa').innerHTML) && (H5.g('mapa').innerHTML.match(/heat h0"/g) || []).length === 130 && (H5.g('casas').innerHTML.match(/SIN INFORME/g) || []).length === 22);
   });
+  await parte(async function () {
+    console.log('14.10 ronda de arreglos 1: una obra del nivel 1 abre la casa con sus filtros; «‹ Cuadro» vuelve con el orden de la tabla de villa managers');
+    var H = cuadro({ db: (function () { var db = dbGrande(); db.TaInformeTemporadaLineas.forEach(function (l) { if (l.seccion === 'resumen' && l.clave === 'accion_1' && l.informe_id % 2 === 0) l.prioridad = 'Baja'; }); return db; })() });
+    H.ctx.location.hash = '#t=2026&s=media:desc&op=baja&of=resumen'; await H.ev('iniciar()');
+    var m = H.g('obras').innerHTML.match(/<tr class="obra[^"]*" data-href="([^"]+)"/), dest = m ? m[1].replace(/&amp;/g, '&') : '';
+    ok('14.10 la fila de obra lleva los filtros en from (lista:obras:baja:resumen) y el orden de la tabla en vs', /from=lista:obras:baja:resumen/.test(dest) && /vs=media:desc/.test(dest), dest);
+    ir(H, dest); await H.espera(40);
+    var C = H.g('cuerpo').innerHTML;
+    ok('14.10 anterior / siguiente por las 9 obras Bajo filtradas, no por todas', / de 9 en «Actuaciones de prioridad Bajo»/.test(C), (C.match(/casa \d+ de \d+ en «[^»]*»/) || [])[0]);
+    var at = C.match(/<a class="atras" href="([^"]+)"/), lista = at ? at[1].replace(/&amp;/g, '&') : '';
+    ir(H, lista);
+    var vuelta = (H.g('cuerpo').innerHTML.match(/<a class="atras" href="([^"]+)"/) || [])[1] || '';
+    ok('14.10 «‹ Cuadro» de la lista vuelve con s=media:desc (orden de la tabla de villa managers)', /s=media:desc/.test(vuelta.replace(/&amp;/g, '&')) && !/vs=/.test(vuelta), vuelta);
+    ir(H, '#t=2026&s=media:desc');
+    ok('14.10 el chip «⚑ Requiere atención» del cuadro lleva el orden de la tabla (vs)', /href="[^"]*v=lista:atencion[^"]*vs=media:desc[^"]*">⚑ Requiere atención/.test(H.g('filtros').innerHTML), (H.g('filtros').innerHTML.match(/<a class="chip aviso[^>]*>/) || [])[0]);
+  });
 })().then(function () {
   fin = true;
   console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');

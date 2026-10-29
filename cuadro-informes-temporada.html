@@ -525,7 +525,7 @@ function pintarFiltros(){
   const r=ruta();
   g('filtros').innerHTML='<div class="grupo"><span>Temporada</span>'+TEMPORADAS.map(t=>'<button type="button" class="chip'+(t===TEMP?' on':'')+'" aria-pressed="'+(t===TEMP)+'" data-temp="'+t+'" onclick="cambiarTemporada('+t+')">'+t+'</button>').join('')+'</div>'
     +'<div class="grupo"><span>Villa manager</span>'+[['','Todos']].concat(vms).map(v=>'<button type="button" class="chip'+(v[0]===VM?' on':'')+'" aria-pressed="'+(v[0]===VM)+'" data-vm="'+esc(v[0])+'" onclick="elegirVM(this.dataset.vm)">'+esc(v[1])+'</button>').join('')+'</div>'
-    +'<a class="chip aviso'+(r.v==='lista:atencion'?' on':'')+'" href="'+esc(Rutas.href(r,{v:'lista:atencion'}))+'">⚑ Requiere atención</a>'
+    +'<a class="chip aviso'+(r.v==='lista:atencion'?' on':'')+'" href="'+esc(Rutas.href(r,{v:'lista:atencion',vs:r.v?r.vs:r.s}))+'">⚑ Requiere atención</a>'
     +'<button type="button" class="btn rojo" onclick="imprimir()">🖨️ Imprimir</button>';
 }
 /* Mientras se lee una temporada no queda nada de la anterior en pantalla */
@@ -597,6 +597,8 @@ function pintarCasa(r,casas,casa){
 /* ── Obras del nivel 1 (maqueta): filtros op/of/od/oq/og en el hash; filas de Listas.listas('obras') (solo informes enviados);
    diez filas y "… n actuaciones más"; el CSV lleva todas las filas filtradas ── */
 function listaObras(r,casas){return Listas.listas('obras',{partes:r.op?[r.op]:[],fuente:r.of,sindetalle:r.od,q:r.oq,g:r.og,t:String(TEMP)},casas,null);}
+/* Ronda de arreglos 1: la casa abierta desde una obra lleva la misma lista filtrada (anterior / siguiente y «‹ Lista»): lista:obras:<op|todas>[:of][:sindetalle] */
+function fromObras(r){return 'lista:obras:'+(r.op||'todas')+(r.of?':'+r.of:'')+(r.od?':sindetalle':'');}
 function celdaObra(f,c){
   const v=f[c.clave];
   if(c.clave==='villa')return esc(v);
@@ -621,7 +623,7 @@ function obrasNivel1Html(r,casas){
     const extra=i>=MAX_OBRAS&&!MAS?' extra':'';i++;
     let gr='';
     if(r.og&&f.villa!==ult){ult=f.villa;gr='<tr class="grp'+extra+'"><td colspan="'+n+'">'+esc(f.villa)+' · '+filas.filter(x=>x.villa===ult).length+' actuaciones</td></tr>';}
-    const dest=Rutas.href(r,{v:'casa:'+f.villaid,from:'lista:obras:todas'},[]);
+    const dest=Rutas.href(r,{v:'casa:'+f.villaid,from:fromObras(r),q:r.oq,vs:r.s},[]);
     return gr+'<tr class="obra'+extra+'" data-href="'+esc(dest)+'">'+cols.map(c=>'<td data-l="'+esc(c.label)+'"'+(c.clave==='villa'?' class="casa-n"':'')+'>'+celdaObra(f,c)+'</td>').join('')
       +'<td class="abr" data-l=""><a class="abrir" href="'+esc(dest)+'">Abrir ›</a></td></tr>';
   }).join('');

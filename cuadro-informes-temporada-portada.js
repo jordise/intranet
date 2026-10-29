@@ -251,7 +251,7 @@
   }
 
   /* ── HTML (clases y palabras de la maqueta dashboard-v3-maqueta-2026-10-29.html) ── */
-  var ORDEN_RUTA = ['t', 'vm', 'v', 's', 'q', 'g', 'from'];
+  var ORDEN_RUTA = ['t', 'vm', 'v', 's', 'q', 'g', 'from', 'vs'];
   /* Mismo formato que la maqueta: #t=2026&vm=c:12&v=lista:obras:alta&s=villa:asc ... (Rutas.href de la lane B cuando está cargado) */
   function hrefPropio(r) {
     return '#' + ORDEN_RUTA.filter(function (k) { return r[k] !== undefined && r[k] !== null && r[k] !== ''; })
@@ -259,7 +259,9 @@
   }
   function href(r) { var R = dep('Rutas'); return R && typeof R.href === 'function' ? R.href(r) : hrefPropio(r); }
   function base(route) { return { t: route && route.t != null ? String(route.t) : '', vm: (route && route.vm) || '' }; }
-  function puerta(route, v, extra) { return href(Object.assign(base(route), { v: v }, extra || {})); }
+  /* vs: el orden de la tabla de villa managers (la s del cuadro) viaja a la lista o a la casa y vuelve con «‹ Cuadro» (Rutas.back) */
+  function vsDe(route) { return route ? (route.v ? route.vs || '' : route.s || '') : ''; }
+  function puerta(route, v, extra) { return href(Object.assign(base(route), { v: v, vs: vsDe(route) }, extra || {})); }
   function a(route, v, txt, extra) { return '<a href="' + esc(puerta(route, v, extra)) + '">' + txt + '</a>'; }
   var CLASE_TILE = { verde: 'verde', ambar: 'naranja', rojo: 'rojo', gris: 'gris' };
 
@@ -308,9 +310,9 @@
       return '<th' + (c[2] ? ' class="num"' : '') + (activa ? ' aria-sort="' + (sp[1] === 'desc' ? 'descending' : 'ascending') + '"' : '') + '><a href="'
         + esc(href(Object.assign({}, b, { s: c[0] + ':' + dir }))) + '">' + esc(c[1]) + flecha + '</a></th>';
     }).join('');
-    var cel = function (f, v, txt, lab) { return '<td class="num" data-l="' + esc(lab) + '"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:' + v })) + '">' + txt + '</a></td>'; };
+    var cel = function (f, v, txt, lab) { return '<td class="num" data-l="' + esc(lab) + '"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:' + v, vs: vsDe(route) })) + '">' + txt + '</a></td>'; };
     var fila = function (f, tot) {
-      return '<tr' + (tot ? ' class="total"' : '') + '><td data-l="Villa manager"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:estado:todas' })) + '"><b>' + esc(f.nombre) + '</b></a></td>'
+      return '<tr' + (tot ? ' class="total"' : '') + '><td data-l="Villa manager"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:estado:todas', vs: vsDe(route) })) + '"><b>' + esc(f.nombre) + '</b></a></td>'
         + cel(f, 'estado:todas', f.casas, 'Casas') + cel(f, 'estado:enviado', f.enviados, 'Enviados') + cel(f, 'estado:borrador', f.borradores, 'Borrador') + cel(f, 'estado:sin', f.sin, 'Sin informe')
         + cel(f, 'condicion', '<span class="sc ' + banda(f.media) + '">' + fmt1(f.media) + '</span> <span class="cmp">' + f.n + ' de ' + f.N + '</span>', 'Condición media')
         + cel(f, 'marcas:malo', f.malo, 'Malo') + cel(f, 'obras:alta', f.alta, 'Alto') + cel(f, 'alertas', f.alertas, 'Alertas')

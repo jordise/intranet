@@ -25,7 +25,8 @@
   var CLAVES = ['t', 'vm', 'v', 's', 'q', 'g', 'from'];
   /* Filtros de obras del cuadro (nivel 1) de la maqueta */
   var CLAVES_OBRAS = ['op', 'of', 'od', 'oq', 'og'];
-  var TODAS = CLAVES.concat(CLAVES_OBRAS);
+  /* vs (ronda de arreglos 1): el orden de la tabla de villa managers (la s del cuadro) mientras se está en una lista o una casa */
+  var TODAS = CLAVES.concat(CLAVES_OBRAS, ['vs']);
   var Q_MAX = 200;
   var PREFIJO_SCROLL = 'cuadro-v3-scroll:';
 
@@ -41,7 +42,8 @@
     of: function (x) { return /^(resumen|estancia)$/.test(x); },
     od: function (x) { return x === '1'; },
     oq: function () { return true; },
-    og: function (x) { return x === '1'; }
+    og: function (x) { return x === '1'; },
+    vs: function (x) { return /^[a-z0-9_]+:(asc|desc)$/i.test(x); }
   };
 
   function limpia(k, x) {
@@ -86,12 +88,12 @@
     return '#' + partes.join('&');
   }
 
-  /* Enlace. href(route) = serialize(route). Con cambio (patch): parte de temporada y VM,
+  /* Enlace. href(route) = serialize(route). Con cambio (patch): parte de temporada, VM y vs,
      añade las claves de keep (true = todas) y aplica el cambio; '' en el cambio quita la clave. */
   function href(route, patch, keep) {
     var r = route || {};
     if (patch === undefined && keep === undefined) return serialize(r);
-    var o = { t: r.t, vm: r.vm };
+    var o = { t: r.t, vm: r.vm, vs: r.vs };
     if (keep === true) TODAS.forEach(function (k) { o[k] = r[k]; });
     else (keep || []).forEach(function (k) { o[k] = r[k]; });
     Object.keys(patch || {}).forEach(function (k) { o[k] = patch[k]; });
@@ -99,11 +101,11 @@
   }
 
   /* Volver: casa abierta desde una lista → esa lista (orden, búsqueda, grupo);
-     casa sin lista, lista o cuadro → el cuadro con temporada, VM y los filtros de obras */
+     casa sin lista, lista o cuadro → el cuadro con temporada, VM, los filtros de obras y el orden de la tabla (s = vs) */
   function back(route) {
     var r = route || {};
     if (/^casa:/.test(r.v || '') && r.from) return href(r, { v: r.from }, ['s', 'q', 'g']);
-    return href(r, {}, CLAVES_OBRAS);
+    return href(r, { s: r.vs || '', vs: '' }, CLAVES_OBRAS);
   }
 
   /* Posición de cada vista en sessionStorage (la vista = el hash normalizado) */
