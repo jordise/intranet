@@ -12,6 +12,8 @@ function ok(n, c, e) { if (c) { pass++; console.log('  PASS  ' + n); } else { fa
 function fin() { console.log('\n' + pass + ' PASS, ' + fail + ' FAIL'); process.exit(fail ? 1 : 0); }
 function J(x) { return JSON.stringify(x); }
 function safe(f) { try { return f(); } catch (e) { return e; } }
+/* Un Error de otro contexto de vm no es instanceof Error de aquí: se mira su etiqueta */
+function esError(e) { return Object.prototype.toString.call(e) === '[object Error]'; }
 function cuenta(s, sub) { return String(s).split(sub).length - 1; }
 function fnSource(s, name) {
   var i = s.indexOf('function ' + name + '(');
@@ -135,14 +137,14 @@ function casa(o) {
   var malas = 0;
   function cargadorQueFalla(t) { malas++; return malas === 1 ? Promise.reject(new Error('HTTP 500')) : Promise.resolve({ informes: [], lineas: [] }); }
   var e1 = await X2.cargarTemporadaPrevia(2030, cargadorQueFalla).then(function () { return null; }, function (e) { return e; });
-  ok('un fallo llega al que llama', e1 instanceof Error && /500/.test(e1.message), e1 && e1.message);
+  ok('un fallo llega al que llama', esError(e1) && /500/.test(e1.message), e1 && e1.message);
   ok('un fallo no se guarda: temporadaPrevia sigue vacía', X2.temporadaPrevia(2030) == null);
   var r2 = await X2.cargarTemporadaPrevia(2030, cargadorQueFalla);
   ok('después de un fallo, la siguiente llamada lee otra vez', malas === 2 && r2 && r2.temporada === 2029 && r2.informes.length === 0, malas + ' ' + J(r2));
   var e2 = await X2.cargarTemporadaPrevia(2040, function () { return Promise.resolve(true); }).then(function () { return null; }, function (e) { return e; });
-  ok('un cargador que no devuelve {informes, lineas} (cargarInformes de la v2 devuelve true) se rechaza con un error claro', e2 instanceof Error && /informes/.test(e2.message), e2 && e2.message);
+  ok('un cargador que no devuelve {informes, lineas} (cargarInformes de la v2 devuelve true) se rechaza con un error claro', esError(e2) && /informes/.test(e2.message), e2 && e2.message);
   var e3 = await X2.cargarTemporadaPrevia('x', cargador).then(function () { return null; }, function (e) { return e; });
-  ok('una temporada que no es un año se rechaza sin leer', e3 instanceof Error && lecturas.length === 2, e3 && e3.message);
+  ok('una temporada que no es un año se rechaza sin leer', esError(e3) && lecturas.length === 2, e3 && e3.message);
   var prevCasas = [casa({ villaid: 7, informe_id: 3 }), casa({ villaid: '9', informe_id: 4 })];
   ok('casaPreviaDe: la misma villa en las casas de la temporada anterior', X2.casaPreviaDe(casa({ villaid: '7' }), prevCasas).informe_id === 3 && X2.casaPreviaDe(casa({ villaid: 9 }), prevCasas).informe_id === 4);
   ok('casaPreviaDe: sin la villa o sin casas -> null', X2.casaPreviaDe(casa({ villaid: 8 }), prevCasas) === null && X2.casaPreviaDe(casa({}), null) === null);
