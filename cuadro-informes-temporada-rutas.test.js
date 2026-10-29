@@ -36,6 +36,8 @@ ok('sin # también vale', R.parse('t=2025&v=casa:7').v === 'casa:7' && R.parse('
 ok('temporada por defecto si falta', R.parse('#v=lista:condicion', { t: '2026' }).t === '2026');
 ok('temporada ilegible = la de por defecto', R.parse('#t=20x6', { t: '2026' }).t === '2026' && R.parse('#t=1', { t: '2026' }).t === '2026');
 ok('vm u:<UserID> vale', R.parse('#vm=u:5').vm === 'u:5');
+/* Integración: "Sin villa manager" de la portada (Portada.SIN_VM) viaja como vm=sin y vuelve igual */
+ok('integración: vm=sin (casas sin villa manager) vale y vuelve igual', R.parse('#t=2026&vm=sin&v=lista:estado:todas').vm === 'sin' && R.serialize(R.parse('#t=2026&vm=sin&v=lista:estado:todas')) === '#t=2026&vm=sin&v=lista:estado:todas' && R.parse('#vm=sinx').vm === '');
 ok('vm sin origen c:/u: = todos', R.parse('#vm=12').vm === '' && R.parse('#vm=x:3').vm === '');
 ok('vm con caracteres raros = todos', R.parse('#vm=c:1%3Cb%3E').vm === '');
 ok('vista de casa', R.parse('#v=casa:123').v === 'casa:123');

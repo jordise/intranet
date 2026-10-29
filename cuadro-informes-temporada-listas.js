@@ -105,7 +105,7 @@
     puntuacion: { clave: 'puntuacion', label: 'Condición', num: true, tipo: 'puntuacion' },
     completitud: { clave: 'completitud', label: 'Completitud', num: true, orden: 'evaluados' },
     final: { clave: 'final', label: 'Puntuación' },
-    alta: { clave: 'alta', label: 'Alta', num: true },
+    alta: { clave: 'alta', label: 'Alto', num: true },
     elemento: { clave: 'elemento', label: 'Elemento', tipo: 'elemento' },
     marca: { clave: 'marca', label: 'Marca', tipo: 'marca' },
     observacion: { clave: 'observacion', label: 'Observación' },
@@ -215,7 +215,7 @@
   function obras(casas, f) {
     f = f || {};
     var p = lw(f.prioridad) || 'todas';
-    var T = { todas: 'Todas las actuaciones', alta: 'Actuaciones de prioridad Alta', media: 'Actuaciones de prioridad Media', baja: 'Actuaciones de prioridad Baja',
+    var T = { todas: 'Todas las actuaciones', alta: 'Actuaciones de prioridad Alto', media: 'Actuaciones de prioridad Medio', baja: 'Actuaciones de prioridad Bajo',
       sin: 'Actuaciones sin prioridad', sindetalle: 'Actuaciones sin detalle (falta motivo o prioridad)' };
     var filas = filasObras(casas.filter(enviada), f), borr = filasObras(casas.filter(function (c) { return c.estado === 'borrador'; }), f).length;
     var hay = casas.filter(enviada).some(function (c) { return acciones(c).length; });
@@ -249,13 +249,13 @@
       var f = filaCasa(c), m = [], s = sc(c);
       if (peligro(c)) m.push('peligro');
       if (seguridad(c).length) m.push('revisión de seguridad');
-      if (f.alta) m.push(plural(f.alta, 'actuación Alta', 'actuaciones Alta'));
+      if (f.alta) m.push(plural(f.alta, 'actuación de prioridad Alto', 'actuaciones de prioridad Alto'));
       if (!completo(c)) m.push('incompleto ' + (s.evaluados || 0) + '/' + (s.aplicables == null ? 26 : s.aplicables));
       f.motivo = m.join(' · ');
       return f;
     });
     return L('Requiere atención', 'casas', BASE.concat([{ clave: 'motivo', label: 'Motivo' }, COL.alta, COL.puntuacion, COL.completitud]), filas,
-      'Ninguna casa con peligro, revisión de seguridad, actuación Alta o informe incompleto.');
+      'Ninguna casa con peligro, revisión de seguridad, actuación de prioridad Alto o informe incompleto.');
   }
   function malosinact(casas) {
     var filas = casas.filter(function (c) { return enviada(c) && malos(c) > 0 && acciones(c).length === 0; }).slice().sort(porNombre).map(function (c) {

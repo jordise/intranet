@@ -103,7 +103,7 @@
     if (col) {
       var m = s[1] === 'desc' ? -1 : 1;
       filas = filas.map(function (f, i) { return [f, i]; }).sort(function (x, y) {
-        var a = valorOrden(x[0], col.clave), b = valorOrden(y[0], col.clave);
+        var k = col.orden || col.clave, a = valorOrden(x[0], k), b = valorOrden(y[0], k);   /* integración: col.orden (fechaIso, rango…) de Listas */
         if (a == null || b == null) { var z = cmp(a, b); if (z) return z; }
         return (m * cmp(a, b)) || (x[1] - y[1]);
       }).map(function (x) { return x[0]; });

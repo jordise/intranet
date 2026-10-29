@@ -31,7 +31,7 @@
 
   var VALIDA = {
     t: function (x) { return /^\d{4}$/.test(x); },
-    vm: function (x) { return /^[cu]:[A-Za-z0-9_-]+$/.test(x); },
+    vm: function (x) { return /^[cu]:[A-Za-z0-9_-]+$/.test(x) || x === 'sin'; },
     v: function (x) { return /^lista:[a-z0-9_]+(:[a-z0-9_]+)*$/i.test(x) || /^casa:\d+$/.test(x); },
     s: function (x) { return /^[a-z0-9_]+:(asc|desc)$/i.test(x); },
     q: function () { return true; },

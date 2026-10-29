@@ -128,6 +128,9 @@ console.log('1. construirCasasV3: una fila por villa activa con la forma del con
 ok('10 casas, en el orden de las villas', CASAS.length === 10 && CASAS.map(function (c) { return c.villaid; }).join(',') === '1,2,3,4,5,6,7,8,9,10', J(CASAS.map(function (c) { return c.villaid; })));
 var c1 = casa(1);
 ok('campos del contrato presentes', ['villaid', 'villa', 'vm', 'vmId', 'informe_id', 'estado', 'general', 'fecha', 'updated', 'lineas', 'score', 'flags', 'acciones', 'url'].every(function (k) { return k in c1; }), J(Object.keys(c1)));
+/* Integración: la casa lleva el texto final de la cabecera (observaciones_finales) para Vistas.casaHtml; sin informe = '' */
+var cOF = safe(function () { return Portada.construirCasasV3([{ villaid: 1, Name: 'A' }, { villaid: 2, Name: 'B' }], [{ informe_id: 9, villaid: 1, estado: 'enviado', observaciones_finales: '  Todo listo <b>  ' }], [], [], [], 2026); }) || [];
+ok('integración: observaciones_finales de la cabecera en la casa (recortado); sin informe vacío', cOF[0] && cOF[0].observaciones_finales === 'Todo listo <b>' && cOF[1] && cOF[1].observaciones_finales === '', J(cOF.map && cOF.map(function (c) { return c.observaciones_finales; })));
 ok('villa manager: contacto c:1 Kike, usuario u:7 Nazaret, sin villa manager vacío', c1.vm === 'Kike' && c1.vmId === 'c:1' && casa(5).vmId === 'u:7' && casa(5).vm === 'Nazaret' && casa(6).vmId === '' && casa(6).vm === '');
 ok('estado: enviado (también "Enviado"), borrador, "" sin informe', c1.estado === 'enviado' && casa(4).estado === 'enviado' && casa(5).estado === 'borrador' && casa(6).estado === '' && casa(6).informe_id === null);
 ok('general en minúsculas; fecha = fecha_revision AAAA-MM-DD', c1.general === 'bueno' && c1.fecha === '2026-10-10' && casa(7).general === '', c1.general + ' ' + c1.fecha);
@@ -278,6 +281,8 @@ ok('listasRapidasHtml: Listas: con sus cifras y puertas', typeof lh === 'string'
 
 console.log('10. Acuerdo cifra = filas de su lista (lane D)');
 var Listas = cargarSiExiste('cuadro-informes-temporada-listas.js'), FIX = cargarSiExiste('cuadro-informes-temporada-fixtures.js');
+/* Integración: Listas lee InformeScore como global (en la página lo carga el <script> anterior); aquí se le da el mismo que usa Portada */
+if (Listas && typeof global.InformeScore === 'undefined') global.InformeScore = Score || SUSTITUTO;
 function puertas(casas, prev, vm) {
   var out = [], t = Portada.tilesV3(casas, prev);
   ['entregados', 'condicion', 'alertas', 'obras', 'review'].forEach(function (k) { (t[k].puertas || []).forEach(function (p) { out.push({ de: 'cuadro ' + k, v: p.v, n: p.n, vm: vm }); }); });

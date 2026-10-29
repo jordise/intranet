@@ -89,6 +89,11 @@ var asc = V.filtrarOrdenar(listaCasas(), R.parse('#v=lista:condicion&s=puntuacio
 ok('orden numérico ascendente, vacíos al final', J(asc.filas.map(function (f) { return f.villaid; })) === '[3,4,1,2]', J(asc.filas.map(function (f) { return f.villaid; })));
 var desc = V.filtrarOrdenar(listaCasas(), R.parse('#v=lista:condicion&s=puntuacion:desc'));
 ok('orden numérico descendente, vacíos al final también', J(desc.filas.map(function (f) { return f.villaid; })) === '[1,4,3,2]', J(desc.filas.map(function (f) { return f.villaid; })));
+/* Integración: una columna de Listas con clave de orden (orden: 'fechaIso') ordena por esa clave, no por el texto dd/mm/aaaa */
+var listaFechas = { titulo: 'f', columnas: [{ clave: 'villa', label: 'Casa' }, { clave: 'fecha', label: 'Fecha de revisión', orden: 'fechaIso' }],
+  filas: [{ villaid: 1, villa: 'A', fecha: '20/10/2026', fechaIso: '2026-10-20' }, { villaid: 2, villa: 'B', fecha: '05/11/2026', fechaIso: '2026-11-05' }, { villaid: 3, villa: 'C', fecha: '28/09/2025', fechaIso: '2025-09-28' }] };
+var fOrd = V.filtrarOrdenar(listaFechas, R.parse('#s=fecha:asc'));
+ok('integración: s=fecha:asc ordena por la clave de orden fechaIso (C 2025, A 20/10, B 05/11)', J(fOrd.filas.map(function (f) { return f.villa; })) === '["C","A","B"]', J(fOrd.filas.map(function (f) { return f.villa; })));
 var porNombre = V.filtrarOrdenar(listaCasas(), R.parse('#s=villa:asc'));
 ok('orden de texto en español (Á con la A, Ñ tras la N)', J(porNombre.filas.map(function (f) { return f.villa; })) === J(['Ático <b>', 'Buganvilla', 'Casa Azul', 'Villa Ñandú']), J(porNombre.filas.map(function (f) { return f.villa; })));
 var porFecha = V.filtrarOrdenar(listaCasas(), R.parse('#s=fecha:desc'));

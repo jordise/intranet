@@ -82,6 +82,7 @@
         estado: inf ? (lw(inf.estado) === 'enviado' ? 'enviado' : 'borrador') : '',
         general: ['bueno', 'regular', 'malo'].indexOf(g) >= 0 ? g : '',
         fecha: inf ? fechaISO(inf.fecha_revision) : '', updated: inf ? tr(inf.updated_at) : '', enviado_at: inf ? tr(inf.enviado_at) : '',
+        observaciones_finales: inf ? tr(inf.observaciones_finales) : '',   /* integración: el texto final que pinta Vistas.casaHtml */
         lineas: ls, score: S.condicion(ls),
         flags: inf ? S.banderas(inf, ls) : { peligro: null, seguridad: [], coherencia: null },
         acciones: inf ? (S.acciones(ls) || []) : [],
@@ -159,7 +160,7 @@
 
   /* ── Tabla por villa manager ── */
   var VM_COLS = [['nombre', 'Villa manager'], ['casas', 'Casas', 1], ['enviados', 'Enviados', 1], ['borradores', 'Borrador', 1], ['sin', 'Sin informe', 1],
-    ['media', 'Condición media', 1], ['malo', 'Malo', 1], ['alta', 'Alta', 1], ['alertas', 'Alertas', 1], ['ultimo', 'Último envío']];
+    ['media', 'Condición media', 1], ['malo', 'Malo', 1], ['alta', 'Alto', 1], ['alertas', 'Alertas', 1], ['ultimo', 'Último envío']];
   function statsVM(cs) {
     var env = enviadas(cs), fin = env.filter(esFinal);
     var ult = env.map(function (c) { return c.enviado_at; }).filter(function (x) { return sello(x) !== null; }).sort(function (a, b) { return sello(a) - sello(b); }).pop() || '';
@@ -278,7 +279,7 @@
         a(route, 'lista:alertas:seguridad', plural(A.seguridad, 'revisiones') + ' de seguridad') + ' · '
         + (A.peligroDato ? a(route, 'lista:alertas:peligro', A.peligro + ' peligro' + (A.peligro === 1 ? '' : 's')) : 'peligro: dato del formulario v5'))
       + tile(route, 'naranja', 'Obras por prioridad', O.n + ' <span class="de">actuaciones</span>', 'lista:obras:todas',
-        a(route, 'lista:obras:alta', 'Alta ' + O.alta) + ' · ' + a(route, 'lista:obras:media', 'Media ' + O.media) + ' · ' + a(route, 'lista:obras:baja', 'Baja ' + O.baja)
+        a(route, 'lista:obras:alta', 'Alto ' + O.alta) + ' · ' + a(route, 'lista:obras:media', 'Medio ' + O.media) + ' · ' + a(route, 'lista:obras:baja', 'Bajo ' + O.baja)
         + (O.sin ? ' · ' + a(route, 'lista:obras:sin', 'sin prioridad ' + O.sin) : ''),
         O.borradores ? '<div class="s">' + O.borradores + ' más en borradores (no cuentan)</div>' : '')
       + tile(route, 'gris', 'Actuaciones por banda de coste', '—', '', '<span class="sin-datos">' + esc(T.coste.texto) + '</span>')
@@ -305,7 +306,7 @@
       return '<tr' + (tot ? ' class="total"' : '') + '><td data-l="Villa manager"><a class="cel" href="' + esc(href({ t: b.t, vm: f.vmId, v: 'lista:estado:todas' })) + '"><b>' + esc(f.nombre) + '</b></a></td>'
         + cel(f, 'estado:todas', f.casas, 'Casas') + cel(f, 'estado:enviado', f.enviados, 'Enviados') + cel(f, 'estado:borrador', f.borradores, 'Borrador') + cel(f, 'estado:sin', f.sin, 'Sin informe')
         + cel(f, 'condicion', '<span class="sc ' + banda(f.media) + '">' + fmt1(f.media) + '</span> <span class="cmp">' + f.n + ' de ' + f.N + '</span>', 'Condición media')
-        + cel(f, 'marcas:malo', f.malo, 'Malo') + cel(f, 'obras:alta', f.alta, 'Alta') + cel(f, 'alertas', f.alertas, 'Alertas')
+        + cel(f, 'marcas:malo', f.malo, 'Malo') + cel(f, 'obras:alta', f.alta, 'Alto') + cel(f, 'alertas', f.alertas, 'Alertas')
         + cel(f, 'estado:enviado', f.ultimo ? fechaVer(f.ultimo) : '—', 'Último envío') + '</tr>';
     };
     return '<div class="card"><h3>Por villa manager <small>· clic en una cifra: las filas que la forman · clic en una cabecera: ordenar</small></h3><div class="vmwrap"><table class="vmt">'
@@ -341,7 +342,7 @@
       + '<div class="fila"><span class="sc ' + k.banda + '">' + fmt1(k.puntuacion) + '</span>'
       + (k.previa ? ' <small class="prov">vista previa</small>' : k.puntuacion != null && !k.completo ? ' <small class="prov">provisional</small>' : '')
       + '<span class="cmp">' + k.evaluados + '/' + k.aplicables + '</span>' + (k.borrador ? '<span class="pill borrador">borrador</span>' : '') + '</div>'
-      + '<div class="flags">' + fl + (k.alta ? ' <span class="pill a">Alta ' + k.alta + '</span>' : '') + '</div>'
+      + '<div class="flags">' + fl + (k.alta ? ' <span class="pill a">Alto ' + k.alta + '</span>' : '') + '</div>'
       + '<div class="vm">' + vm + (fechas ? ' · ' + fechas : '') + '</div></a>';
   }
   function tarjetasHtml(K, route) {
