@@ -404,7 +404,7 @@
     return '<div class="card"><h3>Casas <small>· peligros, revisiones de seguridad, peor condición, incompletas, nombre · un clic abre el informe</small></h3><div class="casas">'
       + (K || []).map(function (k) { return tarjetaHtml(k, route); }).join('') + '</div>'
       + '<div class="leyenda"><span><i style="background:var(--green)"></i>≥ 80</span><span><i style="background:var(--orange)"></i>50 a 79,9</span><span><i style="background:var(--red)"></i>&lt; 50</span>'
-      + '<span><i style="background:var(--gray-3)"></i>sin puntuación o borrador</span><span>19/26 = elementos marcados · provisional hasta 26/26</span></div></div>';
+      + '<span><i style="background:var(--gray-3)"></i>sin puntuación o borrador</span><span>19/26 = elementos marcados de los aplicables (26 menos N/A) · provisional hasta marcarlos todos</span></div></div>';
   }
 
   var Portada = {

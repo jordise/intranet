@@ -441,6 +441,7 @@ if (Score && typeof Score.datosV5 === 'function' && FV5) {
   ok('tarjeta: peligro con texto en el HTML', kh5.indexOf('⚠ peligro: Escalón de la terraza') >= 0);
   var LR5 = {}; Portada.listasRapidas(C5, null).forEach(function (x) { LR5[x.v] = x.n; });
   ok('Requiere atención incluye la casa con peligro', LR5['lista:atencion'] >= 1 && Listas && Listas.atencion(C5).filas.some(function (f) { return f.villaid === 301; }), J(LR5));
+  ok('tarjetas: la leyenda dice que la completitud cuenta los aplicables (26 menos N/A) y la tarjeta de 301 enseña 25/25', kh5.indexOf('elementos marcados de los aplicables (26 menos N/A)') >= 0 && /Villa Peligro[^]*?<span class="cmp">25\/25<\/span>/.test(kh5));
   var Tsin = Portada.tilesV3(C5.filter(function (c) { return c.villaid === 303 || c.villaid === 305; }), null);
   ok('solo informes de antes de la v5: el cuadro de coste sigue "sin datos: formulario v5" (null) y el peligro "dato del formulario v5"', Tsin.coste.n === null && Tsin.alertas.peligroDato === false && Portada.tilesHtml(Tsin, ROUTE).indexOf('dato del formulario v5') >= 0);
 } else ok('InformeScore.datosV5 y FIX.v5 existen', false);
