@@ -734,6 +734,18 @@ async function pruebasConFetch() {
   ok('cada marca repinta la cifra: Malo en colchones = «Condición provisional: 50,0 · 2 de 25 evaluados · 1 N/A», banda ámbar', t.textContent === 'Condición provisional: 50,0 · 2 de 25 evaluados · 1 N/A' && at['data-banda'] === 'ambar', t.textContent + ' ' + at['data-banda']);
   t.textContent = ''; H.ev("editarFila('interior|colchones','texto_1','Hundido')");
   ok('escribir una observación no recalcula', t.textContent === '');
+  /* ronda de arreglos 2 (A1 = B2): el motivo del N/A cambia la cifra (naValido), así que escribirlo o borrarlo también repinta */
+  var H2 = pagina({ db: baseDb({ TaInformeTemporada: [informe9({ estado_general: 'Bueno' })], TaInformeTemporadaLineas: [
+    { linea_id: 1, informe_id: 9, seccion: 'interior', clave: 'pintura', estado: 'Bueno' }] }) });
+  await H2.ev('iniciar()');
+  var t2 = { textContent: '' }, pp2 = { querySelector: function () { return t2; }, setAttribute: function () {} };
+  H2.doc.querySelector = function (s) { return s === '.cond-prov' ? pp2 : null; };
+  H2.ev("editarFila('exterior|piscina','na',true)");
+  ok('N/A sin motivo todavía: «1 de 26 evaluados» (aún no cuenta como N/A)', t2.textContent === 'Condición provisional: 100,0 · 1 de 26 evaluados', t2.textContent);
+  t2.textContent = ''; H2.ev("editarFila('exterior|piscina','na_motivo','sin piscina')");
+  ok('escribir el motivo del N/A recalcula: «1 de 25 evaluados · 1 N/A»', t2.textContent === 'Condición provisional: 100,0 · 1 de 25 evaluados · 1 N/A', t2.textContent);
+  t2.textContent = ''; H2.ev("editarFila('exterior|piscina','na_motivo','')");
+  ok('borrar el motivo recalcula: vuelve a «1 de 26 evaluados»', t2.textContent === 'Condición provisional: 100,0 · 1 de 26 evaluados', t2.textContent);
   var caja = H.g('comoSeCalcula'); caja.hidden = true; var b = { attrs: {}, setAttribute: function (k, v) { this.attrs[k] = v; } };
   H.ctx.alternarComoCalc(b);
   ok('«¿Cómo se calcula?» abre la caja y marca aria-expanded', caja.hidden === false && b.attrs['aria-expanded'] === 'true');

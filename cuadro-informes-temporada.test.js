@@ -492,7 +492,7 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     console.log('14.1 v3: carga y nivel 1 (seis cuadros, Listas, tabla por villa manager, casas, mapa, obras)');
     ok('14.1 los seis scripts del cuadro en <head>, en orden, con ?v=4 (cuadro v4), despues de nav-component.js', J(SCRIPTS_V3) === J(['informe-temporada-score.js', 'cuadro-informes-temporada-rutas.js', 'cuadro-informes-temporada-listas.js', 'cuadro-informes-temporada-portada.js', 'cuadro-informes-temporada-vistas.js', 'cuadro-informes-temporada-extras.js'])
       && SRC.indexOf('<script src="nav-component.js"></script>') < SRC.indexOf('<script src="informe-temporada-score.js?v=4"></script>') && SRC.indexOf('<script src="cuadro-informes-temporada-extras.js?v=4"></script>') < SRC.indexOf('</head>'), J(SCRIPTS_V3));
-    ok('14.1 la hoja cuadro-informes-temporada-extras.css?v=3 despues del <style> de la pagina', SRC.indexOf('<link rel="stylesheet" href="cuadro-informes-temporada-extras.css?v=3">') > SRC.indexOf('</style>') && SRC.indexOf('</style>') > 0);
+    ok('14.1 la hoja cuadro-informes-temporada-extras.css?v=4 despues del <style> de la pagina', SRC.indexOf('<link rel="stylesheet" href="cuadro-informes-temporada-extras.css?v=4">') > SRC.indexOf('</style>') && SRC.indexOf('</style>') > 0);
     var H = cuadro(); await H.ev('iniciar()');
     var T = H.g('tiles').innerHTML;
     ok('14.1 seis cuadros con las palabras de la maqueta', (T.match(/class="tile[ "]/g) || []).length === 6 && ['Entregados', 'Condición media', 'Alertas', 'Obras por prioridad', 'Actuaciones por banda de coste', 'Comentarios Review'].every(function (w) { return T.indexOf(w) >= 0; }), T.slice(0, 200));

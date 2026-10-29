@@ -353,5 +353,12 @@ if (typeof IS.datosV5 === 'function' && F.v5) {
   ok('atencion: la casa con peligro primero y su motivo dice "peligro"', l5('atencion').filas[0].villaid === 301 && /^peligro/.test(l5('atencion').filas[0].motivo));
 } else ok('InformeScore.datosV5 y F.v5 existen', false);
 
+/* ronda de arreglos 2 (A3): la columna Fotos cuenta solo las fotos http(s), la misma regla que refsFotos y la galería */
+var cFot = { lineas: [
+  { seccion: 'foto', clave: 'foto_1', foto_url: 'https://galeria.invalid/1.jpg' }, { seccion: 'foto', clave: 'foto_2', foto_url: ' HTTP://galeria.invalid/2.jpg ' },
+  { seccion: 'foto', clave: 'foto_3', foto_url: 'javascript:alert(1)' }, { seccion: 'foto', clave: 'foto_4', foto_url: 'data:image/png;base64,AAAA' },
+  { seccion: 'foto', clave: 'foto_5', foto_url: '  ' }, { seccion: 'interior', clave: 'pintura', foto_url: 'https://galeria.invalid/x.jpg' }] };
+ok('fotosDe: cuenta solo las fotos http(s) (2 de 6 líneas; javascript:, data:, en blanco y no-foto fuera)', L.fotosDe(cFot) === 2, L.fotosDe(cFot));
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exitCode = fail ? 1 : 0;

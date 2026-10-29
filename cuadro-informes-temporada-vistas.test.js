@@ -398,5 +398,11 @@ ok('sin Extras: una foto javascript: no sale como enlace en la fila del elemento
 var fr6 = LS.fotosRefDe(cJs, 'pintura');
 ok('listas: fotosRefDe deja fuera la foto javascript:', Array.isArray(fr6) && fr6.length === 0, J(fr6));
 
+/* ronda de arreglos 2 (A3): sin el visor de fotos, la casa cuenta solo las fotos http(s) (la misma regla que refsFotos) */
+var cJs2 = Object.assign({}, cJs); cJs2.lineas = cJs.lineas.concat([{ informe_id: 3010, seccion: 'foto', clave: 'foto_5', orden: 5, foto_url: 'data:image/png;base64,AAAA', texto_1: 'Dato' }]);
+var nHttp = cJs2.lineas.filter(function (l) { return l.seccion === 'foto' && /^https?:\/\//i.test(String(l.foto_url || '').trim()); }).length;
+var hJs2 = W6.Vistas.casaHtml(cJs2, null, W6.Rutas.parse('#t=2026&v=casa:301'), null);
+ok('sin Extras: el recuento de fotos deja fuera javascript: y data: («' + nHttp + ' fotos en el informe»)', nHttp >= 1 && hJs2.indexOf('>' + (nHttp === 1 ? '1 foto' : nHttp + ' fotos') + ' en el informe') >= 0, (hJs2.match(/<p class="mot">[^<]*en el informe[^<]*/) || ['sin texto'])[0]);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);
