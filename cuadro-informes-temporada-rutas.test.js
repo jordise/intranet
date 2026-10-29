@@ -59,6 +59,10 @@ ok('claves desconocidas se ignoran', !('zz' in R.parse('#zz=1&t=2026')));
 var obr = R.parse('#op=alta&of=estancia&od=1&oq=grifo&og=1');
 ok('filtros de obras del cuadro (maqueta: op, of, od, oq, og)', obr.op === 'alta' && obr.of === 'estancia' && obr.od === '1' && obr.oq === 'grifo' && obr.og === '1', J(obr));
 ok('filtros de obras ilegibles se vacían', R.parse('#op=urgente&of=x&od=2&og=x').op === '' && R.parse('#of=x').of === '' && R.parse('#od=2').od === '' && R.parse('#og=x').og === '');
+/* v2 (cuadro v4): oc = banda de coste de las obras del nivel 1 */
+ok('v2: oc lee las siete bandas y vacía lo demás', ['menos500', '500a2000', '2000a10000', 'mas10000', 'desconocido', 'sincoste', 'distinto'].every(function (x) { return R.parse('#oc=' + x).oc === x; }) && R.parse('#oc=500').oc === '' && R.parse('#oc=%3Cb%3E').oc === '');
+ok('v2: oc se escribe tras og y antes de vs, y vuelve igual', R.serialize(R.parse('#t=2026&op=alta&og=1&oc=distinto&vs=media:desc')) === '#t=2026&op=alta&og=1&oc=distinto&vs=media:desc' && R.CLAVES_OBRAS.indexOf('oc') === 5);
+ok('v2: «‹ Cuadro» guarda oc (back)', R.back(R.parse('#t=2026&v=casa:3&oc=menos500')) === '#t=2026&oc=menos500' && /oc=menos500/.test(R.back(R.parse('#t=2026&v=casa:3&from=lista:obras:todas:menos500&oc=menos500'))));
 
 console.log('serialize');
 ok('el ejemplo del contrato, en este orden', R.serialize({ t: '2026', vm: 'c:12', v: 'lista:obras:alta', s: 'villa:asc', q: 'texto', g: '1', from: 'lista:atencion' })

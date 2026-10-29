@@ -116,7 +116,7 @@
     return '<div class="gal">' + FOTOS.map(function (f, j) {
       return '<button type="button" class="foto" onclick="Extras.overlayAbrir(' + j + ')" aria-label="Ampliar: ' + esc(f.pie) + '">'
         + '<img class="ph" src="' + esc(f.url) + '" alt="' + esc(f.pie) + '" loading="lazy"><div class="cap">' + esc(f.pie) + '</div></button>';
-    }).join('') + '</div><p class="small-print">Fotos del informe, sin vínculo a un elemento hasta el formulario v5.</p>';
+    }).join('') + '</div><p class="small-print">Fotos del informe. Desde el formulario v5 cada foto puede decir a qué elemento se refiere y sale también en la fila de ese elemento.</p>';
   }
 
   /* ── Capa de la foto: una sola en la página, Esc o el fondo la cierran, el foco vuelve al botón ── */
@@ -181,6 +181,9 @@
       if (OP[route.op]) partes.push('obras: ' + OP[route.op]);
       if (OF[route.of]) partes.push(OF[route.of]);
       if (String(route.od) === '1') partes.push('sin detalle');
+      /* cuadro v4: la banda de coste de las obras (oc) */
+      var OC = { menos500: 'coste menos de 500 €', '500a2000': 'coste 500 a 2.000 €', '2000a10000': 'coste 2.000 a 10.000 €', mas10000: 'coste más de 10.000 €', desconocido: 'coste desconocido', sincoste: 'coste en blanco', distinto: 'coste distinto' };
+      if (OC[route.oc]) partes.push('obras: ' + OC[route.oc]);
       if (route.oq) partes.push('búsqueda de obras «' + route.oq + '»');
       if (String(route.og) === '1') partes.push('obras agrupadas por casa');
     }

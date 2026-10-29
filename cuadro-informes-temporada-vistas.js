@@ -244,7 +244,7 @@
   }
 
   /* Ronda de arreglos 2: los filtros de obras del nivel 1 (op, of, od, oq, og) viajan por la lista y la casa hasta «‹ Cuadro» */
-  var OBRAS_N1 = ['op', 'of', 'od', 'oq', 'og'];
+  var OBRAS_N1 = ['op', 'of', 'od', 'oq', 'og', 'oc'];   /* integración v4: oc (banda de coste del nivel 1) también vuelve con «‹ Cuadro» */
 
   /* ── nivel 3: anterior / siguiente por la lista de origen (o las casas del cuadro) ── */
   function navCasa(casa, route, lista) {

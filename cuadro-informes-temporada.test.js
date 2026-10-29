@@ -166,7 +166,8 @@ ok('@media (max-width: 640px)', /@media\s*\(max-width:\s*640px\)/.test(SRC));
 ok('@media print con A4 vertical y 12 mm', /@media print/.test(SRC) && /@page\s*\{[^}]*A4 portrait[^}]*12mm/.test(SRC));
 ok("Auth.require('cuadro-informes-temporada')", SRC.indexOf("Auth.require('cuadro-informes-temporada')") > 0);
 ok('auth.js?v=20261028 (v2: salta el auth.js viejo de la cache), nav.js y nav-component.js', /<script src="auth.js\?v=20261028"><\/script>\s*<script src="nav.js"><\/script>\s*<script src="nav-component.js"><\/script>/.test(SRC));
-ok('VERSIÓN ACTUAL: v3 en las 5 primeras lineas, PAGE_VERSION = 3, titulo v3', /VERSIÓN ACTUAL: v3 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 3;/.test(SRC) && SRC.indexOf('<title>Cuadro de informes de temporada v3 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v4 en las 5 primeras lineas, PAGE_VERSION = 4, titulo v4', /VERSIÓN ACTUAL: v4 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 4;/.test(SRC) && SRC.indexOf('<title>Cuadro de informes de temporada v4 — 3Villas</title>') > 0);
+ok('HISTORIAL v4 antes de la v3, una línea que cierra una sola vez', (function () { var a = SRC.indexOf('<!-- HISTORIAL: v4 - 29/10/2026'), b = SRC.indexOf('<!-- HISTORIAL: v3 - 29/10/2026'); return a > 0 && a < b && SRC.slice(a, b).split('-->').length === 2 && SRC.slice(a, b).split('\n').length === 2; })());
 ok("WORKER y Auth.url", SRC.indexOf("const WORKER = 'https://www.3villas.com/intranet/api';") > 0 && SRC.indexOf('Auth.url(') > 0);
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('solo lecturas: ninguna escritura al Worker', !/action=save|method:\s*'(POST|PUT|DELETE)'|action=upload/.test(SRC));
@@ -309,7 +310,7 @@ function conIn(H) {
   return H;
 }
 /* v3: los <script src> del cuadro (informe-temporada-score.js y cuadro-informes-temporada-*.js), en el orden de la pagina, dentro del contexto del arnes */
-var SCRIPTS_V3 = (SRC.match(/<script src="((?:informe-temporada-score|cuadro-informes-temporada-[a-z]+)\.js)\?v=3"><\/script>/g) || []).map(function (t) { return t.match(/src="([^"?]+)/)[1]; });
+var SCRIPTS_V3 = (SRC.match(/<script src="((?:informe-temporada-score|cuadro-informes-temporada-[a-z]+)\.js)\?v=4"><\/script>/g) || []).map(function (t) { return t.match(/src="([^"?]+)/)[1]; });
 function conScripts(H) { SCRIPTS_V3.forEach(function (f) { vm.runInContext(fs.readFileSync(f, 'utf8'), H.ctx, { filename: f }); }); return H; }
 function cuadro(o) { o = o || {}; return conIn(conScripts(A.cargar({ archivo: P, db: o.db || dbGrande(), rol: 'admin', Date: fechaFija(o.hoy || '2026-10-28T12:00:00'), search: o.search }))); }
 /* Descargas: el ancla y URL.createObjectURL de la pagina, falsos; cada clic apunta nombre y Blob */
@@ -489,8 +490,8 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
   function abrirDe(h) { return (h.match(/<a class="abrir"/g) || []).length; }
   await parte(async function () {
     console.log('14.1 v3: carga y nivel 1 (seis cuadros, Listas, tabla por villa manager, casas, mapa, obras)');
-    ok('14.1 los seis scripts del cuadro en <head>, en orden, con ?v=3, despues de nav-component.js', J(SCRIPTS_V3) === J(['informe-temporada-score.js', 'cuadro-informes-temporada-rutas.js', 'cuadro-informes-temporada-listas.js', 'cuadro-informes-temporada-portada.js', 'cuadro-informes-temporada-vistas.js', 'cuadro-informes-temporada-extras.js'])
-      && SRC.indexOf('<script src="nav-component.js"></script>') < SRC.indexOf('<script src="informe-temporada-score.js?v=3"></script>') && SRC.indexOf('<script src="cuadro-informes-temporada-extras.js?v=3"></script>') < SRC.indexOf('</head>'), J(SCRIPTS_V3));
+    ok('14.1 los seis scripts del cuadro en <head>, en orden, con ?v=4 (cuadro v4), despues de nav-component.js', J(SCRIPTS_V3) === J(['informe-temporada-score.js', 'cuadro-informes-temporada-rutas.js', 'cuadro-informes-temporada-listas.js', 'cuadro-informes-temporada-portada.js', 'cuadro-informes-temporada-vistas.js', 'cuadro-informes-temporada-extras.js'])
+      && SRC.indexOf('<script src="nav-component.js"></script>') < SRC.indexOf('<script src="informe-temporada-score.js?v=4"></script>') && SRC.indexOf('<script src="cuadro-informes-temporada-extras.js?v=4"></script>') < SRC.indexOf('</head>'), J(SCRIPTS_V3));
     ok('14.1 la hoja cuadro-informes-temporada-extras.css?v=3 despues del <style> de la pagina', SRC.indexOf('<link rel="stylesheet" href="cuadro-informes-temporada-extras.css?v=3">') > SRC.indexOf('</style>') && SRC.indexOf('</style>') > 0);
     var H = cuadro(); await H.ev('iniciar()');
     var T = H.g('tiles').innerHTML;
@@ -707,6 +708,30 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ir(H, at);
     var vuelta = ((H.g('cuerpo').innerHTML.match(/<a class="atras" href="([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&');
     ok('14.11 «‹ Lista» abre la misma lista y su «‹ Cuadro» vuelve al nivel 1 con s, of y og', /^#t=2026&s=media:desc&/.test(vuelta) && /[#&]of=resumen(&|$)/.test(vuelta) && /[#&]og=1(&|$)/.test(vuelta) && !/[#&]v=/.test(vuelta), vuelta);
+  });
+  await parte(async function () {
+    console.log('15. cuadro v4 (integración del job informe-form-v5-v3b): coste en las obras del nivel 1, chips «Coste» (oc), fórmula con N/A, cabecera de impresión');
+    var FX = require('./cuadro-informes-temporada-fixtures.js');
+    var H = conScripts(A.cargar({ archivo: P, db: {}, rol: 'admin' }));
+    H.ctx.window.__FIXTURE__ = FX.v5; await H.ev('iniciar()');
+    var O = H.g('obras').innerHTML;
+    ok('15.1 la columna Coste del nivel 1 enseña la banda («menos de 500 €»)', /<td data-l="Coste">menos de 500 €<\/td>/.test(O), O.slice(0, 300));
+    ok('15.1 dos orígenes unidos con bandas distintas: «⚠ … coste distinto» con las dos bandas', /<td data-l="Coste"><span class="falta">⚠ 2\.000 a 10\.000 € · coste distinto \(500 a 2\.000 € \/ 2\.000 a 10\.000 €\)<\/span><\/td>/.test(O), (O.match(/coste distinto[^<]*/) || [''])[0]);
+    ok('15.1 una actuación sin banda sigue «—»', /<td data-l="Coste">—<\/td>/.test(O));
+    ok('15.2 chips «Coste» en el nivel 1 cuando hay datos de coste: Todos + 7 (bandas, desconocido, en blanco, coste distinto)', /<span>Coste<\/span>/.test(O) && ['oc=menos500', 'oc=500a2000', 'oc=2000a10000', 'oc=mas10000', 'oc=desconocido', 'oc=sincoste', 'oc=distinto'].every(function (x) { return O.indexOf(x) > 0; }));
+    ok('15.3 la fórmula dice que la condición es provisional hasta marcar los aplicables (26 menos N/A)', /provisional hasta marcar todos los aplicables \(26 menos N\/A\)/.test(H.g('tiles').innerHTML));
+    ir(H, '#t=2026&oc=menos500'); O = H.g('obras').innerHTML;
+    ok('15.4 oc=menos500: una sola actuación, chip encendido', /1 de \d+ actuaciones/.test(O) && /Cambiar colchones/.test(O) && !/Cambiar toldo/.test(O) && /class="chip on" href="[^"]*oc=menos500[^"]*" aria-pressed="true">menos de 500 €<\/a>/.test(O), (O.match(/\d+ de \d+ actuaciones/) || [''])[0]);
+    ok('15.4 la cabecera de impresión nombra el filtro de coste', /obras: coste menos de 500 €/.test(H.g('printHead').innerHTML), H.g('printHead').innerHTML);
+    var dest = ((O.match(/<tr class="obra[^"]*" data-href="([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&');
+    ok('15.4 la fila abre la casa con oc y con from=lista:obras:todas:menos500', /[#&]oc=menos500(&|$)/.test(dest) && /from=lista:obras:todas:menos500/.test(dest), dest);
+    ok('15.4 «‹ Cuadro» desde esa casa conserva oc (Rutas.back)', /[#&]oc=menos500(&|$)/.test(H.ev('Rutas').back(H.ev('Rutas').parse('#t=2026&v=casa:302&oc=menos500'))));
+    ir(H, '#t=2026&oc=distinto'); O = H.g('obras').innerHTML;
+    ok('15.5 oc=distinto: la actuación con «coste distinto»', /1 de \d+ actuaciones/.test(O) && /Reparar escalón de la terraza/.test(O), (O.match(/\d+ de \d+ actuaciones/) || [''])[0]);
+    ir(H, '#t=2026&oc=nada'); 
+    ok('15.6 oc ilegible = sin filtro de coste', H.ev('ruta().oc') === '');
+    ir(H, '#t=2026&v=casa:301'); await H.espera(40);
+    ok('15.7 la galería de la casa ya no dice «sin vínculo a un elemento hasta el formulario v5»', H.g('cuerpo').innerHTML.indexOf('sin vínculo a un elemento') < 0 && /class="gal"/.test(H.g('cuerpo').innerHTML));
   });
 })().then(function () {
   fin = true;

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    cuadro-informes-temporada-rutas.js — RUTAS del cuadro de informes de temporada v3
-   VERSIÓN ACTUAL: v1 | Historial completo al final de este archivo
+   VERSIÓN ACTUAL: v2 | Historial completo al final de este archivo
 
    El estado de la página vive en el hash, como en la maqueta del 29/10/2026:
      #t=2026&vm=c:12&v=lista:obras:alta&s=villa:asc&q=texto&g=1&from=lista:atencion
@@ -8,7 +8,8 @@
    lista:<tipo>[:...] o casa:<villaid>) · s = orden <clave>:asc|desc · q = búsqueda ·
    g = 1 agrupa por casa · from = la lista desde la que se abrió la casa.
    Además, los filtros de obras del cuadro de la maqueta: op (alta|media|baja|sin),
-   of (resumen|estancia), od = 1 sin detalle, oq = búsqueda de obras, og = 1 agrupar.
+   of (resumen|estancia), od = 1 sin detalle, oq = búsqueda de obras, og = 1 agrupar;
+   v2 (cuadro v4): oc = banda de coste (menos500|500a2000|2000a10000|mas10000|desconocido|sincoste|distinto).
 
    Sin DOM salvo lo que se le pasa, sin red. Un objeto global: window.Rutas (navegador)
    o module.exports (node), como cuadro-comercial-data.js.
@@ -24,7 +25,7 @@
   /* Claves del contrato, en el orden en que se escriben */
   var CLAVES = ['t', 'vm', 'v', 's', 'q', 'g', 'from'];
   /* Filtros de obras del cuadro (nivel 1) de la maqueta */
-  var CLAVES_OBRAS = ['op', 'of', 'od', 'oq', 'og'];
+  var CLAVES_OBRAS = ['op', 'of', 'od', 'oq', 'og', 'oc'];
   /* vs (ronda de arreglos 1): el orden de la tabla de villa managers (la s del cuadro) mientras se está en una lista o una casa */
   var TODAS = CLAVES.concat(CLAVES_OBRAS, ['vs']);
   var Q_MAX = 200;
@@ -43,6 +44,7 @@
     od: function (x) { return x === '1'; },
     oq: function () { return true; },
     og: function (x) { return x === '1'; },
+    oc: function (x) { return /^(menos500|500a2000|2000a10000|mas10000|desconocido|sincoste|distinto)$/.test(x); },
     vs: function (x) { return /^[a-z0-9_]+:(asc|desc)$/i.test(x); }
   };
 
@@ -149,7 +151,7 @@
   }
 
   var API = {
-    VERSION: 1,
+    VERSION: 2,
     CLAVES: CLAVES.slice(), CLAVES_OBRAS: CLAVES_OBRAS.slice(),
     parse: parse, serialize: serialize, href: href, back: back,
     scrollRecordar: scrollRecordar, scrollVolver: scrollVolver, teclas: teclas
@@ -158,4 +160,5 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
 
+/* HISTORIAL: v2 2026-10-29 — cuadro v4 (job informe-form-v5-v3b): la clave oc (banda de coste de las obras del nivel 1) entra en CLAVES_OBRAS: se lee, se escribe al final de los filtros de obras y viaja con la casa y con «‹ Cuadro». */
 /* HISTORIAL: v1 2026-10-29 — primera versión (cuadro de informes de temporada v3, carril B). Lo pidió Gary el 29/10/2026 ("click into everything with metrics"): cada número del cuadro es una puerta y el estado vive en el hash como en la maqueta aprobada (#t, vm, v, s, q, g, from y los filtros de obras op, of, od, oq, og). parse/serialize con valores validados (lo ilegible queda vacío), href estable con cambio y claves que se quedan, back (casa → su lista, lista → cuadro), posición de cada vista en sessionStorage y las teclas ← → fuera de campos y del visor de fotos. Sin red, sin DOM propio. */
