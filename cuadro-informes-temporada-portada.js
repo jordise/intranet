@@ -83,6 +83,9 @@
         general: ['bueno', 'regular', 'malo'].indexOf(g) >= 0 ? g : '',
         fecha: inf ? fechaISO(inf.fecha_revision) : '', updated: inf ? tr(inf.updated_at) : '', enviado_at: inf ? tr(inf.enviado_at) : '',
         observaciones_finales: inf ? tr(inf.observaciones_finales) : '',   /* integración: el texto final que pinta Vistas.casaHtml */
+        /* Ronda de arreglos 1: informes de la villa en la temporada y el que abre el formulario (informe_id más bajo, primerInforme del formulario) */
+        informes: (porVilla[String(v.villaid)] || []).length,
+        informeFormulario: (porVilla[String(v.villaid)] || []).reduce(function (m, i) { var n = idNum(i.informe_id); return m === null || n < m ? n : m; }, null),
         lineas: ls, score: S.condicion(ls),
         flags: inf ? S.banderas(inf, ls) : { peligro: null, seguridad: [], coherencia: null },
         acciones: inf ? (S.acciones(ls) || []) : [],
@@ -246,7 +249,8 @@
       return { villaid: c.villaid, villa: c.villa, vm: c.vm, vmId: c.vmId, estado: c.estado, borrador: c.estado === 'borrador', previa: c.estado === 'borrador',
         puntuacion: p, banda: c.estado === 'enviado' ? (s.banda || banda(p)) : 'gris', completo: !!s.completo,
         evaluados: s.evaluados || 0, aplicables: s.aplicables == null ? 26 : s.aplicables, error: s.error || null,
-        banderas: c.estado ? banderasDe(c) : [], alta: altaDe(c), fecha: c.fecha, enviado_at: c.enviado_at || '', updated: c.updated, v: 'casa:' + c.villaid };
+        banderas: c.estado ? banderasDe(c) : [], alta: altaDe(c), fecha: c.fecha, enviado_at: c.enviado_at || '', updated: c.updated, v: 'casa:' + c.villaid,
+        otroInforme: c.informes > 1 && c.informeFormulario != null && c.informeFormulario !== c.informe_id ? { n: c.informes, formulario: c.informeFormulario } : null };
     });
   }
 
@@ -351,7 +355,8 @@
       + '<div class="fila"><span class="sc ' + k.banda + '">' + fmt1(k.puntuacion) + '</span>'
       + (k.previa ? ' <small class="prov">vista previa</small>' : k.puntuacion != null && !k.completo ? ' <small class="prov">provisional</small>' : '')
       + '<span class="cmp">' + k.evaluados + '/' + k.aplicables + '</span>' + (k.borrador ? '<span class="pill borrador">borrador</span>' : '') + '</div>'
-      + '<div class="flags">' + fl + (k.alta ? ' <span class="pill a">Alto ' + k.alta + '</span>' : '') + '</div>'
+      + '<div class="flags">' + fl + (k.alta ? ' <span class="pill a">Alto ' + k.alta + '</span>' : '')
+      + (k.otroInforme ? ' <span class="fl san" title="El formulario abre el informe nº ' + esc(k.otroInforme.formulario) + '">⚠ ' + k.otroInforme.n + ' informes</span>' : '') + '</div>'
       + '<div class="vm">' + vm + (fechas ? ' · ' + fechas : '') + '</div></a>';
   }
   function tarjetasHtml(K, route) {

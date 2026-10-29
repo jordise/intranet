@@ -336,6 +336,10 @@ if (Score && typeof Score.marcas === 'function') {
     ok('Listas da la misma marca que el mapa en la fila repetida', Listas.marcasDe(c202).pintura.marca === 'malo' && Listas.marcasDe(c202).pintura.obs === 'paredes', J(Listas.marcasDe(c202).pintura));
   }
 } else ok('InformeScore.marcas (lector compartido) existe', false);
+ok('dos informes en Alcaufar (90 y 91): el cuadro puntúa el 91, el formulario abre el 90 (informe_id más bajo)', casa(9).informes === 2 && casa(9).informeFormulario === 90 && casa(9).informe_id === 91, J([casa(9).informes, casa(9).informeFormulario]));
+ok('Cala Mitjana (30 y 31): los dos abren el 30; una casa con un informe: 1', casa(3).informes === 2 && casa(3).informeFormulario === 30 && casa(1).informes === 1 && casa(6).informes === 0);
+var kh9 = Portada.tarjetasHtml(Portada.tarjetas(CASAS), ROUTE), tA = kh9.split('<a class="casa').filter(function (x) { return x.indexOf('Alcaufar') >= 0; })[0] || '', tC = kh9.split('<a class="casa').filter(function (x) { return x.indexOf('Cala Mitjana') >= 0; })[0] || '';
+ok('tarjeta: aviso "2 informes" solo cuando el formulario abre otro informe (Alcaufar sí, Cala Mitjana no)', /2 informes/.test(tA) && !/informes/.test(tC.replace(/<div class="vm">[^]*$/, '')), tA.slice(0, 400));
 var R10 = { t: '2026', vm: '', v: '', s: 'media:desc' };
 var h10 = [Portada.tilesHtml(Portada.tilesV3(CASAS, null), R10), Portada.listasRapidasHtml(Portada.listasRapidas(CASAS, null), R10), Portada.tablaVMHtml(Portada.tablaVM(CASAS, 'media:desc'), R10),
   Portada.tarjetasHtml(Portada.tarjetas(CASAS), R10), Portada.mapaHtml(Portada.mapaV3(CASAS), R10)].join('');
