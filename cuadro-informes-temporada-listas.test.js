@@ -294,9 +294,9 @@ ok('ruta lista:obras:todas:resumen:sindetalle = origen resumen y sin detalle', l
 ok('el título nombra el origen y "sin detalle" (cabecera de impresión de la lista)', lista('obras:alta:estancia').titulo === 'Actuaciones de prioridad Alto · origen Estancia'
   && lista('obras:todas:resumen:sindetalle').titulo === 'Todas las actuaciones · origen Resumen · sin detalle' && lista('obras:sindetalle').titulo === 'Actuaciones sin detalle (falta motivo o prioridad)', lista('obras:todas:resumen:sindetalle').titulo);
 var cNa = { villaid: 2, villa: 'Con N/A', vm: '', vmId: '', informe_id: 2, estado: 'enviado', score: {}, flags: {}, acciones: [],
-  lineas: [{ seccion: 'interior', clave: 'sofas', estado: '', na: true, texto_1: 'No hay sofás' }, { seccion: 'interior', clave: 'menaje', estado: 'Bueno', na: 'x' }] };
+  lineas: [{ seccion: 'interior', clave: 'sofas', estado: '', na: true, na_motivo: 'sin sofás', texto_1: 'No hay sofás' }, { seccion: 'interior', clave: 'menaje', estado: 'Bueno', na: 'x' }] };
 var mNa = L.listas('mapa', { partes: ['sofas', 'na'] }, [cNa], null);
-ok('mapa N/A (formulario v5): la casa con sofás en N/A sale en su lista, con su observación', mNa.filas.length === 1 && mNa.filas[0].marca === 'N/A' && mNa.filas[0].observacion === 'No hay sofás', J(mNa.filas));
+ok('mapa N/A (formulario v5): la casa con sofás en N/A sale en su lista, con su observación', mNa.filas.length === 1 && mNa.filas[0].marca === 'N/A' && mNa.filas[0].observacion === 'N/A: sin sofás · No hay sofás', J(mNa.filas));
 ok('N/A estricto: na = "x" no es N/A (menaje cuenta en Bueno)', L.marcasDe(cNa).menaje.marca === 'bueno' && L.listas('mapa', { partes: ['menaje', 'na'] }, [cNa], null).filas.length === 0);
 
 console.log('15. Ronda de arreglos 2: el resumen sin texto de actuación cuenta (regla de las estancias)');

@@ -29,7 +29,7 @@ function linea(clave, estado, extra) {
 }
 /* marcas: {clave: 'bueno'|'regular'|'malo'|'na'|''}; las que no estén no tienen línea */
 function lineas(marcas) {
-  return Object.keys(marcas).map(function (k) { return marcas[k] === 'na' ? linea(k, '', { na: true }) : linea(k, marcas[k]); });
+  return Object.keys(marcas).map(function (k) { return marcas[k] === 'na' ? linea(k, '', { na: true, na_motivo: 'no hay' }) : linea(k, marcas[k]); });
 }
 function todas(estado) { var m = {}; CLAVES.forEach(function (k) { m[k] = estado; }); return m; }
 
@@ -115,7 +115,7 @@ var inv = S.condicion([linea('pintura', 'bueno'), linea('colchones', 'Excelente'
 ok('marca no válida -> puntuación null, error "datos"', inv.puntuacion === null && inv.error === 'datos' && inv.banda === 'gris', J(inv));
 ok('N/A con marca a la vez -> error "datos"', S.condicion([linea('pintura', 'bueno', { na: true })]).error === 'datos');
 ok('na falso ("0", "false", false, 0, "") no es N/A', ['0', 'false', false, 0, '', null].every(function (v) { var c = S.condicion([linea('pintura', '', { na: v })]); return c.na === 0 && c.aplicables === 26; }));
-ok('na verdadero (true, 1, "1", "true", "Sí") es N/A', [true, 1, '1', 'true', 'Sí'].every(function (v) { var c = S.condicion([linea('pintura', '', { na: v })]); return c.na === 1 && c.aplicables === 25; }));
+ok('na verdadero (true, 1, "1", "true", "Sí") es N/A', [true, 1, '1', 'true', 'Sí'].every(function (v) { var c = S.condicion([linea('pintura', '', { na: v, na_motivo: 'no hay' })]); return c.na === 1 && c.aplicables === 25; }));
 var todoNa = S.condicion(lineas(todas('na')));
 ok('26 N/A -> sin elementos aplicables: null, gris, no completo', todoNa.puntuacion === null && todoNa.aplicables === 0 && todoNa.completo === false && todoNa.banda === 'gris' && todoNa.error === null, J(todoNa));
 ok('null o undefined como líneas -> null, gris', S.condicion(null).puntuacion === null && S.condicion(undefined).banda === 'gris');
@@ -218,7 +218,7 @@ var a9e = S.acciones([est('cocina', 'Campana no extrae', 'Cambiar campana', 'Alt
 ok('con incidencia y acción: el texto de la actuación sigue siendo la incidencia (texto_1)', a9e.length === 1 && a9e[0].accion === 'Campana no extrae', J(a9e));
 ok('expone marcas, esNa y esComentario', typeof S.marcas === 'function' && typeof S.esNa === 'function' && typeof S.esComentario === 'function');
 ok('esNa estricto: true, 1, "1", "true", "sí", "yes"; nunca "no", "0", "x", ""', typeof S.esNa === 'function' && [true, 1, '1', 'true', 'sí', 'Si', 'yes'].every(function (v) { return S.esNa({ na: v }); }) && ![false, 0, '0', 'no', 'x', '', null].some(function (v) { return S.esNa({ na: v }); }));
-var dupL = [linea('pintura', 'bueno', { linea_id: 9, texto_1: 'primera' }), linea('pintura', 'regular', { linea_id: 3, texto_1: 'segunda' }), linea('sofas', '', { na: 'sí' }), linea('menaje', 'x')];
+var dupL = [linea('pintura', 'bueno', { linea_id: 9, texto_1: 'primera' }), linea('pintura', 'regular', { linea_id: 3, texto_1: 'segunda' }), linea('sofas', '', { na: 'sí', na_motivo: 'no hay' }), linea('menaje', 'x')];
 var mk9 = safe(function () { return S.marcas(dupL); }) || { porClave: {} };
 var pc9 = mk9.porClave || {};
 ok('marcas: fila repetida = la regla de la puntuación (gana la última en orden; error "datos")', pc9.pintura && pc9.pintura.marca === 'regular' && pc9.pintura.linea.texto_1 === 'segunda' && mk9.error === 'datos', J(pc9.pintura));
@@ -245,7 +245,7 @@ var mk10 = S.marcas([linea('pintura', 'malo', { texto_1: 'primera' }), linea('pi
 ok('marcas: fila repetida con la última en blanco = la última gana (marca "", su línea) y error "datos"', mk10.porClave.pintura.marca === '' && mk10.porClave.pintura.linea.texto_1 === 'segunda, en blanco' && mk10.error === 'datos', J(mk10.porClave.pintura));
 var c10 = S.condicion([linea('pintura', 'malo'), linea('pintura', ''), linea('colchones', 'bueno')]);
 ok('condicion cuenta lo mismo que marcas con la última en blanco (pintura no cuenta; sin puntuación)', c10.malo === 0 && c10.bueno === 1 && c10.evaluados === 1 && c10.puntuacion === null && c10.error === 'datos', J(c10));
-ok('fila repetida con la última N/A = N/A', S.marcas([linea('sofas', 'regular'), linea('sofas', '', { na: true })]).porClave.sofas.marca === 'na');
+ok('fila repetida con la última N/A = N/A', S.marcas([linea('sofas', 'regular'), linea('sofas', '', { na: true, na_motivo: 'no hay' })]).porClave.sofas.marca === 'na');
 
 
 console.log('11. Formulario v5 (job informe-form-v5-v3b, lane D): peligro, banda de coste, fotos con referencia y dato v5');
@@ -298,5 +298,16 @@ var rfJs = S.refsFotos([foto(1, 'piscina', 'javascript:alert(1)'), foto(2, 'pisc
 ok('refsFotos: javascript:, data: y sin esquema fuera; http y https (mayúsculas también) dentro', J(Object.keys(rfJs).sort()) === J(['cocina', 'piscina']) && J(rfJs.piscina.map(function (f) { return f.clave; })) === J(['foto_5'])
   && rfJs.cocina[0].foto_url === 'HTTPS://x.invalid/6.jpg', J(rfJs));
 ok('refsFotos: una casa con solo una foto javascript: no tiene referencias', J(S.refsFotos([foto(1, 'pintura', 'javascript:alert(1)')])) === '{}');
+
+console.log('13. A1 (revisor A, punto 1): N/A sin motivo = sin dato (Consenso v2), no N/A');
+var c25 = {}; CLAVES.forEach(function (k, i) { if (i < 25) c25[k] = 'bueno'; });
+var l25 = lineas(c25).concat([linea(CLAVES[25], '', { na: true, na_motivo: '' })]);
+var r25 = S.condicion(l25);
+ok('25 Bueno + 1 N/A con motivo vacío -> provisional 25 de 26, 100.0, no completo', r25.evaluados === 25 && r25.aplicables === 26 && r25.na === 0 && r25.puntuacion === 100 && r25.completo === false, J(r25));
+ok('N/A con motivo de solo espacios = sin dato', S.condicion([linea('pintura', '', { na: true, na_motivo: '   ' })]).na === 0);
+ok('N/A sin motivo y con marca sigue siendo error "datos"', S.condicion([linea('pintura', 'bueno', { na: true })]).error === 'datos');
+ok('marcas: N/A sin motivo sale como "" (sin dato), con su línea', S.marcas([linea('sofas', '', { na: true })]).porClave.sofas.marca === '' && !!S.marcas([linea('sofas', '', { na: true })]).porClave.sofas.linea);
+ok('naValido: N/A + motivo = true; sin motivo = false; esNa sigue leyendo solo la casilla', S.naValido({ na: true, na_motivo: 'x' }) && !S.naValido({ na: true, na_motivo: '' }) && S.esNa({ na: true }));
+ok('datosV5: un N/A sin motivo sigue siendo dato del formulario v5', S.datosV5({}, [linea('pintura', '', { na: true })]) === true);
 
 fin();

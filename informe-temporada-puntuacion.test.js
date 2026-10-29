@@ -65,7 +65,7 @@ ok('19 de 26 evaluados: la cifra es la de InformeScore con coma', Puntuacion.tex
 ok('condicion(LINEAS) = InformeScore.condicion de sus filas', J(Puntuacion.condicion(cm)) === J(sc));
 ok('lineasDe acepta el objeto LINEAS, una lista, null', Puntuacion.lineasDe(cm).length === Object.keys(cm).length && Puntuacion.lineasDe([cm['interior|pintura']]).length === 1 && Puntuacion.lineasDe(null).length === 0);
 ok('mayúsculas y espacios en la marca (" malo ") cuentan como Malo', Puntuacion.texto(lineasForm(rep(' malo ', 26))) === 'Condición: 0,0 · 26 de 26 evaluados', Puntuacion.texto(lineasForm(rep(' malo ', 26))));
-var naTxt = lineasForm(rep('Bueno', 26)); naTxt['exterior|piscina'].na = 'true'; naTxt['exterior|piscina'].estado = '';
+var naTxt = lineasForm(rep('Bueno', 26)); naTxt['exterior|piscina'].na = 'true'; naTxt['exterior|piscina'].estado = ''; naTxt['exterior|piscina'].na_motivo = 'sin piscina';
 ok('na guardado como texto "true" = N/A', Puntuacion.texto(naTxt) === 'Condición: 100,0 · 25 de 25 evaluados · 1 N/A', Puntuacion.texto(naTxt));
 var naNo = lineasForm(rep('Bueno', 26)); Object.keys(naNo).forEach(function (k) { naNo[k].na = false; });
 ok('na = false en todas las filas = ningún N/A', Puntuacion.texto(naNo) === 'Condición: 100,0 · 26 de 26 evaluados');

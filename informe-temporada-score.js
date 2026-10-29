@@ -71,6 +71,8 @@
   }
   /* N/A: el campo na de la línea (llega con el formulario v5) */
   function esNa(l) { return esSi(l && l.na); }
+  /* N/A que cuenta como no aplicable: con su motivo (Consenso v2: «N/A sin respaldo = desconocido»); sin motivo = elemento sin dato */
+  function naValido(l) { return esNa(l) && txt(l && l.na_motivo).trim() !== ''; }
 
   /* Banda de coste del formulario v5 (CASPIO-COLUMNS.md): los cinco valores guardados; blanco o texto desconocido = '' (sin dato, nunca 0) */
   var COSTES = ['desconocido', '<500', '500-2000', '2000-10000', '10000+'];
@@ -101,7 +103,7 @@
       delete marca[k]; delete na[k]; delete linea[k];   /* ronda de arreglos 2: fila repetida = gana la última en orden, aunque esté en blanco */
       var m = lw(l.estado);
       if (m && !MARCAS[m]) { error = 'datos'; return; }
-      if (esNa(l)) { if (m) error = 'datos'; else { na[k] = 1; linea[k] = l; } return; }
+      if (esNa(l)) { if (m) error = 'datos'; else if (naValido(l)) { na[k] = 1; linea[k] = l; } return; }   /* N/A sin motivo: ni N/A ni marca (sin dato) */
       if (m) { marca[k] = m; linea[k] = l; }
     });
     return { marca: marca, na: na, error: error, linea: linea, ultima: ultima };
@@ -268,7 +270,7 @@
 
   var InformeScore = {
     elementosDef: elementosDef, elementosSeguridad: elementosSeguridad, condicion: condicion, banderas: banderas,
-    acciones: acciones, comparar: comparar, redondear1: redondear1, marcas: marcas, esNa: esNa, esComentario: esComentario,
+    acciones: acciones, comparar: comparar, redondear1: redondear1, marcas: marcas, esNa: esNa, naValido: naValido, esComentario: esComentario,
     esSi: esSi, COSTES: COSTES, costeNorm: costeNorm, costeDistinto: costeDistinto, datosV5: datosV5, refsFotos: refsFotos, etiquetaRef: etiquetaRef
   };
   if (typeof module === 'object' && module && module.exports) module.exports = InformeScore;
