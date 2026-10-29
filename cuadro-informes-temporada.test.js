@@ -462,7 +462,7 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     /* blob.text() quita el BOM al decodificar: se miran los bytes */
     var by = d.length ? Buffer.from(await d[0].blob.arrayBuffer()) : Buffer.alloc(0), txt = by.toString('utf8'), L = txt.split('\r\n');
     ok('9. un clic: obras-temporada-2026.csv, text/csv;charset=utf-8', d.length === 1 && d[0].nombre === 'obras-temporada-2026.csv' && d[0].blob.type === 'text/csv;charset=utf-8' && d[0].href === 'blob:prueba-1', J(d.map(function (x) { return [x.nombre, x.blob && x.blob.type]; })));
-    ok('9. BOM (EF BB BF), cabecera v3 de Listas, 19 obras Alto de informes enviados y ninguna de Villa 20 (borrador)', by[0] === 0xEF && by[1] === 0xBB && by[2] === 0xBF && L[0] === '\uFEFFCasa;VM;Actuación;Motivo / impacto;Origen;Prioridad;Coste;Detalle' && L.length === 21 && L[20] === '' &&
+    ok('9. BOM (EF BB BF), cabecera v3 de Listas (ronda 1: con "Acción recomendada"), 19 obras Alto de informes enviados y ninguna de Villa 20 (borrador)', by[0] === 0xEF && by[1] === 0xBB && by[2] === 0xBF && L[0] === '\uFEFFCasa;VM;Actuación;Acción recomendada;Motivo / impacto;Origen;Prioridad;Coste;Detalle' && L.length === 21 && L[20] === '' &&
       L.filter(function (l) { return /;Alto;/.test(l); }).length === 19 && !L.some(function (l) { return /^Villa 20;/.test(l); }) && L.indexOf('Villa 01;Kike;Obra 1;;Resumen 1;Alto;;sin detalle') > 0, L.slice(0, 3).join(' / '));
     H.ev("elegirVM('c:501')"); H.ev('descargarCsv()');
     var t2 = d.length > 1 ? await d[1].blob.text() : '', L2 = t2.split('\r\n');
