@@ -281,5 +281,32 @@ var hvac = V.casaHtml(vac, null, rc, null);
 ok('sin incidencias, actuaciones, comentarios ni fotos: frases vacías', hvac.indexOf('Ninguna incidencia por estancia') >= 0 && hvac.indexOf('Ninguna actuación registrada') >= 0 && hvac.indexOf('Ningún comentario de huéspedes') >= 0 && hvac.indexOf('Este informe no tiene fotos') >= 0);
 ok('casa nula: caja «Casa no encontrada»', V.casaHtml(null, null, rc, null).indexOf('Casa no encontrada') >= 0);
 
+console.log('ronda de arreglos 1: hoja de Rafa al imprimir, origen en las obras, marcas de la puntuación, acción recomendada, informe repetido');
+var hoja = (hc1.match(/<div class="hoja-print">[^]*?<\/div><!--hoja-->/) || [''])[0];
+ok('impresión: una hoja como la de Rafa (Elemento | Bueno | Regular | Malo | Observaciones / acción recomendada), solo en papel', hoja.length > 0
+  && hoja.indexOf('<th class="c-el">Elemento</th><th class="c-st">Bueno</th><th class="c-st">Regular</th><th class="c-st">Malo</th><th class="c-obs-h">Observaciones / acción recomendada</th>') >= 0, hoja.slice(0, 300));
+ok('impresión: las tres secciones con el título del formulario', hoja.indexOf('2. Interior') >= 0 && hoja.indexOf('3. Exterior') >= 0 && hoja.indexOf('4. Seguridad e instalaciones') >= 0);
+ok('impresión: X en la columna de la marca y ☐ en las otras (Instalación eléctrica en Malo, con su observación escapada)',
+  /<td class="c-el">Instalación eléctrica[^<]*<\/td><td class="c-st">☐<\/td><td class="c-st">☐<\/td><td class="c-st">X<\/td><td class="c-obs">Diferencial salta &lt;siempre&gt;<\/td>/.test(hoja), (hoja.match(/<tr><td class="c-el">Instalación[^]*?<\/tr>/) || [])[0]);
+ok('impresión: 26 filas, una por elemento', (hoja.match(/<td class="c-el">/g) || []).length === 26);
+ok('pantalla: la tabla de las 26 lleva solo-pantalla y su bloque se puede partir entre hojas (checks)', /<div class="card blk checks">/.test(hc1) && /<table class="stack solo-pantalla">/.test(hc1));
+var hoE = V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:alta'));
+ok('obras (nivel 2): grupo Origen con Todos / Resumen / Estancia que guarda la prioridad', hoE.indexOf('<span>Origen</span>') >= 0 && hoE.indexOf('v=lista:obras:alta:resumen') >= 0 && hoE.indexOf('v=lista:obras:alta:estancia') >= 0);
+var hoE2 = V.listaHtml(listaObras(), R.parse('#t=2026&v=lista:obras:alta:estancia'));
+ok('obras con origen Estancia: chip encendida y la prioridad guarda el origen', /class="chip on"[^>]*aria-pressed="true"[^>]*>Estancia</.test(hoE2) && hoE2.indexOf('v=lista:obras:media:estancia') >= 0 && /class="chip on"[^>]*>Alto</.test(hoE2));
+var SC = (function () { var c = { window: {} }; vm.runInNewContext(fs.readFileSync(path.join(DIR, 'informe-temporada-score.js'), 'utf8'), c); return c.window.InformeScore; })();
+var WS = cargar(null, { InformeScore: SC });
+var cDup = casaBase(); cDup.lineas = cDup.lineas.filter(function (l) { return l.clave !== 'pintura'; });
+cDup.lineas.unshift(L('interior', 'pintura', { estado: 'Bueno', texto_1: 'id alto', linea_id: 5000 })); cDup.lineas.push(L('interior', 'pintura', { estado: 'Malo', texto_1: 'la última', linea_id: 7 }));
+var hDup = WS.Vistas.casaHtml(cDup, null, rc, null);
+ok('fila repetida con la puntuación cargada: la casa da la marca de la puntuación (la última en orden: Malo)', /Pintura interior[^]*?class="mk m">Malo</.test(hDup) && hDup.indexOf('la última') >= 0 && hDup.indexOf('id alto') < 0);
+var acc1 = (hc1.split('<h3>Actuaciones')[1] || '').split('<h3>')[0];
+ok('actuaciones: la acción recomendada de la estancia sale con la actuación', acc1.indexOf('Acción recomendada: Sustituir') >= 0, acc1.slice(0, 300));
+var cDos = casaBase(); cDos.informes = 2; cDos.informeFormulario = 31;
+var hDos = V.casaHtml(cDos, null, rc, null);
+ok('dos informes de la casa en la temporada: aviso junto a «Abrir formulario» con el que abre el formulario y el que puntúa el cuadro', /2 informes de esta casa en 2026: el formulario abre el nº 31; el cuadro puntúa el nº 50/.test(hDos) && hc1.indexOf('informes de esta casa') < 0);
+var hNa = V.listaHtml({ titulo: 'N/A', unidad: 'casas', columnas: [{ clave: 'villa', label: 'Casa' }, { clave: 'marca', label: 'Marca' }], filas: [{ villaid: 1, villa: 'A', marca: 'N/A' }], vacio: '' }, R.parse('#t=2026&v=lista:mapa:sofas:na'));
+ok('marca N/A en una lista se ve «N/A» (no «Sin marcar»)', hNa.indexOf('class="mk na">N/A<') >= 0);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exit(fail ? 1 : 0);

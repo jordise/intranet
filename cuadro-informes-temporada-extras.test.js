@@ -304,6 +304,12 @@ function casa(o) {
   ok('impresión: nada partido entre hojas (tarjetas, filas, bloques, fotos)', /break-inside:avoid/.test(imp) && /\.foto/.test(imp));
   ok('impresión: la casa en una columna y las tablas apiladas vuelven a ser tablas', /\.hv-grid\{grid-template-columns:1fr/.test(imp));
   ok('impresión: sin la columna "Abrir"', /a\.abrir/.test(imp));
+  /* Ronda de arreglos 1: la casa se imprime en la hoja de Rafa (diseño punto 15) */
+  ok('hoja de Rafa: oculta en pantalla', /\.hoja-print\{display:none\}/.test(fuera));
+  ok('hoja de Rafa al imprimir: se ve la hoja, no la tabla de pantalla, ni la cabecera ni la ayuda de la página', /\.hoja-print\{display:block/.test(imp) && /\.solo-pantalla\{display:none!important/.test(imp) && /\.page-head\{display:none!important/.test(imp));
+  ok('hoja de Rafa al imprimir: el bloque de las 26 se puede partir entre hojas (las filas no)', /\.blk\.checks\{break-inside:auto;page-break-inside:auto/.test(imp));
+  ok('hoja de Rafa al imprimir: las medidas del formulario (bordes #cfcfcf, Elemento 29 %, marcas de 62 px centradas, cabecera #f2f2f2)', /\.hoja-print\.t\{width:100%;border-collapse:collapse;table-layout:fixed/.test(imp)
+    && /\.hoja-print\.tth,\.hoja-print\.ttd\{border:1pxsolid#cfcfcf/.test(imp) && /\.hoja-print\.c-el\{width:29%/.test(imp) && /\.hoja-print\.c-st\{width:62px;text-align:center/.test(imp) && /\.hoja-print\.tth\{background:#f2f2f2/.test(imp));
 
   console.log('8. Bandas de la comparación (rojo < 50, ámbar < 80, verde >= 80)');
   function casaCon(inf, m) { return casa({ informe_id: inf, lineas: marcas(inf, m) }); }

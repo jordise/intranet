@@ -18,7 +18,7 @@
   'use strict';
 
   var ESTADO = { enviado: 'Enviado', borrador: 'Borrador', '': 'Sin informe' };
-  var MARCA = { bueno: ['Bueno', 'b'], regular: ['Regular', 'r'], malo: ['Malo', 'm'], '': ['Sin marcar', 's'] };
+  var MARCA = { bueno: ['Bueno', 'b'], regular: ['Regular', 'r'], malo: ['Malo', 'm'], na: ['N/A', 'na'], 'n/a': ['N/A', 'na'], '': ['Sin marcar', 's'] };
   var PRI_RANGO = { alta: 3, media: 2, baja: 1 };
   var PRI_VER = { alta: ['Alto', 'alto'], media: ['Medio', 'medio'], baja: ['Bajo', 'bajo'] };
   var GRUPOS = [['interior', 'Interior'], ['exterior', 'Exterior'], ['seguridad', 'Seguridad e instalaciones']];
@@ -129,13 +129,16 @@
     }).join('') + '<th class="abr"></th></tr></thead>';
   }
 
+  /* Chips de obras: lista:obras:<prioridad>[:resumen|estancia][:sindetalle] (ronda de arreglos 1: grupo Origen, como el nivel 1) */
   function chipsObrasHtml(route) {
-    var tipo = tipoDe(route), act = tipo.split(':')[1] || 'todas';
-    var ch = function (val, t) {
-      var on = act === val;
-      return '<a class="chip' + (on ? ' on' : '') + '" href="' + esc(href(route, { v: 'lista:obras:' + val }, ['q', 'g', 's'])) + '" aria-pressed="' + on + '">' + t + '</a>';
-    };
+    var p = tipoDe(route).split(':'), act = p[1] || 'todas', ex = p.slice(2);
+    var fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0] || '', sd = ex.indexOf('sindetalle') >= 0 ? ':sindetalle' : '';
+    var ruta = function (pri, f) { return 'lista:obras:' + pri + (f ? ':' + f : '') + sd; };
+    var chip = function (on, v, t) { return '<a class="chip' + (on ? ' on' : '') + '" href="' + esc(href(route, { v: v }, ['q', 'g', 's'])) + '" aria-pressed="' + on + '">' + t + '</a>'; };
+    var ch = function (val, t) { return chip(act === val, ruta(val, fu), t); };
+    var chO = function (val, t) { return chip(fu === val, ruta(act, val), t); };
     return '<div class="herr"><div class="grupo"><span>Prioridad</span>' + ch('todas', 'Todas') + ch('alta', 'Alto') + ch('media', 'Medio') + ch('baja', 'Bajo') + ch('sin', 'Sin prioridad') + '</div>'
+      + '<div class="grupo"><span>Origen</span>' + chO('', 'Todos') + chO('resumen', 'Resumen') + chO('estancia', 'Estancia') + '</div>'
       + '<div class="grupo">' + ch('sindetalle', 'Sin detalle') + '</div>'
       + '<a class="toggle chip' + (route.g ? ' on' : '') + '" href="' + esc(href(route, { g: route.g ? '' : '1' }, ['v', 's', 'q'])) + '" aria-pressed="' + !!route.g + '">' + (route.g ? '✓ ' : '') + 'Agrupar por casa</a></div>';
   }
@@ -265,16 +268,42 @@
     try { return S && typeof S.elementosDef === 'function' ? S.elementosDef() : null; } catch (e) { return null; }
   }
 
-  function checksHtml(lp) {
+  /* Marca y observación de los 26: con InformeScore.marcas la regla de la puntuación (fila repetida = la última en orden, N/A);
+     sin él, la línea de linea_id más alto (porClave) */
+  function elementosCasa(casa, lp, defs) {
+    var S = root.InformeScore, out = {};
+    if (S && typeof S.marcas === 'function') {
+      var pc = S.marcas((casa && casa.lineas) || []).porClave;
+      defs.forEach(function (e) { var x = pc[e.clave] || {}; out[e.clave] = { marca: x.marca || '', obs: x.linea ? txt(x.linea.texto_1) : '' }; });
+      return out;
+    }
+    defs.forEach(function (e) { var l = lp[e.seccion + '|' + e.clave] || {}; out[e.clave] = { marca: lw(l.estado), obs: txt(l.texto_1) }; });
+    return out;
+  }
+  /* Hoja de papel de las 26 (ronda de arreglos 1, diseño punto 15): la de Rafa, como informe-temporada.html v3/v4:
+     Elemento | Bueno | Regular | Malo | Observaciones / acción recomendada, X en la marca y ☐ en las otras; solo al imprimir */
+  var TITULOS_HOJA = { interior: '2. Interior', exterior: '3. Exterior', seguridad: '4. Seguridad e instalaciones' };
+  function hojaHtml(defs, mk) {
+    var cab = '<thead><tr><th class="c-el">Elemento</th><th class="c-st">Bueno</th><th class="c-st">Regular</th><th class="c-st">Malo</th><th class="c-obs-h">Observaciones / acción recomendada</th></tr></thead>';
+    return '<div class="hoja-print">' + GRUPOS.map(function (g) {
+      return '<h4 class="s-tit">' + TITULOS_HOJA[g[0]] + '</h4><table class="t t-est">' + cab + '<tbody>' + defs.filter(function (e) { return e.seccion === g[0]; }).map(function (e) {
+        var m = mk[e.clave] || {}, obs = m.marca === 'na' ? 'N/A' + (m.obs ? ' · ' + m.obs : '') : m.obs;
+        return '<tr><td class="c-el">' + esc(e.label) + '</td>' + ['bueno', 'regular', 'malo'].map(function (v) { return '<td class="c-st">' + (m.marca === v ? 'X' : '☐') + '</td>'; }).join('')
+          + '<td class="c-obs">' + esc(obs) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    }).join('') + '</div><!--hoja-->';
+  }
+  function checksHtml(casa, lp) {
     var defs = elementosDefSeguro();
     if (!defs) return '<p class="mot">Faltan las definiciones de los 26 elementos (informe-temporada-score.js no está cargado).</p>';
-    return '<table class="stack"><thead><tr><th>Elemento</th><th>Marca</th><th>Observación</th></tr></thead><tbody>' + GRUPOS.map(function (g) {
+    var mk = elementosCasa(casa, lp, defs);
+    return '<table class="stack solo-pantalla"><thead><tr><th>Elemento</th><th>Marca</th><th>Observación</th></tr></thead><tbody>' + GRUPOS.map(function (g) {
       return '<tr class="sec-row"><td class="sec" colspan="3">' + g[1] + '</td></tr>' + defs.filter(function (e) { return e.seccion === g[0]; }).map(function (e) {
-        var l = lp[e.seccion + '|' + e.clave] || {};
-        return '<tr><td class="casa-n" data-l="Elemento">' + esc(e.label) + '</td><td data-l="Marca">' + marcaHtml(l.estado) + '</td><td data-l="Observación">'
-          + (txt(l.texto_1) ? esc(txt(l.texto_1)) : '<span class="mot">—</span>') + '</td></tr>';
+        var m = mk[e.clave];
+        return '<tr><td class="casa-n" data-l="Elemento">' + esc(e.label) + '</td><td data-l="Marca">' + marcaHtml(m.marca) + '</td><td data-l="Observación">'
+          + (m.obs ? esc(m.obs) : '<span class="mot">—</span>') + '</td></tr>';
       }).join('');
-    }).join('') + '</tbody></table>';
+    }).join('') + '</tbody></table>' + hojaHtml(defs, mk);
   }
 
   function estanciasHtml(casa, lp) {
@@ -300,7 +329,9 @@
       if (!xs.length) return '';
       return '<div class="grupo-t">' + g[1] + '</div><ul>' + xs.map(function (a) {
         var texto = a.texto != null ? a.texto : a.accion, fs = (a.fuentes || []).map(function (f) { return origenTexto(f, lp); }), sinDet = !txt(a.motivo) || !priVer(a.prioridad);
-        return '<li>' + esc(texto) + (txt(a.motivo) ? ' <span class="mot">— ' + esc(a.motivo) + '</span>' : '')
+        /* "Acción recomendada" de sus estancias (texto_2), la misma que la columna de la lista de obras */
+        var rec = []; (a.fuentes || []).forEach(function (f) { var l = f && f.seccion === 'estancia' ? lp['estancia|' + f.clave] : null, x = l ? txt(l.texto_2) : ''; if (x && x !== txt(texto) && rec.indexOf(x) < 0) rec.push(x); });
+        return '<li>' + esc(texto) + (txt(a.motivo) ? ' <span class="mot">— ' + esc(a.motivo) + '</span>' : '') + (rec.length ? '<div class="mot">Acción recomendada: ' + esc(rec.join(' · ')) + '</div>' : '')
           + '<div class="mot">Origen: ' + esc(fs.join(' + ')) + (fs.length > 1 ? ' (unidas: mismo texto)' : '') + ' · Coste: —'
           + (sinDet ? ' · <span class="falta">⚠ sin detalle</span>' : '') + '</div></li>';
       }).join('') + '</ul>';
@@ -311,7 +342,8 @@
     var grupos = {};
     Object.keys(lp).forEach(function (k) {
       var l = lp[k];
-      if (l.seccion !== 'huesped' || !(txt(l.texto_1) || txt(l.texto_2))) return;
+      var S = root.InformeScore, esC = S && typeof S.esComentario === 'function' ? S.esComentario(l) : l.seccion === 'huesped' && !!(txt(l.texto_1) || txt(l.texto_2));
+      if (!esC) return;
       var o = ORIGENES.filter(function (x) { return lw(x) === lw(l.estado); })[0] || 'Sin origen';
       (grupos[o] = grupos[o] || []).push(l);
     });
@@ -356,12 +388,15 @@
       + '<div class="hv-btns no-print"><a class="btn" href="' + esc(url) + '">Abrir formulario</a>'
       + '<button type="button" class="btn rojo" onclick="window.print()">🖨️ Imprimir casa</button></div></div>';
     if (est === '') return h + '<div class="card">' + vacioHtml('Sin informe', 'Esta casa no tiene informe en la temporada ' + r.t + '. Cambia la temporada arriba para ver otro año.') + '</div>';
+    /* Dos o más informes de la casa en la temporada: el formulario abre el de informe_id más bajo, el cuadro puntúa el último enviado */
+    if (casa.informes > 1 && casa.informeFormulario != null && String(casa.informeFormulario) !== String(casa.informe_id))
+      h += '<div class="aviso-linea m">⚠ ' + casa.informes + ' informes de esta casa en ' + esc(r.t) + ': el formulario abre el nº ' + esc(casa.informeFormulario) + '; el cuadro puntúa el nº ' + esc(casa.informe_id) + '</div><div style="height:8px"></div>';
     var malo = sc.malo || 0, nAcc = (casa.acciones || []).length;
     var msa = malo > 0 && nAcc === 0 ? '<div class="aviso-linea m">Malo sin actuación: ' + plural(malo, 'marcas') + ' Malo y ninguna actuación registrada</div>'
       : '<div class="aviso-linea">Malo sin actuación: 0 · ' + plural(malo, 'marcas') + ' Malo · ' + plural(nAcc, 'actuaciones') + '</div>';
     var E = root.Extras, cmpH = E && typeof E.comparacionHtml === 'function' ? E.comparacionHtml(casa, casaPrev || null)
       : '<p class="mot">La comparación con la temporada anterior no está cargada.</p>';
-    return h + msa + '<div style="height:12px"></div><div class="hv-grid"><div class="card blk"><h3>Las 26 comprobaciones</h3>' + checksHtml(lp) + '</div><div>'
+    return h + msa + '<div style="height:12px"></div><div class="hv-grid"><div class="card blk checks"><h3>Las 26 comprobaciones</h3>' + checksHtml(casa, lp) + '</div><div>'
       + '<div class="card blk"><h3>Comparación con ' + (parseInt(r.t, 10) - 1) + '</h3>' + cmpH + '</div>'
       + '<div class="card blk"><h3>Incidencias por estancia</h3>' + estanciasHtml(casa, lp) + '</div>'
       + '<div class="card blk"><h3>Actuaciones <small>· por prioridad · coste «—» hasta la v5</small></h3>' + accionesHtml(casa, lp) + '</div>'
