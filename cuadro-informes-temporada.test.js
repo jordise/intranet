@@ -8,6 +8,7 @@ var P = 'cuadro-informes-temporada.html';
 var pass = 0, fail = 0;
 function ok(n, c, e) { if (c) { pass++; console.log('  PASS  ' + n); } else { fail++; console.log('  FAIL  ' + n + (e ? '  -> ' + e : '')); } }
 var SRC = '';
+var PORTADA = (function () { try { return fs.readFileSync('cuadro-informes-temporada-portada.js', 'utf8'); } catch (e) { return ''; } })();
 try { SRC = fs.readFileSync(P, 'utf8'); } catch (e) { ok('existe ' + P, false, e.message); console.log('\n' + pass + ' PASS, ' + fail + ' FAIL'); process.exit(1); }
 function fnSource(s, name) {
   var i = s.indexOf('function ' + name + '(');
@@ -154,11 +155,11 @@ ok('separador ; , comillas escapadas y formula neutralizada', cl[1] === 'Son Bou
 ok('csvCell es la del listado', fnSource(SRC, 'csvCell') === fnSource(fs.readFileSync('informes-temporada.html', 'utf8'), 'csvCell'));
 
 console.log('10. Pagina');
-['Informes entregados', 'Casas en estado Malo', 'Actuaciones prioridad Alta', 'Marcas Malo en elementos'].forEach(function (s) { ok('cuadro "' + s + '"', SRC.indexOf(s) > 0); });
+[['Informes entregados', 'Entregados'], ['Casas en estado Malo', 'Condición media'], ['Actuaciones prioridad Alta', 'Obras por prioridad'], ['Marcas Malo en elementos', 'Alertas']].forEach(function (p) { ok('cuadro "' + p[0] + '" (v3: "' + p[1] + '")', PORTADA.indexOf("tile(route, ") > 0 && new RegExp("tile\\(route, [^,]+, '" + p[1] + "', ").test(PORTADA)); });
 ok('grupos Interior / Exterior / Seguridad e instalaciones', SRC.indexOf("'Interior'") > 0 && SRC.indexOf("'Exterior'") > 0 && SRC.indexOf("'Seguridad e instalaciones'") > 0);
-ok('titulo de las casas', /Casas\s*<small>· peor primero · un clic abre el informe<\/small>/.test(SRC));
-ok('titulos del mapa y de las obras', /Mapa de problemas\s*<small>· nº de casas por elemento<\/small>/.test(SRC) && /Obras pendientes\s*<small>· actuaciones prioritarias de todas las casas<\/small>/.test(SRC));
-ok('cabecera y proposito', SRC.indexOf('Informes de fin de temporada') > 0 && SRC.indexOf('Qué casas necesitan obra, qué obra, y quién no ha entregado el informe.') > 0 && SRC.indexOf('Dirección · estado de las casas al cierre de la temporada') > 0);
+ok('titulo de las casas (v3)', PORTADA.indexOf('Casas <small>· peligros, revisiones de seguridad, peor condición, incompletas, nombre · un clic abre el informe</small>') > 0);
+ok('titulos del mapa y de las obras (v3)', PORTADA.indexOf('Mapa de problemas <small>· nº de casas por marca (informes enviados) · clic en la cifra: las casas y sus observaciones · clic en el elemento: todos sus registros</small>') > 0 && SRC.indexOf('Obras pendientes <small>· resumen + incidencias por estancia, sin duplicados · solo informes enviados</small>') > 0);
+ok('cabecera y proposito (v3)', SRC.indexOf('<h1>Informes de fin de temporada</h1><p>Cada número abre las filas que hay detrás. Clic en una fila: el informe de la casa.</p>') > 0 && SRC.indexOf('Dirección · estado de las casas al cierre de la temporada') > 0 && SRC.indexOf('Qué casas necesitan obra, qué obra, y quién no ha entregado el informe.') < 0);
 ok('botones ⬇️ CSV obras y 🖨️ Imprimir (con U+FE0F, v2) e imprimir() con window.print()', SRC.indexOf('\u2B07\uFE0F CSV obras') > 0 && SRC.indexOf('\uD83D\uDDA8\uFE0F Imprimir') > 0 && SRC.indexOf('\u2B07 CSV') < 0 && SRC.indexOf('\uD83D\uDDA8 Imprimir') < 0 && SRC.indexOf('window.print()') > 0);
 ok('vacio y error', SRC.indexOf('Ninguna actuación todavía') > 0 && SRC.indexOf('No se pudieron leer los informes') > 0);
 ok('@media (max-width: 640px)', /@media\s*\(max-width:\s*640px\)/.test(SRC));
@@ -244,7 +245,7 @@ ok('13. esta pagina carga auth.js?v=20261028 una vez; el listado sigue con auth.
 ok('14. "… n actuaciones más" es <button type="button" class="mas-btn">, ningun <a onclick>', /<button type="button" class="mas-btn" onclick="verMas\(\)">/.test(SRC) && !/<a onclick/.test(SRC) && /\.mas-btn\{[^}]*background:none[^}]*\}/.test(SRC));
 ok('14. chips con aria-pressed', (SRC.match(/aria-pressed="'\+\(/g) || []).length === 2);
 /* 18. Leyenda: Borrador gris 3, Sin informe gris 2 */
-ok('18. leyenda: Borrador (--gray-3) y Sin informe (--gray-2)', SRC.indexOf('<span><i style="background:var(--gray-3)"></i>Borrador</span><span><i style="background:var(--gray-2)"></i>Sin informe</span>') > 0);
+ok('18. leyenda v3: bandas ≥ 80 / 50 a 79,9 / < 50 y "sin puntuación o borrador" (--gray-3); la v2 ya no', PORTADA.indexOf('<div class="leyenda"><span><i style="background:var(--green)"></i>≥ 80</span><span><i style="background:var(--orange)"></i>50 a 79,9</span><span><i style="background:var(--red)"></i>&lt; 50</span>') > 0 && PORTADA.indexOf('<span><i style="background:var(--gray-3)"></i>sin puntuación o borrador</span>') > 0 && SRC.indexOf('<span><i style="background:var(--gray-3)"></i>Borrador</span><span><i style="background:var(--gray-2)"></i>Sin informe</span>') < 0);
 ok('18. barra de la casa sin informe --gray-2; la del borrador sigue --gray-3', /\.casa\.s::before\{background:var\(--gray-2\)\}/.test(SRC) && /\.casa::before\{[^}]*background:var\(--gray-3\)\}/.test(SRC));
 /* Version y HISTORIAL v2 */
 var h2 = SRC.indexOf('<!-- HISTORIAL: v2 - 28/10/2026'), h1 = SRC.indexOf('<!-- HISTORIAL: v1 - '), l2 = h2 > 0 ? SRC.slice(h2, SRC.indexOf('\n', h2) < 0 ? SRC.length : SRC.indexOf('\n', h2)) : '';
@@ -331,14 +332,14 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ok('TaVillas Status=1 limit 500, TaUsers 200, TaContacts 500, TaInformeTemporada temporada=2026 limit 500', H.S.calls.some(function (x) { return x.table === 'TaVillas' && x.where === 'Status=1' && x.limit === '500'; }) && H.S.calls.some(function (x) { return x.table === 'TaUsers' && x.limit === '200'; }) && H.S.calls.some(function (x) { return x.table === 'TaContacts' && x.limit === '500'; }) && H.S.calls.some(function (x) { return x.table === 'TaInformeTemporada' && x.where === 'temporada=2026' && x.limit === '500'; }));
     ok('chips 2025, 2026, 2027; por defecto 2026', /data-temp="2025"[\s\S]*data-temp="2026"[\s\S]*data-temp="2027"/.test(H.g('filtros').innerHTML) && H.ev('TEMP') === 2026);
     ok('chips de villa manager: Todos, Kike, Rafa', /data-vm=""[^>]*>Todos[\s\S]*data-vm="c:501"[^>]*>Kike<[\s\S]*data-vm="u:U7"[^>]*>Rafa</.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 300));
-    ok('cuadros: 19 de 22, 1 borrador, 2 sin informe', /19[\s\S]*de 22/.test(H.g('tiles').innerHTML) && /1 en borrador · 2 sin informe/.test(H.g('tiles').innerHTML), H.g('tiles').innerHTML.slice(0, 400));
-    ok('20 actuaciones Alta (la de 2025 no cuenta)', /<div class="v">20<\/div>/.test(H.g('tiles').innerHTML));
+    ok('cuadros: 19 de 22, 1 borrador, 2 sin informe (v3: puertas)', /<a href="#t=2026&amp;v=lista:estado:enviado">19 <span class="de">de 22<\/span><\/a>/.test(H.g('tiles').innerHTML) && /v=lista:estado:borrador">1 en borrador<\/a>/.test(H.g('tiles').innerHTML) && /v=lista:estado:sin">2 sin informe<\/a>/.test(H.g('tiles').innerHTML), H.g('tiles').innerHTML.slice(0, 400));
+    ok('v3: 19 actuaciones Alto de informes enviados + "1 más en borradores (no cuentan)" (la de 2025 no cuenta)', />Alto 19<\/a>/.test(H.g('tiles').innerHTML) && />19 <span class="de">actuaciones<\/span>/.test(H.g('tiles').innerHTML) && /1 más en borradores \(no cuentan\)/.test(H.g('tiles').innerHTML) && !/De 2025/.test(H.g('obras').innerHTML));
     ok('22 tarjetas de casa', (H.g('casas').innerHTML.match(/class="casa /g) || []).length === 22);
-    ok('obras: 10 filas y "… 10 actuaciones más"', (H.g('obras').innerHTML.match(/a class="abrir"/g) || []).length === 20 && /… 10 actuaciones más/.test(H.g('obras').innerHTML), (H.g('obras').innerHTML.match(/a class="abrir"/g) || []).length);
-    ok('3. de extremo a extremo: cuadro "Marcas Malo" 12 de 520 comprobaciones · 5 Regular (estancia/salon Malo no cuenta)', /<div class="v">12<\/div><div class="s">de 520 comprobaciones · 5 Regular<\/div>/.test(H.g('tiles').innerHTML), H.g('tiles').innerHTML.slice(-260));
-    ok('3. de extremo a extremo: en el mapa Colchones 12 Malo (h4) y Piscina 5 Regular, el resto a 0', /Colchones y almohadas<\/td><td class="num"><span class="heat h4">12<\/span><\/td><td class="num"><span class="heat h0">0<\/span>/.test(H.g('mapa').innerHTML) && /Piscina \(vaso[^<]*<\/td><td class="num"><span class="heat h0">0<\/span><\/td><td class="num"><span class="heat hr">5<\/span>/.test(H.g('mapa').innerHTML) && (H.g('mapa').innerHTML.match(/heat h0">0</g) || []).length === 50);
-    ok('4. obras: pastilla gris "borrador" detras del nombre solo en Villa 20', /<td class="casa-n" data-l="Casa">Villa 20 <span class="pill gris">borrador<\/span><\/td>/.test(H.g('obras').innerHTML) && (H.g('obras').innerHTML.match(/pill gris/g) || []).length === 1);
-    ok('14. "… 10 actuaciones más" es un boton; chips con aria-pressed', /<tr class="mas"><td colspan="5"><button type="button" class="mas-btn" onclick="verMas\(\)">… 10 actuaciones más<\/button>/.test(H.g('obras').innerHTML) && /class="chip on" aria-pressed="true" data-temp="2026"/.test(H.g('filtros').innerHTML) && /class="chip" aria-pressed="false" data-temp="2025"/.test(H.g('filtros').innerHTML) && /class="chip on" aria-pressed="true" data-vm=""/.test(H.g('filtros').innerHTML) && /class="chip" aria-pressed="false" data-vm="c:501"/.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 400));
+    ok('obras: 10 filas a la vista y "… 9 actuaciones más" (v3: 19 de informes enviados)', (H.g('obras').innerHTML.match(/a class="abrir"/g) || []).length === 19 && (H.g('obras').innerHTML.match(/<tr class="obra extra"/g) || []).length === 9 && /… 9 actuaciones más/.test(H.g('obras').innerHTML), (H.g('obras').innerHTML.match(/a class="abrir"/g) || []).length);
+    ok('3. de extremo a extremo (v3): "Todas las marcas Malo · 12" en Listas y 5 Regular en el mapa (estancia/salon Malo no cuenta)', /v=lista:marcas:malo">Todas las marcas Malo · 12<\/a>/.test(H.g('rapidas').innerHTML) && (H.g('mapa').innerHTML.match(/v=lista:mapa:[a-z_]+:regular" title="Ver las casas">[1-9]\d*<\/a>/g) || []).join('') === H.g('mapa').innerHTML.match(/v=lista:mapa:piscina:regular" title="Ver las casas">5<\/a>/)[0], H.g('rapidas').innerHTML.slice(0, 400));
+    ok('3. de extremo a extremo (v3, cinco columnas): Colchones 12 Malo y 7 sin marcar, Piscina 5 Regular y 14 sin marcar, los demás 19 sin marcar, Bueno a 0 y N/A "—" (dato del formulario v5)', /v=lista:mapa:colchones:malo" title="Ver las casas">12<\/a>/.test(H.g('mapa').innerHTML) && /v=lista:mapa:colchones:sin" title="Ver las casas">7<\/a>/.test(H.g('mapa').innerHTML) && /v=lista:mapa:piscina:regular" title="Ver las casas">5<\/a>/.test(H.g('mapa').innerHTML) && /v=lista:mapa:piscina:sin" title="Ver las casas">14<\/a>/.test(H.g('mapa').innerHTML) && (H.g('mapa').innerHTML.match(/:sin" title="Ver las casas">19<\/a>/g) || []).length === 24 && (H.g('mapa').innerHTML.match(/:bueno" title="Ver las casas">0<\/a>/g) || []).length === 26 && (H.g('mapa').innerHTML.match(/:na" title="Ver las casas">—<\/a>/g) || []).length === 26 && (H.g('mapa').innerHTML.match(/:(malo|regular)" title="Ver las casas">0<\/a>/g) || []).length === 50, (H.g('mapa').innerHTML.match(/colchones:[a-z]+" title="Ver las casas">\d+/g) || []).join(' '));
+    ok('4. obras (v3): el borrador de Villa 20 no entra en la lista; se avisa "1 más en borradores (no cuentan)"', !/Villa 20/.test(H.g('obras').innerHTML) && /1 más en borradores \(no cuentan\)/.test(H.g('obras').innerHTML) && !/pill gris/.test(H.g('obras').innerHTML), H.g('obras').innerHTML.slice(0, 300));
+    ok('14. "… 9 actuaciones más" es un boton (v3); chips con aria-pressed', /<tr class="mas"><td colspan="9"><button type="button" class="mas-btn" onclick="verMas\(\)">… 9 actuaciones más<\/button>/.test(H.g('obras').innerHTML) && /class="chip on" aria-pressed="true" data-temp="2026"/.test(H.g('filtros').innerHTML) && /class="chip" aria-pressed="false" data-temp="2025"/.test(H.g('filtros').innerHTML) && /class="chip on" aria-pressed="true" data-vm=""/.test(H.g('filtros').innerHTML) && /class="chip" aria-pressed="false" data-vm="c:501"/.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 400));
     var vill = H.S.calls.filter(function (x) { return x.table === 'TaVillas'; }).length;
     H.ev("VM='c:501';pintar()");
     ok('filtro Kike: sin leer otra vez, 11 casas', H.S.calls.filter(function (x) { return x.table === 'TaVillas'; }).length === vill && (H.g('casas').innerHTML.match(/class="casa /g) || []).length === 11);
@@ -367,14 +368,14 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ok('se queda 2027: ningun informe, 0 de 22', H.ev('TEMP') === 2027 && H.ev('INFORMES.length') === 0 && /0[\s\S]*de 22/.test(H.g('tiles').innerHTML), H.ev('INFORMES.length'));
     ok('cambiar de temporada no lee las villas otra vez', H.S.calls.filter(function (x) { return x.table === 'TaVillas'; }).length === vill);
     ok('vacio: "Ninguna actuación todavía" y todo SIN INFORME', /Ninguna actuación todavía/.test(H.g('obras').innerHTML) && (H.g('casas').innerHTML.match(/SIN INFORME/g) || []).length === 22);
-    ok('vacio: el mapa todo h0 (26 Malo + 26 Regular)', !/heat h[1-4]/.test(H.g('mapa').innerHTML) && !/heat hr/.test(H.g('mapa').innerHTML) && (H.g('mapa').innerHTML.match(/heat h0/g) || []).length === 52);
+    ok('vacio: el mapa todo h0 (v3: 26 elementos × 5 columnas = 130)', !/heat h[1-4]"/.test(H.g('mapa').innerHTML) && !/heat (hr|hb|hs)"/.test(H.g('mapa').innerHTML) && (H.g('mapa').innerHTML.match(/heat h0"/g) || []).length === 130);
   });
   await parte(async function () {
     console.log('12.4 Errores');
     var H = cuadro(); H.S.falla(function (x) { return x.table === 'TaInformeTemporadaLineas'; }); await H.ev('iniciar()');
-    ok('lineas fallan: una linea roja y el boton de reintentar, nada mas', /No se pudieron leer los informes/.test(H.g('main').innerHTML) && /Reintentar/.test(H.g('main').innerHTML) && !/class="tiles"/.test(H.g('main').innerHTML), H.g('main').innerHTML.slice(0, 300));
+    ok('lineas fallan: una linea roja y el boton de reintentar, nada mas', /No se pudieron leer los informes/.test(H.g('main').innerHTML) && /Reintentar/.test(H.g('main').innerHTML) && !/id="cuerpo"/.test(H.g('main').innerHTML), H.g('main').innerHTML.slice(0, 300));
     await H.ev('iniciar()');
-    ok('reintentar vuelve a pintar el cuadro', /class="tiles"/.test(H.g('main').innerHTML) && /19[\s\S]*de 22/.test(H.g('tiles').innerHTML));
+    ok('reintentar vuelve a pintar el cuadro (v3: #cuerpo en main)', /id="cuerpo"/.test(H.g('main').innerHTML) && !/No se pudieron leer/.test(H.g('main').innerHTML) && /19 <span class="de">de 22/.test(H.g('tiles').innerHTML));
     var H2 = cuadro(); await H2.ev('iniciar()');
     H2.S.falla(function (x) { return x.table === 'TaInformeTemporada'; });
     await H2.ctx.cambiarTemporada(2025);
@@ -389,9 +390,10 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     var p = H.ctx.cambiarTemporada(2025);
     await H.espera(20);
     safe(function () { H.ev("elegirVM('')"); }); safe(function () { H.ev('verMas()'); }); safe(function () { H.ev('descargarCsv()'); }); safe(function () { H.ev('imprimir()'); });
-    var hueco = H.g('casas').innerHTML + H.g('obras').innerHTML + H.g('mapa').innerHTML + H.g('tiles').innerHTML;
+    /* v3: en el hueco la página pinta #cuerpo (los contenedores del nivel 1 salen del documento); se mira lo que hay en pantalla */
+    var hueco = H.g('cuerpo').innerHTML + H.g('printHead').innerHTML;
     ok('1. en el hueco el chip 2025 esta elegido (cargando)', /class="chip on" aria-pressed="true" data-temp="2025"/.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 200));
-    ok('1. en el hueco nada de 2026 bajo 2025: ni casas, ni obras, ni mapa, ni cuadros', !/temporada=2026|Obra \d|Villa \d\d|heat h4|de 22/.test(hueco), hueco.slice(0, 300));
+    ok('1. en el hueco nada de 2026 bajo 2025: ni casas, ni obras, ni mapa, ni cuadros (v3: solo "Cargando la temporada 2025…")', H.g('cuerpo').innerHTML === '<div class="msg">Cargando la temporada 2025…</div>' && !/t=2026|temporada=2026|Obra \d|Villa \d\d|heat h|de 22/.test(hueco), hueco.slice(0, 300));
     ok('1. en el hueco ni CSV ni impresion', d.length === 0 && H.log.indexOf('print') < 0, J(d.map(function (x) { return x.nombre; })) + ' ' + J(H.log));
     await p; await H.espera(10);
     ok('1. al llegar 2025: 1 de 22 y solo la obra "De 2025"', /1 <span class="de">de 22/.test(H.g('tiles').innerHTML) && /De 2025/.test(H.g('obras').innerHTML) && !/Obra \d/.test(H.g('obras').innerHTML) && !/actuaciones más/.test(H.g('obras').innerHTML));
@@ -419,7 +421,7 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     await H.ctx.cambiarTemporada(2025);
     ok('2b. 2025 pintado', H.ev('TEMP') === 2025 && /1 <span class="de">de 22/.test(H.g('tiles').innerHTML));
     await p; await H.espera(30);
-    ok('2b. la vista 2025 sigue y no sale la linea roja', /class="tiles"/.test(H.g('main').innerHTML) && !/No se pudieron leer/.test(H.g('main').innerHTML) && /1 <span class="de">de 22/.test(H.g('tiles').innerHTML) && H.S.calls.some(function (x) { return x.fallo; }), H.g('main').innerHTML.slice(0, 200));
+    ok('2b. la vista 2025 sigue y no sale la linea roja (v3: #cuerpo en main)', /id="cuerpo"/.test(H.g('main').innerHTML) && !/No se pudieron leer/.test(H.g('main').innerHTML) && /1 <span class="de">de 22/.test(H.g('tiles').innerHTML) && H.S.calls.some(function (x) { return x.fallo; }), H.g('main').innerHTML.slice(0, 200));
   });
   await parte(async function () {
     console.log('12.8 (5) Lecturas que llegan al limite: linea roja en vez de datos cortados');
@@ -430,14 +432,14 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
       return db;
     }
     var H = cuadro({ db: db1(1000, 1) }); await H.ev('iniciar()');
-    ok('5. un trozo de un solo informe devuelve 1000 lineas: linea roja y Reintentar', /No se pudieron leer los informes/.test(H.g('main').innerHTML) && /Reintentar/.test(H.g('main').innerHTML) && !/class="tiles"/.test(H.g('main').innerHTML), H.g('main').innerHTML.slice(0, 200));
+    ok('5. un trozo de un solo informe devuelve 1000 lineas: linea roja y Reintentar', /No se pudieron leer los informes/.test(H.g('main').innerHTML) && /Reintentar/.test(H.g('main').innerHTML) && !/id="cuerpo"/.test(H.g('main').innerHTML), H.g('main').innerHTML.slice(0, 200));
     ok('5. y una sola lectura de lineas (no se parte mas)', H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporadaLineas'; }).length === 1);
     var H2 = cuadro({ db: db1(999, 1) }); await H2.ev('iniciar()');
-    ok('5. con 999 lineas se pinta el cuadro', /class="tiles"/.test(H2.g('main').innerHTML) && /1 <span class="de">de 1/.test(H2.g('tiles').innerHTML));
+    ok('5. con 999 lineas se pinta el cuadro (v3: #cuerpo en main)', /id="cuerpo"/.test(H2.g('main').innerHTML) && !/No se pudieron leer/.test(H2.g('main').innerHTML) && /1 <span class="de">de 1/.test(H2.g('tiles').innerHTML));
     var H3 = cuadro({ db: db1(0, 500) }); await H3.ev('iniciar()');
-    ok('5. la lectura de informes devuelve 500 (el limit): linea roja y ninguna lectura de lineas', /No se pudieron leer los informes/.test(H3.g('main').innerHTML) && !/class="tiles"/.test(H3.g('main').innerHTML) && !H3.S.calls.some(function (x) { return x.table === 'TaInformeTemporadaLineas'; }), H3.g('main').innerHTML.slice(0, 200));
+    ok('5. la lectura de informes devuelve 500 (el limit): linea roja y ninguna lectura de lineas', /No se pudieron leer los informes/.test(H3.g('main').innerHTML) && !/id="cuerpo"/.test(H3.g('main').innerHTML) && !H3.S.calls.some(function (x) { return x.table === 'TaInformeTemporadaLineas'; }), H3.g('main').innerHTML.slice(0, 200));
     var H4 = cuadro({ db: db1(0, 499) }); await H4.ev('iniciar()');
-    ok('5. con 499 informes se pinta el cuadro', /class="tiles"/.test(H4.g('main').innerHTML) && /1 <span class="de">de 1/.test(H4.g('tiles').innerHTML));
+    ok('5. con 499 informes se pinta el cuadro (v3: #cuerpo en main)', /id="cuerpo"/.test(H4.g('main').innerHTML) && !/No se pudieron leer/.test(H4.g('main').innerHTML) && /1 <span class="de">de 1/.test(H4.g('tiles').innerHTML));
   });
   await parte(async function () {
     console.log('12.9 (9) Texto con HTML: sale escapado en todo lo pintado');
@@ -445,10 +447,11 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
       TaInformeTemporada: [{ informe_id: 1, villaid: 1, temporada: 2026, estado: 'enviado', estado_general: 'Malo', fecha_revision: '2026-10-20T00:00:00' }],
       TaInformeTemporadaLineas: [{ linea_id: 1, informe_id: 1, seccion: 'resumen', clave: 'accion_1', orden: 1, texto_1: 'Quitar <img src=x onerror=alert(2)> & pintar', texto_2: 'Motivo <script>x</script> & más', prioridad: 'Alta' }] };
     var H = cuadro({ db: db }); await H.ev('iniciar()');
-    var todo = H.g('tiles').innerHTML + H.g('casas').innerHTML + H.g('obras').innerHTML + H.g('filtros').innerHTML + H.g('mapa').innerHTML;
-    ok('9. ninguna etiqueta inyectada (<img, <script, <b>)', /class="tiles"/.test(H.g('main').innerHTML) && !/<img|<script|<b>/i.test(todo), todo.slice(0, 200));
+    var todo = H.g('tiles').innerHTML + H.g('rapidas').innerHTML + H.g('casas').innerHTML + H.g('obras').innerHTML + H.g('filtros').innerHTML + H.g('mapa').innerHTML;
+    ok('9. ninguna etiqueta inyectada (<img, <script, <b>) (v3: #cuerpo en main; también en la fila Listas)', /id="cuerpo"/.test(H.g('main').innerHTML) && !/<img|<script|<b>/i.test(todo), todo.slice(0, 200));
     var nv = 'Casa &lt;img src=x onerror=alert(1)&gt; &amp; Co';
-    ok('9. el nombre de la villa escapado en la casa, la obra y el cuadro "Casas en estado Malo"', H.g('casas').innerHTML.indexOf(nv) > 0 && H.g('obras').innerHTML.indexOf(nv) > 0 && H.g('tiles').innerHTML.indexOf(nv) > 0);
+    H.ctx.location.hash = '#t=2026&v=lista:atencion'; H.ev('alCambiarHash()'); var atencion9 = H.g('cuerpo').innerHTML; H.ctx.location.hash = '#t=2026'; H.ev('alCambiarHash()');
+    ok('9. el nombre de la villa escapado en la casa, la obra y la lista "Requiere atención" (v3: el cuadro "Casas en estado Malo" ya no existe)', H.g('casas').innerHTML.indexOf(nv) > 0 && H.g('obras').innerHTML.indexOf(nv) > 0 && atencion9.indexOf(nv) > 0 && !/<img|<script/i.test(atencion9), atencion9.slice(0, 300));
     ok('9. texto_1 y texto_2 escapados en las obras', H.g('obras').innerHTML.indexOf('Quitar &lt;img src=x onerror=alert(2)&gt; &amp; pintar') > 0 && H.g('obras').innerHTML.indexOf('Motivo &lt;script&gt;x&lt;/script&gt; &amp; más') > 0);
     ok('9. el villa manager escapado en el chip, la casa y la obra', H.g('filtros').innerHTML.indexOf('>Ana &lt;b&gt;&amp;&lt;/b&gt;</button>') > 0 && H.g('casas').innerHTML.indexOf('Ana &lt;b&gt;&amp;&lt;/b&gt;') > 0 && H.g('obras').innerHTML.indexOf('Ana &lt;b&gt;&amp;&lt;/b&gt;') > 0);
   });
@@ -459,8 +462,8 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     /* blob.text() quita el BOM al decodificar: se miran los bytes */
     var by = d.length ? Buffer.from(await d[0].blob.arrayBuffer()) : Buffer.alloc(0), txt = by.toString('utf8'), L = txt.split('\r\n');
     ok('9. un clic: obras-temporada-2026.csv, text/csv;charset=utf-8', d.length === 1 && d[0].nombre === 'obras-temporada-2026.csv' && d[0].blob.type === 'text/csv;charset=utf-8' && d[0].href === 'blob:prueba-1', J(d.map(function (x) { return [x.nombre, x.blob && x.blob.type]; })));
-    ok('9. BOM (EF BB BF), cabecera con "Informe", 20 obras Alto y Villa 20 como Borrador', by[0] === 0xEF && by[1] === 0xBB && by[2] === 0xBF && L[0] === '﻿Casa;Villa manager;Actuación;Motivo / impacto;Prioridad;Estado general de la casa;Fecha de revisión;Informe' && L.length === 22 && L[21] === '' &&
-      L.filter(function (l) { return /;Alto;/.test(l); }).length === 20 && L.indexOf('Villa 20;Rafa;Obra 20;;Alto;Bueno;20/10/2026;Borrador') > 0 && L.indexOf('Villa 01;Kike;Obra 1;;Alto;Malo;20/10/2026;Enviado') > 0, L.slice(0, 3).join(' / '));
+    ok('9. BOM (EF BB BF), cabecera v3 de Listas, 19 obras Alto de informes enviados y ninguna de Villa 20 (borrador)', by[0] === 0xEF && by[1] === 0xBB && by[2] === 0xBF && L[0] === '\uFEFFCasa;VM;Actuación;Motivo / impacto;Origen;Prioridad;Coste;Detalle' && L.length === 21 && L[20] === '' &&
+      L.filter(function (l) { return /;Alto;/.test(l); }).length === 19 && !L.some(function (l) { return /^Villa 20;/.test(l); }) && L.indexOf('Villa 01;Kike;Obra 1;;Resumen 1;Alto;;sin detalle') > 0, L.slice(0, 3).join(' / '));
     H.ev("elegirVM('c:501')"); H.ev('descargarCsv()');
     var t2 = d.length > 1 ? await d[1].blob.text() : '', L2 = t2.split('\r\n');
     ok('9. con el filtro Kike: 10 obras, todas de Kike', L2.length === 12 && L2.slice(1, 11).every(function (l) { return /^Villa \d\d;Kike;/.test(l); }), L2.length);
