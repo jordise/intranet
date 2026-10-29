@@ -57,8 +57,9 @@ console.log('2. Redondeo a un decimal, hacia arriba en el medio');
 ok('96.25 -> 96.3', S.redondear1(96.25) === 96.3, S.redondear1(96.25));
 ok('6.25 -> 6.3', S.redondear1(6.25) === 6.3, S.redondear1(6.25));
 ok('96.15 -> 96.2', S.redondear1(96.15) === 96.2, S.redondear1(96.15));
-ok('79.95 -> 80 (el float 799.4999… no baja)', S.redondear1(79.95) === 80, S.redondear1(79.95));
-ok('1.05 -> 1.1', S.redondear1(1.05) === 1.1, S.redondear1(1.05));
+ok('79.95 -> 80', S.redondear1(79.95) === 80, S.redondear1(79.95));
+ok('0.15 -> 0.2 y 1.15 -> 1.2 (×10 en float da 1.4999… y 11.4999…)', S.redondear1(0.15) === 0.2 && S.redondear1(1.15) === 1.2, J([S.redondear1(0.15), S.redondear1(1.15)]));
+ok('1.05 -> 1.1',S.redondear1(1.05) === 1.1, S.redondear1(1.05));
 ok('49.94 -> 49.9', S.redondear1(49.94) === 49.9, S.redondear1(49.94));
 ok('100 -> 100, 0 -> 0', S.redondear1(100) === 100 && S.redondear1(0) === 0);
 ok('-6.25 -> -6.3 (simétrico)', S.redondear1(-6.25) === -6.3, S.redondear1(-6.25));
@@ -101,7 +102,7 @@ ok('caso 8: las dos fuentes (sección, clave, orden)', J(a8[0] && a8[0].fuentes)
 console.log('4. Condición: bandas, marcas, N/A y errores de datos');
 function conMarcas(b, r, m) { var x = {}; CLAVES.forEach(function (k, i) { x[k] = i < b ? 'bueno' : i < b + r ? 'regular' : i < b + r + m ? 'malo' : ''; }); return S.condicion(lineas(x)); }
 ok('49.x es rojo, 50 es ámbar', conMarcas(0, 1, 1).banda === 'rojo' && conMarcas(0, 2, 0).banda === 'ambar', J([conMarcas(0, 1, 1), conMarcas(0, 2, 0)]));
-ok('79.x es ámbar, 80 es verde (la banda usa el decimal guardado)', (function () { var a = conMarcas(3, 2, 0), b = conMarcas(3, 0, 1); return a.puntuacion === 80 && a.banda === 'verde' && b.puntuacion === 75 && b.banda === 'ambar'; })(), J([conMarcas(3, 2, 0), conMarcas(3, 0, 1)]));
+ok('75 es ámbar, 80 es verde (la banda usa el decimal guardado)', (function () { var a = conMarcas(3, 2, 0), b = conMarcas(3, 0, 1); return a.puntuacion === 80 && a.banda === 'verde' && b.puntuacion === 75 && b.banda === 'ambar'; })(), J([conMarcas(3, 2, 0), conMarcas(3, 0, 1)]));
 var lAmbar = conMarcas(19, 0, 5); /* 38/48 = 79.166… */
 ok('19 Bueno + 5 Malo -> 79.2 ámbar, provisional 24 de 26', lAmbar.puntuacion === 79.2 && lAmbar.banda === 'ambar' && lAmbar.completo === false && lAmbar.evaluados === 24, J(lAmbar));
 ok('las marcas se leen sin mayúsculas ni espacios ("  malo ", "BUENO")', (function () { var c = S.condicion([linea('pintura', '  malo '), linea('colchones', 'BUENO')]); return c.malo === 1 && c.bueno === 1 && c.puntuacion === 50 && c.error === null; })());
@@ -166,6 +167,10 @@ ok('forma de cada actuación', aA[0] && J(Object.keys(aA[0]).sort()) === J(['acc
 ok('otra_N sin ": " -> texto completo, motivo "Otra estancia N"', (function () { var a = S.acciones([{ seccion: 'estancia', clave: 'otra_2', orden: 9, texto_1: 'Humedad en el techo', prioridad: '' }]); return a.length === 1 && a[0].accion === 'Humedad en el techo' && a[0].motivo === 'Otra estancia 2'; })(), J(S.acciones([{ seccion: 'estancia', clave: 'otra_2', orden: 9, texto_1: 'Humedad en el techo' }])));
 ok('otra_N con ": " y sin nombre -> motivo "Otra estancia N"', (function () { var a = S.acciones([{ seccion: 'estancia', clave: 'otra_1', orden: 8, texto_1: ': Grieta' }]); return a.length === 1 && a[0].accion === 'Grieta' && a[0].motivo === 'Otra estancia 1'; })());
 ok('otra_N con nombre y sin incidencia -> no es actuación', S.acciones([{ seccion: 'estancia', clave: 'otra_1', orden: 8, texto_1: 'Lavadero: ' }]).length === 0);
+var estFijas = fctx.seccionesDef().filter(function (s) { return s.id === 'estancia'; })[0].claves;
+ok('cada estancia fija del formulario da su nombre como motivo (las 7 de seccionesDef())', estFijas.length === 7 && estFijas.every(function (c, i) {
+  var a = S.acciones([{ seccion: 'estancia', clave: c[0], orden: i + 1, texto_1: 'Incidencia ' + i }]); return a.length === 1 && a[0].motivo === c[1];
+}), J(estFijas));
 ok('sin líneas, null o líneas null -> []', J(S.acciones([])) === '[]' && J(S.acciones(null)) === '[]' && J(S.acciones([null])) === '[]');
 ok('una prioridad desconocida cuenta como sin prioridad', (function () { var a = S.acciones([{ seccion: 'resumen', clave: 'accion_1', orden: 1, texto_1: 'X', prioridad: 'Urgente' }]); return a[0].prioridad === '' && a[0].prioridadVer === ''; })());
 
