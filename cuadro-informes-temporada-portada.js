@@ -282,7 +282,7 @@
         a(route, 'lista:obras:alta', 'Alto ' + O.alta) + ' · ' + a(route, 'lista:obras:media', 'Medio ' + O.media) + ' · ' + a(route, 'lista:obras:baja', 'Bajo ' + O.baja)
         + (O.sin ? ' · ' + a(route, 'lista:obras:sin', 'sin prioridad ' + O.sin) : ''),
         O.borradores ? '<div class="s">' + O.borradores + ' más en borradores (no cuentan)</div>' : '')
-      + tile(route, 'gris', 'Actuaciones por banda de coste', '—', '', '<span class="sin-datos">' + esc(T.coste.texto) + '</span>')
+      + tile(route, 'gris', 'Actuaciones por banda de coste', '—', 'lista:coste', '<span class="sin-datos">' + esc(T.coste.texto) + '</span>')
       + tile(route, '', 'Comentarios Review', String(R.n), 'lista:review', 'en ' + plural(R.casas, 'casas') + ' · origen Review')
       + '</div>';
   }

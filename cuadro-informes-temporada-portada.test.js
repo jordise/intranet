@@ -259,6 +259,8 @@ var hT = typeof th === 'string' ? hrefs(th) : [];
 ok('tilesHtml: todos los enlaces llevan t=2026 y una vista', hT.length >= 10 && hT.every(function (x) { var p = params(x); return p.t === '2026' && p.v; }), J(hT));
 ok('tilesHtml: puertas de la maqueta', ['lista:estado:enviado', 'lista:estado:borrador', 'lista:estado:sin', 'lista:condicion', 'lista:provisionales', 'lista:alertas', 'lista:alertas:seguridad', 'lista:obras:todas', 'lista:obras:alta', 'lista:obras:media', 'lista:obras:baja', 'lista:review', 'lista:comparacion'].every(function (v) { return hT.some(function (x) { return params(x).v === v; }); }), J(hT.map(function (x) { return params(x).v; })));
 ok('tilesHtml: la casa más baja abre su vista de casa', hT.some(function (x) { return params(x).v === 'casa:9'; }));
+/* Integración (decisión 8): el cuadro de coste "—" abre la lista explicada lista:coste (vacía hasta el formulario v5) */
+ok('integración: "Actuaciones por banda de coste" — abre lista:coste', hT.some(function (x) { return params(x).v === 'lista:coste'; }) && /banda de coste<\/div><div class="v"><a href="[^"]*v=lista:coste[^"]*">—<\/a>/.test(th));
 var thVM = safe(function () { return Portada.tilesHtml(Portada.tilesV3(Portada.filtrarVM(CASAS, 'c:1'), PREV), { t: '2026', vm: 'c:1' }); });
 ok('con filtro de villa manager, los enlaces lo conservan (vm=c:1)', typeof thVM === 'string' && hrefs(thVM).every(function (x) { return params(x).vm === 'c:1'; }));
 var vh = safe(function () { return Portada.tablaVMHtml(V, ROUTE); });

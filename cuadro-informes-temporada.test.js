@@ -1,4 +1,5 @@
-/* Pruebas del cuadro de informes de temporada (cuadro-informes-temporada.html v2, Jordi y Gary 28/10/2026; v2 = ronda de arreglos 1, partes 13 y 12.5 a 12.12).
+/* Pruebas del cuadro de informes de temporada (cuadro-informes-temporada.html v2, Jordi y Gary 28/10/2026; v2 = ronda de arreglos 1, partes 13 y 12.5 a 12.12;
+   v3 = cuadro v3a del 29/10/2026: pines de versión y de secciones, los scripts del cuadro cargados como en el navegador, parte 14).
    node cuadro-informes-temporada.test.js
    Como informes-temporada.test.js: extrae con vm las funciones reales de la pagina (partes 1 a 11) y despues
    carga el script REAL de la pagina con un fetch falso (arnes-informe.js, parte 12). Sin red. */
@@ -48,8 +49,8 @@ var tz = safe(function () { return ctx.trozosIds(ids.slice().reverse().concat([7
 ok('33 ids -> 15 + 15 + 3, ordenados y sin repetir', tz.length === 3 && tz[0].length === 15 && tz[1].length === 15 && tz[2].length === 3 && tz[0][0] === 1 && tz[1][0] === 16 && tz[2][2] === 33, J(tz));
 ok('sin ids: ningun trozo', J(ctx.trozosIds([], 15)) === '[]');
 ok('ids de texto se pasan a numero', J(ctx.trozosIds(['12', '10', '11'], 15)) === '[[10,11,12]]');
-ok('whereLineasRango: rango del trozo y solo las 4 secciones que usa la pagina (v2)', ctx.whereLineasRango([16, 20, 17]) === "informe_id>=16 AND informe_id<=20 AND seccion IN ('resumen','interior','exterior','seguridad')", ctx.whereLineasRango([16, 20, 17]));
-ok('whereLineasRango numerico', ctx.whereLineasRango(['10 OR 1=1', 7]) === "informe_id>=7 AND informe_id<=10 AND seccion IN ('resumen','interior','exterior','seguridad')", ctx.whereLineasRango(['10 OR 1=1', 7]));
+ok('whereLineasRango: rango del trozo y las 8 secciones del formulario (v3: tambien estancia, huesped, final y foto)', ctx.whereLineasRango([16, 20, 17]) === "informe_id>=16 AND informe_id<=20 AND seccion IN ('resumen','interior','exterior','seguridad','estancia','huesped','final','foto')", ctx.whereLineasRango([16, 20, 17]));
+ok('whereLineasRango numerico', ctx.whereLineasRango(['10 OR 1=1', 7]) === "informe_id>=7 AND informe_id<=10 AND seccion IN ('resumen','interior','exterior','seguridad','estancia','huesped','final','foto')", ctx.whereLineasRango(['10 OR 1=1', 7]));
 
 console.log('3. Un informe por villa: el informe_id mas bajo');
 var pv = safe(function () { return ctx.informePorVilla([{ informe_id: 14, villaid: 1 }, { informe_id: 10, villaid: 1 }, { informe_id: '9', villaid: '2' }, { informe_id: 12, villaid: 1 }]); }) || {};
@@ -164,7 +165,7 @@ ok('@media (max-width: 640px)', /@media\s*\(max-width:\s*640px\)/.test(SRC));
 ok('@media print con A4 vertical y 12 mm', /@media print/.test(SRC) && /@page\s*\{[^}]*A4 portrait[^}]*12mm/.test(SRC));
 ok("Auth.require('cuadro-informes-temporada')", SRC.indexOf("Auth.require('cuadro-informes-temporada')") > 0);
 ok('auth.js?v=20261028 (v2: salta el auth.js viejo de la cache), nav.js y nav-component.js', /<script src="auth.js\?v=20261028"><\/script>\s*<script src="nav.js"><\/script>\s*<script src="nav-component.js"><\/script>/.test(SRC));
-ok('VERSIÓN ACTUAL: v2 en las 5 primeras lineas, PAGE_VERSION = 2, titulo v2', /VERSIÓN ACTUAL: v2 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 2;/.test(SRC) && SRC.indexOf('<title>Cuadro de informes de temporada v2 — 3Villas</title>') > 0);
+ok('VERSIÓN ACTUAL: v3 en las 5 primeras lineas, PAGE_VERSION = 3, titulo v3', /VERSIÓN ACTUAL: v3 \|/.test(SRC.split('\n').slice(0, 5).join('\n')) && /const PAGE_VERSION = 3;/.test(SRC) && SRC.indexOf('<title>Cuadro de informes de temporada v3 — 3Villas</title>') > 0);
 ok("WORKER y Auth.url", SRC.indexOf("const WORKER = 'https://www.3villas.com/intranet/api';") > 0 && SRC.indexOf('Auth.url(') > 0);
 ok('checkForNewerVersion', SRC.indexOf('function checkForNewerVersion(') > 0);
 ok('solo lecturas: ninguna escritura al Worker', !/action=save|method:\s*'(POST|PUT|DELETE)'|action=upload/.test(SRC));
@@ -301,7 +302,10 @@ function conIn(H) {
   };
   return H;
 }
-function cuadro(o) { o = o || {}; return conIn(A.cargar({ archivo: P, db: o.db || dbGrande(), rol: 'admin', Date: fechaFija(o.hoy || '2026-10-28T12:00:00') })); }
+/* v3: los <script src> del cuadro (informe-temporada-score.js y cuadro-informes-temporada-*.js), en el orden de la pagina, dentro del contexto del arnes */
+var SCRIPTS_V3 = (SRC.match(/<script src="((?:informe-temporada-score|cuadro-informes-temporada-[a-z]+)\.js)\?v=3"><\/script>/g) || []).map(function (t) { return t.match(/src="([^"?]+)/)[1]; });
+function conScripts(H) { SCRIPTS_V3.forEach(function (f) { vm.runInContext(fs.readFileSync(f, 'utf8'), H.ctx, { filename: f }); }); return H; }
+function cuadro(o) { o = o || {}; return conIn(conScripts(A.cargar({ archivo: P, db: o.db || dbGrande(), rol: 'admin', Date: fechaFija(o.hoy || '2026-10-28T12:00:00'), search: o.search }))); }
 /* Descargas: el ancla y URL.createObjectURL de la pagina, falsos; cada clic apunta nombre y Blob */
 function descargas(H) {
   var d = [], ultimo = null;
@@ -322,8 +326,8 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     var H = cuadro(); await H.ev('iniciar()');
     var lin = H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporadaLineas'; });
     H.S.calls.forEach(function (x) { console.log('        ' + H.S.texto(x)); });
-    ok('dos lecturas de lineas: 1..15 y 16..20, limit 1000', lin.length === 2 && lin[0].where === "informe_id>=1 AND informe_id<=15 AND seccion IN ('resumen','interior','exterior','seguridad')" && lin[1].where === "informe_id>=16 AND informe_id<=20 AND seccion IN ('resumen','interior','exterior','seguridad')" && lin.every(function (x) { return x.limit === '1000'; }), lin.map(function (x) { return x.where; }).join(' | '));
-    ok('las 620 lineas de la temporada en las 4 secciones (20 x 31), ninguna de otra temporada ni de estancia/huesped/foto', H.ev('LINEAS.length') === 620 && H.ev('LINEAS.every(function(l){return ["resumen","interior","exterior","seguridad"].indexOf(l.seccion)>=0;})'), H.ev('LINEAS.length'));
+    ok('dos lecturas de lineas: 1..15 y 16..20, limit 1000', lin.length === 2 && lin[0].where === "informe_id>=1 AND informe_id<=15 AND seccion IN ('resumen','interior','exterior','seguridad','estancia','huesped','final','foto')" && lin[1].where === "informe_id>=16 AND informe_id<=20 AND seccion IN ('resumen','interior','exterior','seguridad','estancia','huesped','final','foto')" && lin.every(function (x) { return x.limit === '1000'; }), lin.map(function (x) { return x.where; }).join(' | '));
+    ok('v3: las 1040 lineas de la temporada en las 8 secciones del formulario (20 x 52), ninguna de otra temporada', H.ev('LINEAS.length') === 1040 && H.ev('LINEAS.every(function(l){return ["resumen","interior","exterior","seguridad","estancia","huesped","final","foto"].indexOf(l.seccion)>=0;})') && H.ev('LINEAS.every(function(l){return l.informe_id>=1&&l.informe_id<=20;})'), H.ev('LINEAS.length'));
     ok('TaVillas Status=1 limit 500, TaUsers 200, TaContacts 500, TaInformeTemporada temporada=2026 limit 500', H.S.calls.some(function (x) { return x.table === 'TaVillas' && x.where === 'Status=1' && x.limit === '500'; }) && H.S.calls.some(function (x) { return x.table === 'TaUsers' && x.limit === '200'; }) && H.S.calls.some(function (x) { return x.table === 'TaContacts' && x.limit === '500'; }) && H.S.calls.some(function (x) { return x.table === 'TaInformeTemporada' && x.where === 'temporada=2026' && x.limit === '500'; }));
     ok('chips 2025, 2026, 2027; por defecto 2026', /data-temp="2025"[\s\S]*data-temp="2026"[\s\S]*data-temp="2027"/.test(H.g('filtros').innerHTML) && H.ev('TEMP') === 2026);
     ok('chips de villa manager: Todos, Kike, Rafa', /data-vm=""[^>]*>Todos[\s\S]*data-vm="c:501"[^>]*>Kike<[\s\S]*data-vm="u:U7"[^>]*>Rafa</.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 300));
@@ -350,7 +354,7 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     for (var k = 0; k < 1000; k++) db.TaInformeTemporadaLineas.push({ linea_id: 9000 + k, informe_id: 40, seccion: 'interior', clave: 'x' + k, estado: 'Malo' });
     var H = cuadro({ db: db }); await H.ev('iniciar()');
     H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporadaLineas'; }).forEach(function (x) { console.log('        ' + H.S.texto(x)); });
-    ok('se leen las 620 lineas de 2026 aunque el rango tenga 1000 de 2024', H.ev('LINEAS.length') === 620, H.ev('LINEAS.length'));
+    ok('v3: se leen las 1040 lineas de 2026 (20 x 52) aunque el rango tenga 1000 de 2024', H.ev('LINEAS.length') === 1040, H.ev('LINEAS.length'));
   });
   await parte(async function () {
     console.log('12.3 Una respuesta tardia de otra temporada se ignora');
@@ -468,6 +472,200 @@ async function hasta(f, ms) { for (var t = 0; t < (ms || 2000) && !f(); t += 2) 
     ok('6. chips "Kike" (c:501) y "Kike (2)" (u:U7)', /data-vm="c:501"[^>]*>Kike<\/button>[\s\S]*data-vm="u:U7"[^>]*>Kike \(2\)<\/button>/.test(H.g('filtros').innerHTML), H.g('filtros').innerHTML.slice(0, 500));
     H.ev("elegirVM('u:U7')");
     ok('6. elegir u:U7: 11 casas (las pares), chip u:U7 encendido', (H.g('casas').innerHTML.match(/class="casa /g) || []).length === 11 && !/Villa 01/.test(H.g('casas').innerHTML) && /class="chip on" aria-pressed="true" data-vm="u:U7"/.test(H.g('filtros').innerHTML));
+  });
+  /* ── 14. v3 (cuadro v3a, 29/10/2026): el armazón de la página con los seis scripts del cuadro, de extremo a extremo con el Worker falso ── */
+  function hrefsDe(h) { var out = [], re = /href="([^"]*)"/g, m; while ((m = re.exec(h))) out.push(m[1].replace(/&amp;/g, '&')); return out; }
+  function paramsDe(hh) { var p = {}; String(hh).replace(/^#/, '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); }); return p; }
+  function ir(H, h) { H.ctx.location.hash = h; H.ev('alCambiarHash()'); }
+  function nivel1(H) { return ['tiles', 'rapidas', 'vmt', 'casas', 'mapa', 'obras'].map(function (id) { return H.g(id).innerHTML; }).join(''); }
+  function abrirDe(h) { return (h.match(/<a class="abrir"/g) || []).length; }
+  await parte(async function () {
+    console.log('14.1 v3: carga y nivel 1 (seis cuadros, Listas, tabla por villa manager, casas, mapa, obras)');
+    ok('14.1 los seis scripts del cuadro en <head>, en orden, con ?v=3, despues de nav-component.js', J(SCRIPTS_V3) === J(['informe-temporada-score.js', 'cuadro-informes-temporada-rutas.js', 'cuadro-informes-temporada-listas.js', 'cuadro-informes-temporada-portada.js', 'cuadro-informes-temporada-vistas.js', 'cuadro-informes-temporada-extras.js'])
+      && SRC.indexOf('<script src="nav-component.js"></script>') < SRC.indexOf('<script src="informe-temporada-score.js?v=3"></script>') && SRC.indexOf('<script src="cuadro-informes-temporada-extras.js?v=3"></script>') < SRC.indexOf('</head>'), J(SCRIPTS_V3));
+    ok('14.1 la hoja cuadro-informes-temporada-extras.css?v=3 despues del <style> de la pagina', SRC.indexOf('<link rel="stylesheet" href="cuadro-informes-temporada-extras.css?v=3">') > SRC.indexOf('</style>') && SRC.indexOf('</style>') > 0);
+    var H = cuadro(); await H.ev('iniciar()');
+    var T = H.g('tiles').innerHTML;
+    ok('14.1 seis cuadros con las palabras de la maqueta', (T.match(/class="tile[ "]/g) || []).length === 6 && ['Entregados', 'Condición media', 'Alertas', 'Obras por prioridad', 'Actuaciones por banda de coste', 'Comentarios Review'].every(function (w) { return T.indexOf(w) >= 0; }), T.slice(0, 200));
+    ok('14.1 Entregados 19 de 22; 1 en borrador y 2 sin informe son puertas', /19 <span class="de">de 22<\/span>/.test(T) && />1 en borrador<\/a>/.test(T) && />2 sin informe<\/a>/.test(T));
+    ok('14.1 obras: 19 actuaciones (solo enviados) y "1 más en borradores (no cuentan)"', />19 <span class="de">actuaciones<\/span>/.test(T) && /1 más en borradores \(no cuentan\)/.test(T), T.slice(T.indexOf('Obras por'), T.indexOf('Obras por') + 400));
+    ok('14.1 etiquetas de prioridad Alto / Medio / Bajo (las del formulario)', />Alto 19<\/a>/.test(T) && />Medio 0<\/a>/.test(T) && />Bajo 0<\/a>/.test(T) && !/>Alta \d/.test(T));
+    ok('14.1 fórmula y versión de la puntuación a la vista', /Condición = 100 × \(2 × Bueno \+ Regular\) ÷ \(2 × elementos evaluados\)/.test(T) && /puntuación v1/.test(T));
+    ok('14.1 22 tarjetas, cada una abre casa:<villaid> con t=2026', (H.g('casas').innerHTML.match(/<a class="casa /g) || []).length === 22 && hrefsDe(H.g('casas').innerHTML).filter(function (x) { return /^casa:\d+$/.test(paramsDe(x).v) && paramsDe(x).t === '2026'; }).length === 22);
+    ok('14.1 tabla por villa manager: Kike, Rafa y Todos', /<b>Kike<\/b>/.test(H.g('vmt').innerHTML) && /<b>Rafa<\/b>/.test(H.g('vmt').innerHTML) && /Todos/.test(H.g('vmt').innerHTML));
+    ok('14.1 mapa: 26 elementos y 130 cifras (cinco columnas), cada una una puerta', hrefsDe(H.g('mapa').innerHTML).filter(function (x) { return /^lista:mapa:[a-z_]+:(bueno|regular|malo|sin|na)$/.test(paramsDe(x).v); }).length === 130 && hrefsDe(H.g('mapa').innerHTML).filter(function (x) { return /^lista:elemento:/.test(paramsDe(x).v); }).length === 26);
+    ok('14.1 Colchones: 12 Malo (Villas 01 a 12, todas enviadas)', /lista:mapa:colchones:malo" title="Ver las casas">12<\/a>/.test(H.g('mapa').innerHTML), (H.g('mapa').innerHTML.match(/colchones:malo"[^>]*>\d+/) || [''])[0]);
+    ok('14.1 todos los enlaces del nivel 1 llevan t=2026', hrefsDe(nivel1(H)).length > 200 && hrefsDe(nivel1(H)).every(function (x) { return paramsDe(x).t === '2026'; }), J(hrefsDe(nivel1(H)).filter(function (x) { return paramsDe(x).t !== '2026'; }).slice(0, 3)));
+    ok('14.1 obras del nivel 1: 10 filas a la vista y "… 9 actuaciones más" (19 de 19)', abrirDe(H.g('obras').innerHTML) === 19 && (H.g('obras').innerHTML.match(/<tr class="obra extra"/g) || []).length === 9 && /… 9 actuaciones más/.test(H.g('obras').innerHTML) && /19 de 19 actuaciones/.test(H.g('obras').innerHTML));
+    ok('14.1 cabecera de impresión del cuadro', H.g('printHead').innerHTML === 'Temporada 2026 · VM: todos · Informes enviados', H.g('printHead').innerHTML);
+    ok('14.1 filtros: temporada, villa manager, "⚑ Requiere atención" (lista:atencion) e Imprimir', /data-temp="2026"/.test(H.g('filtros').innerHTML) && /data-vm="c:501"/.test(H.g('filtros').innerHTML) && hrefsDe(H.g('filtros').innerHTML).some(function (x) { return paramsDe(x).v === 'lista:atencion'; }) && /🖨️ Imprimir/.test(H.g('filtros').innerHTML));
+    H.ev('verMas()');
+    ok('14.1 "más" despliega las 19', !/<tr class="obra extra"/.test(H.g('obras').innerHTML) && !/actuaciones más/.test(H.g('obras').innerHTML));
+    H.ev("elegirVM('c:501')");
+    ok('14.1 elegir Kike: el hash lleva vm=c:501, 11 tarjetas y cada puerta conserva vm=c:501', H.ctx.location.hash === '#t=2026&vm=c:501' && (H.g('casas').innerHTML.match(/<a class="casa /g) || []).length === 11 && hrefsDe(nivel1(H)).every(function (x) { return paramsDe(x).vm === 'c:501'; }), H.ctx.location.hash);
+    ok('14.1 hashchange, keydown y click escuchados', H.escucha(true, 'hashchange') === 1 && H.escucha(false, 'keydown') >= 1 && H.escucha(false, 'click') >= 1);
+  });
+  await parte(async function () {
+    console.log('14.2 v3: nivel 2 por el hash (lista, cifra = filas, CSV, volver)');
+    var H = cuadro(); await H.ev('iniciar()');
+    var puerta = hrefsDe(H.g('tiles').innerHTML).filter(function (x) { return paramsDe(x).v === 'lista:obras:alta'; })[0];
+    var nT = +((H.g('tiles').innerHTML.match(/v=lista:obras:alta">Alto (\d+)</) || [])[1]);
+    var lecturas = H.S.calls.length;
+    ir(H, puerta);
+    var C = H.g('cuerpo').innerHTML;
+    ok('14.2 la puerta "Alto 19" abre su lista con 19 filas (cifra = filas) y sin leer nada', nT === 19 && abrirDe(C) === 19 && /Actuaciones de prioridad Alto/.test(C) && H.S.calls.length === lecturas, nT + ' / ' + abrirDe(C));
+    ok('14.2 título, "‹ Cuadro" al cuadro con t=2026, buscador y CSV de estas filas', /class="lt">Actuaciones de prioridad Alto <small>· 19 actuaciones · temporada 2026 · VM: todos · informes enviados<\/small>/.test(C) && /<a class="atras" href="#t=2026">‹ Cuadro<\/a>/.test(C) && /id="q"/.test(C) && /CSV de estas filas/.test(C), C.slice(0, 300));
+    ok('14.2 cada fila abre la casa con from=lista:obras:alta', hrefsDe(C).filter(function (x) { var p = paramsDe(x); return /^casa:\d+$/.test(p.v) && p.from === 'lista:obras:alta'; }).length >= 19);
+    ok('14.2 cabecera de impresión de la lista', H.g('printHead').innerHTML === 'Temporada 2026 · VM: todos · Informes enviados · Actuaciones de prioridad Alto', H.g('printHead').innerHTML);
+    ir(H, '#t=2026&v=lista:obras:alta&q=Obra%201');
+    C = H.g('cuerpo').innerHTML;
+    ok('14.2 búsqueda en el hash: "Obra 1" = 11 filas (Obra 1, 10 a 19)', abrirDe(C) === 11 && /11 de 19 filas/.test(C), abrirDe(C));
+    var d = descargas(H); H.ev('Vistas.bajarCsv()');
+    var by = d.length ? Buffer.from(await d[0].blob.arrayBuffer()) : Buffer.alloc(0), L = by.toString('utf8').split('\r\n');
+    ok('14.2 CSV de estas filas: BOM, cabecera y las 11 filas buscadas', by[0] === 0xEF && L.length === 13 && L[12] === '' && L.slice(1, 12).every(function (l) { return /;Obra 1\d?;/.test(l); }) && d[0].nombre === 'lista-obras-alta-2026.csv', d.length + ' ' + (d[0] && d[0].nombre) + ' ' + L.length);
+    ir(H, '#t=2026&v=lista:alertas');
+    ok('14.2 lista vacía con su porqué (ninguna alerta en estos datos)', /Lista vacía/.test(H.g('cuerpo').innerHTML) && /Ningún informe enviado tiene un peligro/.test(H.g('cuerpo').innerHTML), H.g('cuerpo').innerHTML.slice(0, 300));
+    ir(H, '#t=2026&v=lista:coste');
+    ok('14.2 cuadro de coste: lista explicada "formulario v5"', /formulario v5/.test(H.g('cuerpo').innerHTML) && /Lista vacía/.test(H.g('cuerpo').innerHTML));
+    ir(H, '#t=2026&v=lista:noexiste');
+    ok('14.2 lista desconocida: lo dice y vuelve al cuadro', /Lista desconocida|no corresponde a ninguna lista/.test(H.g('cuerpo').innerHTML) && /‹ Cuadro/.test(H.g('cuerpo').innerHTML));
+    ir(H, '#t=2026');
+    ok('14.2 volver al cuadro: nivel 1 otra vez', /<a class="casa /.test(H.g('casas').innerHTML) && /id="tiles"/.test(H.g('cuerpo').innerHTML));
+  });
+  await parte(async function () {
+    console.log('14.3 v3: nivel 3 (casa), temporada anterior al usarla y una sola vez, anterior / siguiente, flechas');
+    var H = cuadro(); await H.ev('iniciar()');
+    var antes = H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporada' && /temporada=2025/.test(x.where || ''); }).length;
+    ok('14.3 el cuadro no lee 2025 hasta que una vista la usa', antes === 0);
+    ir(H, '#t=2026&v=casa:1&from=lista:obras:alta');
+    ok('14.3 una casa enviada pide 2025 y mientras dice "Cargando la temporada 2025 para comparar…"', /Cargando la temporada 2025 para comparar…/.test(H.g('cuerpo').innerHTML), H.g('cuerpo').innerHTML.slice(0, 120));
+    await H.espera(40);
+    var C = H.g('cuerpo').innerHTML;
+    ok('14.3 la casa: nombre, "Abrir formulario" al formulario real, "Imprimir casa", comparación con 2025', /<h2>Villa 01<\/h2>/.test(C) && C.indexOf('href="informe-temporada.html?villaid=1&amp;temporada=2026">Abrir formulario</a>') > 0 && /Imprimir casa/.test(C) && /Comparación con 2025/.test(C) && /Sin informe enviado en 2025 para esta casa/.test(C), C.slice(0, 300));
+    ok('14.3 posición en la lista de origen y Siguiente (Villa 02); sin Anterior en la primera', /casa 1 de 19 en «Actuaciones de prioridad Alto»/.test(C) && H.ev('Vistas.navActual.next') === '#t=2026&v=casa:2&from=lista:obras:alta' && H.ev('Vistas.navActual.prev') === null, H.ev('JSON.stringify(Vistas.navActual)'));
+    ok('14.3 "‹ Lista" vuelve a la lista de origen', /<a class="atras" href="#t=2026&amp;v=lista:obras:alta">‹ Lista<\/a>/.test(C));
+    ok('14.3 impresión de la casa: "Uso interno · dirección" y el estado', /<div class="uso">Uso interno · dirección<\/div>Temporada 2026 · Villa 01 · VM Kike · Informe enviado/.test(H.g('printHead').innerHTML), H.g('printHead').innerHTML);
+    await H.evento(false, 'keydown', { key: 'ArrowRight', target: { tagName: 'DIV' }, preventDefault: function () {} });
+    ok('14.3 → fuera de un campo: la casa siguiente', H.ctx.location.hash === '#t=2026&v=casa:2&from=lista:obras:alta', H.ctx.location.hash);
+    H.ev('alCambiarHash()');
+    ok('14.3 la segunda casa no vuelve a leer 2025 (guardada)', H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporada' && /temporada=2025/.test(x.where || ''); }).length === 1 && /<h2>Villa 02<\/h2>/.test(H.g('cuerpo').innerHTML));
+    await H.evento(false, 'keydown', { key: 'ArrowRight', target: { tagName: 'INPUT' } });
+    ok('14.3 → dentro de un campo: no cambia de casa', H.ctx.location.hash === '#t=2026&v=casa:2&from=lista:obras:alta');
+    var abierto = H.ctx.Extras.overlayAbierto; H.ctx.Extras.overlayAbierto = function () { return true; };
+    await H.evento(false, 'keydown', { key: 'ArrowLeft', target: { tagName: 'DIV' } });
+    H.ctx.Extras.overlayAbierto = abierto;
+    ok('14.3 ← con la foto abierta (Extras.overlayAbierto): no cambia de casa', H.ctx.location.hash === '#t=2026&v=casa:2&from=lista:obras:alta');
+    await H.evento(false, 'click', { target: { closest: function (s) { return s === 'a,button,input' ? null : { getAttribute: function () { return '#t=2026&v=casa:5'; } }; } } });
+    ok('14.3 clic en una fila con data-href: va a su casa', H.ctx.location.hash === '#t=2026&v=casa:5');
+    ir(H, '#t=2026&v=casa:21');
+    ok('14.3 casa sin informe: lo dice, sin pedir nada', /Sin informe/.test(H.g('cuerpo').innerHTML) && /<h2>Villa 21<\/h2>/.test(H.g('cuerpo').innerHTML));
+    ir(H, '#t=2026&v=casa:999');
+    ok('14.3 casa que no existe: "Casa no encontrada"', /Casa no encontrada/.test(H.g('cuerpo').innerHTML));
+  });
+  await parte(async function () {
+    console.log('14.4 v3: la temporada anterior falla: línea roja y Reintentar; repetido y comparación esperan a 2025');
+    var H = cuadro(); await H.ev('iniciar()');
+    H.S.falla(function (x) { return x.table === 'TaInformeTemporada' && /temporada=2025/.test(x.where || ''); });
+    ir(H, '#t=2026&v=lista:repetido'); await H.espera(40);
+    ok('14.4 fallo: "No se pudo leer la temporada 2025" con Reintentar, y la lista dice por qué está vacía', /No se pudo leer la temporada 2025/.test(H.g('cuerpo').innerHTML) && /reintentarPrevia\(\)/.test(H.g('cuerpo').innerHTML), H.g('cuerpo').innerHTML.slice(0, 200));
+    H.ev('reintentarPrevia()'); await H.espera(40);
+    ok('14.4 Reintentar lee otra vez y pinta la lista sin la línea roja', !/No se pudo leer/.test(H.g('cuerpo').innerHTML) && /‹ Cuadro/.test(H.g('cuerpo').innerHTML) && H.S.calls.filter(function (x) { return x.table === 'TaInformeTemporada' && /temporada=2025/.test(x.where || ''); }).length === 2);
+    ir(H, '#t=2026&v=lista:comparacion');
+    ok('14.4 comparación con 2025 ya leída: sin "Cargando"', !/Cargando/.test(H.g('cuerpo').innerHTML) && /‹ Cuadro/.test(H.g('cuerpo').innerHTML));
+    ir(H, '#t=2026');
+    ok('14.4 con 2025 leída, el cuadro de condición compara (vs 2025) y la fila Listas da Repetido con cifra', /vs 2025: /.test(H.g('tiles').innerHTML) && !/se lee al abrir/.test(H.g('tiles').innerHTML) && /Repetido 2025–2026 · \d+/.test(H.g('rapidas').innerHTML), H.g('rapidas').innerHTML.slice(0, 300));
+  });
+  await parte(async function () {
+    console.log('14.5 v3: un enlace pegado abre la misma vista; cambiar de temporada conserva la vista');
+    var H = cuadro(); H.ctx.location.hash = '#t=2025&vm=c:501&v=lista:estado:enviado'; await H.ev('iniciar()');
+    ok('14.5 enlace pegado: temporada 2025 leída, VM Kike conservado, la lista de enviados', H.ev('TEMP') === 2025 && H.ev('VM') === 'c:501' && /Casas con informe enviado/.test(H.g('cuerpo').innerHTML) && /‹ Cuadro/.test(H.g('cuerpo').innerHTML) && H.S.calls.some(function (x) { return x.table === 'TaInformeTemporada' && x.where === 'temporada=2025'; }), H.ev('TEMP') + ' ' + H.ev('VM'));
+    ok('14.5 VM: Kike en el título de la lista', /VM: Kike/.test(H.g('cuerpo').innerHTML));
+    await H.ctx.cambiarTemporada(2026);
+    ok('14.5 cambiar a 2026 conserva la lista y el VM en el hash', H.ctx.location.hash === '#t=2026&vm=c:501&v=lista:estado:enviado' && /‹ Cuadro/.test(H.g('cuerpo').innerHTML), H.ctx.location.hash);
+    ir(H, '#t=2025&vm=c:501');
+    await H.espera(40);
+    ok('14.5 Atrás a otra temporada (hash): la lee y pinta el cuadro', H.ev('TEMP') === 2025 && /1 <span class="de">de 11/.test(H.g('tiles').innerHTML), H.g('tiles').innerHTML.slice(0, 300));
+  });
+  await parte(async function () {
+    console.log('14.6 v3: obras del nivel 1 con sus filtros en el hash y su CSV');
+    var H = cuadro({ db: (function () { var db = dbGrande(); db.TaInformeTemporadaLineas.forEach(function (l) { if (l.seccion === 'resumen' && l.clave === 'accion_1' && l.informe_id % 2 === 0) l.prioridad = 'Baja'; }); return db; })() });
+    H.ctx.location.hash = '#t=2026&op=baja'; await H.ev('iniciar()');
+    var O = H.g('obras').innerHTML;
+    ok('14.6 op=baja: solo las 9 de prioridad Bajo (pares enviadas), chip Bajo encendido', abrirDe(O) === 9 && /class="chip on" href="[^"]*op=baja[^"]*" aria-pressed="true">Bajo<\/a>/.test(O) && /9 de 19 actuaciones/.test(O), abrirDe(O));
+    var d = descargas(H); H.ev('descargarCsv()');
+    var by = d.length ? Buffer.from(await d[0].blob.arrayBuffer()) : Buffer.alloc(0), L = by.toString('utf8').split('\r\n');
+    ok('14.6 CSV obras: obras-temporada-2026.csv, BOM, cabecera de Listas y las 9 filas filtradas', d.length === 1 && d[0].nombre === 'obras-temporada-2026.csv' && by[0] === 0xEF && L[0] === '﻿Casa;VM;Actuación;Motivo / impacto;Origen;Prioridad;Coste;Detalle' && L.length === 11 && L.slice(1, 10).every(function (l) { return /;Bajo;/.test(l); }), L.slice(0, 2).join(' / '));
+    ir(H, '#t=2026&op=baja&og=1');
+    ok('14.6 og=1: agrupadas por casa (una fila de grupo por casa)', (H.g('obras').innerHTML.match(/<tr class="grp/g) || []).length === 9);
+    ir(H, '#t=2026&of=estancia');
+    ok('14.6 of=estancia sin ninguna: vacía con su porqué', /Ningún resultado con estos filtros/.test(H.g('obras').innerHTML));
+    ir(H, '#t=2027');
+    await H.espera(40);
+    ok('14.6 temporada sin informes: "Ninguna actuación todavía en los informes enviados."', /Ninguna actuación todavía en los informes enviados\./.test(H.g('obras').innerHTML) && /0 <span class="de">de 22/.test(H.g('tiles').innerHTML));
+  });
+  await parte(async function () {
+    console.log('14.7 v3: "Sin villa manager" (vm=sin) y texto con HTML escapado en las tres vistas');
+    var db = { TaVillas: [{ villaid: 1, Name: 'Casa <img src=x onerror=alert(1)> & Co', KeyHolder_person: '501', Status: 1 }, { villaid: 2, Name: 'Sola', KeyHolder_person: '', Status: 1 }], TaUsers: [], TaContacts: [{ ContactID: '501', Name: 'Ana <b>&</b>' }],
+      TaInformeTemporada: [{ informe_id: 1, villaid: 1, temporada: 2026, estado: 'enviado', estado_general: 'Malo', fecha_revision: '2026-10-20T00:00:00', observaciones_finales: 'Fin <script>x</script>' }],
+      TaInformeTemporadaLineas: [{ linea_id: 1, informe_id: 1, seccion: 'resumen', clave: 'accion_1', orden: 1, texto_1: 'Quitar <img src=x onerror=alert(2)> & pintar', texto_2: 'Motivo <script>x</script> & más', prioridad: 'Alta' },
+        { linea_id: 2, informe_id: 1, seccion: 'huesped', clave: 'comentario_1', orden: 1, estado: 'Review', texto_1: 'Huésped <img src=y>' }, { linea_id: 3, informe_id: 1, seccion: 'foto', clave: 'foto_1', orden: 1, foto_url: 'https://fotos.invalid/a.jpg', texto_1: 'Pie <img src=z>' }] };
+    var H = cuadro({ db: db }); await H.ev('iniciar()');
+    var todo = nivel1(H) + H.g('filtros').innerHTML;
+    ok('14.7 nivel 1: ninguna etiqueta inyectada y los nombres escapados', !/<img|<script/i.test(todo) && todo.indexOf('Casa &lt;img src=x onerror=alert(1)&gt; &amp; Co') > 0 && H.g('filtros').innerHTML.indexOf('>Ana &lt;b&gt;&amp;&lt;/b&gt;</button>') > 0, todo.slice(0, 200));
+    ok('14.7 chip "Sin villa manager" cuando una casa no tiene', /data-vm="sin"[^>]*>Sin villa manager<\/button>/.test(H.g('filtros').innerHTML));
+    H.ev("elegirVM('sin')");
+    ok('14.7 vm=sin: el hash lo lleva y solo sale "Sola"', H.ctx.location.hash === '#t=2026&vm=sin' && (H.g('casas').innerHTML.match(/<a class="casa /g) || []).length === 1 && /Sola/.test(H.g('casas').innerHTML), H.ctx.location.hash);
+    ir(H, '#t=2026&v=casa:1'); await H.espera(40);
+    var C = H.g('cuerpo').innerHTML;
+    ok('14.7 la casa: actuación, motivo, comentario, pie de foto y texto final escapados (el único <img es la miniatura de la galería)', !/<img src=[xyz]|<script/i.test(C) && (C.match(/<img /g) || []).length === 1 && C.indexOf('Quitar &lt;img') > 0 && C.indexOf('Motivo &lt;script&gt;') > 0 && C.indexOf('Huésped &lt;img') > 0 && C.indexOf('Pie &lt;img') > 0 && C.indexOf('Fin &lt;script&gt;x&lt;/script&gt;') > 0, C.slice(0, 200));
+    ok('14.7 la casa lee las secciones nuevas: comentario Review y una foto en la galería', /class="gal"/.test(C) && /Review/.test(C));
+    ir(H, '#t=2026&v=lista:obras:todas');
+    ok('14.7 la lista: escapada', !/<img|<script/i.test(H.g('cuerpo').innerHTML) && H.g('cuerpo').innerHTML.indexOf('Quitar &lt;img') > 0);
+  });
+  await parte(async function () {
+    console.log('14.8 v3: semilla window.__FIXTURE__ (pruebas y capturas) y scripts que faltan');
+    var FX = require('./cuadro-informes-temporada-fixtures.js');
+    var H = conScripts(A.cargar({ archivo: P, db: {}, rol: 'admin' }));
+    H.ctx.window.__FIXTURE__ = FX; await H.ev('iniciar()');
+    ok('14.8 con la semilla: ninguna lectura al Worker y 24 tarjetas', H.S.calls.length === 0 && (H.g('casas').innerHTML.match(/<a class="casa /g) || []).length === 24, H.S.calls.length);
+    ir(H, '#t=2026&v=casa:' + FX.villas[0].villaid); await H.espera(40);
+    ok('14.8 la casa con la semilla: comparación con la temporada previa de la semilla, sin Worker', H.S.calls.length === 0 && /Comparación con 2025/.test(H.g('cuerpo').innerHTML) && !/Cargando/.test(H.g('cuerpo').innerHTML));
+    var H2 = A.cargar({ archivo: P, db: dbGrande(), rol: 'admin' }); await H2.ev('iniciar()');
+    ok('14.8 sin los scripts del cuadro: "Faltan archivos del cuadro" y ninguna lectura', /Faltan archivos del cuadro \(InformeScore, Rutas, Listas, Portada, Vistas, Extras\)/.test(H2.g('main').innerHTML) && H2.S.calls.length === 0, H2.g('main').innerHTML);
+    ok('14.8 la semilla solo existe si alguien la pone (window.__FIXTURE__), la página no la crea', /window\.__FIXTURE__\)\|\|null/.test(SRC) && !/window\.__FIXTURE__\s*=/.test(SRC));
+  });
+  await parte(async function () {
+    console.log('14.9 v3: los propósitos de las comprobaciones de la v2 sobre la pantalla, con la pantalla v3 (carga, errores, huecos, marcas)');
+    var H = cuadro(); H.S.falla(function (x) { return x.table === 'TaInformeTemporadaLineas'; }); await H.ev('iniciar()');
+    ok('14.9 líneas fallan: solo la línea roja con Reintentar', /No se pudieron leer los informes/.test(H.g('main').innerHTML) && /Reintentar/.test(H.g('main').innerHTML) && !/id="cuerpo"/.test(H.g('main').innerHTML));
+    await H.ev('iniciar()');
+    ok('14.9 Reintentar vuelve a pintar el cuadro (19 de 22)', /id="cuerpo"/.test(H.g('main').innerHTML) && /19 <span class="de">de 22/.test(H.g('tiles').innerHTML));
+    H.S.retrasa(function (x) { return x.table === 'TaInformeTemporada' && /temporada=2025/.test(x.where || ''); }, 150);
+    var p = H.ctx.cambiarTemporada(2025); await H.espera(20);
+    ok('14.9 en el hueco de 2025 solo "Cargando la temporada 2025…" (nada de 2026) y el chip 2025 elegido', H.g('cuerpo').innerHTML === '<div class="msg">Cargando la temporada 2025…</div>' && /class="chip on" aria-pressed="true" data-temp="2025"/.test(H.g('filtros').innerHTML), H.g('cuerpo').innerHTML.slice(0, 120));
+    await p; await H.espera(10);
+    ok('14.9 al llegar 2025: 1 de 22', /1 <span class="de">de 22/.test(H.g('tiles').innerHTML));
+    var H2 = cuadro();
+    var p26 = function (x) { return x.table === 'TaInformeTemporadaLineas' && /^informe_id>=1 AND/.test(x.where || ''); };
+    H2.S.retrasa(p26, 200); H2.S.falla(p26);
+    var q = H2.ev('iniciar()');
+    await hasta(function () { return H2.S.calls.some(p26); });
+    await H2.ctx.cambiarTemporada(2025); await q; await H2.espera(30);
+    ok('14.9 2b: el fallo tardío de 2026 no tapa 2025 pintado', /id="cuerpo"/.test(H2.g('main').innerHTML) && !/No se pudieron leer/.test(H2.g('main').innerHTML) && /1 <span class="de">de 22/.test(H2.g('tiles').innerHTML));
+    function db1(nl, ni) {
+      var db = { TaVillas: [{ villaid: 1, Name: 'Son Bou', KeyHolder_person: '501', Status: 1 }], TaUsers: [], TaContacts: [{ ContactID: '501', Name: 'Kike' }], TaInformeTemporada: [], TaInformeTemporadaLineas: [] };
+      for (var i = 1; i <= ni; i++) db.TaInformeTemporada.push({ informe_id: i, villaid: i, temporada: 2026, estado: 'enviado' });
+      for (var k = 0; k < nl; k++) db.TaInformeTemporadaLineas.push({ linea_id: k + 1, informe_id: 1, seccion: 'interior', clave: 'x' + k, estado: 'Malo' });
+      return db;
+    }
+    var H3 = cuadro({ db: db1(999, 1) }); await H3.ev('iniciar()');
+    var H4 = cuadro({ db: db1(0, 499) }); await H4.ev('iniciar()');
+    ok('14.9 con 999 líneas y con 499 informes se pinta el cuadro (1 de 1)', /1 <span class="de">de 1</.test(H3.g('tiles').innerHTML) && /1 <span class="de">de 1</.test(H4.g('tiles').innerHTML) && !/No se pudieron leer/.test(H3.g('main').innerHTML + H4.g('main').innerHTML));
+    var H5 = cuadro(); await H5.ev('iniciar()');
+    ok('14.9 marcas: "Todas las marcas Malo · 12" (colchones de las 12 primeras; estancia/salón Malo no cuenta)', /Todas las marcas Malo · 12</.test(H5.g('rapidas').innerHTML) || /marcas:malo">[^<]*12</.test(H5.g('rapidas').innerHTML), H5.g('rapidas').innerHTML.slice(0, 400));
+    ok('14.9 mapa: Piscina 5 Regular y ninguna clave de estancia', /lista:mapa:piscina:regular" title="Ver las casas">5<\/a>/.test(H5.g('mapa').innerHTML) && !/lista:mapa:(salon|cocina|dormitorio|bano)[_:]/.test(H5.g('mapa').innerHTML) && /lista:elemento:mobiliario_cocina/.test(H5.g('mapa').innerHTML));
+    await H5.ctx.cambiarTemporada(2027);
+    ok('14.9 temporada vacía: el mapa todo h0 (130 cifras) y 22 tarjetas SIN INFORME', !/heat (h[1-4]|hr|hb|hs)"/.test(H5.g('mapa').innerHTML) && (H5.g('mapa').innerHTML.match(/heat h0"/g) || []).length === 130 && (H5.g('casas').innerHTML.match(/SIN INFORME/g) || []).length === 22);
   });
 })().then(function () {
   fin = true;
