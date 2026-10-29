@@ -274,5 +274,28 @@ var cneg = L.csv({ columnas: [{ clave: 'd', label: 'Diferencia', num: true }], f
 ok('un número negativo sale "-9,6" (sin apóstrofo: no es una fórmula)', cneg[1] === '-9,6', cneg[1]);
 ok('CSV de una lista vacía = solo la cabecera', L.csv(lista('coste')).replace(/^﻿/, '').split('\r\n').filter(Boolean).length === 1);
 
+console.log('14. Ronda de arreglos 1: "Acción recomendada", filtros de obras en la ruta y N/A');
+var colsOb = ob.columnas.map(function (c) { return c.label; });
+ok('obras: columna "Acción recomendada" justo después de "Actuación"', colsOb[2] === 'Actuación' && colsOb[3] === 'Acción recomendada', J(colsOb));
+var gr104 = lista('obras').filas.filter(function (f) { return f.villaid === 104 && /grifo/.test(f.accion); })[0] || {};
+ok('104: la acción recomendada de Baño 1 sale en su columna ("Cambiar grifo")', gr104.recomendada === 'Cambiar grifo', J(gr104));
+ok('una actuación solo de resumen no tiene acción recomendada', lista('obras', { fuente: 'resumen' }).filas.filter(function (f) { return f.fuentes.length === 1; }).every(function (f) { return f.recomendada === ''; }));
+ok('CSV de obras con la columna nueva', L.csv(lista('obras')).replace(/^﻿/, '').split('\r\n')[0] === 'Casa;VM;Actuación;Acción recomendada;Motivo / impacto;Origen;Prioridad;Coste;Detalle');
+var cE1 = { villaid: 1, villa: 'Solo acción', vm: '', vmId: '', informe_id: 1, estado: 'enviado', score: {}, flags: {},
+  lineas: [{ seccion: 'estancia', clave: 'cocina', texto_1: '', texto_2: 'Cambiar campana', prioridad: 'Alta' }],
+  acciones: [{ accion: 'Cambiar campana', prioridad: 'Alta', motivo: 'Cocina', fuentes: [{ seccion: 'estancia', clave: 'cocina', orden: 1 }], coste: null }] };
+var fA = L.listas('obras', {}, [cE1], null).filas[0] || {};
+ok('estancia con solo la acción: Actuación = la acción, sin repetirla en "Acción recomendada"', fA.accion === 'Cambiar campana' && fA.recomendada === '', J(fA));
+ok('ruta lista:obras:<prioridad>:<origen> = filtros de prioridad y origen', lista('obras:alta:estancia').filas.length === lista('obras', { prioridad: 'alta', fuente: 'estancia' }).filas.length && lista('obras:alta:estancia').filas.length > 0
+  && lista('obras:alta:estancia').filas.length < lista('obras:alta').filas.length + lista('obras', { fuente: 'estancia' }).filas.length
+  && lista('obras:alta:estancia').filas.every(function (f) { return f.prioridadClave === 'alta' && f.fuentes.some(function (x) { return x.seccion === 'estancia'; }); }));
+ok('ruta lista:obras:todas:resumen:sindetalle = origen resumen y sin detalle', lista('obras:todas:resumen:sindetalle').filas.length === lista('obras', { fuente: 'resumen', sindetalle: '1' }).filas.length
+  && lista('obras:todas:resumen:sindetalle').filas.every(function (f) { return f.detalle && f.fuentes.some(function (x) { return x.seccion === 'resumen'; }); }) && lista('obras:todas:resumen:sindetalle').filas.length < ob.filas.length);
+var cNa = { villaid: 2, villa: 'Con N/A', vm: '', vmId: '', informe_id: 2, estado: 'enviado', score: {}, flags: {}, acciones: [],
+  lineas: [{ seccion: 'interior', clave: 'sofas', estado: '', na: true, texto_1: 'No hay sofás' }, { seccion: 'interior', clave: 'menaje', estado: 'Bueno', na: 'x' }] };
+var mNa = L.listas('mapa', { partes: ['sofas', 'na'] }, [cNa], null);
+ok('mapa N/A (formulario v5): la casa con sofás en N/A sale en su lista, con su observación', mNa.filas.length === 1 && mNa.filas[0].marca === 'N/A' && mNa.filas[0].observacion === 'No hay sofás', J(mNa.filas));
+ok('N/A estricto: na = "x" no es N/A (menaje cuenta en Bueno)', L.marcasDe(cNa).menaje.marca === 'bueno' && L.listas('mapa', { partes: ['menaje', 'na'] }, [cNa], null).filas.length === 0);
+
 console.log('\n' + pass + ' PASS, ' + fail + ' FAIL');
 process.exitCode = fail ? 1 : 0;

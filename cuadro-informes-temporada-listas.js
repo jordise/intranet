@@ -40,7 +40,7 @@
   function defDe(clave) { var d = defs(); for (var i = 0; i < d.length; i++) if (d[i].clave === clave) return d[i]; return null; }
   function corto(clave) { var d = defDe(clave); return d ? String(d.label).replace(/\s*\(.*\)\s*/, '').trim() || d.label : clave; }
 
-  var MARCA = { bueno: 'Bueno', regular: 'Regular', malo: 'Malo', '': 'Sin marcar' };
+  var MARCA = { bueno: 'Bueno', regular: 'Regular', malo: 'Malo', na: 'N/A', '': 'Sin marcar' };
   var ESTADO = { enviado: 'Enviado', borrador: 'Borrador', '': 'Sin informe' };
   var RANGO = { alta: 3, media: 2, baja: 1 };
   var VER = { alta: 'Alto', media: 'Medio', baja: 'Bajo' };
@@ -119,7 +119,7 @@
     fotos: { clave: 'fotos', label: 'Fotos', num: true }
   };
   var BASE = [COL.villa, COL.vm];
-  var OBRA_COLS = [COL.villa, COL.vm, { clave: 'accion', label: 'Actuación' }, { clave: 'motivo', label: 'Motivo / impacto' },
+  var OBRA_COLS = [COL.villa, COL.vm, { clave: 'accion', label: 'Actuación' }, { clave: 'recomendada', label: 'Acción recomendada' }, { clave: 'motivo', label: 'Motivo / impacto' },
     { clave: 'origen', label: 'Origen' }, { clave: 'prioridad', label: 'Prioridad', tipo: 'prioridad', orden: 'rango' },
     { clave: 'coste', label: 'Coste', num: true }, { clave: 'detalle', label: 'Detalle' }];
   var NOTA_OBRAS = 'Actuaciones = resumen + incidencias por estancia, unidas cuando el texto es idéntico dentro del mismo informe; gana la prioridad más alta y se guardan todos los orígenes. Coste «—» hasta el formulario v5.';
@@ -198,13 +198,23 @@
       s === 'peligro' ? 'Ningún peligro señalado: el dato de peligro llega con el formulario v5; hoy el formulario no lo recoge.'
         : 'Ningún informe enviado tiene un peligro ni un Malo en electricidad, cerraduras, fontanería, barandillas, pavimentos o piscina.');
   }
+  /* "Acción recomendada" (texto_2 de las estancias de la actuación): los textos distintos, sin repetir el de la actuación */
+  function recomendadaDe(c, a) {
+    var t = textoAccion(a), out = [];
+    (Array.isArray(a.fuentes) ? a.fuentes : []).forEach(function (f) {
+      if (!f || f.seccion !== 'estancia') return;
+      var l = null; (c.lineas || []).forEach(function (x) { if (x && x.seccion === 'estancia' && String(x.clave) === String(f.clave)) l = x; });
+      var r = l ? tr(l.texto_2) : ''; if (r && r !== t && out.indexOf(r) < 0) out.push(r);
+    });
+    return out.join(' · ');
+  }
   /* Obras: filas de actuación de un conjunto de casas con los filtros de prioridad, origen y "sin detalle" */
   function filasObras(casas, f) {
     var out = [];
     casas.forEach(function (c) {
       acciones(c).forEach(function (a) {
         var pc = prioridadClave(a.prioridad), fu = Array.isArray(a.fuentes) ? a.fuentes : [], mot = tr(a.motivo);
-        var o = Object.assign(base(c), { accion: textoAccion(a), motivo: mot, fuentes: fu.slice(), origen: fu.map(fuenteTexto).join(' + '), unidas: fu.length > 1,
+        var o = Object.assign(base(c), { accion: textoAccion(a), recomendada: recomendadaDe(c, a), motivo: mot, fuentes: fu.slice(), origen: fu.map(fuenteTexto).join(' + '), unidas: fu.length > 1,
           prioridad: VER[pc] || '', prioridadClave: pc, rango: RANGO[pc] || 0, coste: null, detalle: !mot || !pc ? 'sin detalle' : '',
           orden: fu.length ? (parseInt(fu[0].orden, 10) || 0) + (fuenteSeccion(fu[0]) === 'estancia' ? 100 : 0) : 0 });
         out.push(o);
@@ -329,8 +339,7 @@
     var d = defDe(clave);
     if (!d) return L('Elemento desconocido', 'casas', MAPA_COLS, [], 'El elemento «' + (clave || '') + '» no es uno de los 26 del formulario.');
     var lab = corto(clave), m = lw(marca) || 'todas';
-    if (m === 'na') return L('Casas con ' + lab + ' en N/A', 'casas', MAPA_COLS, [],
-      'La marca N/A («no aplica») llega con el formulario v5. Hoy ningún informe puede marcarla; por eso la columna muestra «—».');
+    var vacioNa = 'La marca N/A («no aplica») llega con el formulario v5. Hoy ningún informe puede marcarla; por eso la columna muestra «—».';
     var mm = m === 'sin' ? '' : m;
     if (m !== 'todas' && !MARCA.hasOwnProperty(mm)) return L('Casas: ' + lab, 'casas', MAPA_COLS, [], 'La marca «' + marca + '» no existe: usa bueno, regular, malo, sin, na o todas.');
     var filas = casas.filter(enviada).slice().sort(porNombre).filter(function (c) { return m === 'todas' || (marcasDe(c)[clave] || {}).marca === mm; }).map(function (c) {
@@ -338,7 +347,7 @@
       return Object.assign(base(c), { clave: clave, elemento: lab, marca: MARCA[x.marca], marcaClave: x.marca || 'sin', observacion: x.obs, fotos: fotosDe(c), puntuacion: p, banda: bandaDe(p) });
     });
     return L(m === 'todas' ? 'Todos los informes enviados: ' + lab : m === 'sin' ? 'Casas con ' + lab + ' sin marcar' : 'Casas con ' + lab + ' en ' + MARCA[mm], 'casas', MAPA_COLS, filas,
-      'Ninguna casa con esta marca en ' + lab + ' (informes enviados).');
+      m === 'na' ? vacioNa : 'Ninguna casa con esta marca en ' + lab + ' (informes enviados).');
   }
   function elemento(casas, clave) {
     var x = mapa(casas, clave, 'todas');
@@ -407,7 +416,12 @@
       case 'condicion': x = condicion(cs); break;
       case 'provisionales': x = provisionales(cs); break;
       case 'alertas': x = alertas(cs, p[0]); break;
-      case 'obras': x = obras(cs, { prioridad: p[0] || a.prioridad, fuente: a.fuente, sindetalle: a.sindetalle }); break;
+      case 'obras': {
+        /* lista:obras:<prioridad|todas|sin|sindetalle>[:resumen|estancia][:sindetalle]: los filtros del cuadro viajan en la ruta (from de una casa) */
+        var ex = p.slice(1), fu = ex.filter(function (z) { return z === 'resumen' || z === 'estancia'; })[0];
+        x = obras(cs, { prioridad: p[0] === 'todas' ? '' : (p[0] || a.prioridad), fuente: fu || a.fuente, sindetalle: ex.indexOf('sindetalle') >= 0 ? '1' : a.sindetalle });
+        break;
+      }
       case 'review': x = review(cs); break;
       case 'comentarios': x = comentarios(cs, p[0], false); break;
       case 'atencion': x = atencion(cs); break;
